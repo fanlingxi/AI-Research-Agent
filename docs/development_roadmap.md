@@ -1,0 +1,51 @@
+# Development Roadmap
+
+## Phase 0: Planning
+
+- Define architecture
+- Define modules
+- Define development phases
+- Define GitHub-quality deliverables
+
+## Phase 1: Basic Agent Framework
+
+- Create project structure
+- Configure Python environment
+- Implement settings loader
+- Implement LLM provider abstraction
+- Implement Planner Agent
+- Implement basic tool calling
+- Implement LangGraph workflow
+- Provide CLI run command
+
+## Phase 2: Research Pipeline
+
+- Add web search and paper search tools
+- Add PDF parsing
+- Add document chunking
+- Add embeddings
+- Add Qdrant or Chroma retrieval
+
+## Phase 3: GraphRAG
+
+- Add entity extraction
+- Add relation extraction
+- Add Neo4j persistence
+- Add graph retrieval
+- Add graph-enhanced reasoning
+
+## Phase 4: Agent Capability Enhancement
+
+- Add long-term memory
+- Add reflection loop
+- Add Critic Agent
+- Add evaluation metrics
+- Add execution tracing
+
+## Phase 5: Productization
+
+- Add FastAPI endpoints
+- Add Streamlit UI
+- Add Docker Compose
+- Add complete README
+- Add demo screenshots and example reports
