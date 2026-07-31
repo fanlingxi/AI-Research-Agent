@@ -4,9 +4,9 @@
 
 AI-Research-Agent is designed as an autonomous research analysis system rather than a simple chatbot. The system separates planning, retrieval, knowledge extraction, reasoning, writing, reflection, memory, and evaluation into explicit components.
 
-## Phase 3 Scope
+## Phase 4 Scope
 
-Phase 3 extends the research pipeline into GraphRAG:
+Phase 4 extends GraphRAG into a fuller agent system:
 
 - typed workflow state
 - LLM provider abstraction
@@ -26,12 +26,18 @@ Phase 3 extends the research pipeline into GraphRAG:
 - in-memory graph store and Neo4j adapter
 - graph path retrieval
 - GraphRAG reasoning node
+- memory context retrieval
+- Critic Agent
+- Reflection Agent
+- Evaluation module
+- long-term memory writeback
 
 The workflow currently runs:
 
 ```mermaid
 flowchart LR
-    Q["Research Topic"] --> P["Planner Node"]
+    Q["Research Topic"] --> M["Memory Context Node"]
+    M --> P["Planner Node"]
     P --> T["Tool Executor Node"]
     T --> S["Search Node"]
     S --> D["Document Node"]
@@ -39,7 +45,10 @@ flowchart LR
     K --> R["Retrieval Node"]
     R --> G["Graph Reasoning Node"]
     G --> W["Synthesis Node"]
-    W --> END["Markdown Summary"]
+    W --> C["Critic Node"]
+    C --> Ref["Reflection Node"]
+    Ref --> MW["Memory Write Node"]
+    MW --> END["Final Markdown Summary"]
 ```
 
 ## Target Multi-Agent Workflow
@@ -61,9 +70,10 @@ flowchart TD
 - Neo4j stores entities, claims, papers, methods, datasets, and relationships.
 - The memory module stores previous topics, user preferences, and reusable research context.
 
-Phase 3 defaults to in-memory vector and graph stores so the demo runs without Docker. Set
+Phase 4 defaults to in-memory vector and graph stores so the demo runs without Docker. Set
 `VECTOR_STORE_PROVIDER=qdrant` or pass `--vector-store qdrant` after starting Qdrant.
 Set `GRAPH_STORE_PROVIDER=neo4j` or pass `--graph-store neo4j` after starting Neo4j.
+Phase 4 stores long-term memories in `data/memory/research_memory.json`, which is ignored by Git.
 
 ## GraphRAG Design
 
@@ -75,5 +85,6 @@ The GraphRAG layer combines:
 4. LLM reasoning over combined vector and graph evidence
 5. citation-aware report generation
 
-Current Phase 3 reasoning uses deterministic local synthesis so it can run without API keys.
-Later phases will add LLM-powered extraction, reflection, and evaluation loops.
+Current GraphRAG reasoning uses deterministic local synthesis so it can run without API keys.
+Current Phase 4 critic and evaluation use deterministic local scoring so tests remain stable.
+LLM-powered critique can be added later behind the same Critic Agent interface.

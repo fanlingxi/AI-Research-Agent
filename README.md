@@ -2,7 +2,7 @@
 
 AI Research Agent with GraphRAG is a multi-agent research analysis system. It is designed to take a research topic, plan the work, call tools, analyze documents, build a knowledge graph, run GraphRAG reasoning, and generate a structured research report.
 
-This repository is being built phase by phase. The current implementation is **Phase 3: GraphRAG**.
+This repository is being built phase by phase. The current implementation is **Phase 4: Agentic GraphRAG**.
 
 ## Core Features
 
@@ -19,6 +19,10 @@ This repository is being built phase by phase. The current implementation is **P
 - Entity and relation extraction
 - In-memory knowledge graph and Neo4j integration
 - Graph path retrieval and GraphRAG reasoning
+- Long-term JSON memory
+- Critic Agent feedback
+- Reflection-based report revision
+- Evaluation metrics for retrieval, graph quality, structure, and grounding
 - CLI demo for running the research pipeline
 
 ## Target Architecture
@@ -52,7 +56,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-By default, `.env.example` uses `LLM_PROVIDER=mock`, so the Phase 3 workflow can run without an API key.
+By default, `.env.example` uses `LLM_PROVIDER=mock`, so the Phase 4 workflow can run without an API key.
 
 To use OpenAI:
 
@@ -78,7 +82,7 @@ DEEPSEEK_API_KEY=your_api_key
 DEEPSEEK_MODEL=deepseek-chat
 ```
 
-## Run Phase 3 Demo
+## Run Phase 4 Demo
 
 ```bash
 python main.py run "GraphRAG for scientific literature review"
@@ -94,12 +98,21 @@ Expected output:
 - extracted entities and relations
 - graph paths
 - GraphRAG reasoning summary
-- a Phase 3 markdown summary
+- evaluation metrics
+- critic review
+- long-term memory write
+- a Phase 4 markdown summary
 
 Offline mode is the default so the project can run without network access:
 
 ```bash
 python main.py run "AI agents for scientific discovery" --offline
+```
+
+Disable memory for a stateless run:
+
+```bash
+python main.py run "AI agents for scientific discovery" --offline --no-memory
 ```
 
 Enable live arXiv search:
@@ -119,6 +132,8 @@ Use Neo4j after starting a local Neo4j service:
 ```bash
 python main.py run "GraphRAG for scientific literature review" --graph-store neo4j
 ```
+
+Long-term memory is stored locally at `data/memory/research_memory.json`. The JSON memory file is ignored by Git.
 
 Parse a local or remote PDF:
 

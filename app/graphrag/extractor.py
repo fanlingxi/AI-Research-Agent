@@ -54,7 +54,7 @@ ENTITY_PATTERNS: dict[str, list[str]] = {
 
 
 class GraphExtractor:
-    """Heuristic entity and relation extractor for the Phase 3 local demo.
+    """Heuristic entity and relation extractor for the local GraphRAG demo.
 
     The extractor intentionally avoids mandatory LLM calls so that GraphRAG can
     be validated offline. Later phases can replace this with prompt-based or
@@ -242,6 +242,7 @@ class GraphExtractor:
             "authors",
             "source",
             "abstract",
+            "year",
             "unknown authors",
             "ai-research-agent demo",
         }

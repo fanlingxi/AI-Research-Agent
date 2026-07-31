@@ -1,23 +1,44 @@
 from __future__ import annotations
 
+from app.agents.critic_agent import CriticAgent
 from app.agents.document_agent import DocumentAgent
 from app.agents.graph_reasoning_agent import GraphReasoningAgent
 from app.agents.knowledge_agent import KnowledgeAgent
+from app.agents.memory_agent import MemoryAgent
 from app.agents.planner import PlannerAgent
 from app.agents.reasoning_agent import ReasoningAgent
+from app.agents.reflection_agent import ReflectionAgent
 from app.agents.search_agent import SearchAgent
+from app.evaluation.evaluator import ResearchEvaluator
 from app.graph.state import ResearchState
 from app.schemas.documents import DocumentChunk, PaperMetadata, RetrievalHit
 from app.schemas.graph import GraphEntity, GraphPath, GraphRelation
+from app.schemas.quality import CritiqueResult, EvaluationResult
 from app.schemas.research import AgentTrace, ResearchPlan, ToolCall, ToolResult
 from app.tools.base import ToolRegistry
 from app.tools.research_tools import build_default_tool_registry
 
 
+def memory_context_node(state: ResearchState) -> ResearchState:
+    snapshot = MemoryAgent(enabled=state.get("memory_enabled")).recall(state["query"])
+
+    return {
+        "memory_context": snapshot.summary,
+        "memory_records": snapshot.records,
+        "traces": [
+            AgentTrace(
+                node="memory_context",
+                message="Retrieved long-term memory context.",
+                metadata={"records": len(snapshot.records)},
+            )
+        ],
+    }
+
+
 def planner_node(state: ResearchState) -> ResearchState:
     query = state["query"]
     planner = PlannerAgent()
-    plan = planner.create_plan(query)
+    plan = planner.create_plan(query, memory_context=state.get("memory_context", ""))
     for tool_call in plan.tool_calls:
         if tool_call.tool_name == "paper_search":
             tool_call.arguments["query"] = query
@@ -216,7 +237,7 @@ def synthesis_node(state: ResearchState) -> ResearchState:
     graph_paths = [GraphPath.model_validate(path) for path in state.get("graph_paths", [])]
 
     report_lines = [
-        f"# Phase 3 GraphRAG Research Result: {state['query']}",
+        f"# Phase 4 Agentic GraphRAG Research Result: {state['query']}",
         "",
         "## Objective",
         "",
@@ -301,12 +322,12 @@ def synthesis_node(state: ResearchState) -> ResearchState:
     report_lines.extend(
         [
             "",
-            "## Phase 3 Notes",
+            "## Phase 4 Notes",
             "",
             "This run validates GraphRAG: entity extraction, relation extraction, "
             "knowledge graph storage, graph path retrieval, and synthesis over both "
-            "vector evidence and graph structure. Phase 4 will add memory, reflection, "
-            "critic feedback, and evaluation metrics.",
+            "vector evidence and graph structure. Phase 4 adds long-term memory, "
+            "critic feedback, reflection, and evaluation metrics.",
         ]
     )
 
@@ -315,8 +336,96 @@ def synthesis_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="synthesis",
-                message="Generated Phase 3 GraphRAG markdown summary.",
+                message="Generated Phase 4 GraphRAG markdown summary.",
                 metadata={"tool_results": len(tool_results)},
+            )
+        ],
+    }
+
+
+def critic_node(state: ResearchState) -> ResearchState:
+    papers = [PaperMetadata.model_validate(paper) for paper in state.get("papers", [])]
+    retrieval_results = [
+        RetrievalHit.model_validate(hit) for hit in state.get("retrieval_results", [])
+    ]
+    graph_entities = [
+        GraphEntity.model_validate(entity) for entity in state.get("graph_entities", [])
+    ]
+    graph_relations = [
+        GraphRelation.model_validate(relation)
+        for relation in state.get("graph_relations", [])
+    ]
+    graph_paths = [GraphPath.model_validate(path) for path in state.get("graph_paths", [])]
+
+    evaluation = ResearchEvaluator().evaluate(
+        report=state.get("final_report", ""),
+        papers=papers,
+        retrieval_hits=retrieval_results,
+        graph_entities=graph_entities,
+        graph_relations=graph_relations,
+        graph_paths=graph_paths,
+    )
+    critique = CriticAgent().review(report=state.get("final_report", ""), evaluation=evaluation)
+
+    return {
+        "evaluation_result": evaluation,
+        "critique_result": critique,
+        "traces": [
+            AgentTrace(
+                node="critic",
+                message="Evaluated report quality and generated critique.",
+                metadata={
+                    "overall_score": evaluation.overall_score,
+                    "passed": evaluation.passed,
+                    "needs_revision": critique.needs_revision,
+                },
+            )
+        ],
+    }
+
+
+def reflection_node(state: ResearchState) -> ResearchState:
+    evaluation = EvaluationResult.model_validate(state["evaluation_result"])
+    critique = CritiqueResult.model_validate(state["critique_result"])
+    reflection = ReflectionAgent().revise(
+        report=state.get("final_report", ""),
+        evaluation=evaluation,
+        critique=critique,
+    )
+
+    return {
+        "final_report": reflection.revised_report,
+        "reflection_result": reflection,
+        "traces": [
+            AgentTrace(
+                node="reflection",
+                message="Applied critic feedback to the final report.",
+                metadata={"applied_suggestions": len(reflection.applied_suggestions)},
+            )
+        ],
+    }
+
+
+def memory_write_node(state: ResearchState) -> ResearchState:
+    evaluation = EvaluationResult.model_validate(state["evaluation_result"])
+    graph_entities = [
+        GraphEntity.model_validate(entity) for entity in state.get("graph_entities", [])
+    ]
+    tags = [entity.name for entity in graph_entities[:6]]
+    record = MemoryAgent(enabled=state.get("memory_enabled")).remember(
+        query=state["query"],
+        report=state.get("final_report", ""),
+        evaluation=evaluation,
+        tags=tags,
+    )
+
+    return {
+        "memory_record": record,
+        "traces": [
+            AgentTrace(
+                node="memory_write",
+                message="Processed long-term memory write.",
+                metadata={"saved": record is not None},
             )
         ],
     }

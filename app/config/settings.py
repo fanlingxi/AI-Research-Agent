@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     graph_max_hops: int = 2
     graph_top_k: int = 5
 
+    memory_enabled: bool = True
+    memory_path: str = "data/memory/research_memory.json"
+    memory_recall_limit: int = 3
+
+    evaluation_passing_score: float = 0.72
+    critic_min_score: float = 0.78
+
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "research_chunks"
     neo4j_uri: str = "bolt://localhost:7687"

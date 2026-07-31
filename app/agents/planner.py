@@ -32,7 +32,7 @@ Given a user research topic, produce a JSON plan with this schema:
   ]
 }
 
-Use only these Phase 3 initial tools:
+Use only these Phase 4 initial tools:
 - topic_keyword_expander(topic: str)
 - paper_search(query: str, limit: int, live_search: bool)
 
@@ -46,9 +46,15 @@ class PlannerAgent:
     def __init__(self, llm: LLMClient | None = None) -> None:
         self.llm = llm or get_llm_client()
 
-    def create_plan(self, query: str) -> ResearchPlan:
+    def create_plan(self, query: str, memory_context: str = "") -> ResearchPlan:
         prompt = f"{PLANNER_SYSTEM_PROMPT}\n\nUser research topic: {query}"
-        raw_response = self.llm.invoke(prompt)
+        if memory_context:
+            prompt = f"{prompt}\n\nLong-term memory context:\n{memory_context}"
+
+        try:
+            raw_response = self.llm.invoke(prompt)
+        except Exception:
+            return self._fallback_plan(query)
 
         try:
             payload = self._extract_json(raw_response)

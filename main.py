@@ -29,8 +29,13 @@ def run(
         "memory",
         help="Graph store provider: memory or neo4j.",
     ),
+    memory: bool = typer.Option(
+        True,
+        "--memory/--no-memory",
+        help="Enable or disable long-term memory for this run.",
+    ),
 ) -> None:
-    """Run the Phase 3 GraphRAG research pipeline."""
+    """Run the Phase 4 agentic GraphRAG research pipeline."""
 
     result = run_research_workflow(
         query=query,
@@ -39,6 +44,7 @@ def run(
         top_k=top_k,
         vector_store_provider=vector_store,
         graph_store_provider=graph_store,
+        memory_enabled=memory,
     )
     console.print(Panel(result["final_report"], title="AI-Research-Agent"))
 

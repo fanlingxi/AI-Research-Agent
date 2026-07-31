@@ -45,6 +45,8 @@
 - Add Critic Agent
 - Add evaluation metrics
 - Add execution tracing
+- Add memory recall before planning
+- Add quality review and report revision after synthesis
 
 ## Phase 5: Productization
 
