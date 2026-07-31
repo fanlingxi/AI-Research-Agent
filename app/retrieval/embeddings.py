@@ -25,7 +25,7 @@ class EmbeddingProvider(Protocol):
 class HashEmbeddingProvider:
     """Deterministic local embedding fallback.
 
-    This is intentionally lightweight. It lets the Phase 2 pipeline run without
+    This is intentionally lightweight. It lets the research pipeline run without
     downloading local models or calling an embedding API. Production runs can
     switch to OpenAI embeddings through configuration.
     """

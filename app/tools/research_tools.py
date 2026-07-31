@@ -1,5 +1,6 @@
 from app.schemas.research import ToolResult
 from app.tools.base import ResearchTool, ToolRegistry
+from app.tools.graph_tools import build_knowledge_graph, graph_rag_reasoning
 from app.tools.pdf_tools import parse_pdf
 from app.tools.search_tools import paper_search
 from app.tools.vector_tools import semantic_retrieval
@@ -94,6 +95,20 @@ def build_default_tool_registry() -> ToolRegistry:
             name="semantic_retrieval",
             description="Index chunks and return top-k semantically relevant contexts.",
             handler=semantic_retrieval,
+        )
+    )
+    registry.register(
+        ResearchTool(
+            name="build_knowledge_graph",
+            description="Extract entities and relations, store them, and retrieve graph paths.",
+            handler=build_knowledge_graph,
+        )
+    )
+    registry.register(
+        ResearchTool(
+            name="graph_rag_reasoning",
+            description="Combine vector hits and graph paths into a GraphRAG answer.",
+            handler=graph_rag_reasoning,
         )
     )
     return registry

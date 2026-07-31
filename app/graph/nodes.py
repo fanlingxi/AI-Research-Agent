@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from app.agents.document_agent import DocumentAgent
+from app.agents.graph_reasoning_agent import GraphReasoningAgent
+from app.agents.knowledge_agent import KnowledgeAgent
 from app.agents.planner import PlannerAgent
 from app.agents.reasoning_agent import ReasoningAgent
 from app.agents.search_agent import SearchAgent
 from app.graph.state import ResearchState
 from app.schemas.documents import DocumentChunk, PaperMetadata, RetrievalHit
+from app.schemas.graph import GraphEntity, GraphPath, GraphRelation
 from app.schemas.research import AgentTrace, ResearchPlan, ToolCall, ToolResult
 from app.tools.base import ToolRegistry
 from app.tools.research_tools import build_default_tool_registry
@@ -101,6 +104,34 @@ def document_node(state: ResearchState) -> ResearchState:
     }
 
 
+def knowledge_node(state: ResearchState) -> ResearchState:
+    chunks = [DocumentChunk.model_validate(chunk) for chunk in state.get("chunks", [])]
+    result = KnowledgeAgent().build_and_retrieve(
+        query=state["query"],
+        chunks=chunks,
+        graph_store_provider=state.get("graph_store_provider"),
+    )
+
+    return {
+        "graph_entities": result.graph.entities,
+        "graph_relations": result.graph.relations,
+        "graph_paths": result.graph_paths,
+        "traces": [
+            AgentTrace(
+                node="knowledge",
+                message="Extracted entities, relations, and graph paths.",
+                metadata={
+                    "entities": len(result.graph.entities),
+                    "relations": len(result.graph.relations),
+                    "paths": len(result.graph_paths),
+                    "graph_store": result.graph.graph_store_provider,
+                    **result.graph.metadata,
+                },
+            )
+        ],
+    }
+
+
 def retrieval_node(state: ResearchState) -> ResearchState:
     chunks = [DocumentChunk.model_validate(chunk) for chunk in state.get("chunks", [])]
     result = ReasoningAgent().retrieve_and_answer(
@@ -122,6 +153,30 @@ def retrieval_node(state: ResearchState) -> ResearchState:
                     "hits": len(result.hits),
                     "vector_store": result.vector_store_provider,
                 },
+            )
+        ],
+    }
+
+
+def graph_reasoning_node(state: ResearchState) -> ResearchState:
+    vector_hits = [
+        RetrievalHit.model_validate(hit) for hit in state.get("retrieval_results", [])
+    ]
+    graph_paths = [GraphPath.model_validate(path) for path in state.get("graph_paths", [])]
+    result = GraphReasoningAgent().reason(
+        query=state["query"],
+        vector_hits=vector_hits,
+        graph_paths=graph_paths,
+    )
+
+    return {
+        "graph_paths": result.graph_paths,
+        "graphrag_answer": result.answer,
+        "traces": [
+            AgentTrace(
+                node="graph_reasoning",
+                message="Synthesized vector evidence and graph paths.",
+                metadata=result.metadata,
             )
         ],
     }
@@ -151,9 +206,17 @@ def synthesis_node(state: ResearchState) -> ResearchState:
     retrieval_results = [
         RetrievalHit.model_validate(hit) for hit in state.get("retrieval_results", [])
     ]
+    graph_entities = [
+        GraphEntity.model_validate(entity) for entity in state.get("graph_entities", [])
+    ]
+    graph_relations = [
+        GraphRelation.model_validate(relation)
+        for relation in state.get("graph_relations", [])
+    ]
+    graph_paths = [GraphPath.model_validate(path) for path in state.get("graph_paths", [])]
 
     report_lines = [
-        f"# Phase 2 Research Pipeline Result: {state['query']}",
+        f"# Phase 3 GraphRAG Research Result: {state['query']}",
         "",
         "## Objective",
         "",
@@ -217,17 +280,33 @@ def synthesis_node(state: ResearchState) -> ResearchState:
     else:
         report_lines.append("No evidence was retrieved.")
 
-    report_lines.extend(["", "## RAG Summary", "", state.get("rag_answer", "")])
+    report_lines.extend(["", "## Knowledge Graph", ""])
+    report_lines.append(f"- Entities extracted: {len(graph_entities)}")
+    report_lines.append(f"- Relations extracted: {len(graph_relations)}")
+    report_lines.append(f"- Graph paths retrieved: {len(graph_paths)}")
+
+    if graph_paths:
+        report_lines.extend(["", "## Graph Paths", ""])
+        for index, path in enumerate(graph_paths, start=1):
+            node_names = " -> ".join(node.name for node in path.nodes)
+            relation_types = ", ".join(relation.type for relation in path.relations)
+            report_lines.append(
+                f"- Path {index}: {node_names} "
+                f"(relations={relation_types}; score={path.score:.2f})"
+            )
+
+    report_lines.extend(["", "## Vector RAG Summary", "", state.get("rag_answer", "")])
+    report_lines.extend(["", "## GraphRAG Summary", "", state.get("graphrag_answer", "")])
 
     report_lines.extend(
         [
             "",
-            "## Phase 2 Notes",
+            "## Phase 3 Notes",
             "",
-            "This run validates the research pipeline: search, document normalization, "
-            "chunking, embeddings, vector indexing, and RAG retrieval. "
-            "Phase 3 will add entity extraction, relation extraction, Neo4j storage, "
-            "graph retrieval, and multi-hop GraphRAG reasoning.",
+            "This run validates GraphRAG: entity extraction, relation extraction, "
+            "knowledge graph storage, graph path retrieval, and synthesis over both "
+            "vector evidence and graph structure. Phase 4 will add memory, reflection, "
+            "critic feedback, and evaluation metrics.",
         ]
     )
 
@@ -236,7 +315,7 @@ def synthesis_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="synthesis",
-                message="Generated Phase 2 markdown summary.",
+                message="Generated Phase 3 GraphRAG markdown summary.",
                 metadata={"tool_results": len(tool_results)},
             )
         ],

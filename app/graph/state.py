@@ -1,6 +1,7 @@
 from typing import Annotated, Any, TypedDict
 
 from app.schemas.documents import DocumentChunk, PaperMetadata, RetrievalHit
+from app.schemas.graph import GraphEntity, GraphPath, GraphRelation
 from app.schemas.research import AgentTrace, ToolResult
 
 
@@ -16,12 +17,17 @@ class ResearchState(TypedDict, total=False):
     paper_limit: int
     top_k: int
     vector_store_provider: str
+    graph_store_provider: str
     plan: dict[str, Any]
     tool_results: Annotated[list[ToolResult], append_list]
     papers: list[PaperMetadata]
     chunks: list[DocumentChunk]
     retrieval_results: list[RetrievalHit]
     rag_answer: str
+    graph_entities: list[GraphEntity]
+    graph_relations: list[GraphRelation]
+    graph_paths: list[GraphPath]
+    graphrag_answer: str
     traces: Annotated[list[AgentTrace], append_list]
     final_report: str
     errors: Annotated[list[str], append_list]

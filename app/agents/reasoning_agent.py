@@ -61,12 +61,12 @@ class ReasoningAgent:
         lines.extend(
             [
                 "",
-                "Phase 2 interpretation:",
+                "Vector RAG interpretation:",
                 "The system can now collect candidate papers, convert them into chunks, "
                 "index them in a vector store, and retrieve evidence for downstream "
                 "report writing. "
-                "Phase 3 will replace this evidence-only reasoning with GraphRAG "
-                "traversal over Neo4j.",
+                "The GraphRAG node then combines this vector evidence with graph "
+                "paths from the knowledge graph.",
             ]
         )
         return "\n".join(lines)

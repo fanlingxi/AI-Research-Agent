@@ -25,8 +25,12 @@ def run(
         "memory",
         help="Vector store provider: memory or qdrant.",
     ),
+    graph_store: str = typer.Option(
+        "memory",
+        help="Graph store provider: memory or neo4j.",
+    ),
 ) -> None:
-    """Run the Phase 2 research pipeline."""
+    """Run the Phase 3 GraphRAG research pipeline."""
 
     result = run_research_workflow(
         query=query,
@@ -34,6 +38,7 @@ def run(
         paper_limit=paper_limit,
         top_k=top_k,
         vector_store_provider=vector_store,
+        graph_store_provider=graph_store,
     )
     console.print(Panel(result["final_report"], title="AI-Research-Agent"))
 

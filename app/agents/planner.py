@@ -32,7 +32,7 @@ Given a user research topic, produce a JSON plan with this schema:
   ]
 }
 
-Use only these Phase 2 tools:
+Use only these Phase 3 initial tools:
 - topic_keyword_expander(topic: str)
 - paper_search(query: str, limit: int, live_search: bool)
 

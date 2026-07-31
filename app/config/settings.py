@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     vector_store_provider: Literal["memory", "qdrant"] = "memory"
     retrieval_top_k: int = 5
 
+    graph_store_provider: Literal["memory", "neo4j"] = "memory"
+    graph_entities_per_chunk: int = 8
+    graph_max_hops: int = 2
+    graph_top_k: int = 5
+
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "research_chunks"
     neo4j_uri: str = "bolt://localhost:7687"

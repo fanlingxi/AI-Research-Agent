@@ -35,6 +35,8 @@
 - Add Neo4j persistence
 - Add graph retrieval
 - Add graph-enhanced reasoning
+- Combine vector hits and graph paths in the workflow
+- Keep in-memory fallback for local development
 
 ## Phase 4: Agent Capability Enhancement
 
