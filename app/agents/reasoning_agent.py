@@ -16,7 +16,7 @@ class ReasoningResult:
 
 
 class ReasoningAgent:
-    """Run Phase 2 RAG retrieval and generate an evidence summary."""
+    """Run vector RAG retrieval and generate an evidence summary."""
 
     def retrieve_and_answer(
         self,
@@ -47,26 +47,24 @@ class ReasoningAgent:
 
     def _build_answer(self, query: str, hits: list[RetrievalHit]) -> str:
         if not hits:
-            return "No relevant chunks were retrieved yet."
+            return "暂未检索到相关文档切片。"
 
         lines = [
-            f"RAG evidence summary for: {query}",
+            f"向量 RAG 证据摘要：{query}",
             "",
-            "Most relevant evidence:",
+            "最相关证据：",
         ]
         for index, hit in enumerate(hits, start=1):
             snippet = hit.text.replace("\n", " ")[:420]
-            lines.append(f"{index}. {hit.title} (score={hit.score:.3f}) — {snippet}")
+            lines.append(f"{index}. {hit.title} (分数={hit.score:.3f}) — {snippet}")
 
         lines.extend(
             [
                 "",
-                "Vector RAG interpretation:",
-                "The system can now collect candidate papers, convert them into chunks, "
-                "index them in a vector store, and retrieve evidence for downstream "
-                "report writing. "
-                "The GraphRAG node then combines this vector evidence with graph "
-                "paths from the knowledge graph.",
+                "向量 RAG 解读：",
+                "系统已经能够收集候选论文、构造文档切片、写入向量索引，"
+                "并为后续报告生成检索证据。GraphRAG 节点会进一步将这些向量证据"
+                "与知识图谱路径结合起来，形成更适合科研分析的多跳推理上下文。",
             ]
         )
         return "\n".join(lines)

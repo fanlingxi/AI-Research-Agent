@@ -4,6 +4,8 @@
 
 AI-Research-Agent is designed as an autonomous research analysis system rather than a simple chatbot. The system separates planning, retrieval, knowledge extraction, reasoning, writing, reflection, memory, and evaluation into explicit components.
 
+The default user-facing report language is Chinese, while code modules and tool identifiers remain English for engineering clarity.
+
 ## Phase 4 Scope
 
 Phase 4 extends GraphRAG into a fuller agent system:

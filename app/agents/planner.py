@@ -8,9 +8,12 @@ from pydantic import ValidationError
 from app.llms.provider import LLMClient, get_llm_client
 from app.schemas.research import ResearchPlan, ResearchPlanStep, ToolCall
 
-PLANNER_SYSTEM_PROMPT = """You are the Planner Agent in an AI research system.
+PLANNER_SYSTEM_PROMPT = """你是 AI Research Agent 系统中的 Planner Agent。
 
-Given a user research topic, produce a JSON plan with this schema:
+请根据用户输入的研究主题，生成一个结构化 JSON 研究计划。
+除 tool_name、agent 这类固定字段外，自然语言内容必须优先使用中文。
+
+JSON schema:
 
 {
   "objective": "string",
@@ -32,11 +35,11 @@ Given a user research topic, produce a JSON plan with this schema:
   ]
 }
 
-Use only these Phase 4 initial tools:
+只能使用这些 Phase 4 初始工具：
 - topic_keyword_expander(topic: str)
 - paper_search(query: str, limit: int, live_search: bool)
 
-Return JSON only.
+只返回 JSON，不要输出解释性文本。
 """
 
 
@@ -47,9 +50,9 @@ class PlannerAgent:
         self.llm = llm or get_llm_client()
 
     def create_plan(self, query: str, memory_context: str = "") -> ResearchPlan:
-        prompt = f"{PLANNER_SYSTEM_PROMPT}\n\nUser research topic: {query}"
+        prompt = f"{PLANNER_SYSTEM_PROMPT}\n\n用户研究主题：{query}"
         if memory_context:
-            prompt = f"{prompt}\n\nLong-term memory context:\n{memory_context}"
+            prompt = f"{prompt}\n\n长期记忆上下文：\n{memory_context}"
 
         try:
             raw_response = self.llm.invoke(prompt)
@@ -100,48 +103,48 @@ class PlannerAgent:
 
     def _fallback_plan(self, query: str) -> ResearchPlan:
         return ResearchPlan(
-            objective=f"Research and synthesize the topic: {query}",
+            objective=f"围绕主题进行科研资料检索、GraphRAG 分析和结构化总结：{query}",
             research_questions=[
-                "What are the key concepts and technical background?",
-                "Which papers, systems, and benchmarks are most relevant?",
-                "What are the main limitations and promising future directions?",
+                "该主题的核心概念、技术背景和研究脉络是什么？",
+                "哪些论文、系统和基准最值得重点分析？",
+                "当前方法有哪些主要局限，未来有哪些值得探索的方向？",
             ],
             steps=[
                 ResearchPlanStep(
                     id="S1",
-                    description="Expand the research topic into concrete search keywords.",
+                    description="将研究主题扩展为具体检索关键词。",
                     agent="Search Agent",
-                    expected_output="Search keyword set",
+                    expected_output="检索关键词集合",
                 ),
                 ResearchPlanStep(
                     id="S2",
-                    description="Collect candidate papers and technical sources.",
+                    description="收集候选论文和技术资料。",
                     agent="Search Agent",
-                    expected_output="Candidate source list",
+                    expected_output="候选资料列表",
                 ),
                 ResearchPlanStep(
                     id="S3",
-                    description="Prepare a structure for later GraphRAG extraction and reasoning.",
+                    description="为后续 GraphRAG 实体抽取、关系抽取和图谱推理准备结构。",
                     agent="Knowledge Agent",
-                    expected_output="Entity and relation extraction checklist",
+                    expected_output="实体与关系抽取清单",
                 ),
                 ResearchPlanStep(
                     id="S4",
-                    description="Draft a research report outline from the collected evidence.",
+                    description="基于检索证据和图谱路径生成研究报告大纲。",
                     agent="Writer Agent",
-                    expected_output="Markdown report outline",
+                    expected_output="Markdown 报告大纲",
                 ),
             ],
             tool_calls=[
                 ToolCall(
                     tool_name="topic_keyword_expander",
                     arguments={"topic": query},
-                    purpose="Generate search keywords.",
+                    purpose="生成检索关键词。",
                 ),
                 ToolCall(
                     tool_name="paper_search",
                     arguments={"query": query, "limit": 5, "live_search": False},
-                    purpose="Collect candidate papers for research pipeline validation.",
+                    purpose="收集候选论文以验证研究流水线。",
                 ),
             ],
         )

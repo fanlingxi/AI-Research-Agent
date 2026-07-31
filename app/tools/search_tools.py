@@ -25,7 +25,7 @@ def paper_search(query: str, limit: int = 5, live_search: bool = False) -> ToolR
         return ToolResult(
             tool_name="paper_search",
             status="error",
-            content="Query cannot be empty.",
+            content="检索主题不能为空。",
             metadata={"papers": []},
         )
 
@@ -115,29 +115,24 @@ def parse_arxiv_response(xml_text: str) -> list[PaperMetadata]:
 def build_offline_demo_papers(query: str, limit: int = 5) -> list[PaperMetadata]:
     templates = [
         (
-            "Survey Foundations",
-            "A survey-style placeholder describing the core concepts, taxonomy, and evaluation "
-            "questions that a real search provider should collect for the topic.",
+            "综述基础",
+            "该离线示例用于模拟真实检索结果，概括主题的核心概念、分类框架和评估问题。",
         ),
         (
-            "Retrieval and Indexing",
-            "A placeholder focused on document acquisition, chunking, embeddings, vector search, "
-            "and evidence ranking for research-oriented RAG systems.",
+            "检索与索引",
+            "该离线示例聚焦文档获取、切片、向量表示、向量检索和证据排序。",
         ),
         (
-            "Knowledge Graph Construction",
-            "A placeholder focused on extracting entities, claims, methods, datasets, and "
-            "relationships before storing them in a scientific knowledge graph.",
+            "知识图谱构建",
+            "该离线示例聚焦实体、声明、方法、数据集和关系抽取，并写入科研知识图谱。",
         ),
         (
-            "Multi-hop Reasoning",
-            "A placeholder focused on combining vector retrieval with graph traversal and "
-            "citation-aware reasoning.",
+            "多跳推理",
+            "该离线示例聚焦将向量检索、图遍历和引用感知推理结合起来。",
         ),
         (
-            "Evaluation and Reflection",
-            "A placeholder focused on answer faithfulness, citation coverage, retrieval quality, "
-            "and critic-driven report revision.",
+            "评估与反思",
+            "该离线示例聚焦答案忠实性、引用覆盖、检索质量和 Critic 驱动的报告修订。",
         ),
     ]
 
@@ -148,13 +143,13 @@ def build_offline_demo_papers(query: str, limit: int = 5) -> list[PaperMetadata]
             PaperMetadata(
                 id=stable_paper_id("offline-demo", title=title, url=str(index)),
                 title=title,
-                authors=["AI-Research-Agent Demo"],
+                authors=["AI-Research-Agent 示例"],
                 abstract=abstract,
                 year=2026,
                 source="offline-demo",
                 url=None,
                 pdf_url=None,
-                metadata={"note": "Offline placeholder. Enable --live-search for arXiv results."},
+                metadata={"note": "离线占位数据。使用 --live-search 可获取 arXiv 结果。"},
             )
         )
     return papers
@@ -164,7 +159,7 @@ def format_paper_results(papers: list[PaperMetadata]) -> str:
     lines = []
     for paper in papers:
         year = paper.year or "n.d."
-        authors = ", ".join(paper.authors[:3]) if paper.authors else "Unknown authors"
+        authors = ", ".join(paper.authors[:3]) if paper.authors else "未知作者"
         url = f" <{paper.url}>" if paper.url else ""
         lines.append(f"- {paper.title} ({year}) — {authors} [{paper.source}]{url}")
     return "\n".join(lines)

@@ -69,6 +69,6 @@ def test_graph_reasoning_combines_vector_and_graph_context() -> None:
         graph_paths=paths,
     )
 
-    assert "GraphRAG reasoning summary" in result.answer
+    assert "GraphRAG 推理摘要" in result.answer
     assert result.metadata["vector_hits"] == 1
     assert result.metadata["graph_paths"] >= 1

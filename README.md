@@ -4,6 +4,8 @@ AI Research Agent with GraphRAG is a multi-agent research analysis system. It is
 
 This repository is being built phase by phase. The current implementation is **Phase 4: Agentic GraphRAG**.
 
+默认交互和报告输出优先面向中文用户；工具名和模块名保留英文，方便工程调试和 GitHub 展示。
+
 ## Core Features
 
 - LangGraph-based agent workflow
@@ -79,40 +81,52 @@ To use DeepSeek:
 ```env
 LLM_PROVIDER=deepseek
 DEEPSEEK_API_KEY=your_api_key
-DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_MODEL=deepseek-v4-flash
 ```
+
+DeepSeek 推荐模型：
+
+```env
+# 更快、更适合日常开发验证
+DEEPSEEK_MODEL=deepseek-v4-flash
+
+# 更强、更适合高质量报告生成
+DEEPSEEK_MODEL=deepseek-v4-pro
+```
+
+项目配置层会校验 DeepSeek 模型名，目前仅允许 `deepseek-v4-flash` 和 `deepseek-v4-pro`，避免误用旧模型名。
 
 ## Run Phase 4 Demo
 
 ```bash
-python main.py run "GraphRAG for scientific literature review"
+python main.py run "GraphRAG 在科研文献综述中的应用"
 ```
 
 Expected output:
 
-- a structured research plan
-- planned tool calls
-- candidate paper collection
-- document chunks
-- vector retrieval results
-- extracted entities and relations
-- graph paths
-- GraphRAG reasoning summary
-- evaluation metrics
-- critic review
-- long-term memory write
-- a Phase 4 markdown summary
+- 中文结构化研究计划
+- 工具调用结果
+- 候选论文集合
+- 文档切片统计
+- 向量检索证据
+- 实体和关系抽取结果
+- 图谱路径
+- GraphRAG 推理总结
+- Evaluation 评估指标
+- Critic Review 审查意见
+- 长期记忆写入
+- Phase 4 Markdown 研究报告
 
 Offline mode is the default so the project can run without network access:
 
 ```bash
-python main.py run "AI agents for scientific discovery" --offline
+python main.py run "AI Agent 在科学发现中的应用" --offline
 ```
 
 Disable memory for a stateless run:
 
 ```bash
-python main.py run "AI agents for scientific discovery" --offline --no-memory
+python main.py run "AI Agent 在科学发现中的应用" --offline --no-memory
 ```
 
 Enable live arXiv search:

@@ -1,8 +1,10 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+SUPPORTED_DEEPSEEK_MODELS = {"deepseek-v4-pro", "deepseek-v4-flash"}
 
 
 class Settings(BaseSettings):
@@ -23,7 +25,15 @@ class Settings(BaseSettings):
 
     deepseek_api_key: str | None = None
     deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_model: str = "deepseek-chat"
+    deepseek_model: str = "deepseek-v4-flash"
+
+    @field_validator("deepseek_model")
+    @classmethod
+    def validate_deepseek_model(cls, value: str) -> str:
+        if value not in SUPPORTED_DEEPSEEK_MODELS:
+            allowed = ", ".join(sorted(SUPPORTED_DEEPSEEK_MODELS))
+            raise ValueError(f"DEEPSEEK_MODEL 仅支持：{allowed}")
+        return value
 
     search_live_enabled: bool = False
     paper_search_limit: int = 5

@@ -244,6 +244,7 @@ class GraphExtractor:
             "abstract",
             "year",
             "unknown authors",
+            "ai-research-agent",
             "ai-research-agent demo",
         }
         return len(value) < 4 or value_lower in blocked or value_lower.endswith("demo")

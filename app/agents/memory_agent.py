@@ -24,16 +24,16 @@ class MemoryAgent:
 
     def recall(self, query: str) -> MemorySnapshot:
         if not self.enabled:
-            return MemorySnapshot(summary="Memory is disabled for this run.")
+            return MemorySnapshot(summary="本次运行已关闭长期记忆。")
 
         records = self.store.search(query=query, limit=self.recall_limit)
         if not records:
-            return MemorySnapshot(summary="No relevant prior research memories found.")
+            return MemorySnapshot(summary="未召回相关历史研究记忆。")
 
-        lines = ["Relevant prior research memories:"]
+        lines = ["召回到的相关历史研究记忆："]
         for record in records:
             lines.append(
-                f"- {record.query} | score={record.quality_score:.2f} | {record.summary}"
+                f"- {record.query} | 分数={record.quality_score:.2f} | {record.summary}"
             )
         return MemorySnapshot(records=records, summary="\n".join(lines))
 

@@ -31,8 +31,8 @@ class ResearchEvaluator:
             overall_score=overall,
             passed=overall >= settings.evaluation_passing_score,
             summary=(
-                f"Overall quality score {overall:.2f}. "
-                f"Passing threshold is {settings.evaluation_passing_score:.2f}."
+                f"综合质量评分为 {overall:.2f}，"
+                f"通过阈值为 {settings.evaluation_passing_score:.2f}。"
             ),
             metrics=metrics,
         )
@@ -42,7 +42,7 @@ class ResearchEvaluator:
         return EvaluationMetric(
             name="retrieval_coverage",
             score=round(score, 3),
-            reason=f"Retrieved {len(hits)} vector evidence chunks.",
+            reason=f"检索到 {len(hits)} 个向量证据片段。",
         )
 
     def _graph_metric(
@@ -59,24 +59,24 @@ class ResearchEvaluator:
             name="graph_quality",
             score=round(score, 3),
             reason=(
-                f"Extracted {len(entities)} entities, {len(relations)} relations, "
-                f"and {len(paths)} graph paths."
+                f"抽取到 {len(entities)} 个实体、{len(relations)} 条关系，"
+                f"并检索到 {len(paths)} 条图谱路径。"
             ),
         )
 
     def _report_structure_metric(self, report: str) -> EvaluationMetric:
         required_sections = [
-            "## Candidate Papers",
-            "## Retrieved Evidence",
-            "## Knowledge Graph",
-            "## GraphRAG Summary",
+            "## 候选论文",
+            "## 检索证据",
+            "## 知识图谱",
+            "## GraphRAG 推理总结",
         ]
         present = [section for section in required_sections if section in report]
         score = len(present) / len(required_sections)
         return EvaluationMetric(
             name="report_structure",
             score=round(score, 3),
-            reason=f"Found {len(present)} of {len(required_sections)} required sections.",
+            reason=f"找到 {len(present)} / {len(required_sections)} 个必要报告章节。",
         )
 
     def _grounding_metric(
@@ -87,7 +87,12 @@ class ResearchEvaluator:
         paths: list[GraphPath],
     ) -> EvaluationMetric:
         evidence_signals = len(papers) + len(hits) + len(paths)
-        has_source_mentions = "Source:" in report or "[offline-demo]" in report or "arxiv" in report
+        has_source_mentions = (
+            "来源" in report
+            or "Source:" in report
+            or "[offline-demo]" in report
+            or "arxiv" in report
+        )
         score = min(1.0, evidence_signals / 9)
         if has_source_mentions:
             score = min(1.0, score + 0.2)
@@ -96,7 +101,7 @@ class ResearchEvaluator:
             name="grounding",
             score=round(score, 3),
             reason=(
-                f"Detected {evidence_signals} evidence signals; "
-                f"source mentions present={has_source_mentions}."
+                f"检测到 {evidence_signals} 个证据信号；"
+                f"是否包含来源信息：{has_source_mentions}。"
             ),
         )

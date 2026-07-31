@@ -10,6 +10,21 @@ from app.tools.pdf_tools import parse_pdf_source
 cli = typer.Typer(help="AI Research Agent with GraphRAG")
 console = Console()
 
+TRACE_LABELS = {
+    "memory_context": "长期记忆召回",
+    "planner": "任务规划",
+    "tool_executor": "工具调用",
+    "search": "资料检索",
+    "document": "文档处理",
+    "knowledge": "知识图谱",
+    "retrieval": "向量检索",
+    "graph_reasoning": "图谱推理",
+    "synthesis": "报告生成",
+    "critic": "质量审查",
+    "reflection": "反思修订",
+    "memory_write": "长期记忆写入",
+}
+
 
 @cli.command()
 def run(
@@ -17,25 +32,25 @@ def run(
     live_search: bool = typer.Option(
         False,
         "--live-search/--offline",
-        help="Use live arXiv search. Offline mode uses deterministic demo papers.",
+        help="启用 arXiv 在线检索；离线模式使用确定性的演示论文。",
     ),
-    paper_limit: int = typer.Option(5, help="Number of candidate papers to collect."),
-    top_k: int = typer.Option(5, help="Number of retrieval chunks to return."),
+    paper_limit: int = typer.Option(5, help="候选论文数量。"),
+    top_k: int = typer.Option(5, help="返回的检索切片数量。"),
     vector_store: str = typer.Option(
         "memory",
-        help="Vector store provider: memory or qdrant.",
+        help="向量库提供方：memory 或 qdrant。",
     ),
     graph_store: str = typer.Option(
         "memory",
-        help="Graph store provider: memory or neo4j.",
+        help="图数据库提供方：memory 或 neo4j。",
     ),
     memory: bool = typer.Option(
         True,
         "--memory/--no-memory",
-        help="Enable or disable long-term memory for this run.",
+        help="是否启用长期记忆。",
     ),
 ) -> None:
-    """Run the Phase 4 agentic GraphRAG research pipeline."""
+    """运行 Phase 4 Agentic GraphRAG 科研分析流程。"""
 
     result = run_research_workflow(
         query=query,
@@ -50,21 +65,22 @@ def run(
 
     traces = result.get("traces", [])
     if traces:
-        console.print("\n[bold]Execution Trace[/bold]")
+        console.print("\n[bold]执行轨迹[/bold]")
         for trace in traces:
-            console.print(f"- {trace.node}: {trace.message}")
+            label = TRACE_LABELS.get(trace.node, trace.node)
+            console.print(f"- {label}: {trace.message}")
 
 
 @cli.command("parse-pdf")
 def parse_pdf(source: str, max_pages: int | None = None) -> None:
-    """Parse a local or remote PDF and print extraction metadata."""
+    """解析本地或远程 PDF，并打印抽取元信息。"""
 
     parsed = parse_pdf_source(source=source, max_pages=max_pages)
     console.print(
         Panel(
-            f"Source: {parsed.source}\nTitle: {parsed.title}\nPages: {parsed.pages}\n"
-            f"Characters: {len(parsed.text)}",
-            title="PDF Parsed",
+            f"来源：{parsed.source}\n标题：{parsed.title}\n页数：{parsed.pages}\n"
+            f"字符数：{len(parsed.text)}",
+            title="PDF 解析结果",
         )
     )
 

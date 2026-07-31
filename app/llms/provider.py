@@ -21,48 +21,48 @@ class MockLLMClient(LLMClient):
     def invoke(self, prompt: str) -> str:
         return """
 {
-  "objective": "Create an initial research plan for the requested topic.",
+  "objective": "围绕用户给定主题制定一份可执行的科研分析计划。",
   "research_questions": [
-    "What are the core concepts and definitions?",
-    "What are the most relevant papers, systems, or benchmarks?",
-    "What methods, limitations, and future directions should be compared?"
+    "该主题的核心概念、定义和研究背景是什么？",
+    "哪些论文、系统或基准最值得优先分析？",
+    "需要比较哪些方法、局限性和未来研究方向？"
   ],
   "steps": [
     {
       "id": "S1",
-      "description": "Expand the topic into search keywords and subtopics.",
+      "description": "将研究主题扩展为检索关键词和子问题。",
       "agent": "Search Agent",
-      "expected_output": "Keyword set and search strategy"
+      "expected_output": "关键词集合和检索策略"
     },
     {
       "id": "S2",
-      "description": "Collect candidate papers and technical resources.",
+      "description": "收集候选论文、技术报告和相关资料。",
       "agent": "Search Agent",
-      "expected_output": "Candidate source list"
+      "expected_output": "候选资料列表"
     },
     {
       "id": "S3",
-      "description": "Extract entities, methods, datasets, and relationships.",
+      "description": "抽取实体、方法、数据集、指标和关系。",
       "agent": "Knowledge Agent",
-      "expected_output": "Initial knowledge schema"
+      "expected_output": "初始知识图谱结构"
     },
     {
       "id": "S4",
-      "description": "Synthesize evidence into a structured research report.",
+      "description": "结合向量证据和图谱路径生成结构化研究报告。",
       "agent": "Writer Agent",
-      "expected_output": "Markdown report outline"
+      "expected_output": "Markdown 研究报告大纲"
     }
   ],
   "tool_calls": [
     {
       "tool_name": "topic_keyword_expander",
       "arguments": {"topic": "user topic"},
-      "purpose": "Generate search keywords for the research topic"
+      "purpose": "为研究主题生成检索关键词"
     },
     {
       "tool_name": "paper_search",
       "arguments": {"query": "user topic", "limit": 5, "live_search": false},
-      "purpose": "Collect candidate papers for the research topic"
+      "purpose": "为研究主题收集候选论文"
     }
   ]
 }
@@ -93,8 +93,9 @@ class LangChainChatClient(LLMClient):
             [
                 SystemMessage(
                     content=(
-                        "You are a senior AI research planning agent. "
-                        "Always return valid JSON that follows the requested schema."
+                        "你是一名资深 AI 科研规划智能体。"
+                        "请始终返回符合指定 schema 的合法 JSON，"
+                        "并且 JSON 中的自然语言内容优先使用中文。"
                     )
                 ),
                 HumanMessage(content=prompt),

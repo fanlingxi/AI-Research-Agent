@@ -9,13 +9,13 @@ from app.tools.vector_tools import semantic_retrieval
 def topic_keyword_expander(topic: str) -> ToolResult:
     """Create deterministic starter keywords."""
 
-    normalized_topic = topic.strip() or "AI research"
+    normalized_topic = topic.strip() or "AI 科研"
     keywords = [
         normalized_topic,
-        f"{normalized_topic} survey",
-        f"{normalized_topic} benchmark",
-        f"{normalized_topic} knowledge graph",
-        f"{normalized_topic} limitations",
+        f"{normalized_topic} 综述",
+        f"{normalized_topic} 基准评测",
+        f"{normalized_topic} 知识图谱",
+        f"{normalized_topic} 局限性",
     ]
     return ToolResult(
         tool_name="topic_keyword_expander",
@@ -30,19 +30,19 @@ def mock_paper_search(query: str, limit: int = 5) -> ToolResult:
 
     candidates = [
         {
-            "title": f"Survey on {query}",
+            "title": f"{query}：综述研究",
             "year": "2024",
             "source": "mock-arxiv",
             "url": "https://arxiv.org/",
         },
         {
-            "title": f"Graph-based Retrieval for {query}",
+            "title": f"{query}：图增强检索方法",
             "year": "2023",
             "source": "mock-semantic-scholar",
             "url": "https://www.semanticscholar.org/",
         },
         {
-            "title": f"Evaluation Methods for {query}",
+            "title": f"{query}：评估方法",
             "year": "2025",
             "source": "mock-openreview",
             "url": "https://openreview.net/",

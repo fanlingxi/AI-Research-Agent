@@ -28,7 +28,7 @@ def memory_context_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="memory_context",
-                message="Retrieved long-term memory context.",
+                message="已召回长期记忆上下文。",
                 metadata={"records": len(snapshot.records)},
             )
         ],
@@ -50,7 +50,7 @@ def planner_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="planner",
-                message="Created research plan.",
+                message="已生成研究计划。",
                 metadata={"steps": len(plan.steps), "tool_calls": len(plan.tool_calls)},
             )
         ],
@@ -74,7 +74,7 @@ def tool_executor_node(
         "traces": [
             AgentTrace(
                 node="tool_executor",
-                message="Executed planned tool calls.",
+                message="已执行计划中的工具调用。",
                 metadata={"tool_calls": len(results)},
             )
         ],
@@ -98,7 +98,7 @@ def search_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="search",
-                message="Collected candidate papers.",
+                message="已收集候选论文。",
                 metadata={
                     "papers": len(papers),
                     "live_search": state.get("live_search", False),
@@ -118,7 +118,7 @@ def document_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="document",
-                message="Converted papers into retrieval chunks.",
+                message="已将论文转换为检索切片。",
                 metadata={"papers": len(papers), "chunks": len(chunks)},
             )
         ],
@@ -140,7 +140,7 @@ def knowledge_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="knowledge",
-                message="Extracted entities, relations, and graph paths.",
+                message="已抽取实体、关系和图谱路径。",
                 metadata={
                     "entities": len(result.graph.entities),
                     "relations": len(result.graph.relations),
@@ -168,7 +168,7 @@ def retrieval_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="retrieval",
-                message="Indexed chunks and retrieved relevant evidence.",
+                message="已索引文档切片并检索相关证据。",
                 metadata={
                     "chunks": len(chunks),
                     "hits": len(result.hits),
@@ -196,7 +196,7 @@ def graph_reasoning_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="graph_reasoning",
-                message="Synthesized vector evidence and graph paths.",
+                message="已融合向量证据和图谱路径。",
                 metadata=result.metadata,
             )
         ],
@@ -237,24 +237,24 @@ def synthesis_node(state: ResearchState) -> ResearchState:
     graph_paths = [GraphPath.model_validate(path) for path in state.get("graph_paths", [])]
 
     report_lines = [
-        f"# Phase 4 Agentic GraphRAG Research Result: {state['query']}",
+        f"# Phase 4 Agentic GraphRAG 科研分析结果：{state['query']}",
         "",
-        "## Objective",
+        "## 研究目标",
         "",
         plan.objective,
         "",
-        "## Research Questions",
+        "## 研究问题",
         "",
     ]
 
     report_lines.extend(f"- {question}" for question in plan.research_questions)
-    report_lines.extend(["", "## Planned Steps", ""])
+    report_lines.extend(["", "## 执行计划", ""])
     report_lines.extend(
-        f"- **{step.id} | {step.agent}**: {step.description} "
-        f"(Expected: {step.expected_output})"
+        f"- **{step.id} | {_display_agent_name(step.agent)}**: {step.description} "
+        f"(预期输出：{step.expected_output})"
         for step in plan.steps
     )
-    report_lines.extend(["", "## Tool Results", ""])
+    report_lines.extend(["", "## 工具调用结果", ""])
 
     if tool_results:
         for result in tool_results:
@@ -267,67 +267,68 @@ def synthesis_node(state: ResearchState) -> ResearchState:
                 ]
             )
     else:
-        report_lines.append("No tools were executed.")
+        report_lines.append("未执行工具调用。")
 
-    report_lines.extend(["", "## Candidate Papers", ""])
+    report_lines.extend(["", "## 候选论文", ""])
     if papers:
         for paper in papers:
             year = paper.year or "n.d."
             url = f" <{paper.url}>" if paper.url else ""
             report_lines.append(f"- {paper.title} ({year}) [{paper.source}]{url}")
     else:
-        report_lines.append("No papers were collected.")
+        report_lines.append("暂未收集到候选论文。")
 
-    report_lines.extend(["", "## Document Processing", ""])
-    report_lines.append(f"- Papers processed: {len(papers)}")
-    report_lines.append(f"- Retrieval chunks created: {len(chunks)}")
+    report_lines.extend(["", "## 文档处理", ""])
+    report_lines.append(f"- 已处理论文数：{len(papers)}")
+    report_lines.append(f"- 已创建检索切片数：{len(chunks)}")
 
-    report_lines.extend(["", "## Retrieved Evidence", ""])
+    report_lines.extend(["", "## 检索证据", ""])
     if retrieval_results:
         for index, hit in enumerate(retrieval_results, start=1):
             snippet = hit.text.replace("\n", " ")[:360]
             report_lines.extend(
                 [
-                    f"### Evidence {index}: {hit.title}",
+                    f"### 证据 {index}：{hit.title}",
                     "",
-                    f"- Score: `{hit.score:.3f}`",
-                    f"- Chunk: `{hit.chunk_id}`",
-                    f"- Source: {hit.metadata.get('source', 'unknown')}",
+                    f"- 分数：`{hit.score:.3f}`",
+                    f"- 切片：`{hit.chunk_id}`",
+                    f"- 来源：{hit.metadata.get('source', 'unknown')}",
                     "",
                     snippet,
                     "",
                 ]
             )
     else:
-        report_lines.append("No evidence was retrieved.")
+        report_lines.append("暂未检索到相关证据。")
 
-    report_lines.extend(["", "## Knowledge Graph", ""])
-    report_lines.append(f"- Entities extracted: {len(graph_entities)}")
-    report_lines.append(f"- Relations extracted: {len(graph_relations)}")
-    report_lines.append(f"- Graph paths retrieved: {len(graph_paths)}")
+    report_lines.extend(["", "## 知识图谱", ""])
+    report_lines.append(f"- 抽取实体数：{len(graph_entities)}")
+    report_lines.append(f"- 抽取关系数：{len(graph_relations)}")
+    report_lines.append(f"- 检索图谱路径数：{len(graph_paths)}")
 
     if graph_paths:
-        report_lines.extend(["", "## Graph Paths", ""])
+        report_lines.extend(["", "## 图谱路径", ""])
         for index, path in enumerate(graph_paths, start=1):
             node_names = " -> ".join(node.name for node in path.nodes)
-            relation_types = ", ".join(relation.type for relation in path.relations)
+            relation_types = ", ".join(
+                _display_relation_type(relation.type) for relation in path.relations
+            )
             report_lines.append(
-                f"- Path {index}: {node_names} "
-                f"(relations={relation_types}; score={path.score:.2f})"
+                f"- 路径 {index}: {node_names} "
+                f"(关系={relation_types}; 分数={path.score:.2f})"
             )
 
-    report_lines.extend(["", "## Vector RAG Summary", "", state.get("rag_answer", "")])
-    report_lines.extend(["", "## GraphRAG Summary", "", state.get("graphrag_answer", "")])
+    report_lines.extend(["", "## 向量 RAG 总结", "", state.get("rag_answer", "")])
+    report_lines.extend(["", "## GraphRAG 推理总结", "", state.get("graphrag_answer", "")])
 
     report_lines.extend(
         [
             "",
-            "## Phase 4 Notes",
+            "## Phase 4 说明",
             "",
-            "This run validates GraphRAG: entity extraction, relation extraction, "
-            "knowledge graph storage, graph path retrieval, and synthesis over both "
-            "vector evidence and graph structure. Phase 4 adds long-term memory, "
-            "critic feedback, reflection, and evaluation metrics.",
+            "本次运行验证了完整的 Agentic GraphRAG 闭环：资料检索、文档切片、"
+            "实体/关系抽取、知识图谱存储、图谱路径检索、向量证据融合、"
+            "Critic 评审、Reflection 修订和长期记忆写入。",
         ]
     )
 
@@ -336,7 +337,7 @@ def synthesis_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="synthesis",
-                message="Generated Phase 4 GraphRAG markdown summary.",
+                message="已生成 Phase 4 GraphRAG Markdown 报告。",
                 metadata={"tool_results": len(tool_results)},
             )
         ],
@@ -373,7 +374,7 @@ def critic_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="critic",
-                message="Evaluated report quality and generated critique.",
+                message="已评估报告质量并生成 Critic 审查意见。",
                 metadata={
                     "overall_score": evaluation.overall_score,
                     "passed": evaluation.passed,
@@ -399,7 +400,7 @@ def reflection_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="reflection",
-                message="Applied critic feedback to the final report.",
+                message="已根据 Critic 反馈修订最终报告。",
                 metadata={"applied_suggestions": len(reflection.applied_suggestions)},
             )
         ],
@@ -424,8 +425,33 @@ def memory_write_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="memory_write",
-                message="Processed long-term memory write.",
+                message="已处理长期记忆写入。",
                 metadata={"saved": record is not None},
             )
         ],
     }
+
+
+def _display_agent_name(agent: str) -> str:
+    names = {
+        "planner agent": "规划智能体",
+        "search agent": "搜索智能体",
+        "document agent": "文档智能体",
+        "knowledge agent": "知识智能体",
+        "reasoning agent": "推理智能体",
+        "writer agent": "写作智能体",
+        "critic agent": "审查智能体",
+    }
+    return names.get(agent.strip().lower(), agent)
+
+
+def _display_relation_type(relation_type: str) -> str:
+    names = {
+        "DISCUSSES": "讨论",
+        "CO_OCCURS_WITH": "共现",
+        "BUILDS_ON": "基于",
+        "EVALUATES": "评估",
+        "USES": "使用",
+        "COMPARES_WITH": "对比",
+    }
+    return names.get(relation_type, relation_type)

@@ -63,19 +63,19 @@ class TextChunker:
 def paper_to_retrieval_text(paper: PaperMetadata) -> str:
     """Build text from metadata when the PDF has not been downloaded yet."""
 
-    authors = ", ".join(paper.authors[:8]) if paper.authors else "Unknown authors"
-    year = str(paper.year) if paper.year else "Unknown year"
-    abstract = paper.abstract or "No abstract was available from the search provider."
+    authors = ", ".join(paper.authors[:8]) if paper.authors else "未知作者"
+    year = str(paper.year) if paper.year else "未知年份"
+    abstract = paper.abstract or "检索来源未提供摘要。"
 
     return "\n".join(
         [
-            f"Title: {paper.title}",
-            f"Authors: {authors}",
-            f"Year: {year}",
-            f"Source: {paper.source}",
+            f"标题：{paper.title}",
+            f"作者：{authors}",
+            f"年份：{year}",
+            f"来源：{paper.source}",
             f"URL: {paper.url or 'N/A'}",
             "",
-            "Abstract:",
+            "摘要：",
             abstract,
         ]
     )

@@ -20,7 +20,7 @@ def semantic_retrieval(
         hits = retriever.search(query=query, top_k=top_k)
 
         content = "\n".join(
-            f"- {hit.title} | score={hit.score:.3f} | chunk={hit.chunk_id}" for hit in hits
+            f"- {hit.title} | 分数={hit.score:.3f} | 切片={hit.chunk_id}" for hit in hits
         )
         return ToolResult(
             tool_name="semantic_retrieval",

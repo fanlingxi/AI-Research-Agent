@@ -17,14 +17,14 @@ class ReflectionAgent:
 
         applied = []
         if critique.suggestions:
-            applied.append("Added critic suggestions and evaluation scores to the report.")
-        applied.append("Recorded quality review for long-term memory and future runs.")
+            applied.append("已将 Critic 建议和评估分数写入报告。")
+        applied.append("已记录质量审查结果，供长期记忆和后续运行复用。")
 
         return ReflectionResult(
             revised_report=revised_report,
             notes=[
-                "Reflection completed after GraphRAG synthesis.",
-                "No original evidence was removed during revision.",
+                "已在 GraphRAG 综合推理后完成反思修订。",
+                "修订过程中没有移除原始证据。",
             ],
             applied_suggestions=applied,
         )
@@ -35,13 +35,13 @@ class ReflectionAgent:
         critique: CritiqueResult,
     ) -> str:
         lines = [
-            "## Evaluation",
+            "## 评估结果",
             "",
-            f"- Overall score: `{evaluation.overall_score:.2f}`",
-            f"- Passed: `{evaluation.passed}`",
-            f"- Summary: {evaluation.summary}",
+            f"- 综合评分：`{evaluation.overall_score:.2f}`",
+            f"- 是否通过：`{evaluation.passed}`",
+            f"- 总结：{evaluation.summary}",
             "",
-            "### Metrics",
+            "### 指标明细",
             "",
         ]
         lines.extend(
@@ -49,19 +49,19 @@ class ReflectionAgent:
             for metric in evaluation.metrics
         )
 
-        lines.extend(["", "## Critic Review", "", "### Strengths", ""])
+        lines.extend(["", "## Critic 审查", "", "### 优点", ""])
         lines.extend(f"- {item}" for item in critique.strengths)
 
-        lines.extend(["", "### Issues", ""])
+        lines.extend(["", "### 问题", ""])
         if critique.issues:
             lines.extend(f"- {item}" for item in critique.issues)
         else:
-            lines.append("- No blocking issues found.")
+            lines.append("- 未发现阻塞性问题。")
 
-        lines.extend(["", "### Suggestions", ""])
+        lines.extend(["", "### 修改建议", ""])
         if critique.suggestions:
             lines.extend(f"- {item}" for item in critique.suggestions)
         else:
-            lines.append("- No revision suggestions required.")
+            lines.append("- 暂无必须修改的建议。")
 
         return "\n".join(lines)

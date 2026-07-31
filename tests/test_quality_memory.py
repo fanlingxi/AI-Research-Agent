@@ -26,11 +26,11 @@ def _quality_inputs():
     path = GraphPath(nodes=[entity], relations=[relation], score=1.0)
     report = "\n".join(
         [
-            "## Candidate Papers",
-            "## Retrieved Evidence",
+            "## 候选论文",
+            "## 检索证据",
             "Source: test",
-            "## Knowledge Graph",
-            "## GraphRAG Summary",
+            "## 知识图谱",
+            "## GraphRAG 推理总结",
         ]
     )
     return report, [paper], [hit], [entity], [relation], [path]
@@ -55,8 +55,8 @@ def test_evaluator_critic_and_reflection_append_quality_sections() -> None:
     )
 
     assert evaluation.metrics
-    assert "## Evaluation" in reflection.revised_report
-    assert "## Critic Review" in reflection.revised_report
+    assert "## 评估结果" in reflection.revised_report
+    assert "## Critic 审查" in reflection.revised_report
 
 
 def test_memory_agent_recalls_saved_research(tmp_path) -> None:
