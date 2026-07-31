@@ -25,7 +25,21 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
 
+    search_live_enabled: bool = False
+    paper_search_limit: int = 5
+
+    chunk_size: int = 900
+    chunk_overlap: int = 150
+
+    embedding_provider: Literal["hash", "openai"] = "hash"
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimension: int = 384
+
+    vector_store_provider: Literal["memory", "qdrant"] = "memory"
+    retrieval_top_k: int = 5
+
     qdrant_url: str = "http://localhost:6333"
+    qdrant_collection: str = "research_chunks"
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_username: str = "neo4j"
     neo4j_password: str = Field(default="password", repr=False)

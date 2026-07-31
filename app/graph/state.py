@@ -1,5 +1,6 @@
 from typing import Annotated, Any, TypedDict
 
+from app.schemas.documents import DocumentChunk, PaperMetadata, RetrievalHit
 from app.schemas.research import AgentTrace, ToolResult
 
 
@@ -11,8 +12,16 @@ class ResearchState(TypedDict, total=False):
     """State passed between LangGraph nodes."""
 
     query: str
+    live_search: bool
+    paper_limit: int
+    top_k: int
+    vector_store_provider: str
     plan: dict[str, Any]
     tool_results: Annotated[list[ToolResult], append_list]
+    papers: list[PaperMetadata]
+    chunks: list[DocumentChunk]
+    retrieval_results: list[RetrievalHit]
+    rag_answer: str
     traces: Annotated[list[AgentTrace], append_list]
     final_report: str
     errors: Annotated[list[str], append_list]

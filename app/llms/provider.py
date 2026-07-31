@@ -60,9 +60,9 @@ class MockLLMClient(LLMClient):
       "purpose": "Generate search keywords for the research topic"
     },
     {
-      "tool_name": "mock_paper_search",
-      "arguments": {"query": "user topic", "limit": 5},
-      "purpose": "Return placeholder paper candidates for Phase 1"
+      "tool_name": "paper_search",
+      "arguments": {"query": "user topic", "limit": 5, "live_search": false},
+      "purpose": "Collect candidate papers for the research topic"
     }
   ]
 }

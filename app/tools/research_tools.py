@@ -1,9 +1,12 @@
 from app.schemas.research import ToolResult
 from app.tools.base import ResearchTool, ToolRegistry
+from app.tools.pdf_tools import parse_pdf
+from app.tools.search_tools import paper_search
+from app.tools.vector_tools import semantic_retrieval
 
 
 def topic_keyword_expander(topic: str) -> ToolResult:
-    """Create deterministic starter keywords for Phase 1."""
+    """Create deterministic starter keywords."""
 
     normalized_topic = topic.strip() or "AI research"
     keywords = [
@@ -22,7 +25,7 @@ def topic_keyword_expander(topic: str) -> ToolResult:
 
 
 def mock_paper_search(query: str, limit: int = 5) -> ToolResult:
-    """Return placeholder paper candidates until Phase 2 adds real search."""
+    """Legacy placeholder search kept for backward compatibility."""
 
     candidates = [
         {
@@ -68,8 +71,29 @@ def build_default_tool_registry() -> ToolRegistry:
     registry.register(
         ResearchTool(
             name="mock_paper_search",
-            description="Return mock paper search results for Phase 1 workflow testing.",
+            description="Return legacy mock paper search results.",
             handler=mock_paper_search,
+        )
+    )
+    registry.register(
+        ResearchTool(
+            name="paper_search",
+            description="Search candidate papers through arXiv or offline fallback.",
+            handler=paper_search,
+        )
+    )
+    registry.register(
+        ResearchTool(
+            name="parse_pdf",
+            description="Parse a local or remote PDF into extracted text.",
+            handler=parse_pdf,
+        )
+    )
+    registry.register(
+        ResearchTool(
+            name="semantic_retrieval",
+            description="Index chunks and return top-k semantically relevant contexts.",
+            handler=semantic_retrieval,
         )
     )
     return registry

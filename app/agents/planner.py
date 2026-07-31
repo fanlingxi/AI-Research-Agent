@@ -8,7 +8,6 @@ from pydantic import ValidationError
 from app.llms.provider import LLMClient, get_llm_client
 from app.schemas.research import ResearchPlan, ResearchPlanStep, ToolCall
 
-
 PLANNER_SYSTEM_PROMPT = """You are the Planner Agent in an AI research system.
 
 Given a user research topic, produce a JSON plan with this schema:
@@ -26,16 +25,16 @@ Given a user research topic, produce a JSON plan with this schema:
   ],
   "tool_calls": [
     {
-      "tool_name": "topic_keyword_expander or mock_paper_search",
+      "tool_name": "topic_keyword_expander or paper_search",
       "arguments": {"topic or query": "string"},
       "purpose": "string"
     }
   ]
 }
 
-Use only these Phase 1 tools:
+Use only these Phase 2 tools:
 - topic_keyword_expander(topic: str)
-- mock_paper_search(query: str, limit: int)
+- paper_search(query: str, limit: int, live_search: bool)
 
 Return JSON only.
 """
@@ -76,12 +75,16 @@ class PlannerAgent:
             arguments = dict(call.arguments)
             if call.tool_name == "topic_keyword_expander":
                 arguments["topic"] = query
-            if call.tool_name == "mock_paper_search":
+            if call.tool_name in {"mock_paper_search", "paper_search"}:
+                tool_name = "paper_search"
                 arguments["query"] = query
                 arguments.setdefault("limit", 5)
+                arguments.setdefault("live_search", False)
+            else:
+                tool_name = call.tool_name
             normalized_calls.append(
                 ToolCall(
-                    tool_name=call.tool_name,
+                    tool_name=tool_name,
                     arguments=arguments,
                     purpose=call.purpose,
                 )
@@ -130,9 +133,9 @@ class PlannerAgent:
                     purpose="Generate search keywords.",
                 ),
                 ToolCall(
-                    tool_name="mock_paper_search",
-                    arguments={"query": query, "limit": 5},
-                    purpose="Collect placeholder papers for workflow validation.",
+                    tool_name="paper_search",
+                    arguments={"query": query, "limit": 5, "live_search": False},
+                    purpose="Collect candidate papers for research pipeline validation.",
                 ),
             ],
         )

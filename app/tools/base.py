@@ -6,7 +6,6 @@ from typing import Any
 
 from app.schemas.research import ToolCall, ToolResult
 
-
 ToolHandler = Callable[..., ToolResult]
 
 
@@ -23,7 +22,7 @@ class ResearchTool:
 
 
 class ToolRegistry:
-    """In-memory registry for Phase 1 tool calling."""
+    """In-memory registry for agent tool calling."""
 
     def __init__(self) -> None:
         self._tools: dict[str, ResearchTool] = {}

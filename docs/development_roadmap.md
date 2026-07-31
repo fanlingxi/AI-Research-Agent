@@ -25,6 +25,8 @@
 - Add document chunking
 - Add embeddings
 - Add Qdrant or Chroma retrieval
+- Add Search Agent, Document Agent, and Reasoning Agent integration
+- Add offline fallback for local demos
 
 ## Phase 3: GraphRAG
 

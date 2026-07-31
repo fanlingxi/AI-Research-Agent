@@ -2,7 +2,7 @@
 
 AI Research Agent with GraphRAG is a multi-agent research analysis system. It is designed to take a research topic, plan the work, call tools, analyze documents, build a knowledge graph, run GraphRAG reasoning, and generate a structured research report.
 
-This repository is being built phase by phase. The current implementation is **Phase 1: Basic Agent Framework**.
+This repository is being built phase by phase. The current implementation is **Phase 2: Research Pipeline**.
 
 ## Core Features
 
@@ -11,7 +11,12 @@ This repository is being built phase by phase. The current implementation is **P
 - Basic tool calling with a tool registry
 - LLM provider abstraction for OpenAI, Qwen, DeepSeek, and local mock mode
 - Typed research state and structured plan schema
-- CLI demo for running the first workflow
+- arXiv-compatible paper search with offline fallback
+- PDF parsing utility
+- Document chunking
+- Hash embeddings for local demos
+- In-memory vector retrieval and Qdrant integration
+- CLI demo for running the research pipeline
 
 ## Target Architecture
 
@@ -44,7 +49,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-By default, `.env.example` uses `LLM_PROVIDER=mock`, so the Phase 1 workflow can run without an API key.
+By default, `.env.example` uses `LLM_PROVIDER=mock`, so the Phase 2 workflow can run without an API key.
 
 To use OpenAI:
 
@@ -70,7 +75,7 @@ DEEPSEEK_API_KEY=your_api_key
 DEEPSEEK_MODEL=deepseek-chat
 ```
 
-## Run Phase 1 Demo
+## Run Phase 2 Demo
 
 ```bash
 python main.py run "GraphRAG for scientific literature review"
@@ -79,8 +84,35 @@ python main.py run "GraphRAG for scientific literature review"
 Expected output:
 
 - a structured research plan
-- mock tool calls
-- a Phase 1 markdown summary
+- planned tool calls
+- candidate paper collection
+- document chunks
+- vector retrieval results
+- a Phase 2 markdown summary
+
+Offline mode is the default so the project can run without network access:
+
+```bash
+python main.py run "AI agents for scientific discovery" --offline
+```
+
+Enable live arXiv search:
+
+```bash
+python main.py run "GraphRAG for scientific literature review" --live-search --paper-limit 5
+```
+
+Use Qdrant after starting a local Qdrant service:
+
+```bash
+python main.py run "GraphRAG for scientific literature review" --vector-store qdrant
+```
+
+Parse a local or remote PDF:
+
+```bash
+python main.py parse-pdf data/raw_papers/example.pdf --max-pages 5
+```
 
 ## Development Roadmap
 
