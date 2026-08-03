@@ -61,6 +61,8 @@ class ReflectionAgent:
             "",
             f"- 综合评分：`{evaluation.overall_score:.2f}`",
             f"- 是否通过：`{evaluation.passed}`",
+            f"- 证据状态：`{evaluation.evidence_status}`",
+            f"- 是否允许沉淀：`{evaluation.evidence_admissible}`",
             f"- 总结：{evaluation.summary}",
             "",
             "### 指标明细",

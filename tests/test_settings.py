@@ -12,3 +12,11 @@ def test_deepseek_model_accepts_project_models() -> None:
 def test_deepseek_model_rejects_legacy_names() -> None:
     with pytest.raises(ValidationError):
         Settings(deepseek_model="deepseek-chat")
+
+
+def test_phase_43_defaults_are_safe_for_local_development() -> None:
+    settings = Settings()
+
+    assert settings.memory_backend == "json"
+    assert not settings.obsidian_export_enabled
+    assert settings.obsidian_vault_path == "data/obsidian_vault"

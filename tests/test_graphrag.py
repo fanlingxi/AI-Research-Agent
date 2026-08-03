@@ -116,3 +116,24 @@ def test_graph_reasoning_combines_vector_and_graph_context() -> None:
     assert "GraphRAG 推理摘要" in result.answer
     assert result.metadata["vector_hits"] == 1
     assert result.metadata["graph_paths"] >= 1
+
+
+def test_graph_reasoning_supports_local_and_global_modes() -> None:
+    chunks = _demo_chunks()
+    graph = GraphExtractor(max_entities_per_chunk=8).extract(chunks)
+    store = InMemoryGraphStore()
+    store.upsert_graph(entities=graph.entities, relations=graph.relations)
+    paths = store.retrieve_paths("GraphRAG knowledge graph", max_hops=2, limit=3)
+    hit = RetrievalHit(
+        chunk_id=chunks[0].id,
+        paper_id=chunks[0].paper_id,
+        title=chunks[0].title,
+        text=chunks[0].text,
+        score=0.9,
+    )
+
+    local = GraphReasoningAgent().reason("GraphRAG", [hit], paths, query_mode="local")
+    global_result = GraphReasoningAgent().reason("GraphRAG", [hit], paths, query_mode="global")
+
+    assert local.metadata["graph_paths"] == 0
+    assert global_result.metadata["vector_hits"] == 0

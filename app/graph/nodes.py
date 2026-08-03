@@ -13,6 +13,7 @@ from app.agents.writer_agent import WriterAgent
 from app.evaluation.evaluator import ResearchEvaluator
 from app.graph.state import ResearchState
 from app.llms.provider import get_llm_client
+from app.obsidian.exporter import ObsidianVaultExporter
 from app.schemas.documents import DocumentChunk, PaperMetadata, RetrievalHit
 from app.schemas.graph import GraphEntity, GraphPath, GraphRelation
 from app.schemas.quality import CritiqueResult, EvaluationResult
@@ -199,9 +200,15 @@ def retrieval_node(state: ResearchState) -> ResearchState:
                     "chunks": len(chunks),
                     "hits": len(result.hits),
                     "vector_store": result.vector_store_provider,
+                    "fallback_reason": result.fallback_reason,
                 },
             )
         ],
+        "errors": (
+            [f"向量存储不可用，已降级到内存向量库：{result.fallback_reason}"]
+            if result.fallback_reason
+            else []
+        ),
     }
 
 
@@ -279,7 +286,7 @@ def synthesis_node(state: ResearchState) -> ResearchState:
     )
 
     report_lines = [
-        f"# Phase 4 Agentic GraphRAG 科研分析结果：{state['query']}",
+        f"# Phase 4.3 Evidence-Governed GraphRAG 科研分析结果：{state['query']}",
         "",
         "## 研究目标",
         "",
@@ -316,7 +323,9 @@ def synthesis_node(state: ResearchState) -> ResearchState:
         for paper in papers:
             year = paper.year or "n.d."
             url = f" <{paper.url}>" if paper.url else ""
-            report_lines.append(f"- {paper.title} ({year}) [{paper.source}]{url}")
+            report_lines.append(
+                f"- {paper.title} ({year}) [{paper.source}; {paper.source_tier}]{url}"
+            )
     else:
         report_lines.append("暂未收集到候选论文。")
 
@@ -346,6 +355,7 @@ def synthesis_node(state: ResearchState) -> ResearchState:
                     f"- 分数：`{hit.score:.3f}`",
                     f"- 切片：`{hit.chunk_id}`",
                     f"- 来源：{hit.metadata.get('source', 'unknown')}",
+                    f"- 证据等级：{hit.source_tier}",
                     "",
                     snippet,
                     "",
@@ -526,12 +536,26 @@ def memory_write_node(state: ResearchState) -> ResearchState:
         GraphEntity.model_validate(entity) for entity in state.get("graph_entities", [])
     ]
     tags = [entity.name for entity in graph_entities[:6]]
-    record = MemoryAgent(enabled=state.get("memory_enabled")).remember(
-        query=state["query"],
-        report=state.get("final_report", ""),
-        evaluation=evaluation,
-        tags=tags,
-    )
+    retrieval_results = [
+        RetrievalHit.model_validate(hit) for hit in state.get("retrieval_results", [])
+    ]
+    export_result = state.get("obsidian_export_result", {})
+    record = None
+    if evaluation.evidence_admissible:
+        source_quality = next(
+            (metric.score for metric in evaluation.metrics if metric.name == "source_quality"),
+            0.0,
+        )
+        record = MemoryAgent(enabled=state.get("memory_enabled")).remember(
+            query=state["query"],
+            report=state.get("final_report", ""),
+            evaluation=evaluation,
+            tags=tags,
+            run_id=state.get("run_id"),
+            source_quality=source_quality,
+            evidence_ids=[hit.chunk_id for hit in retrieval_results],
+            vault_note_path=export_result.get("run_note_path"),
+        )
 
     return {
         "memory_record": record,
@@ -541,9 +565,60 @@ def memory_write_node(state: ResearchState) -> ResearchState:
                 message=(
                     "已写入长期记忆。"
                     if record is not None
-                    else "已关闭长期记忆，跳过写入。"
+                    else (
+                        "证据未达到正式沉淀门槛，跳过长期记忆写入。"
+                        if state.get("memory_enabled", True)
+                        else "已关闭长期记忆，跳过写入。"
+                    )
                 ),
-                metadata={"saved": record is not None},
+                metadata={
+                    "saved": record is not None,
+                    "evidence_admissible": evaluation.evidence_admissible,
+                },
+            )
+        ],
+    }
+
+
+def obsidian_export_node(state: ResearchState) -> ResearchState:
+    """Export only source-qualified research results into a local Obsidian Vault."""
+
+    enabled = state.get("obsidian_export_enabled", False)
+    evaluation = EvaluationResult.model_validate(state["evaluation_result"])
+    if not enabled:
+        return {
+            "obsidian_export_result": {"exported": False, "reason": "Obsidian 导出已关闭。"},
+            "traces": [
+                AgentTrace(
+                    node="obsidian_export",
+                    message="已关闭 Obsidian Vault 导出。",
+                    metadata={"exported": False, "enabled": False},
+                )
+            ],
+        }
+
+    exporter = ObsidianVaultExporter(vault_path=state["obsidian_vault_path"])
+    result = exporter.export(
+        run_id=state["run_id"],
+        query=state["query"],
+        report=state.get("final_report", ""),
+        evaluation=evaluation,
+        papers=[PaperMetadata.model_validate(paper) for paper in state.get("papers", [])],
+        retrieval_hits=[
+            RetrievalHit.model_validate(hit) for hit in state.get("retrieval_results", [])
+        ],
+        entities=[GraphEntity.model_validate(entity) for entity in state.get("graph_entities", [])],
+        relations=[
+            GraphRelation.model_validate(relation) for relation in state.get("graph_relations", [])
+        ],
+    )
+    return {
+        "obsidian_export_result": result.model_dump(),
+        "traces": [
+            AgentTrace(
+                node="obsidian_export",
+                message=result.reason,
+                metadata={"exported": result.exported, "run_id": result.run_id},
             )
         ],
     }

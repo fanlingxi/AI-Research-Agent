@@ -48,6 +48,18 @@
 - Add memory recall before planning
 - Add quality review and report revision after synthesis
 
+## Phase 4.3: Evidence-Governed Knowledge Vault
+
+- Add source provenance tiers and a critical source-quality gate
+- Prevent offline demo evidence from entering memory or formal exports
+- Add Obsidian Markdown notes, Wiki Links, GraphML, and JSON exports
+
+## Phase 4.4: Research Quality and Memory Evolution
+
+- Abstract JSON memory through a MemoryStore protocol for a future Graphiti adapter
+- Add local, global, and hybrid GraphRAG query modes
+- Add query-personalized graph reranking and source metadata enrichment
+
 ## Phase 5: Productization
 
 - Add FastAPI endpoints
@@ -55,3 +67,4 @@
 - Add Docker Compose
 - Add complete README
 - Add demo screenshots and example reports
+- Add persistent Qdrant and Neo4j health checks with explicit fallback messages

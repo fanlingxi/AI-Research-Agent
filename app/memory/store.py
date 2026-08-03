@@ -3,8 +3,22 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Protocol
 
 from app.schemas.memory import MemoryRecord
+
+
+class MemoryStore(Protocol):
+    """Pluggable durable-memory contract; Graphiti can implement this later."""
+
+    def list_records(self) -> list[MemoryRecord]:
+        ...
+
+    def add_record(self, record: MemoryRecord) -> None:
+        ...
+
+    def search(self, query: str, limit: int = 3) -> list[MemoryRecord]:
+        ...
 
 
 class JsonMemoryStore:

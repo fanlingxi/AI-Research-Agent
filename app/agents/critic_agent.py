@@ -44,7 +44,12 @@ class CriticAgent:
         issues.extend(llm_feedback.get("issues", []))
         suggestions.extend(llm_feedback.get("suggestions", []))
 
-        critical_names = {"retrieval_relevance", "graph_quality", "citation_faithfulness"}
+        critical_names = {
+            "retrieval_relevance",
+            "graph_quality",
+            "citation_faithfulness",
+            "source_quality",
+        }
         has_critical_issue = any(
             metric.name in critical_names and metric.score < 0.65
             for metric in evaluation.metrics
@@ -114,5 +119,6 @@ class CriticAgent:
             "graph_quality": "清理图谱噪声实体，并提高图谱路径与研究主题的匹配度。",
             "report_structure": "补充证据、图谱和推理相关的必要报告章节。",
             "citation_faithfulness": "让每条核心结论明确关联到论文、检索切片和来源链接。",
+            "source_quality": "使用真实 PDF 或在线论文替换离线占位材料，并补齐来源元数据。",
         }
         return suggestions.get(metric_name, "检查该指标并继续完善报告。")

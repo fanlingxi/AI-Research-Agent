@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.config.settings import get_settings
+from app.evidence.provenance import assess_evidence
 from app.retrieval.relevance import (
     TOPIC_CONCEPTS,
     contains_concept,
@@ -33,16 +34,37 @@ class ResearchEvaluator:
             self._report_structure_metric(report),
             self._citation_metric(report, papers, retrieval_hits),
         ]
+        evidence = assess_evidence(
+            papers=papers,
+            hits=retrieval_hits,
+            minimum_score=settings.evidence_source_min_score,
+        )
+        metrics.append(
+            EvaluationMetric(
+                name="source_quality",
+                score=evidence.score,
+                reason=evidence.reason,
+            )
+        )
 
         overall = round(sum(metric.score for metric in metrics) / len(metrics), 3)
-        critical_names = {"retrieval_relevance", "graph_quality", "citation_faithfulness"}
+        critical_names = {
+            "retrieval_relevance",
+            "graph_quality",
+            "citation_faithfulness",
+            "source_quality",
+        }
         critical_failures = [
             metric.name
             for metric in metrics
             if metric.name in critical_names
             and metric.score < settings.evaluation_critical_min_score
         ]
-        passed = overall >= settings.evaluation_passing_score and not critical_failures
+        passed = (
+            overall >= settings.evaluation_passing_score
+            and not critical_failures
+            and evidence.admissible
+        )
         gate_note = (
             "关键指标均通过门槛。"
             if not critical_failures
@@ -56,6 +78,8 @@ class ResearchEvaluator:
                 f"通过阈值为 {settings.evaluation_passing_score:.2f}。{gate_note}"
             ),
             metrics=metrics,
+            evidence_status=evidence.status,
+            evidence_admissible=evidence.admissible,
         )
 
     def _retrieval_metric(self, hits: list[RetrievalHit]) -> EvaluationMetric:

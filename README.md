@@ -2,7 +2,7 @@
 
 AI Research Agent with GraphRAG is a multi-agent research analysis system. It is designed to take a research topic, plan the work, call tools, analyze documents, build a knowledge graph, run GraphRAG reasoning, and generate a structured research report.
 
-This repository is being built phase by phase. The current implementation is **Phase 4.2: Reflective Agentic GraphRAG**.
+This repository is being built phase by phase. The current implementation is **Phase 5: Evidence-Governed Agentic GraphRAG**.
 
 默认交互和报告输出优先面向中文用户；工具名和模块名保留英文，方便工程调试和 GitHub 展示。
 
@@ -28,6 +28,9 @@ This repository is being built phase by phase. The current implementation is **P
 - Post-reflection quality reevaluation
 - Quality-aware evaluation for retrieval coverage, relevance, graph paths, report structure, and citation fidelity
 - Critical quality gates that prevent high structural scores from masking low relevance
+- Source provenance tiers for primary full text, online metadata, and offline demos
+- Obsidian-compatible Markdown Vault export with GraphML and JSON graph artifacts
+- FastAPI task API, Streamlit research workspace, and Docker Compose deployment
 - CLI demo for running the research pipeline
 
 ## Target Architecture
@@ -99,7 +102,7 @@ DEEPSEEK_MODEL=deepseek-v4-pro
 
 项目配置层会校验 DeepSeek 模型名，目前仅允许 `deepseek-v4-flash` 和 `deepseek-v4-pro`，避免误用旧模型名。
 
-## Run Phase 4.2 Demo
+## Run Evidence-Governed Demo
 
 ```bash
 python main.py run "GraphRAG 在科研文献综述中的应用"
@@ -120,13 +123,15 @@ Expected output:
 - 主题相关性与引用忠实度评估
 - Writer Agent 研究结论与受控 Reflection 修订
 - 长期记忆读写状态
-- Phase 4.2 Markdown 研究报告
+- Phase 4.3 Markdown 研究报告与证据状态
 
 Offline mode is the default so the project can run without network access:
 
 ```bash
 python main.py run "AI Agent 在科学发现中的应用" --offline
 ```
+
+离线模式只用于演示：报告会标记为 `simulation`，不会写入长期记忆或 Obsidian Vault。
 
 Disable memory for a stateless run:
 
@@ -165,6 +170,46 @@ python main.py run "比较多智能体协作、长期记忆与智能体评估方
   --no-memory
 ```
 
+## Obsidian Knowledge Vault
+
+仅当真实来源质量门槛通过时，系统才会将报告、论文、概念和关系写入 Obsidian Vault。原始 PDF 不会复制到 Vault；笔记保存本地路径、URL、DOI 和证据 ID。
+
+```bash
+python main.py run "GraphRAG 如何支持科研文献综述？" \
+  --live-search \
+  --pdf "data/raw_papers/2404-16130.pdf" \
+  --export-obsidian \
+  --obsidian-vault data/obsidian_vault
+```
+
+打开 `data/obsidian_vault` 作为 Obsidian Vault 后，可使用原生 Graph View 浏览 Wiki Links。`Exports/<run-id>/graph.json` 与 `graph.graphml` 可供 Streamlit、Gephi 或其他图工具使用。
+
+## API, UI, and Docker
+
+启动 API：
+
+```bash
+uvicorn app.api.main:app --reload --port 8000
+```
+
+启动 Streamlit：
+
+```bash
+streamlit run app/ui/streamlit_app.py
+```
+
+启动完整持久化环境：
+
+```bash
+docker compose up --build
+```
+
+- API 文档：`http://localhost:8000/docs`
+- Streamlit：`http://localhost:8501`
+- Neo4j Browser：`http://localhost:7474`
+
+`GET /health` 会显示 Qdrant 与 Neo4j 连通性；不可用时工作流会记录原因并降级到内存后端。
+
 Use Qdrant after starting a local Qdrant service:
 
 ```bash
@@ -193,7 +238,9 @@ python main.py parse-pdf data/raw_papers/example.pdf --max-pages 5
 - Phase 4: Memory, reflection, critic loop, and evaluation
 - Phase 4.1: Full-text PDF ingestion, query-aware retrieval, graph hygiene, and quality-aware evaluation
 - Phase 4.2: LLM Writer, bounded Critic-Reflection revision, critical quality gates, and bilingual retrieval expansion
-- Phase 5: FastAPI backend, Streamlit UI, Docker deployment, README, and demo assets
+- Phase 4.3: source governance, Obsidian Vault export, graph artifacts, and metadata enrichment
+- Phase 4.4: memory-store abstraction, local/global/hybrid GraphRAG, and query-personalized graph reranking
+- Phase 5: FastAPI backend, Streamlit UI, Docker Compose, health checks, and deployment documentation
 
 ## Suggested Git Commit Plan
 

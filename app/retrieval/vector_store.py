@@ -44,6 +44,7 @@ class InMemoryVectorStore:
                     title=chunk.title,
                     text=chunk.text,
                     score=cosine_similarity(query_embedding, embedding),
+                    source_tier=chunk.source_tier,
                     metadata=chunk.metadata,
                 )
             )
@@ -116,6 +117,7 @@ class QdrantVectorStore:
                     title=payload.get("title", "Untitled"),
                     text=payload.get("text", ""),
                     score=float(item.score),
+                    source_tier=payload.get("source_tier", metadata.get("source_tier", "unknown")),
                     metadata=metadata,
                 )
             )

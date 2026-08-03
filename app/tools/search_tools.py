@@ -187,6 +187,9 @@ def parse_arxiv_response(xml_text: str) -> list[PaperMetadata]:
                 url=url,
                 pdf_url=pdf_url,
                 published_at=published_at,
+                doi=_arxiv_doi(url),
+                publication="arXiv preprint",
+                source_tier="online_metadata",
             )
         )
 
@@ -230,6 +233,7 @@ def build_offline_demo_papers(query: str, limit: int = 5) -> list[PaperMetadata]
                 source="offline-demo",
                 url=None,
                 pdf_url=None,
+                source_tier="offline_demo",
                 metadata={"note": "离线占位数据。使用 --live-search 可获取 arXiv 结果。"},
             )
         )
@@ -253,3 +257,8 @@ def _node_text(node: ET.Element, path: str, namespace: dict[str, str]) -> str:
 
 def _clean_text(value: str) -> str:
     return textwrap.dedent(value).replace("\n", " ").strip()
+
+
+def _arxiv_doi(url: str) -> str | None:
+    match = re.search(r"(\d{4}\.\d{4,5}(?:v\d+)?)", url)
+    return f"10.48550/arXiv.{match.group(1)}" if match else None

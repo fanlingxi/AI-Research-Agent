@@ -12,9 +12,16 @@ class GraphRAGReasoner:
         query: str,
         vector_hits: list[RetrievalHit],
         graph_paths: list[GraphPath],
+        query_mode: str = "hybrid",
     ) -> GraphRAGResult:
+        if query_mode == "local":
+            graph_paths = []
+        elif query_mode == "global":
+            vector_hits = []
+
         lines = [
             f"GraphRAG 推理摘要：{query}",
+            f"查询模式：{query_mode}",
             "",
             "向量证据信号：",
         ]
@@ -53,6 +60,7 @@ class GraphRAGReasoner:
             metadata={
                 "vector_hits": len(vector_hits),
                 "graph_paths": len(graph_paths),
+                "query_mode": query_mode,
             },
         )
 

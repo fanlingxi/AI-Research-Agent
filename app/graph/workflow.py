@@ -10,6 +10,7 @@ from app.graph.nodes import (
     knowledge_node,
     memory_context_node,
     memory_write_node,
+    obsidian_export_node,
     planner_node,
     reflection_node,
     retrieval_node,
@@ -18,6 +19,7 @@ from app.graph.nodes import (
     tool_executor_node,
 )
 from app.graph.state import ResearchState
+from app.obsidian.exporter import build_run_id
 
 
 def build_workflow():
@@ -35,6 +37,7 @@ def build_workflow():
     graph.add_node("synthesis", synthesis_node)
     graph.add_node("critic", critic_node)
     graph.add_node("reflection", reflection_node)
+    graph.add_node("obsidian_export", obsidian_export_node)
     graph.add_node("memory_write", memory_write_node)
 
     graph.set_entry_point("memory_context")
@@ -48,7 +51,8 @@ def build_workflow():
     graph.add_edge("graph_reasoning", "synthesis")
     graph.add_edge("synthesis", "critic")
     graph.add_edge("critic", "reflection")
-    graph.add_edge("reflection", "memory_write")
+    graph.add_edge("reflection", "obsidian_export")
+    graph.add_edge("obsidian_export", "memory_write")
     graph.add_edge("memory_write", END)
 
     return graph.compile()
@@ -64,6 +68,8 @@ def run_research_workflow(
     memory_enabled: bool | None = None,
     document_sources: list[str] | None = None,
     pdf_max_pages: int | None = None,
+    obsidian_export_enabled: bool | None = None,
+    obsidian_vault_path: str | None = None,
 ) -> ResearchState:
     """Run the Phase 4 workflow for a user research query."""
 
@@ -72,6 +78,7 @@ def run_research_workflow(
     return workflow.invoke(
         {
             "query": query,
+            "run_id": build_run_id(query),
             "live_search": settings.search_live_enabled if live_search is None else live_search,
             "paper_limit": paper_limit or settings.paper_search_limit,
             "top_k": top_k or settings.retrieval_top_k,
@@ -80,5 +87,11 @@ def run_research_workflow(
             "memory_enabled": settings.memory_enabled if memory_enabled is None else memory_enabled,
             "document_sources": document_sources or [],
             "pdf_max_pages": pdf_max_pages,
+            "obsidian_export_enabled": (
+                settings.obsidian_export_enabled
+                if obsidian_export_enabled is None
+                else obsidian_export_enabled
+            ),
+            "obsidian_vault_path": obsidian_vault_path or settings.obsidian_vault_path,
         }
     )

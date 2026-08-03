@@ -1,0 +1,8 @@
+.git
+.venv
+.env
+__pycache__
+.pytest_cache
+.ruff_cache
+data/raw_papers
+data/obsidian_vault

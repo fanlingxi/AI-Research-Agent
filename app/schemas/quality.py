@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -18,6 +20,8 @@ class EvaluationResult(BaseModel):
     passed: bool
     summary: str
     metrics: list[EvaluationMetric] = Field(default_factory=list)
+    evidence_status: Literal["formal", "simulation", "blocked"] = "blocked"
+    evidence_admissible: bool = False
 
 
 class CritiqueResult(BaseModel):

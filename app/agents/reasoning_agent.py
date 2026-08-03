@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.config.settings import get_settings
+from app.evidence.provenance import rerank_evidence_hits
 from app.retrieval.rag import build_rag_retriever
 from app.retrieval.relevance import expand_query_for_retrieval
 from app.retrieval.vector_store import InMemoryVectorStore
@@ -14,6 +15,7 @@ class ReasoningResult:
     hits: list[RetrievalHit]
     answer: str
     vector_store_provider: str
+    fallback_reason: str | None = None
 
 
 class ReasoningAgent:
@@ -30,21 +32,27 @@ class ReasoningAgent:
         selected_top_k = top_k or settings.retrieval_top_k
         selected_provider = vector_store_provider or settings.vector_store_provider
 
+        fallback_reason = None
         try:
             retriever = build_rag_retriever(vector_store_provider=selected_provider)
             provider_name = retriever.vector_store.provider_name
-        except Exception:
+            retriever.index(chunks)
+        except Exception as exc:
             retriever = build_rag_retriever(vector_store_provider="memory")
             retriever.vector_store = InMemoryVectorStore()
             provider_name = "memory"
+            fallback_reason = str(exc)
+            retriever.index(chunks)
 
-        retriever.index(chunks)
         retrieval_query = expand_query_for_retrieval(query)
-        hits = retriever.search(query=retrieval_query, top_k=selected_top_k)
+        candidate_limit = min(len(chunks), max(selected_top_k * 4, selected_top_k))
+        raw_hits = retriever.search(query=retrieval_query, top_k=candidate_limit)
+        hits = rerank_evidence_hits(raw_hits, top_k=selected_top_k)
         return ReasoningResult(
             hits=hits,
             answer=self._build_answer(query=query, hits=hits),
             vector_store_provider=provider_name,
+            fallback_reason=fallback_reason,
         )
 
     def _build_answer(self, query: str, hits: list[RetrievalHit]) -> str:

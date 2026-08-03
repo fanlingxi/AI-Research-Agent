@@ -1,3 +1,4 @@
+from app.agents.reasoning_agent import ReasoningAgent
 from app.retrieval.chunking import TextChunker, paper_to_retrieval_text
 from app.retrieval.embeddings import HashEmbeddingProvider, cosine_similarity
 from app.retrieval.rag import RagRetriever
@@ -99,3 +100,41 @@ def test_reranking_prefers_literature_review_over_generic_graphrag() -> None:
     ]
 
     assert rank_papers(query, papers)[0].id == "paper:review"
+
+
+def test_reasoning_agent_reports_qdrant_fallback(monkeypatch) -> None:
+    paper = PaperMetadata(
+        id="paper:fallback",
+        title="GraphRAG Fallback",
+        abstract="GraphRAG knowledge graph retrieval.",
+        source_tier="online_metadata",
+    )
+    chunks = TextChunker(chunk_size=20, chunk_overlap=2).chunk_paper(
+        paper,
+        paper_to_retrieval_text(paper),
+    )
+
+    class BrokenRetriever:
+        vector_store = type("Store", (), {"provider_name": "qdrant"})()
+
+        def index(self, _chunks) -> None:
+            raise RuntimeError("qdrant unavailable")
+
+    def fake_retriever(vector_store_provider=None):
+        if vector_store_provider == "qdrant":
+            return BrokenRetriever()
+        return RagRetriever(
+            embedding_provider=HashEmbeddingProvider(dimension=128),
+            vector_store=InMemoryVectorStore(),
+        )
+
+    monkeypatch.setattr("app.agents.reasoning_agent.build_rag_retriever", fake_retriever)
+    result = ReasoningAgent().retrieve_and_answer(
+        query="GraphRAG retrieval",
+        chunks=chunks,
+        vector_store_provider="qdrant",
+    )
+
+    assert result.vector_store_provider == "memory"
+    assert "qdrant unavailable" in (result.fallback_reason or "")
+    assert result.hits

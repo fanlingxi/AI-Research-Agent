@@ -16,6 +16,7 @@ data/raw_papers/*
 data/processed/*
 data/reports/*
 data/memory/*.json
+data/obsidian_vault/*
 !data/raw_papers/.gitkeep
 !data/processed/.gitkeep
 !data/reports/.gitkeep

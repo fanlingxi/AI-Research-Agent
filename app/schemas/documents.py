@@ -1,8 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+EvidenceSourceTier = Literal[
+    "primary_fulltext",
+    "online_metadata",
+    "offline_demo",
+    "unknown",
+]
 
 
 class PaperMetadata(BaseModel):
@@ -17,6 +24,9 @@ class PaperMetadata(BaseModel):
     url: str | None = None
     pdf_url: str | None = None
     published_at: str | None = None
+    doi: str | None = None
+    publication: str | None = None
+    source_tier: EvidenceSourceTier = "unknown"
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -39,6 +49,7 @@ class DocumentChunk(BaseModel):
     text: str
     chunk_index: int
     token_count: int
+    source_tier: EvidenceSourceTier = "unknown"
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -50,4 +61,5 @@ class RetrievalHit(BaseModel):
     title: str
     text: str
     score: float
+    source_tier: EvidenceSourceTier = "unknown"
     metadata: dict[str, Any] = Field(default_factory=dict)

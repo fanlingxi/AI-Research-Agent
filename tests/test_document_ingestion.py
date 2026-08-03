@@ -26,9 +26,11 @@ def test_document_agent_ingests_explicit_pdf_sources(monkeypatch) -> None:
 
     assert not result.errors
     assert result.papers[0].source == "pdf"
+    assert result.papers[0].source_tier == "primary_fulltext"
     assert result.papers[0].metadata["content_kind"] == "pdf_full_text"
     assert len(chunks) > 1
     assert chunks[0].metadata["content_kind"] == "pdf_full_text"
+    assert chunks[0].source_tier == "primary_fulltext"
 
 
 def test_pdf_title_inference_joins_wrapped_heading() -> None:

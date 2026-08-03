@@ -15,6 +15,7 @@ class ResearchState(TypedDict, total=False):
     """State passed between LangGraph nodes."""
 
     query: str
+    run_id: str
     live_search: bool
     paper_limit: int
     top_k: int
@@ -23,6 +24,8 @@ class ResearchState(TypedDict, total=False):
     memory_enabled: bool
     document_sources: list[str]
     pdf_max_pages: int
+    obsidian_export_enabled: bool
+    obsidian_vault_path: str
     memory_context: str
     memory_records: list[MemoryRecord]
     plan: dict[str, Any]
@@ -39,6 +42,7 @@ class ResearchState(TypedDict, total=False):
     critique_result: CritiqueResult
     reflection_result: ReflectionResult
     memory_record: MemoryRecord
+    obsidian_export_result: dict[str, Any]
     traces: Annotated[list[AgentTrace], append_list]
     final_report: str
     errors: Annotated[list[str], append_list]

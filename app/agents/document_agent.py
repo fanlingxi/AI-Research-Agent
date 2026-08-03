@@ -52,6 +52,7 @@ class DocumentAgent:
                     source="pdf",
                     url=original_source if is_url else None,
                     pdf_url=original_source,
+                    source_tier="primary_fulltext",
                     metadata={
                         "content_kind": "pdf_full_text",
                         "local_path": parsed.source,

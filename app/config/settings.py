@@ -54,12 +54,21 @@ class Settings(BaseSettings):
     graph_top_k: int = 5
 
     memory_enabled: bool = True
+    memory_backend: Literal["json"] = "json"
     memory_path: str = "data/memory/research_memory.json"
     memory_recall_limit: int = 3
 
     evaluation_passing_score: float = 0.72
     evaluation_critical_min_score: float = 0.65
     critic_min_score: float = 0.78
+    evidence_source_min_score: float = 0.65
+
+    obsidian_export_enabled: bool = False
+    obsidian_vault_path: str = "data/obsidian_vault"
+    obsidian_review_status: str = "pending"
+
+    graphrag_query_mode: Literal["local", "global", "hybrid"] = "hybrid"
+    graph_ranking_strategy: Literal["path_score", "personalized_pagerank"] = "path_score"
 
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "research_chunks"

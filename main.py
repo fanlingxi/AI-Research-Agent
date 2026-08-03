@@ -27,6 +27,7 @@ TRACE_LABELS = {
     "synthesis": "报告生成",
     "critic": "质量审查",
     "reflection": "反思修订",
+    "obsidian_export": "Obsidian 导出",
     "memory_write": "长期记忆写入",
 }
 
@@ -60,8 +61,18 @@ def run(
         min=1,
         help="每篇显式 PDF 最多解析的页数。",
     ),
+    export_obsidian: bool = typer.Option(
+        False,
+        "--export-obsidian/--no-export-obsidian",
+        help="仅在真实证据门槛通过后导出 Obsidian Vault。",
+    ),
+    obsidian_vault: str | None = typer.Option(
+        None,
+        "--obsidian-vault",
+        help="Obsidian Vault 路径，默认读取 OBSIDIAN_VAULT_PATH。",
+    ),
 ) -> None:
-    """运行带真实文档摄取的 Phase 4.1 Agentic GraphRAG 科研分析流程。"""
+    """运行带可信证据门槛与可选 Obsidian 导出的 GraphRAG 研究流程。"""
 
     result = run_research_workflow(
         query=query,
@@ -73,6 +84,8 @@ def run(
         memory_enabled=memory,
         document_sources=pdf or None,
         pdf_max_pages=pdf_max_pages,
+        obsidian_export_enabled=export_obsidian,
+        obsidian_vault_path=obsidian_vault,
     )
     console.print(Panel(result["final_report"], title="AI-Research-Agent"))
 

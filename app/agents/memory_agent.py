@@ -4,7 +4,7 @@ import hashlib
 from datetime import UTC, datetime
 
 from app.config.settings import get_settings
-from app.memory.store import JsonMemoryStore
+from app.memory.store import JsonMemoryStore, MemoryStore
 from app.schemas.memory import MemoryRecord, MemorySnapshot
 from app.schemas.quality import EvaluationResult
 
@@ -14,7 +14,7 @@ class MemoryAgent:
 
     def __init__(
         self,
-        store: JsonMemoryStore | None = None,
+        store: MemoryStore | None = None,
         enabled: bool | None = None,
     ) -> None:
         settings = get_settings()
@@ -43,6 +43,10 @@ class MemoryAgent:
         report: str,
         evaluation: EvaluationResult,
         tags: list[str] | None = None,
+        run_id: str | None = None,
+        source_quality: float = 0.0,
+        evidence_ids: list[str] | None = None,
+        vault_note_path: str | None = None,
     ) -> MemoryRecord | None:
         if not self.enabled:
             return None
@@ -56,8 +60,14 @@ class MemoryAgent:
             created_at=created_at,
             quality_score=evaluation.overall_score,
             tags=tags or [],
+            run_id=run_id,
+            source_quality=source_quality,
+            evidence_ids=evidence_ids or [],
+            vault_note_path=vault_note_path,
             metadata={
                 "evaluation_passed": evaluation.passed,
+                "evidence_admissible": evaluation.evidence_admissible,
+                "evidence_status": evaluation.evidence_status,
                 "metric_count": len(evaluation.metrics),
             },
         )
