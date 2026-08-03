@@ -11,44 +11,73 @@ from app.schemas.graph import GraphBuildResult, GraphEntity, GraphRelation
 ENTITY_PATTERNS: dict[str, list[str]] = {
     "Concept": [
         "GraphRAG",
+        "知识图谱",
+        "图谱",
         "knowledge graph",
         "retrieval augmented generation",
         "RAG",
+        "检索增强生成",
+        "证据",
         "multi-hop reasoning",
+        "多跳推理",
         "citation",
+        "引用",
         "entity",
+        "实体",
         "relation",
+        "关系",
         "evidence",
     ],
     "Method": [
         "vector search",
+        "向量检索",
         "graph traversal",
+        "图遍历",
         "chunking",
+        "切片",
         "embedding",
+        "向量表示",
         "entity extraction",
+        "实体抽取",
         "relation extraction",
+        "关系抽取",
         "evaluation",
+        "评估",
         "reflection",
+        "反思",
     ],
     "Dataset": [
         "arXiv",
         "Semantic Scholar",
         "OpenReview",
         "benchmark",
+        "基准",
         "dataset",
+        "数据集",
     ],
     "Metric": [
         "faithfulness",
+        "忠实性",
         "recall",
+        "召回率",
         "precision",
+        "准确率",
         "citation coverage",
+        "引用覆盖",
         "retrieval quality",
+        "检索质量",
     ],
     "Task": [
         "literature review",
+        "文献综述",
         "scientific discovery",
+        "科学发现",
         "research report",
+        "科研报告",
         "question answering",
+        "问答",
+        "科研分析",
+        "多智能体科研分析",
     ],
 }
 
@@ -129,7 +158,7 @@ class GraphExtractor:
 
         for entity_type, phrases in ENTITY_PATTERNS.items():
             for phrase in phrases:
-                if re.search(rf"\b{re.escape(phrase)}\b", text, flags=re.IGNORECASE):
+                if self._contains_phrase(text=text, phrase=phrase):
                     candidates.append(
                         self._entity(
                             name=self._canonical_name(phrase),
@@ -226,6 +255,11 @@ class GraphExtractor:
             name
             for name, _ in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
         ][:4]
+
+    def _contains_phrase(self, text: str, phrase: str) -> bool:
+        if phrase.isascii():
+            return bool(re.search(rf"\b{re.escape(phrase)}\b", text, flags=re.IGNORECASE))
+        return phrase.lower() in text.lower()
 
     def _canonical_name(self, phrase: str) -> str:
         canonical = {

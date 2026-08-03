@@ -83,13 +83,15 @@ def tool_executor_node(
 
 def search_node(state: ResearchState) -> ResearchState:
     query = state["query"]
-    papers = _papers_from_tool_results(state)
+    papers = _dedupe_papers(_papers_from_tool_results(state))
     source = "tool_results"
     if not papers:
-        papers = SearchAgent().search(
-            query=query,
-            limit=state.get("paper_limit"),
-            live_search=state.get("live_search"),
+        papers = _dedupe_papers(
+            SearchAgent().search(
+                query=query,
+                limit=state.get("paper_limit"),
+                live_search=state.get("live_search"),
+            )
         )
         source = "search_agent"
 
@@ -215,6 +217,14 @@ def _papers_from_tool_results(state: ResearchState) -> list[PaperMetadata]:
         )
 
     return papers
+
+
+def _dedupe_papers(papers: list[PaperMetadata]) -> list[PaperMetadata]:
+    deduped: dict[str, PaperMetadata] = {}
+    for paper in papers:
+        key = paper.id or f"{paper.source}:{paper.title}".lower()
+        deduped.setdefault(key, paper)
+    return list(deduped.values())
 
 
 def synthesis_node(state: ResearchState) -> ResearchState:

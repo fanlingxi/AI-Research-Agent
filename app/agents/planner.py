@@ -80,17 +80,23 @@ class PlannerAgent:
 
     def _normalize_tool_arguments(self, plan: ResearchPlan, query: str) -> ResearchPlan:
         normalized_calls: list[ToolCall] = []
+        seen_tool_names: set[str] = set()
         for call in plan.tool_calls:
             arguments = dict(call.arguments)
             if call.tool_name == "topic_keyword_expander":
+                tool_name = "topic_keyword_expander"
                 arguments["topic"] = query
-            if call.tool_name in {"mock_paper_search", "paper_search"}:
+            elif call.tool_name in {"mock_paper_search", "paper_search"}:
                 tool_name = "paper_search"
                 arguments["query"] = query
                 arguments.setdefault("limit", 5)
                 arguments.setdefault("live_search", False)
             else:
-                tool_name = call.tool_name
+                continue
+
+            if tool_name in seen_tool_names:
+                continue
+            seen_tool_names.add(tool_name)
             normalized_calls.append(
                 ToolCall(
                     tool_name=tool_name,
@@ -98,6 +104,10 @@ class PlannerAgent:
                     purpose=call.purpose,
                 )
             )
+
+        if not normalized_calls:
+            return self._fallback_plan(query)
+
         plan.tool_calls = normalized_calls
         return plan
 

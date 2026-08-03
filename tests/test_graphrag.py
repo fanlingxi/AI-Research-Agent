@@ -36,6 +36,29 @@ def test_graph_extractor_builds_entities_and_relations() -> None:
     assert "CO_OCCURS_WITH" in relation_types
 
 
+def test_graph_extractor_supports_chinese_research_terms() -> None:
+    paper = PaperMetadata(
+        id="paper:zh-graphrag",
+        title="多智能体科研分析系统的评估方法",
+        abstract="系统结合知识图谱、向量检索、实体抽取、关系抽取和多跳推理评估科研报告质量。",
+        source="test",
+        year=2026,
+    )
+    chunks = TextChunker(chunk_size=120, chunk_overlap=10).chunk_paper(
+        paper=paper,
+        text=paper_to_retrieval_text(paper),
+    )
+    result = GraphExtractor(max_entities_per_chunk=8).extract(chunks)
+
+    entity_names = {entity.name for entity in result.entities}
+    relation_types = {relation.type for relation in result.relations}
+
+    assert "知识图谱" in entity_names
+    assert "向量检索" in entity_names
+    assert "DISCUSSES" in relation_types
+    assert "CO_OCCURS_WITH" in relation_types
+
+
 def test_in_memory_graph_store_retrieves_paths() -> None:
     chunks = _demo_chunks()
     graph = GraphExtractor(max_entities_per_chunk=8).extract(chunks)
