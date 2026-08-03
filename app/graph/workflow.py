@@ -62,6 +62,8 @@ def run_research_workflow(
     vector_store_provider: str | None = None,
     graph_store_provider: str | None = None,
     memory_enabled: bool | None = None,
+    document_sources: list[str] | None = None,
+    pdf_max_pages: int | None = None,
 ) -> ResearchState:
     """Run the Phase 4 workflow for a user research query."""
 
@@ -76,5 +78,7 @@ def run_research_workflow(
             "vector_store_provider": vector_store_provider or settings.vector_store_provider,
             "graph_store_provider": graph_store_provider or settings.graph_store_provider,
             "memory_enabled": settings.memory_enabled if memory_enabled is None else memory_enabled,
+            "document_sources": document_sources or [],
+            "pdf_max_pages": pdf_max_pages,
         }
     )

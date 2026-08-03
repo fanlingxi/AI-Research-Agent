@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import textwrap
 import xml.etree.ElementTree as ET
 from urllib.parse import urlencode
 
+from app.retrieval.relevance import TOPIC_CONCEPTS, extract_topic_concepts, relevance_score
 from app.schemas.documents import PaperMetadata
 from app.schemas.research import ToolResult
 
@@ -31,10 +33,15 @@ def paper_search(query: str, limit: int = 5, live_search: bool = False) -> ToolR
 
     papers: list[PaperMetadata] = []
     provider = "offline-demo"
+    search_queries = build_search_queries(normalized_query)
 
     if live_search:
         try:
-            papers = search_arxiv(normalized_query, limit=limit)
+            papers = search_arxiv_multi(
+                queries=search_queries,
+                original_query=normalized_query,
+                limit=limit,
+            )
             provider = "arxiv"
         except Exception as exc:  # pragma: no cover - network boundary
             papers = []
@@ -51,6 +58,7 @@ def paper_search(query: str, limit: int = 5, live_search: bool = False) -> ToolR
         metadata={
             "query": normalized_query,
             "provider": provider,
+            "search_queries": search_queries,
             "papers": [paper.model_dump() for paper in papers],
         },
     )
@@ -61,7 +69,7 @@ def search_arxiv(query: str, limit: int = 5) -> list[PaperMetadata]:
 
     params = urlencode(
         {
-            "search_query": f"all:{query}",
+            "search_query": _arxiv_query_expression(query),
             "start": 0,
             "max_results": limit,
             "sortBy": "relevance",
@@ -72,6 +80,73 @@ def search_arxiv(query: str, limit: int = 5) -> list[PaperMetadata]:
     response.raise_for_status()
 
     return parse_arxiv_response(response.text)[:limit]
+
+
+def search_arxiv_multi(
+    queries: list[str],
+    original_query: str,
+    limit: int = 5,
+) -> list[PaperMetadata]:
+    """Recall papers with focused queries, then rerank them against the topic."""
+
+    candidates: list[PaperMetadata] = []
+    failures: list[Exception] = []
+    per_query_limit = max(3, min(10, limit))
+    for query in queries:
+        try:
+            candidates.extend(search_arxiv(query=query, limit=per_query_limit))
+        except Exception as exc:  # pragma: no cover - network boundary
+            failures.append(exc)
+
+    if not candidates and failures:
+        raise failures[-1]
+
+    return rank_papers(query=original_query, papers=candidates)[:limit]
+
+
+def build_search_queries(query: str, max_queries: int = 4) -> list[str]:
+    """Build concise, topic-aware arXiv queries from a natural-language request."""
+
+    concepts = extract_topic_concepts(query)
+    concept_queries = [TOPIC_CONCEPTS[concept][0] for concept in concepts]
+    queries: list[str] = []
+    if len(concept_queries) > 1:
+        queries.append(" ".join(concept_queries[:2]))
+    queries.extend(concept_queries)
+
+    if not queries:
+        fallback_terms = re.findall(r"[A-Za-z0-9][A-Za-z0-9-]{2,}", query)
+        queries.append(" ".join(fallback_terms[:6]) or query.strip())
+
+    deduped: list[str] = []
+    for candidate in queries:
+        normalized = candidate.strip()
+        if normalized and normalized.lower() not in {item.lower() for item in deduped}:
+            deduped.append(normalized)
+    return deduped[:max_queries]
+
+
+def rank_papers(query: str, papers: list[PaperMetadata]) -> list[PaperMetadata]:
+    """Deduplicate and prefer papers whose title and abstract cover the topic."""
+
+    deduped: dict[str, PaperMetadata] = {}
+    for paper in papers:
+        deduped.setdefault(paper.id, paper)
+
+    def score(paper: PaperMetadata) -> tuple[float, int, str]:
+        title_score = relevance_score(query, paper.title)
+        abstract_score = relevance_score(query, paper.abstract)
+        combined = 0.65 * title_score + 0.35 * abstract_score
+        return (combined, paper.year or 0, paper.title.lower())
+
+    return sorted(deduped.values(), key=score, reverse=True)
+
+
+def _arxiv_query_expression(query: str) -> str:
+    terms = re.findall(r"[A-Za-z0-9][A-Za-z0-9-]{1,}", query)
+    if not terms:
+        return f"all:{query}"
+    return " AND ".join(f"all:{term}" for term in terms[:5])
 
 
 def parse_arxiv_response(xml_text: str) -> list[PaperMetadata]:

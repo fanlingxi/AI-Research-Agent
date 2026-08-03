@@ -59,6 +59,26 @@ def test_graph_extractor_supports_chinese_research_terms() -> None:
     assert "CO_OCCURS_WITH" in relation_types
 
 
+def test_graph_extractor_filters_capitalized_metadata_noise() -> None:
+    paper = PaperMetadata(
+        id="paper:noise",
+        title="This Evaluation of GraphRAG",
+        abstract="This evaluation uses GraphRAG for knowledge graph reasoning on arXiv.",
+        source="test",
+    )
+    chunks = TextChunker(chunk_size=120, chunk_overlap=10).chunk_paper(
+        paper=paper,
+        text=paper_to_retrieval_text(paper),
+    )
+
+    result = GraphExtractor(max_entities_per_chunk=8).extract(chunks)
+    normalized_names = [entity.name.lower() for entity in result.entities]
+
+    assert "this" not in normalized_names
+    assert "arxiv" not in normalized_names
+    assert normalized_names.count("evaluation") == 1
+
+
 def test_in_memory_graph_store_retrieves_paths() -> None:
     chunks = _demo_chunks()
     graph = GraphExtractor(max_entities_per_chunk=8).extract(chunks)

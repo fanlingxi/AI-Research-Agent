@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from app.config.settings import Settings, get_settings
+from app.retrieval.relevance import relevance_score
 from app.schemas.graph import GraphEntity, GraphPath, GraphRelation
 
 
@@ -65,7 +66,14 @@ class InMemoryGraphStore:
         adjacency = self._adjacency()
         paths: list[GraphPath] = []
         for seed in seeds:
-            paths.extend(self._walk(seed=seed, adjacency=adjacency, max_hops=max_hops))
+            paths.extend(
+                self._walk(
+                    seed=seed,
+                    adjacency=adjacency,
+                    max_hops=max_hops,
+                    query=query,
+                )
+            )
 
         deduped: dict[str, GraphPath] = {}
         for path in paths:
@@ -85,8 +93,12 @@ class InMemoryGraphStore:
         for entity in self.entities.values():
             name_lower = entity.name.lower()
             token_match = any(token in name_lower for token in query_lower.split())
-            if name_lower in query_lower or token_match:
-                score = 2.0 + len(entity.source_chunk_ids)
+            semantic_score = relevance_score(
+                query,
+                f"{entity.name}\n{entity.description}",
+            )
+            if name_lower in query_lower or token_match or semantic_score > 0:
+                score = 2.0 * semantic_score + len(entity.source_chunk_ids)
                 scored.append((score, entity))
 
         return [
@@ -106,6 +118,7 @@ class InMemoryGraphStore:
         seed: GraphEntity,
         adjacency: dict[str, list[tuple[GraphRelation, str]]],
         max_hops: int,
+        query: str,
     ) -> list[GraphPath]:
         queue = deque([(seed.id, [seed.id], [])])
         paths: list[GraphPath] = []
@@ -119,7 +132,7 @@ class InMemoryGraphStore:
                     GraphPath(
                         nodes=nodes,
                         relations=relations,
-                        score=sum(relation.weight for relation in relations) / len(relations),
+                        score=self._score_path(query=query, nodes=nodes, relations=relations),
                     )
                 )
 
@@ -132,6 +145,19 @@ class InMemoryGraphStore:
                 queue.append((next_id, node_ids + [next_id], relation_ids + [relation.id]))
 
         return paths
+
+    def _score_path(
+        self,
+        query: str,
+        nodes: list[GraphEntity],
+        relations: list[GraphRelation],
+    ) -> float:
+        relation_strength = sum(relation.weight for relation in relations) / len(relations)
+        semantic_score = max(
+            relevance_score(query, f"{node.name}\n{node.description}") for node in nodes
+        )
+        multi_hop_bonus = 0.1 if len(relations) > 1 else 0.0
+        return round(0.55 * semantic_score + 0.35 * relation_strength + multi_hop_bonus, 3)
 
 
 class Neo4jGraphStore:

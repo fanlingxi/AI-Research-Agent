@@ -21,6 +21,8 @@ class ResearchState(TypedDict, total=False):
     vector_store_provider: str
     graph_store_provider: str
     memory_enabled: bool
+    document_sources: list[str]
+    pdf_max_pages: int
     memory_context: str
     memory_records: list[MemoryRecord]
     plan: dict[str, Any]

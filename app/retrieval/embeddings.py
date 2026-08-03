@@ -40,7 +40,7 @@ class HashEmbeddingProvider:
 
     def _embed(self, text: str) -> list[float]:
         vector = [0.0] * self.dimension
-        tokens = re.findall(r"[a-zA-Z0-9_]+", text.lower())
+        tokens = self._tokens(text)
 
         for token in tokens:
             digest = hashlib.sha256(token.encode("utf-8")).digest()
@@ -53,6 +53,19 @@ class HashEmbeddingProvider:
             return vector
 
         return [value / norm for value in vector]
+
+    def _tokens(self, text: str) -> list[str]:
+        """Tokenize Latin text and CJK character n-grams without local models."""
+
+        latin_tokens = re.findall(r"[a-zA-Z0-9_]+", text.lower())
+        chinese_sequences = re.findall(r"[\u4e00-\u9fff]+", text)
+        chinese_tokens = [
+            sequence[index : index + width]
+            for sequence in chinese_sequences
+            for width in (1, 2)
+            for index in range(max(0, len(sequence) - width + 1))
+        ]
+        return latin_tokens + chinese_tokens
 
 
 @dataclass

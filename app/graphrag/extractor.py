@@ -47,7 +47,6 @@ ENTITY_PATTERNS: dict[str, list[str]] = {
         "反思",
     ],
     "Dataset": [
-        "arXiv",
         "Semantic Scholar",
         "OpenReview",
         "benchmark",
@@ -254,6 +253,7 @@ class GraphExtractor:
         return [
             name
             for name, _ in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+            if self._is_useful_capitalized_term(name, counts[name])
         ][:4]
 
     def _contains_phrase(self, text: str, phrase: str) -> bool:
@@ -272,6 +272,22 @@ class GraphExtractor:
     def _is_metadata_noise(self, value: str) -> bool:
         value_lower = value.lower()
         blocked = {
+            "a",
+            "an",
+            "and",
+            "arxiv",
+            "by",
+            "for",
+            "from",
+            "in",
+            "it",
+            "our",
+            "the",
+            "these",
+            "this",
+            "to",
+            "we",
+            "with",
             "title",
             "authors",
             "source",
@@ -282,6 +298,19 @@ class GraphExtractor:
             "ai-research-agent demo",
         }
         return len(value) < 4 or value_lower in blocked or value_lower.endswith("demo")
+
+    def _is_useful_capitalized_term(self, value: str, count: int) -> bool:
+        if self._is_metadata_noise(value) or self._matches_pattern_entity(value):
+            return False
+        is_acronym = value.isupper() and len(value) >= 3
+        return is_acronym or count >= 2
+
+    def _matches_pattern_entity(self, value: str) -> bool:
+        normalized = self._normalize_name(value)
+        for phrases in ENTITY_PATTERNS.values():
+            if any(self._normalize_name(phrase) == normalized for phrase in phrases):
+                return True
+        return False
 
     def _normalize_name(self, name: str) -> str:
         return re.sub(r"\s+", " ", name.strip().lower())

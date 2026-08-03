@@ -46,6 +46,8 @@ class TextChunker:
                         "url": paper.url,
                         "pdf_url": paper.pdf_url,
                         "year": paper.year,
+                        "content_kind": paper.metadata.get("content_kind", "metadata_abstract"),
+                        "page_count": paper.metadata.get("page_count"),
                     },
                 )
             )

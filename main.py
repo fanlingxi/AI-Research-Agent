@@ -9,6 +9,11 @@ from app.tools.pdf_tools import parse_pdf_source
 
 cli = typer.Typer(help="AI Research Agent with GraphRAG")
 console = Console()
+PDF_OPTION = typer.Option(
+    (),
+    "--pdf",
+    help="要纳入本次研究的本地或远程 PDF；可重复传入该选项。",
+)
 
 TRACE_LABELS = {
     "memory_context": "长期记忆召回",
@@ -49,8 +54,14 @@ def run(
         "--memory/--no-memory",
         help="是否启用长期记忆。",
     ),
+    pdf: list[str] = PDF_OPTION,
+    pdf_max_pages: int = typer.Option(
+        12,
+        min=1,
+        help="每篇显式 PDF 最多解析的页数。",
+    ),
 ) -> None:
-    """运行 Phase 4 Agentic GraphRAG 科研分析流程。"""
+    """运行带真实文档摄取的 Phase 4.1 Agentic GraphRAG 科研分析流程。"""
 
     result = run_research_workflow(
         query=query,
@@ -60,6 +71,8 @@ def run(
         vector_store_provider=vector_store,
         graph_store_provider=graph_store,
         memory_enabled=memory,
+        document_sources=pdf or None,
+        pdf_max_pages=pdf_max_pages,
     )
     console.print(Panel(result["final_report"], title="AI-Research-Agent"))
 

@@ -53,7 +53,8 @@ def parse_pdf_source(
         if text.strip():
             page_texts.append(text.strip())
 
-    title = reader.metadata.title if reader.metadata and reader.metadata.title else path.stem
+    metadata_title = reader.metadata.title if reader.metadata and reader.metadata.title else None
+    title = _usable_title(metadata_title) or _infer_title(page_texts) or path.stem
     return ParsedDocument(
         source=str(path),
         title=title,
@@ -103,3 +104,31 @@ def _is_url(source: str) -> bool:
 def _slugify(value: str) -> str:
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", value).strip("-").lower()
     return slug or "downloaded-paper"
+
+
+def _usable_title(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = re.sub(r"\s+", " ", value).strip()
+    if not normalized or normalized.lower().endswith(".pdf"):
+        return None
+    return normalized
+
+
+def _infer_title(page_texts: list[str]) -> str | None:
+    """Use the first plausible heading when a PDF has no metadata title."""
+
+    if not page_texts:
+        return None
+
+    blocked_prefixes = ("arxiv:", "preprint", "submitted", "copyright")
+    for line in page_texts[0].splitlines()[:24]:
+        candidate = re.sub(r"\s+", " ", line).strip()
+        lowered = candidate.lower()
+        if (
+            12 <= len(candidate) <= 220
+            and any(char.isalpha() for char in candidate)
+            and not lowered.startswith(blocked_prefixes)
+        ):
+            return candidate
+    return None

@@ -2,7 +2,7 @@
 
 AI Research Agent with GraphRAG is a multi-agent research analysis system. It is designed to take a research topic, plan the work, call tools, analyze documents, build a knowledge graph, run GraphRAG reasoning, and generate a structured research report.
 
-This repository is being built phase by phase. The current implementation is **Phase 4: Agentic GraphRAG**.
+This repository is being built phase by phase. The current implementation is **Phase 4.1: Quality-Enhanced Agentic GraphRAG**.
 
 默认交互和报告输出优先面向中文用户；工具名和模块名保留英文，方便工程调试和 GitHub 展示。
 
@@ -14,9 +14,10 @@ This repository is being built phase by phase. The current implementation is **P
 - LLM provider abstraction for OpenAI, Qwen, DeepSeek, and local mock mode
 - Typed research state and structured plan schema
 - arXiv-compatible paper search with offline fallback
-- PDF parsing utility
+- Multi-query arXiv retrieval with topic-aware reranking
+- Explicit PDF ingestion into the GraphRAG workflow
 - Document chunking
-- Hash embeddings for local demos
+- Chinese-aware lightweight hash embeddings for local demos
 - In-memory vector retrieval and Qdrant integration
 - Entity and relation extraction
 - In-memory knowledge graph and Neo4j integration
@@ -24,7 +25,7 @@ This repository is being built phase by phase. The current implementation is **P
 - Long-term JSON memory
 - Critic Agent feedback
 - Reflection-based report revision
-- Evaluation metrics for retrieval, graph quality, structure, and grounding
+- Quality-aware evaluation for retrieval coverage, relevance, graph paths, report structure, and citation fidelity
 - CLI demo for running the research pipeline
 
 ## Target Architecture
@@ -96,7 +97,7 @@ DEEPSEEK_MODEL=deepseek-v4-pro
 
 项目配置层会校验 DeepSeek 模型名，目前仅允许 `deepseek-v4-flash` 和 `deepseek-v4-pro`，避免误用旧模型名。
 
-## Run Phase 4 Demo
+## Run Phase 4.1 Demo
 
 ```bash
 python main.py run "GraphRAG 在科研文献综述中的应用"
@@ -114,8 +115,9 @@ Expected output:
 - GraphRAG 推理总结
 - Evaluation 评估指标
 - Critic Review 审查意见
-- 长期记忆写入
-- Phase 4 Markdown 研究报告
+- 主题相关性与引用忠实度评估
+- 长期记忆读写状态
+- Phase 4.1 Markdown 研究报告
 
 Offline mode is the default so the project can run without network access:
 
@@ -133,6 +135,31 @@ Enable live arXiv search:
 
 ```bash
 python main.py run "GraphRAG for scientific literature review" --live-search --paper-limit 5
+```
+
+Run GraphRAG against an external paper's full text. `--pdf` is explicit: the
+workflow will not automatically download every paper returned by search.
+
+```bash
+python main.py run "GraphRAG 如何改进面向科研文献综述的查询聚焦摘要？" \
+  --live-search \
+  --paper-limit 5 \
+  --top-k 5 \
+  --pdf "https://arxiv.org/pdf/2404.16130" \
+  --pdf-max-pages 10 \
+  --no-memory
+```
+
+For multiple source papers, repeat `--pdf`:
+
+```bash
+python main.py run "比较多智能体协作、长期记忆与智能体评估方法" \
+  --live-search \
+  --pdf "https://arxiv.org/pdf/2308.08155" \
+  --pdf "https://arxiv.org/pdf/2310.08560" \
+  --pdf "https://arxiv.org/pdf/2308.03688" \
+  --pdf-max-pages 10 \
+  --no-memory
 ```
 
 Use Qdrant after starting a local Qdrant service:
@@ -161,6 +188,7 @@ python main.py parse-pdf data/raw_papers/example.pdf --max-pages 5
 - Phase 2: Research Pipeline with search, PDF parsing, chunking, and vector RAG
 - Phase 3: GraphRAG with entity extraction, relation extraction, Neo4j storage, and graph reasoning
 - Phase 4: Memory, reflection, critic loop, and evaluation
+- Phase 4.1: Full-text PDF ingestion, query-aware retrieval, graph hygiene, and quality-aware evaluation
 - Phase 5: FastAPI backend, Streamlit UI, Docker deployment, README, and demo assets
 
 ## Suggested Git Commit Plan

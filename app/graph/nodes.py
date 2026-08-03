@@ -21,6 +21,7 @@ from app.tools.research_tools import build_default_tool_registry
 
 def memory_context_node(state: ResearchState) -> ResearchState:
     snapshot = MemoryAgent(enabled=state.get("memory_enabled")).recall(state["query"])
+    memory_enabled = state.get("memory_enabled", True)
 
     return {
         "memory_context": snapshot.summary,
@@ -28,7 +29,11 @@ def memory_context_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="memory_context",
-                message="已召回长期记忆上下文。",
+                message=(
+                    "已召回长期记忆上下文。"
+                    if memory_enabled
+                    else "已关闭长期记忆，跳过召回。"
+                ),
                 metadata={"records": len(snapshot.records)},
             )
         ],
@@ -113,18 +118,34 @@ def search_node(state: ResearchState) -> ResearchState:
 
 def document_node(state: ResearchState) -> ResearchState:
     papers = [PaperMetadata.model_validate(paper) for paper in state.get("papers", [])]
-    chunks = DocumentAgent().build_chunks(papers=papers)
+    document_agent = DocumentAgent()
+    ingestion = document_agent.ingest_pdf_sources(
+        sources=state.get("document_sources", []),
+        max_pages=state.get("pdf_max_pages"),
+    )
+    papers = _dedupe_papers(papers + ingestion.papers)
+    chunks = document_agent.build_chunks(papers=papers)
 
-    return {
+    update: ResearchState = {
+        "papers": papers,
         "chunks": chunks,
         "traces": [
             AgentTrace(
                 node="document",
-                message="已将论文转换为检索切片。",
-                metadata={"papers": len(papers), "chunks": len(chunks)},
+                message="已将论文与显式 PDF 转换为检索切片。",
+                metadata={
+                    "papers": len(papers),
+                    "chunks": len(chunks),
+                    "pdf_sources": len(state.get("document_sources", [])),
+                    "ingested_pdfs": len(ingestion.papers),
+                    "pdf_errors": len(ingestion.errors),
+                },
             )
         ],
     }
+    if ingestion.errors:
+        update["errors"] = ingestion.errors
+    return update
 
 
 def knowledge_node(state: ResearchState) -> ResearchState:
@@ -291,6 +312,17 @@ def synthesis_node(state: ResearchState) -> ResearchState:
     report_lines.extend(["", "## 文档处理", ""])
     report_lines.append(f"- 已处理论文数：{len(papers)}")
     report_lines.append(f"- 已创建检索切片数：{len(chunks)}")
+    full_text_papers = sum(
+        paper.metadata.get("content_kind") == "pdf_full_text" for paper in papers
+    )
+    full_text_chunks = sum(
+        chunk.metadata.get("content_kind") == "pdf_full_text" for chunk in chunks
+    )
+    report_lines.append(f"- 显式 PDF 全文：{full_text_papers} 篇 / {full_text_chunks} 个切片")
+    errors = state.get("errors", [])
+    if errors:
+        report_lines.extend(["", "### 运行提示", ""])
+        report_lines.extend(f"- {error}" for error in errors)
 
     report_lines.extend(["", "## 检索证据", ""])
     if retrieval_results:
@@ -338,7 +370,12 @@ def synthesis_node(state: ResearchState) -> ResearchState:
             "",
             "本次运行验证了完整的 Agentic GraphRAG 闭环：资料检索、文档切片、"
             "实体/关系抽取、知识图谱存储、图谱路径检索、向量证据融合、"
-            "Critic 评审、Reflection 修订和长期记忆写入。",
+            "Critic 评审与 Reflection 修订。"
+            + (
+                "已启用长期记忆读写。"
+                if state.get("memory_enabled", True)
+                else "本次未启用长期记忆。"
+            ),
         ]
     )
 
@@ -369,6 +406,7 @@ def critic_node(state: ResearchState) -> ResearchState:
     graph_paths = [GraphPath.model_validate(path) for path in state.get("graph_paths", [])]
 
     evaluation = ResearchEvaluator().evaluate(
+        query=state["query"],
         report=state.get("final_report", ""),
         papers=papers,
         retrieval_hits=retrieval_results,
@@ -435,7 +473,11 @@ def memory_write_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="memory_write",
-                message="已处理长期记忆写入。",
+                message=(
+                    "已写入长期记忆。"
+                    if record is not None
+                    else "已关闭长期记忆，跳过写入。"
+                ),
                 metadata={"saved": record is not None},
             )
         ],
