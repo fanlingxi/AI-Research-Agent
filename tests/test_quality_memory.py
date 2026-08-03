@@ -109,6 +109,32 @@ def test_memory_agent_recalls_saved_research(tmp_path) -> None:
     assert "GraphRAG literature review" in snapshot.summary
 
 
+def test_memory_agent_recalls_related_chinese_research(tmp_path) -> None:
+    store = JsonMemoryStore(str(tmp_path / "memory.json"))
+    agent = MemoryAgent(store=store, enabled=True)
+    report, papers, hits, entities, relations, paths = _quality_inputs()
+    evaluation = ResearchEvaluator().evaluate(
+        query="多智能体协作科研分析方法",
+        report=report,
+        papers=papers,
+        retrieval_hits=hits,
+        graph_entities=entities,
+        graph_relations=relations,
+        graph_paths=paths,
+    )
+
+    agent.remember(
+        query="多智能体协作科研分析方法",
+        report=report,
+        evaluation=evaluation,
+        tags=["多智能体", "科研分析"],
+    )
+    snapshot = agent.recall("多智能体系统在科研分析中的协作方法")
+
+    assert snapshot.records
+    assert "多智能体协作科研分析方法" in snapshot.summary
+
+
 def test_evaluator_and_critic_flag_irrelevant_evidence() -> None:
     report, papers, hits, entities, relations, paths = _quality_inputs()
     unrelated_paper = papers[0].model_copy(

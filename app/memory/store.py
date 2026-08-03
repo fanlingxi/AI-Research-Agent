@@ -54,4 +54,21 @@ class JsonMemoryStore:
 
 
 def _tokens(text: str) -> list[str]:
-    return re.findall(r"[a-zA-Z0-9_]+", text.lower())
+    """Create lightweight lexical features for English and Chinese recall."""
+
+    normalized = text.lower()
+    tokens = re.findall(r"[a-zA-Z0-9_]+", normalized)
+
+    # Chinese does not use whitespace to separate words. Character n-grams give
+    # related research queries useful overlap without introducing a tokenizer dependency.
+    for segment in re.findall(r"[\u4e00-\u9fff]+", normalized):
+        if len(segment) == 1:
+            tokens.append(segment)
+            continue
+        for width in (2, 3):
+            tokens.extend(
+                segment[index : index + width]
+                for index in range(len(segment) - width + 1)
+            )
+
+    return tokens
