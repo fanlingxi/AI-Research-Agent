@@ -2,7 +2,7 @@
 
 AI Research Agent with GraphRAG is a multi-agent research analysis system. It is designed to take a research topic, plan the work, call tools, analyze documents, build a knowledge graph, run GraphRAG reasoning, and generate a structured research report.
 
-This repository is being built phase by phase. The current implementation is **Phase 4.1: Quality-Enhanced Agentic GraphRAG**.
+This repository is being built phase by phase. The current implementation is **Phase 4.2: Reflective Agentic GraphRAG**.
 
 默认交互和报告输出优先面向中文用户；工具名和模块名保留英文，方便工程调试和 GitHub 展示。
 
@@ -23,9 +23,11 @@ This repository is being built phase by phase. The current implementation is **P
 - In-memory knowledge graph and Neo4j integration
 - Graph path retrieval and GraphRAG reasoning
 - Long-term JSON memory
-- Critic Agent feedback
-- Reflection-based report revision
+- LLM-backed Writer Agent with evidence-constrained Chinese report drafting
+- Critic Agent feedback with a bounded Writer revision loop
+- Post-reflection quality reevaluation
 - Quality-aware evaluation for retrieval coverage, relevance, graph paths, report structure, and citation fidelity
+- Critical quality gates that prevent high structural scores from masking low relevance
 - CLI demo for running the research pipeline
 
 ## Target Architecture
@@ -97,7 +99,7 @@ DEEPSEEK_MODEL=deepseek-v4-pro
 
 项目配置层会校验 DeepSeek 模型名，目前仅允许 `deepseek-v4-flash` 和 `deepseek-v4-pro`，避免误用旧模型名。
 
-## Run Phase 4.1 Demo
+## Run Phase 4.2 Demo
 
 ```bash
 python main.py run "GraphRAG 在科研文献综述中的应用"
@@ -116,8 +118,9 @@ Expected output:
 - Evaluation 评估指标
 - Critic Review 审查意见
 - 主题相关性与引用忠实度评估
+- Writer Agent 研究结论与受控 Reflection 修订
 - 长期记忆读写状态
-- Phase 4.1 Markdown 研究报告
+- Phase 4.2 Markdown 研究报告
 
 Offline mode is the default so the project can run without network access:
 
@@ -189,6 +192,7 @@ python main.py parse-pdf data/raw_papers/example.pdf --max-pages 5
 - Phase 3: GraphRAG with entity extraction, relation extraction, Neo4j storage, and graph reasoning
 - Phase 4: Memory, reflection, critic loop, and evaluation
 - Phase 4.1: Full-text PDF ingestion, query-aware retrieval, graph hygiene, and quality-aware evaluation
+- Phase 4.2: LLM Writer, bounded Critic-Reflection revision, critical quality gates, and bilingual retrieval expansion
 - Phase 5: FastAPI backend, Streamlit UI, Docker deployment, README, and demo assets
 
 ## Suggested Git Commit Plan

@@ -6,7 +6,12 @@ import textwrap
 import xml.etree.ElementTree as ET
 from urllib.parse import urlencode
 
-from app.retrieval.relevance import TOPIC_CONCEPTS, extract_topic_concepts, relevance_score
+from app.retrieval.relevance import (
+    TOPIC_CONCEPTS,
+    concept_coverage,
+    extract_topic_concepts,
+    relevance_score,
+)
 from app.schemas.documents import PaperMetadata
 from app.schemas.research import ToolResult
 
@@ -133,11 +138,12 @@ def rank_papers(query: str, papers: list[PaperMetadata]) -> list[PaperMetadata]:
     for paper in papers:
         deduped.setdefault(paper.id, paper)
 
-    def score(paper: PaperMetadata) -> tuple[float, int, str]:
+    def score(paper: PaperMetadata) -> tuple[float, float, int, str]:
         title_score = relevance_score(query, paper.title)
         abstract_score = relevance_score(query, paper.abstract)
         combined = 0.65 * title_score + 0.35 * abstract_score
-        return (combined, paper.year or 0, paper.title.lower())
+        coverage = concept_coverage(query, f"{paper.title}\n{paper.abstract}")
+        return (coverage, combined, paper.year or 0, paper.title.lower())
 
     return sorted(deduped.values(), key=score, reverse=True)
 

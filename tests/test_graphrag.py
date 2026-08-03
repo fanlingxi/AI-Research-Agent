@@ -90,6 +90,7 @@ def test_in_memory_graph_store_retrieves_paths() -> None:
     assert paths
     assert paths[0].nodes
     assert paths[0].relations
+    assert all(0.0 <= path.score <= 1.0 for path in paths)
 
 
 def test_graph_reasoning_combines_vector_and_graph_context() -> None:

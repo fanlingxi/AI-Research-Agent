@@ -152,12 +152,17 @@ class InMemoryGraphStore:
         nodes: list[GraphEntity],
         relations: list[GraphRelation],
     ) -> float:
-        relation_strength = sum(relation.weight for relation in relations) / len(relations)
+        normalized_weights = [
+            min(1.0, relation.weight / max(1, len(relation.source_chunk_ids)))
+            for relation in relations
+        ]
+        relation_strength = sum(normalized_weights) / len(normalized_weights)
         semantic_score = max(
             relevance_score(query, f"{node.name}\n{node.description}") for node in nodes
         )
         multi_hop_bonus = 0.1 if len(relations) > 1 else 0.0
-        return round(0.55 * semantic_score + 0.35 * relation_strength + multi_hop_bonus, 3)
+        score = 0.55 * semantic_score + 0.35 * relation_strength + multi_hop_bonus
+        return round(min(1.0, score), 3)
 
 
 class Neo4jGraphStore:

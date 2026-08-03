@@ -122,7 +122,8 @@ def _infer_title(page_texts: list[str]) -> str | None:
         return None
 
     blocked_prefixes = ("arxiv:", "preprint", "submitted", "copyright")
-    for line in page_texts[0].splitlines()[:24]:
+    lines = page_texts[0].splitlines()[:24]
+    for index, line in enumerate(lines):
         candidate = re.sub(r"\s+", " ", line).strip()
         lowered = candidate.lower()
         if (
@@ -130,5 +131,26 @@ def _infer_title(page_texts: list[str]) -> str | None:
             and any(char.isalpha() for char in candidate)
             and not lowered.startswith(blocked_prefixes)
         ):
-            return candidate
+            continuation = _title_continuation(lines[index + 1 : index + 3])
+            return f"{candidate} {continuation}".strip()
     return None
+
+
+def _title_continuation(lines: list[str]) -> str:
+    """Join wrapped title lines while stopping before author metadata."""
+
+    parts: list[str] = []
+    for line in lines:
+        candidate = re.sub(r"\s+", " ", line).strip()
+        if not candidate or len(candidate) > 140:
+            break
+        if any(marker in candidate for marker in ("@", "†", "‡")):
+            break
+        if re.search(r"\d", candidate):
+            break
+        if not any(char.isalpha() for char in candidate):
+            break
+        parts.append(candidate)
+        if len(parts) == 1:
+            break
+    return " ".join(parts)

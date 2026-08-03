@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import json
+import re
+
 from app.config.settings import get_settings
+from app.llms.provider import LLMClient, MockLLMClient
 from app.schemas.quality import CritiqueResult, EvaluationResult
 
 
 class CriticAgent:
     """Review the report and turn evaluation metrics into revision guidance."""
+
+    def __init__(self, llm: LLMClient | None = None) -> None:
+        self.llm = llm
 
     def review(
         self,
@@ -33,6 +40,10 @@ class CriticAgent:
                 "补充 GraphRAG 推理总结章节，明确展示图谱路径和向量证据。"
             )
 
+        llm_feedback = self._review_with_llm(report=report, evaluation=evaluation)
+        issues.extend(llm_feedback.get("issues", []))
+        suggestions.extend(llm_feedback.get("suggestions", []))
+
         critical_names = {"retrieval_relevance", "graph_quality", "citation_faithfulness"}
         has_critical_issue = any(
             metric.name in critical_names and metric.score < 0.65
@@ -48,6 +59,53 @@ class CriticAgent:
             issues=issues,
             suggestions=list(dict.fromkeys(suggestions)),
         )
+
+    def _review_with_llm(
+        self,
+        report: str,
+        evaluation: EvaluationResult,
+    ) -> dict[str, list[str]]:
+        if self.llm is None or isinstance(self.llm, MockLLMClient):
+            return {"issues": [], "suggestions": []}
+
+        metrics = "\n".join(
+            f"- {metric.name}: {metric.score:.2f} | {metric.reason}"
+            for metric in evaluation.metrics
+        )
+        prompt = "\n\n".join(
+            [
+                "请以科研报告审稿人的身份审查以下报告。",
+                "只识别与给定证据、引用完整性和推理边界有关的问题；不得编造事实。",
+                "返回 JSON：{\"issues\": [\"...\"], \"suggestions\": [\"...\"]}。",
+                "评估指标：\n" + metrics,
+                "报告内容：\n" + report[:12000],
+            ]
+        )
+        try:
+            response = self.llm.invoke(
+                prompt,
+                system_prompt="你是严格、简洁的中文科研报告 Critic Agent，只返回合法 JSON。",
+            )
+            payload = self._extract_json(response)
+        except Exception:
+            return {"issues": [], "suggestions": []}
+
+        issues = payload.get("issues", [])
+        suggestions = payload.get("suggestions", [])
+        if not isinstance(issues, list) or not isinstance(suggestions, list):
+            return {"issues": [], "suggestions": []}
+        return {
+            "issues": [str(item) for item in issues[:4] if str(item).strip()],
+            "suggestions": [str(item) for item in suggestions[:4] if str(item).strip()],
+        }
+
+    def _extract_json(self, response: str) -> dict:
+        cleaned = response.strip()
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r"^```(?:json)?", "", cleaned)
+            cleaned = re.sub(r"```$", "", cleaned).strip()
+        match = re.search(r"\{.*\}", cleaned, flags=re.DOTALL)
+        return json.loads(match.group(0) if match else cleaned)
 
     def _suggestion_for_metric(self, metric_name: str) -> str:
         suggestions = {

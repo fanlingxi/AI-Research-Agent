@@ -51,7 +51,6 @@ ENTITY_PATTERNS: dict[str, list[str]] = {
         "OpenReview",
         "benchmark",
         "基准",
-        "dataset",
         "数据集",
     ],
     "Metric": [
@@ -166,7 +165,10 @@ class GraphExtractor:
                         )
                     )
 
+        normalized_title = self._normalize_name(chunk.title)
         for name in self._capitalized_terms(text):
+            if self._is_title_fragment(name, normalized_title):
+                continue
             candidates.append(
                 self._entity(
                     name=name,
@@ -303,7 +305,11 @@ class GraphExtractor:
         if self._is_metadata_noise(value) or self._matches_pattern_entity(value):
             return False
         is_acronym = value.isupper() and len(value) >= 3
-        return is_acronym or count >= 2
+        return is_acronym or count >= 3
+
+    def _is_title_fragment(self, value: str, normalized_title: str) -> bool:
+        normalized_value = self._normalize_name(value)
+        return not value.isupper() and normalized_value in normalized_title
 
     def _matches_pattern_entity(self, value: str) -> bool:
         normalized = self._normalize_name(value)

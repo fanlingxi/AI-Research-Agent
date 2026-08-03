@@ -1,22 +1,35 @@
 from __future__ import annotations
 
+from app.agents.writer_agent import WriterAgent
 from app.schemas.quality import CritiqueResult, EvaluationResult, ReflectionResult
 
 
 class ReflectionAgent:
-    """Apply critic feedback by appending a transparent reflection section."""
+    """Apply critic feedback through a bounded Writer revision and quality audit."""
+
+    def __init__(self, writer: WriterAgent | None = None) -> None:
+        self.writer = writer or WriterAgent()
 
     def revise(
         self,
         report: str,
         evaluation: EvaluationResult,
         critique: CritiqueResult,
+        query: str = "",
+        include_audit: bool = True,
     ) -> ReflectionResult:
-        reflection_section = self._build_reflection_section(evaluation, critique)
-        revised_report = f"{report.rstrip()}\n\n{reflection_section}"
+        revised_report = self.writer.revise(report=report, critique=critique, query=query)
+        if include_audit:
+            revised_report = self.append_quality_audit(
+                report=revised_report,
+                evaluation=evaluation,
+                critique=critique,
+            )
 
         applied = []
-        if critique.suggestions:
+        if critique.needs_revision:
+            applied.append("已基于 Critic 建议调用 Writer Agent 进行一次受控修订。")
+        if include_audit:
             applied.append("已将 Critic 建议和评估分数写入报告。")
         applied.append("已记录质量审查结果，供长期记忆和后续运行复用。")
 
@@ -28,6 +41,15 @@ class ReflectionAgent:
             ],
             applied_suggestions=applied,
         )
+
+    def append_quality_audit(
+        self,
+        report: str,
+        evaluation: EvaluationResult,
+        critique: CritiqueResult,
+    ) -> str:
+        reflection_section = self._build_reflection_section(evaluation, critique)
+        return f"{report.rstrip()}\n\n{reflection_section}"
 
     def _build_reflection_section(
         self,

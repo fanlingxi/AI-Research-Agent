@@ -8,6 +8,7 @@ TOPIC_CONCEPTS: dict[str, tuple[str, ...]] = {
     "GraphRAG": ("graphrag", "graph rag"),
     "查询聚焦摘要": ("query-focused summarization", "query focused summarization"),
     "科学文献综述": ("scientific literature review", "literature review", "文献综述"),
+    "证据整合": ("evidence integration", "evidence aggregation", "证据整合"),
     "多智能体协作": ("multi-agent", "multi agent", "multiagent", "多智能体"),
     "长期记忆": ("long-term memory", "long term memory", "长期记忆"),
     "智能体评估": ("agent evaluation", "llm agent evaluation", "agentbench", "智能体评估"),
@@ -49,11 +50,27 @@ def contains_concept(text: str, variants: tuple[str, ...]) -> bool:
 
 
 def extract_topic_concepts(query: str) -> list[str]:
-    return [
+    concepts = [
         concept
         for concept, variants in TOPIC_CONCEPTS.items()
         if contains_concept(query, variants)
     ]
+    if "智能体评估" in concepts and "评估" in concepts:
+        concepts.remove("评估")
+    return concepts
+
+
+def expand_query_for_retrieval(query: str) -> str:
+    """Append compact English aliases for cross-lingual lightweight retrieval."""
+
+    aliases = [TOPIC_CONCEPTS[concept][0] for concept in extract_topic_concepts(query)]
+    normalized_query = normalize_text(query)
+    missing_aliases = [
+        alias
+        for alias in aliases
+        if normalize_text(alias) not in normalized_query
+    ]
+    return " ".join([query, *missing_aliases])
 
 
 def concept_coverage(query: str, text: str) -> float:

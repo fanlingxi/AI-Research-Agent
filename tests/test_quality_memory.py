@@ -1,11 +1,32 @@
 from app.agents.critic_agent import CriticAgent
 from app.agents.memory_agent import MemoryAgent
 from app.agents.reflection_agent import ReflectionAgent
+from app.agents.writer_agent import WriterAgent
 from app.evaluation.evaluator import ResearchEvaluator
 from app.graph.nodes import memory_context_node
+from app.llms.provider import LLMClient
 from app.memory.store import JsonMemoryStore
 from app.schemas.documents import PaperMetadata, RetrievalHit
 from app.schemas.graph import GraphEntity, GraphPath, GraphRelation
+from app.schemas.research import ResearchPlan
+
+
+class ReportLLM(LLMClient):
+    def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
+        if "返回 JSON" in prompt:
+            return '{"issues": ["结论需要收紧证据边界。"], "suggestions": ["补充引用编号。"]}'
+        return "\n".join(
+            [
+                "## 核心发现",
+                "证据 [1] 支持 GraphRAG 的图增强检索价值。",
+                "## 机制分析",
+                "图谱路径和向量检索共同提供可追溯上下文。",
+                "## 局限性",
+                "现有证据覆盖有限，且不同论文分别覆盖方法、记忆和评估子主题，不能将它们直接解释为统一的性能结论。",
+                "## 结论与下一步",
+                "需要继续补充全文和基准证据，并针对相同任务设置比较检索、图谱构建和报告生成的实际效果。",
+            ]
+        )
 
 
 def _quality_inputs():
@@ -112,6 +133,7 @@ def test_evaluator_and_critic_flag_irrelevant_evidence() -> None:
     )
 
     assert relevance.score < 0.65
+    assert not evaluation.passed
     assert critique.needs_revision
 
 
@@ -119,3 +141,37 @@ def test_memory_trace_reports_disabled_state() -> None:
     result = memory_context_node({"query": "GraphRAG", "memory_enabled": False})
 
     assert result["traces"][0].message == "已关闭长期记忆，跳过召回。"
+
+
+def test_writer_and_reflection_use_a_bounded_revision() -> None:
+    report, papers, hits, _, _, paths = _quality_inputs()
+    writer = WriterAgent(llm=ReportLLM())
+    draft = writer.draft(
+        query="GraphRAG vector retrieval",
+        plan=ResearchPlan(objective="验证 Writer"),
+        papers=papers,
+        retrieval_hits=hits,
+        graph_paths=paths,
+    )
+    evaluation = ResearchEvaluator().evaluate(
+        query="GraphRAG vector retrieval",
+        report=report,
+        papers=papers,
+        retrieval_hits=hits,
+        graph_entities=[],
+        graph_relations=[],
+        graph_paths=[],
+    )
+    critique = CriticAgent(llm=ReportLLM()).review(report=report, evaluation=evaluation)
+    critique.needs_revision = True
+    reflection = ReflectionAgent(writer=writer).revise(
+        report=draft,
+        evaluation=evaluation,
+        critique=critique,
+        query="GraphRAG vector retrieval",
+        include_audit=False,
+    )
+
+    assert "## 核心发现" in draft
+    assert "## 修订后的研究报告" in reflection.revised_report
+    assert "结论需要收紧证据边界。" in critique.issues

@@ -1,5 +1,6 @@
 from app.agents.document_agent import DocumentAgent
 from app.schemas.documents import ParsedDocument
+from app.tools.pdf_tools import _infer_title
 
 
 def test_document_agent_ingests_explicit_pdf_sources(monkeypatch) -> None:
@@ -28,3 +29,15 @@ def test_document_agent_ingests_explicit_pdf_sources(monkeypatch) -> None:
     assert result.papers[0].metadata["content_kind"] == "pdf_full_text"
     assert len(chunks) > 1
     assert chunks[0].metadata["content_kind"] == "pdf_full_text"
+
+
+def test_pdf_title_inference_joins_wrapped_heading() -> None:
+    title = _infer_title(
+        [
+            "From Local to Global: A GraphRAG Approach to\n"
+            "Query-Focused Summarization\n"
+            "Darren Edge1† Ha Trinh1†"
+        ]
+    )
+
+    assert title == "From Local to Global: A GraphRAG Approach to Query-Focused Summarization"

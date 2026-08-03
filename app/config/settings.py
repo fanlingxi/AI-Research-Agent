@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     memory_recall_limit: int = 3
 
     evaluation_passing_score: float = 0.72
+    evaluation_critical_min_score: float = 0.65
     critic_min_score: float = 0.78
 
     qdrant_url: str = "http://localhost:6333"

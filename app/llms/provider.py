@@ -8,7 +8,7 @@ from app.config.settings import Settings, get_settings
 class LLMClient:
     """Minimal text-generation interface used by agents."""
 
-    def invoke(self, prompt: str) -> str:
+    def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
         raise NotImplementedError
 
 
@@ -18,7 +18,7 @@ class MockLLMClient(LLMClient):
 
     provider_name: str = "mock"
 
-    def invoke(self, prompt: str) -> str:
+    def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
         return """
 {
   "objective": "围绕用户给定主题制定一份可执行的科研分析计划。",
@@ -79,7 +79,7 @@ class LangChainChatClient(LLMClient):
     base_url: str
     temperature: float = 0.2
 
-    def invoke(self, prompt: str) -> str:
+    def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
         from langchain_core.messages import HumanMessage, SystemMessage
         from langchain_openai import ChatOpenAI
 
@@ -92,7 +92,8 @@ class LangChainChatClient(LLMClient):
         response = chat.invoke(
             [
                 SystemMessage(
-                    content=(
+                    content=system_prompt
+                    or (
                         "你是一名资深 AI 科研规划智能体。"
                         "请始终返回符合指定 schema 的合法 JSON，"
                         "并且 JSON 中的自然语言内容优先使用中文。"

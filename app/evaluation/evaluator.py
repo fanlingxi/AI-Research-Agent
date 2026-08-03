@@ -35,12 +35,25 @@ class ResearchEvaluator:
         ]
 
         overall = round(sum(metric.score for metric in metrics) / len(metrics), 3)
+        critical_names = {"retrieval_relevance", "graph_quality", "citation_faithfulness"}
+        critical_failures = [
+            metric.name
+            for metric in metrics
+            if metric.name in critical_names
+            and metric.score < settings.evaluation_critical_min_score
+        ]
+        passed = overall >= settings.evaluation_passing_score and not critical_failures
+        gate_note = (
+            "关键指标均通过门槛。"
+            if not critical_failures
+            else "关键指标未通过：" + "、".join(critical_failures) + "。"
+        )
         return EvaluationResult(
             overall_score=overall,
-            passed=overall >= settings.evaluation_passing_score,
+            passed=passed,
             summary=(
                 f"综合质量评分为 {overall:.2f}，"
-                f"通过阈值为 {settings.evaluation_passing_score:.2f}。"
+                f"通过阈值为 {settings.evaluation_passing_score:.2f}。{gate_note}"
             ),
             metrics=metrics,
         )

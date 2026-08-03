@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from app.config.settings import get_settings
 from app.retrieval.rag import build_rag_retriever
+from app.retrieval.relevance import expand_query_for_retrieval
 from app.retrieval.vector_store import InMemoryVectorStore
 from app.schemas.documents import DocumentChunk, RetrievalHit
 
@@ -38,7 +39,8 @@ class ReasoningAgent:
             provider_name = "memory"
 
         retriever.index(chunks)
-        hits = retriever.search(query=query, top_k=selected_top_k)
+        retrieval_query = expand_query_for_retrieval(query)
+        hits = retriever.search(query=retrieval_query, top_k=selected_top_k)
         return ReasoningResult(
             hits=hits,
             answer=self._build_answer(query=query, hits=hits),

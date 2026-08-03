@@ -9,8 +9,10 @@ from app.agents.planner import PlannerAgent
 from app.agents.reasoning_agent import ReasoningAgent
 from app.agents.reflection_agent import ReflectionAgent
 from app.agents.search_agent import SearchAgent
+from app.agents.writer_agent import WriterAgent
 from app.evaluation.evaluator import ResearchEvaluator
 from app.graph.state import ResearchState
+from app.llms.provider import get_llm_client
 from app.schemas.documents import DocumentChunk, PaperMetadata, RetrievalHit
 from app.schemas.graph import GraphEntity, GraphPath, GraphRelation
 from app.schemas.quality import CritiqueResult, EvaluationResult
@@ -123,7 +125,8 @@ def document_node(state: ResearchState) -> ResearchState:
         sources=state.get("document_sources", []),
         max_pages=state.get("pdf_max_pages"),
     )
-    papers = _dedupe_papers(papers + ingestion.papers)
+    # Explicit sources are user-selected primary evidence, so they lead the report.
+    papers = _dedupe_papers(ingestion.papers + papers)
     chunks = document_agent.build_chunks(papers=papers)
 
     update: ResearchState = {
@@ -266,6 +269,14 @@ def synthesis_node(state: ResearchState) -> ResearchState:
         for relation in state.get("graph_relations", [])
     ]
     graph_paths = [GraphPath.model_validate(path) for path in state.get("graph_paths", [])]
+    writer = WriterAgent(llm=get_llm_client())
+    writer_draft = writer.draft(
+        query=state["query"],
+        plan=plan,
+        papers=papers,
+        retrieval_hits=retrieval_results,
+        graph_paths=graph_paths,
+    )
 
     report_lines = [
         f"# Phase 4 Agentic GraphRAG 科研分析结果：{state['query']}",
@@ -362,6 +373,7 @@ def synthesis_node(state: ResearchState) -> ResearchState:
 
     report_lines.extend(["", "## 向量 RAG 总结", "", state.get("rag_answer", "")])
     report_lines.extend(["", "## GraphRAG 推理总结", "", state.get("graphrag_answer", "")])
+    report_lines.extend(["", writer_draft])
 
     report_lines.extend(
         [
@@ -384,8 +396,11 @@ def synthesis_node(state: ResearchState) -> ResearchState:
         "traces": [
             AgentTrace(
                 node="synthesis",
-                message="已生成 Phase 4 GraphRAG Markdown 报告。",
-                metadata={"tool_results": len(tool_results)},
+                message="Writer Agent 已生成证据约束的 GraphRAG Markdown 报告。",
+                metadata={
+                    "tool_results": len(tool_results),
+                    "writer_provider": getattr(writer.llm, "provider_name", "unknown"),
+                },
             )
         ],
     }
@@ -414,7 +429,11 @@ def critic_node(state: ResearchState) -> ResearchState:
         graph_relations=graph_relations,
         graph_paths=graph_paths,
     )
-    critique = CriticAgent().review(report=state.get("final_report", ""), evaluation=evaluation)
+    critic_llm = get_llm_client()
+    critique = CriticAgent(llm=critic_llm).review(
+        report=state.get("final_report", ""),
+        evaluation=evaluation,
+    )
 
     return {
         "evaluation_result": evaluation,
@@ -427,6 +446,7 @@ def critic_node(state: ResearchState) -> ResearchState:
                     "overall_score": evaluation.overall_score,
                     "passed": evaluation.passed,
                     "needs_revision": critique.needs_revision,
+                    "critic_provider": getattr(critic_llm, "provider_name", "unknown"),
                 },
             )
         ],
@@ -436,20 +456,65 @@ def critic_node(state: ResearchState) -> ResearchState:
 def reflection_node(state: ResearchState) -> ResearchState:
     evaluation = EvaluationResult.model_validate(state["evaluation_result"])
     critique = CritiqueResult.model_validate(state["critique_result"])
-    reflection = ReflectionAgent().revise(
+    llm = get_llm_client()
+    reflection_agent = ReflectionAgent(writer=WriterAgent(llm=llm))
+    reflection = reflection_agent.revise(
         report=state.get("final_report", ""),
         evaluation=evaluation,
         critique=critique,
+        query=state["query"],
+        include_audit=False,
+    )
+    papers = [PaperMetadata.model_validate(paper) for paper in state.get("papers", [])]
+    retrieval_results = [
+        RetrievalHit.model_validate(hit) for hit in state.get("retrieval_results", [])
+    ]
+    graph_entities = [
+        GraphEntity.model_validate(entity) for entity in state.get("graph_entities", [])
+    ]
+    graph_relations = [
+        GraphRelation.model_validate(relation)
+        for relation in state.get("graph_relations", [])
+    ]
+    graph_paths = [GraphPath.model_validate(path) for path in state.get("graph_paths", [])]
+    final_evaluation = ResearchEvaluator().evaluate(
+        query=state["query"],
+        report=reflection.revised_report,
+        papers=papers,
+        retrieval_hits=retrieval_results,
+        graph_entities=graph_entities,
+        graph_relations=graph_relations,
+        graph_paths=graph_paths,
+    )
+    if critique.needs_revision:
+        final_critique = CriticAgent(llm=llm).review(
+            report=reflection.revised_report,
+            evaluation=final_evaluation,
+        )
+    else:
+        final_critique = critique
+    final_report = reflection_agent.append_quality_audit(
+        report=reflection.revised_report,
+        evaluation=final_evaluation,
+        critique=final_critique,
     )
 
     return {
-        "final_report": reflection.revised_report,
+        "final_report": final_report,
+        "evaluation_result": final_evaluation,
+        "critique_result": final_critique,
         "reflection_result": reflection,
         "traces": [
             AgentTrace(
                 node="reflection",
-                message="已根据 Critic 反馈修订最终报告。",
-                metadata={"applied_suggestions": len(reflection.applied_suggestions)},
+                message="已完成一次受控 Writer 修订并复评最终报告。",
+                metadata={
+                    "applied_suggestions": len(reflection.applied_suggestions),
+                    "final_score": final_evaluation.overall_score,
+                    "final_passed": final_evaluation.passed,
+                    "final_needs_revision": final_critique.needs_revision,
+                    "writer_provider": getattr(llm, "provider_name", "unknown"),
+                },
             )
         ],
     }
@@ -486,12 +551,19 @@ def memory_write_node(state: ResearchState) -> ResearchState:
 
 def _display_agent_name(agent: str) -> str:
     names = {
+        "planner": "规划智能体",
         "planner agent": "规划智能体",
+        "search": "搜索智能体",
         "search agent": "搜索智能体",
+        "document": "文档智能体",
         "document agent": "文档智能体",
+        "knowledge": "知识智能体",
         "knowledge agent": "知识智能体",
+        "reasoning": "推理智能体",
         "reasoning agent": "推理智能体",
+        "writer": "写作智能体",
         "writer agent": "写作智能体",
+        "critic": "审查智能体",
         "critic agent": "审查智能体",
     }
     return names.get(agent.strip().lower(), agent)

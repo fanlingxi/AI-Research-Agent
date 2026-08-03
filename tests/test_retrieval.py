@@ -1,6 +1,7 @@
 from app.retrieval.chunking import TextChunker, paper_to_retrieval_text
 from app.retrieval.embeddings import HashEmbeddingProvider, cosine_similarity
 from app.retrieval.rag import RagRetriever
+from app.retrieval.relevance import expand_query_for_retrieval
 from app.retrieval.vector_store import InMemoryVectorStore
 from app.schemas.documents import PaperMetadata
 from app.tools.search_tools import build_offline_demo_papers, build_search_queries, rank_papers
@@ -68,3 +69,33 @@ def test_hash_embedding_supports_chinese_text() -> None:
 
     assert any(query_vector)
     assert cosine_similarity(query_vector, related_vector) > 0
+
+
+def test_cross_lingual_query_expansion_shares_english_concepts() -> None:
+    embedding = HashEmbeddingProvider(dimension=128)
+    expanded_query = expand_query_for_retrieval("比较多智能体协作、长期记忆与智能体评估方法")
+    paper_vector = embedding.embed_query(
+        "Multi-agent collaboration with long-term memory and agent evaluation"
+    )
+
+    assert "multi-agent" in expanded_query
+    assert "long-term memory" in expanded_query
+    assert cosine_similarity(embedding.embed_query(expanded_query), paper_vector) > 0
+
+
+def test_reranking_prefers_literature_review_over_generic_graphrag() -> None:
+    query = "GraphRAG 如何提升科研文献综述的证据整合与多跳推理能力？"
+    papers = [
+        PaperMetadata(
+            id="paper:plasma",
+            title="Plasma GraphRAG for Simulations",
+            abstract="GraphRAG improves parameter selection for plasma simulations.",
+        ),
+        PaperMetadata(
+            id="paper:review",
+            title="GraphRAG for Scientific Literature Review",
+            abstract="GraphRAG supports evidence integration and multi-hop reasoning.",
+        ),
+    ]
+
+    assert rank_papers(query, papers)[0].id == "paper:review"
