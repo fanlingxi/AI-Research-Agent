@@ -58,10 +58,10 @@ class ObsidianVaultExporter:
         entities: list[GraphEntity],
         relations: list[GraphRelation],
     ) -> ObsidianExportResult:
-        if not evaluation.evidence_admissible:
+        if not (evaluation.passed and evaluation.evidence_admissible):
             return ObsidianExportResult(
                 exported=False,
-                reason="证据未达到正式沉淀门槛，跳过 Obsidian 导出。",
+                reason="研究质量或证据未达到正式沉淀门槛，跳过 Obsidian 导出。",
                 run_id=run_id,
                 vault_path=str(self.root),
             )

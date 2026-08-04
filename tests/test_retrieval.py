@@ -1,9 +1,10 @@
 from app.agents.reasoning_agent import ReasoningAgent
+from app.graphrag.store import Neo4jGraphStore
 from app.retrieval.chunking import TextChunker, paper_to_retrieval_text
 from app.retrieval.embeddings import HashEmbeddingProvider, cosine_similarity
 from app.retrieval.rag import RagRetriever
 from app.retrieval.relevance import expand_query_for_retrieval
-from app.retrieval.vector_store import InMemoryVectorStore
+from app.retrieval.vector_store import InMemoryVectorStore, QdrantVectorStore
 from app.schemas.documents import PaperMetadata
 from app.tools.search_tools import build_offline_demo_papers, build_search_queries, rank_papers
 
@@ -138,3 +139,71 @@ def test_reasoning_agent_reports_qdrant_fallback(monkeypatch) -> None:
     assert result.vector_store_provider == "memory"
     assert "qdrant unavailable" in (result.fallback_reason or "")
     assert result.hits
+
+
+def test_qdrant_vector_store_uses_current_query_api() -> None:
+    class FakeClient:
+        def __init__(self) -> None:
+            self.call: dict[str, object] = {}
+
+        def query_points(self, **kwargs):
+            self.call = kwargs
+            point = type(
+                "Point",
+                (),
+                {
+                    "id": "point-1",
+                    "score": 0.91,
+                    "payload": {
+                        "id": "chunk:1",
+                        "paper_id": "paper:1",
+                        "title": "GraphRAG Paper",
+                        "text": "Evidence-backed graph retrieval.",
+                        "source_tier": "primary_fulltext",
+                        "metadata": {"page": 2},
+                    },
+                },
+            )()
+            return type("QueryResponse", (), {"points": [point]})()
+
+    store = object.__new__(QdrantVectorStore)
+    store.collection_name = "research_chunks"
+    store.client = FakeClient()
+
+    hits = store.search([0.1, 0.2], top_k=3)
+
+    assert store.client.call == {
+        "collection_name": "research_chunks",
+        "query": [0.1, 0.2],
+        "limit": 3,
+    }
+    assert hits[0].chunk_id == "chunk:1"
+    assert hits[0].source_tier == "primary_fulltext"
+
+
+def test_neo4j_retrieval_uses_non_conflicting_query_parameter() -> None:
+    calls: list[dict[str, object]] = []
+
+    class FakeSession:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args) -> None:
+            return None
+
+        def run(self, _statement: str, **parameters):
+            calls.append(parameters)
+            return []
+
+    class FakeDriver:
+        def session(self):
+            return FakeSession()
+
+    store = object.__new__(Neo4jGraphStore)
+    store.driver = FakeDriver()
+
+    assert store.retrieve_paths("GraphRAG", max_hops=2, limit=3) == []
+    assert calls == [
+        {"query_text": "GraphRAG", "limit": 3},
+        {"query_text": "GraphRAG", "limit": 3},
+    ]

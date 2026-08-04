@@ -3,11 +3,12 @@ from app.agents.memory_agent import MemoryAgent
 from app.agents.reflection_agent import ReflectionAgent
 from app.agents.writer_agent import WriterAgent
 from app.evaluation.evaluator import ResearchEvaluator
-from app.graph.nodes import memory_context_node
+from app.graph.nodes import memory_context_node, memory_write_node
 from app.llms.provider import LLMClient
 from app.memory.store import JsonMemoryStore
 from app.schemas.documents import PaperMetadata, RetrievalHit
 from app.schemas.graph import GraphEntity, GraphPath, GraphRelation
+from app.schemas.quality import EvaluationMetric, EvaluationResult
 from app.schemas.research import ResearchPlan
 
 
@@ -58,6 +59,17 @@ def _quality_inputs():
     return report, [paper], [hit], [entity], [relation], [path]
 
 
+def _formal_memory_evaluation() -> EvaluationResult:
+    return EvaluationResult(
+        overall_score=0.9,
+        passed=True,
+        summary="真实来源与质量门槛均已通过。",
+        metrics=[EvaluationMetric(name="source_quality", score=1.0, reason="真实全文。")],
+        evidence_status="formal",
+        evidence_admissible=True,
+    )
+
+
 def test_evaluator_critic_and_reflection_append_quality_sections() -> None:
     report, papers, hits, entities, relations, paths = _quality_inputs()
 
@@ -85,16 +97,8 @@ def test_evaluator_critic_and_reflection_append_quality_sections() -> None:
 def test_memory_agent_recalls_saved_research(tmp_path) -> None:
     store = JsonMemoryStore(str(tmp_path / "memory.json"))
     agent = MemoryAgent(store=store, enabled=True)
-    report, papers, hits, entities, relations, paths = _quality_inputs()
-    evaluation = ResearchEvaluator().evaluate(
-        query="GraphRAG literature review",
-        report=report,
-        papers=papers,
-        retrieval_hits=hits,
-        graph_entities=entities,
-        graph_relations=relations,
-        graph_paths=paths,
-    )
+    report, *_ = _quality_inputs()
+    evaluation = _formal_memory_evaluation()
 
     record = agent.remember(
         query="GraphRAG literature review",
@@ -112,16 +116,8 @@ def test_memory_agent_recalls_saved_research(tmp_path) -> None:
 def test_memory_agent_recalls_related_chinese_research(tmp_path) -> None:
     store = JsonMemoryStore(str(tmp_path / "memory.json"))
     agent = MemoryAgent(store=store, enabled=True)
-    report, papers, hits, entities, relations, paths = _quality_inputs()
-    evaluation = ResearchEvaluator().evaluate(
-        query="多智能体协作科研分析方法",
-        report=report,
-        papers=papers,
-        retrieval_hits=hits,
-        graph_entities=entities,
-        graph_relations=relations,
-        graph_paths=paths,
-    )
+    report, *_ = _quality_inputs()
+    evaluation = _formal_memory_evaluation()
 
     agent.remember(
         query="多智能体协作科研分析方法",
@@ -167,6 +163,39 @@ def test_memory_trace_reports_disabled_state() -> None:
     result = memory_context_node({"query": "GraphRAG", "memory_enabled": False})
 
     assert result["traces"][0].message == "已关闭长期记忆，跳过召回。"
+
+
+def test_memory_write_refuses_quality_failed_research(monkeypatch) -> None:
+    called = False
+
+    def unexpected_remember(*_args, **_kwargs):
+        nonlocal called
+        called = True
+        return None
+
+    monkeypatch.setattr(MemoryAgent, "remember", unexpected_remember)
+    evaluation = EvaluationResult(
+        overall_score=0.9,
+        passed=False,
+        summary="关键指标未通过。",
+        metrics=[EvaluationMetric(name="source_quality", score=1.0, reason="真实全文。")],
+        evidence_status="formal",
+        evidence_admissible=True,
+    )
+
+    result = memory_write_node(
+        {
+            "query": "GraphRAG",
+            "memory_enabled": True,
+            "evaluation_result": evaluation,
+            "graph_entities": [],
+            "retrieval_results": [],
+        }
+    )
+
+    assert result["memory_record"] is None
+    assert not called
+    assert not result["traces"][0].metadata["saved"]
 
 
 def test_writer_and_reflection_use_a_bounded_revision() -> None:

@@ -204,6 +204,15 @@ streamlit run app/ui/streamlit_app.py
 docker compose up --build
 ```
 
+If the default host ports are already in use, set `API_PORT` and
+`STREAMLIT_PORT` in `.env` before starting Compose (for example, `8003` and
+`8503`). Qdrant and Neo4j ports can be overridden with `QDRANT_PORT`,
+`NEO4J_HTTP_PORT`, and `NEO4J_BOLT_PORT` as well.
+
+The Compose stack uses Qdrant 1.18 and a `qdrant_data_v118` volume. This keeps
+an older 1.10 development volume intact; re-ingest source PDFs when migrating
+from that earlier local format.
+
 - API 文档：`http://localhost:8000/docs`
 - Streamlit：`http://localhost:8501`
 - Neo4j Browser：`http://localhost:7474`

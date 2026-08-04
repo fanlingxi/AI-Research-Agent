@@ -101,3 +101,20 @@ def test_vault_export_refuses_non_admissible_research(tmp_path) -> None:
 
     assert not result.exported
     assert not (tmp_path / "vault").exists()
+
+
+def test_vault_export_refuses_quality_failed_research(tmp_path) -> None:
+    evaluation = _formal_evaluation().model_copy(update={"passed": False})
+    result = ObsidianVaultExporter(str(tmp_path / "vault")).export(
+        run_id="run-quality-failed",
+        query="Demo",
+        report="# Demo",
+        evaluation=evaluation,
+        papers=[],
+        retrieval_hits=[],
+        entities=[],
+        relations=[],
+    )
+
+    assert not result.exported
+    assert not (tmp_path / "vault").exists()

@@ -100,14 +100,14 @@ class QdrantVectorStore:
         self.client.upsert(collection_name=self.collection_name, points=points)
 
     def search(self, query_embedding: list[float], top_k: int = 5) -> list[RetrievalHit]:
-        results = self.client.search(
+        response = self.client.query_points(
             collection_name=self.collection_name,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=top_k,
         )
 
         hits: list[RetrievalHit] = []
-        for item in results:
+        for item in response.points:
             payload = item.payload or {}
             metadata = payload.get("metadata") or {}
             hits.append(

@@ -48,7 +48,7 @@ class MemoryAgent:
         evidence_ids: list[str] | None = None,
         vault_note_path: str | None = None,
     ) -> MemoryRecord | None:
-        if not self.enabled:
+        if not self.enabled or not (evaluation.passed and evaluation.evidence_admissible):
             return None
 
         created_at = datetime.now(tz=UTC).isoformat()

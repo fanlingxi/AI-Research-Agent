@@ -541,7 +541,7 @@ def memory_write_node(state: ResearchState) -> ResearchState:
     ]
     export_result = state.get("obsidian_export_result", {})
     record = None
-    if evaluation.evidence_admissible:
+    if evaluation.passed and evaluation.evidence_admissible:
         source_quality = next(
             (metric.score for metric in evaluation.metrics if metric.name == "source_quality"),
             0.0,
@@ -566,7 +566,7 @@ def memory_write_node(state: ResearchState) -> ResearchState:
                     "已写入长期记忆。"
                     if record is not None
                     else (
-                        "证据未达到正式沉淀门槛，跳过长期记忆写入。"
+                        "研究质量或证据未达到正式沉淀门槛，跳过长期记忆写入。"
                         if state.get("memory_enabled", True)
                         else "已关闭长期记忆，跳过写入。"
                     )
@@ -574,6 +574,7 @@ def memory_write_node(state: ResearchState) -> ResearchState:
                 metadata={
                     "saved": record is not None,
                     "evidence_admissible": evaluation.evidence_admissible,
+                    "evaluation_passed": evaluation.passed,
                 },
             )
         ],

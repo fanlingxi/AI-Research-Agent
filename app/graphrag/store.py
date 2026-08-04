@@ -245,14 +245,14 @@ class Neo4jGraphStore:
             records = session.run(
                 """
                 MATCH (seed:ResearchEntity)
-                WHERE toLower($query) CONTAINS toLower(seed.name)
-                   OR toLower(seed.name) CONTAINS toLower($query)
+                WHERE toLower($query_text) CONTAINS toLower(seed.name)
+                   OR toLower(seed.name) CONTAINS toLower($query_text)
                 MATCH (seed)-[r:RELATED]-(neighbor:ResearchEntity)
                 RETURN seed, r, neighbor
                 ORDER BY r.weight DESC
                 LIMIT $limit
                 """,
-                query=query,
+                query_text=query,
                 limit=limit,
             )
             return [
@@ -278,8 +278,8 @@ class Neo4jGraphStore:
             records = session.run(
                 """
                 MATCH (seed:ResearchEntity)
-                WHERE toLower($query) CONTAINS toLower(seed.name)
-                   OR toLower(seed.name) CONTAINS toLower($query)
+                WHERE toLower($query_text) CONTAINS toLower(seed.name)
+                   OR toLower(seed.name) CONTAINS toLower($query_text)
                 MATCH (seed)-[r1:RELATED]-(mid:ResearchEntity)
                       -[r2:RELATED]-(neighbor:ResearchEntity)
                 WHERE seed.id <> neighbor.id
@@ -287,7 +287,7 @@ class Neo4jGraphStore:
                 ORDER BY (r1.weight + r2.weight) DESC
                 LIMIT $limit
                 """,
-                query=query,
+                query_text=query,
                 limit=limit,
             )
             return [
