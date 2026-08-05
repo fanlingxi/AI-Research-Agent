@@ -73,6 +73,8 @@ class KnowledgeRepository:
         self._apply_migration(4, _REPORT_METADATA_SCHEMA)
         self._apply_migration(5, _COLLECTION_SCHEMA)
         self._apply_migration(6, _SEMANTIC_LAYER_SCHEMA)
+        self._apply_migration(7, _COLLECTION_RELATION_BACKFILL_SCHEMA)
+        self._backfill_legacy_relation_collections()
         self._backfill_semantic_records()
 
     def _apply_migration(self, version: int, sql: str) -> None:
@@ -92,6 +94,23 @@ class KnowledgeRepository:
         with self._connect() as connection:
             row = connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()
         return int(row[0] or 0)
+
+    def _backfill_legacy_relation_collections(self) -> None:
+        """Synchronize payload collection metadata after the legacy relation migration."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT r.id FROM published_relations r
+                WHERE EXISTS (
+                    SELECT 1 FROM collection_memberships m
+                    WHERE m.aggregate_type = 'relation' AND m.aggregate_id = r.id
+                )
+                AND COALESCE(json_array_length(r.payload_json, '$.collection_slugs'), 0) = 0
+                """
+            ).fetchall()
+            now = _now()
+            for row in rows:
+                self._refresh_aggregate_collections_tx(connection, "relation", str(row["id"]), now)
 
     # Ingestions and durable jobs -------------------------------------------------
 
@@ -2057,4 +2076,17 @@ CREATE TABLE IF NOT EXISTS mention_sense_links (
     created_at TEXT NOT NULL,
     PRIMARY KEY (mention_id, sense_id)
 );
+"""
+
+
+_COLLECTION_RELATION_BACKFILL_SCHEMA = """
+INSERT OR IGNORE INTO collection_memberships
+    (aggregate_type, aggregate_id, ingestion_id, collection_slug, created_at)
+SELECT DISTINCT
+    'relation', r.id, document.ingestion_id, membership.collection_slug, r.created_at
+FROM published_relations r
+JOIN relation_topics legacy ON legacy.relation_id = r.id
+JOIN documents document
+  ON document.id = json_extract(r.payload_json, '$.evidence[0].paper_id')
+JOIN ingestion_collections membership ON membership.ingestion_id = document.ingestion_id;
 """

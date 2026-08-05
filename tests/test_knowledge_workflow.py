@@ -144,13 +144,23 @@ def test_reviewable_workflow_publishes_readable_vault_only_after_approval(tmp_pa
     assert "CO_OCCURS_WITH" not in paper_content
     assert not (vault / "30_Claims").exists()
     canvas = json.loads(canvas_path.read_text(encoding="utf-8"))
-    assert len([node for node in canvas["nodes"] if node["type"] == "file"]) <= 25
-    assert len(canvas["edges"]) <= 35
+    assert len([node for node in canvas["nodes"] if node["type"] == "file"]) <= 18
+    assert len(canvas["edges"]) <= 18
+    assert canvas["edges"]
+    assert canvas["metadata"]["layout"] == "reading-flow"
     assert all(
-        edge["label"]
-        in {"提出", "解决", "使用", "评估", "改进", "对比", "应用于", "存在局限", "支持"}
+        edge["fromSide"] in {"top", "right", "bottom", "left"}
+        and edge["toSide"] in {"top", "right", "bottom", "left"}
+        and "label" not in edge
         for edge in canvas["edges"]
     )
+    graph_config = json.loads((vault / ".obsidian" / "graph.json").read_text(encoding="utf-8"))
+    assert graph_config["search"] == '-path:"80_Canvases"'
+    assert {item["query"] for item in graph_config["colorGroups"]} >= {
+        'path:"10_Papers"',
+        'path:"20_Concepts"',
+        'path:"30_Methods"',
+    }
 
     paper_path.write_text(
         paper_content.replace("在这里记录你的阅读、判断和待验证问题。", "我的人工判断。"),
@@ -227,6 +237,33 @@ def test_repository_requires_an_explicit_entity_merge_and_preserves_aliases(tmp_
     assert merged.id == canonical.id
     assert "Graph RAG" in merged.aliases
     assert reviewed["candidate"]["status"] == "merged"
+
+
+def test_collection_migration_backfills_legacy_relation_memberships(tmp_path) -> None:
+    repository, service, _ = _service(tmp_path)
+    ingestion = service.submit(
+        topic="旧关系迁移", sources=["fixture-agent-paper.pdf"], pdf_max_pages=4
+    )
+    service.run(ingestion.id)
+    service.approve_ready(ingestion.id)
+    for item in repository.list_candidates(ingestion.id, status="draft"):
+        if item["kind"] == "relation":
+            service.decide(item["candidate"]["id"], CandidateDecision(decision="approve"))
+    relation_ids = {
+        item.id for item in repository.list_published_relations(ingestion.topic_slug)
+    }
+
+    with repository._connect() as connection:
+        connection.execute(
+            "DELETE FROM collection_memberships WHERE aggregate_type = 'relation'"
+        )
+        connection.execute("DELETE FROM schema_migrations WHERE version = 7")
+
+    migrated = KnowledgeRepository(str(tmp_path / "knowledge.db"))
+
+    assert {
+        item.id for item in migrated.list_published_relations(ingestion.topic_slug)
+    } == relation_ids
 
 
 def test_ten_pdf_batch_creates_ten_readable_paper_notes_without_offline_demo(tmp_path) -> None:

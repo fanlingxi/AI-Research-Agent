@@ -39,14 +39,105 @@ RELATION_LABELS = {
     "HAS_LIMITATION": "存在局限",
     "SUPPORTS": "支持",
 }
+# The palette is intentionally shared with the Graph-view preset below.  The values are
+# explicit hex colours rather than Obsidian's numbered defaults, so the reading map keeps
+# its semantic meaning when a user changes themes.
 CANVAS_COLORS = {
-    "Paper": "1",
-    "Concept": "4",
-    "Method": "2",
-    "Task": "6",
-    "Dataset": "5",
-    "Metric": "3",
-    "Finding": "6",
+    "Paper": "#FF6B6B",
+    "Concept": "#36C98E",
+    "Method": "#F5A94B",
+    "Task": "#7C9CF5",
+    "Dataset": "#52C7D9",
+    "Metric": "#F4D35E",
+    "Finding": "#BB86FC",
+}
+CANVAS_RELATION_COLORS = {
+    "PRESENTS": "#F5A94B",
+    "USES": "#52C7D9",
+    "ADDRESSES": "#7C9CF5",
+    "EVALUATES": "#F4D35E",
+    "SUPPORTS": "#36C98E",
+    "IMPROVES": "#BB86FC",
+    "COMPARES_WITH": "#94A3B8",
+    "APPLIES_TO": "#7C9CF5",
+    "HAS_LIMITATION": "#FF6B6B",
+}
+CANVAS_RELATION_PRIORITY = {
+    "PRESENTS": 0,
+    "USES": 1,
+    "ADDRESSES": 2,
+    "APPLIES_TO": 3,
+    "EVALUATES": 4,
+    "SUPPORTS": 5,
+    "IMPROVES": 6,
+    "COMPARES_WITH": 7,
+    "HAS_LIMITATION": 8,
+}
+CANVAS_TYPE_ORDER = (
+    "Paper",
+    "Method",
+    "Concept",
+    "Task",
+    "Dataset",
+    "Metric",
+    "Finding",
+)
+CANVAS_TYPE_LIMITS = {
+    "Paper": 5,
+    "Method": 5,
+    "Concept": 3,
+    "Task": 2,
+    "Dataset": 1,
+    "Metric": 1,
+    "Finding": 1,
+}
+CANVAS_LANES = (
+    ("papers", "论文来源", ("Paper",), "#FF6B6B"),
+    ("methods", "方法与技术", ("Method",), "#F5A94B"),
+    (
+        "knowledge",
+        "概念、任务与证据",
+        ("Concept", "Task", "Dataset", "Metric", "Finding"),
+        "#7C9CF5",
+    ),
+)
+MAX_CANVAS_NODES = 18
+MAX_CANVAS_EDGES = 18
+MAX_CANVAS_EDGES_PER_NODE = 3
+
+# Graph settings are only written for a new vault. Existing vault settings are personal
+# preferences and are never overwritten during a projection.
+DEFAULT_OBSIDIAN_GRAPH_CONFIG = {
+    "collapse-filter": True,
+    "search": '-path:"80_Canvases"',
+    "showTags": False,
+    "showAttachments": False,
+    "hideUnresolved": True,
+    "showOrphans": False,
+    "collapse-color-groups": False,
+    "colorGroups": [
+        {"query": 'path:"00_Home"', "color": {"a": 1, "rgb": 9741240}},
+        {"query": 'path:"01_Topics"', "color": {"a": 1, "rgb": 8166645}},
+        {"query": 'path:"10_Papers"', "color": {"a": 1, "rgb": 16739179}},
+        {"query": 'path:"20_Concepts"', "color": {"a": 1, "rgb": 3590542}},
+        {"query": 'path:"30_Methods"', "color": {"a": 1, "rgb": 16099659}},
+        {"query": 'path:"40_Tasks"', "color": {"a": 1, "rgb": 8166645}},
+        {"query": 'path:"50_Datasets"', "color": {"a": 1, "rgb": 5425113}},
+        {"query": 'path:"60_Metrics"', "color": {"a": 1, "rgb": 16044894}},
+        {"query": 'path:"70_Findings"', "color": {"a": 1, "rgb": 12289788}},
+    ],
+    "collapse-display": True,
+    "showArrow": False,
+    "textFadeMultiplier": 1,
+    "nodeSizeMultiplier": 0.9,
+    "lineSizeMultiplier": 0.7,
+    "collapse-forces": True,
+    "centerStrength": 0.45,
+    "repelStrength": 12,
+    "linkStrength": 1,
+    "linkDistance": 150,
+    "scale": 0.75,
+    "close": True,
 }
 
 
@@ -132,7 +223,18 @@ class KnowledgeVaultExporter:
         }
         for folder in folders.values():
             folder.mkdir(parents=True, exist_ok=True)
+        self._ensure_obsidian_graph_config()
         return folders
+
+    def _ensure_obsidian_graph_config(self) -> None:
+        graph_path = self.root / ".obsidian" / "graph.json"
+        if graph_path.exists():
+            return
+        graph_path.parent.mkdir(parents=True, exist_ok=True)
+        graph_path.write_text(
+            json.dumps(DEFAULT_OBSIDIAN_GRAPH_CONFIG, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
 
     def _note_paths(
         self, entities: list[PublishedEntity], folders: dict[str, Path]
@@ -357,59 +459,191 @@ class KnowledgeVaultExporter:
         for relation in relations:
             degree[relation.source_entity_id] = degree.get(relation.source_entity_id, 0) + 1
             degree[relation.target_entity_id] = degree.get(relation.target_entity_id, 0) + 1
-        selected = sorted(
-            entities,
-            key=lambda item: (item.type != "Paper", -degree.get(item.id, 0), item.name.casefold()),
-        )[:25]
+
+        selected = self._canvas_entities(entities, relations, degree)
         selected_ids = {entity.id for entity in selected}
-        grouped: dict[str, list[PublishedEntity]] = {}
-        for entity in selected:
-            grouped.setdefault(entity.type, []).append(entity)
 
         nodes = []
-        for group_index, (entity_type, group) in enumerate(sorted(grouped.items())):
-            x = group_index * 440
+        positions: dict[str, tuple[int, int, int, int]] = {}
+        active_lanes = [
+            lane
+            for lane in CANVAS_LANES
+            if any(entity.type in lane[2] for entity in selected)
+        ]
+        canvas_width = max(380, len(active_lanes) * 460 - 60)
+        nodes.append(
+            {
+                "id": "canvas-guide",
+                "type": "text",
+                "x": 0,
+                "y": -150,
+                "width": canvas_width,
+                "height": 100,
+                "text": (
+                    f"# {topic}\n"
+                    "论文 → 方法 → 知识要素 · 点击卡片打开笔记\n"
+                    "连线颜色：提出（橙）· 使用（青）· 解决（蓝）· 评估（黄）· 支持（绿）"
+                ),
+                "color": "#94A3B8",
+            }
+        )
+        for lane_index, (_, label, entity_types, group_color) in enumerate(active_lanes):
+            group = sorted(
+                [entity for entity in selected if entity.type in entity_types],
+                key=lambda item: (-degree.get(item.id, 0), item.name.casefold()),
+            )
+            x = lane_index * 460
             nodes.append(
                 {
-                    "id": f"group-{entity_type}",
+                    "id": f"group-{lane_index}",
                     "type": "group",
                     "x": x - 25,
-                    "y": -60,
-                    "width": 390,
-                    "height": max(250, len(group) * 220 + 100),
-                    "label": TYPE_LABELS[entity_type],
-                    "color": CANVAS_COLORS.get(entity_type, "4"),
+                    "y": 0,
+                    "width": 430,
+                    "height": max(210, len(group) * 148 + 80),
+                    "label": label,
+                    "color": group_color,
                 }
             )
             for index, entity in enumerate(group):
                 path = note_paths[entity.id].relative_to(self.root).as_posix()
+                y = 50 + index * 148
                 nodes.append(
                     {
                         "id": entity.id,
                         "type": "file",
                         "file": path,
                         "x": x,
-                        "y": index * 220,
-                        "width": 340,
-                        "height": 160,
-                        "color": CANVAS_COLORS.get(entity.type, "4"),
+                        "y": y,
+                        "width": 380,
+                        "height": 120,
+                        "color": CANVAS_COLORS.get(entity.type, "#94A3B8"),
                     }
                 )
-        edges = [
-            {
-                "id": relation.id,
-                "fromNode": relation.source_entity_id,
-                "toNode": relation.target_entity_id,
-                "toEnd": "arrow",
-                "label": RELATION_LABELS[relation.type],
-                "color": "2" if relation.confidence >= 0.8 else "4",
-            }
-            for relation in sorted(relations, key=lambda item: -item.confidence)
+                positions[entity.id] = (x, y, 380, 120)
+
+        edges = self._canvas_edges(relations, selected_ids, positions)
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "metadata": {"topic": topic, "version": 2, "layout": "reading-flow"},
+        }
+
+    def _canvas_entities(
+        self,
+        entities: list[PublishedEntity],
+        relations: list[PublishedRelation],
+        degree: dict[str, int],
+    ) -> list[PublishedEntity]:
+        selected: list[PublishedEntity] = []
+        selected_ids: set[str] = set()
+        by_id = {entity.id: entity for entity in entities}
+        type_counts: dict[str, int] = {}
+
+        def ranked(values: list[PublishedEntity]) -> list[PublishedEntity]:
+            return sorted(
+                values, key=lambda item: (-degree.get(item.id, 0), item.name.casefold())
+            )
+
+        def can_add(entity: PublishedEntity) -> bool:
+            return (
+                entity.id in selected_ids
+                or type_counts.get(entity.type, 0) < CANVAS_TYPE_LIMITS.get(entity.type, 1)
+            )
+
+        def add(entity: PublishedEntity) -> None:
+            if entity.id not in selected_ids:
+                selected.append(entity)
+                selected_ids.add(entity.id)
+                type_counts[entity.type] = type_counts.get(entity.type, 0) + 1
+
+        # Choose connected pairs first. Ranking isolated high-degree nodes independently
+        # can otherwise yield a visually empty Canvas for a densely connected collection.
+        relation_candidates = sorted(
+            relations,
+            key=lambda item: (
+                -item.confidence,
+                CANVAS_RELATION_PRIORITY.get(item.type, 99),
+                item.id,
+            ),
+        )
+        for relation in relation_candidates:
+            source = by_id.get(relation.source_entity_id)
+            target = by_id.get(relation.target_entity_id)
+            if source is None or target is None:
+                continue
+            newly_added = {source.id, target.id} - selected_ids
+            if len(selected) + len(newly_added) > MAX_CANVAS_NODES:
+                continue
+            new_type_counts: dict[str, int] = {}
+            for entity_id in newly_added:
+                entity = by_id[entity_id]
+                new_type_counts[entity.type] = new_type_counts.get(entity.type, 0) + 1
+            if any(
+                type_counts.get(entity_type, 0) + count
+                > CANVAS_TYPE_LIMITS.get(entity_type, 1)
+                for entity_type, count in new_type_counts.items()
+            ):
+                continue
+            add(source)
+            add(target)
+
+        for entity_type in CANVAS_TYPE_ORDER:
+            candidates = ranked([entity for entity in entities if entity.type == entity_type])
+            for entity in candidates:
+                if not can_add(entity):
+                    continue
+                add(entity)
+        return selected
+
+    def _canvas_edges(
+        self,
+        relations: list[PublishedRelation],
+        selected_ids: set[str],
+        positions: dict[str, tuple[int, int, int, int]],
+    ) -> list[dict]:
+        candidates = [
+            relation
+            for relation in relations
             if relation.confidence >= 0.65
             and relation.source_entity_id in selected_ids
             and relation.target_entity_id in selected_ids
-        ][:35]
-        return {"nodes": nodes, "edges": edges, "metadata": {"topic": topic, "version": 1}}
+        ]
+        candidates.sort(
+            key=lambda item: (
+                -item.confidence,
+                CANVAS_RELATION_PRIORITY.get(item.type, 99),
+                item.id,
+            )
+        )
+
+        edges: list[dict] = []
+        edge_degree: dict[str, int] = {}
+        for relation in candidates:
+            source_id = relation.source_entity_id
+            target_id = relation.target_entity_id
+            if (
+                edge_degree.get(source_id, 0) >= MAX_CANVAS_EDGES_PER_NODE
+                or edge_degree.get(target_id, 0) >= MAX_CANVAS_EDGES_PER_NODE
+            ):
+                continue
+            from_side, to_side = _edge_sides(positions[source_id], positions[target_id])
+            edges.append(
+                {
+                    "id": relation.id,
+                    "fromNode": source_id,
+                    "fromSide": from_side,
+                    "toNode": target_id,
+                    "toSide": to_side,
+                    "toEnd": "arrow",
+                    "color": CANVAS_RELATION_COLORS.get(relation.type, "#94A3B8"),
+                }
+            )
+            edge_degree[source_id] = edge_degree.get(source_id, 0) + 1
+            edge_degree[target_id] = edge_degree.get(target_id, 0) + 1
+            if len(edges) >= MAX_CANVAS_EDGES:
+                break
+        return edges
 
     def _write_managed_note(self, path: Path, generated: str) -> None:
         manual = ""
@@ -454,3 +688,17 @@ def _file_name(value: str) -> str:
 def _wiki_link(path: Path, display: str) -> str:
     without_suffix = path.with_suffix("").as_posix()
     return f"[[{without_suffix}|{display}]]"
+
+
+def _edge_sides(
+    source: tuple[int, int, int, int], target: tuple[int, int, int, int]
+) -> tuple[str, str]:
+    source_x, source_y, source_width, source_height = source
+    target_x, target_y, target_width, target_height = target
+    source_center = (source_x + source_width / 2, source_y + source_height / 2)
+    target_center = (target_x + target_width / 2, target_y + target_height / 2)
+    horizontal_distance = target_center[0] - source_center[0]
+    vertical_distance = target_center[1] - source_center[1]
+    if abs(horizontal_distance) >= abs(vertical_distance):
+        return ("right", "left") if horizontal_distance >= 0 else ("left", "right")
+    return ("bottom", "top") if vertical_distance >= 0 else ("top", "bottom")
