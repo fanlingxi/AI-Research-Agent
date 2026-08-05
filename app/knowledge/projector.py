@@ -69,7 +69,18 @@ class Neo4jKnowledgeProjector:
                     evidence_json=_dump(entity.evidence),
                     metadata_json=_dump(entity.metadata),
                 )
-                for topic_slug in entity.topic_slugs:
+                collection_slugs = entity.collection_slugs or entity.topic_slugs
+                session.run(
+                    """
+                    MATCH (node:KnowledgeEntityV2 {id: $entity_id})
+                    OPTIONAL MATCH (old:KnowledgeTopicV2)-[edge:INCLUDES_V2]->(node)
+                    WHERE NOT old.slug IN $collection_slugs
+                    DELETE edge
+                    """,
+                    entity_id=entity.id,
+                    collection_slugs=collection_slugs,
+                )
+                for topic_slug in collection_slugs:
                     session.run(
                         """
                         MERGE (topic:KnowledgeTopicV2 {slug: $slug})

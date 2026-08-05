@@ -89,6 +89,14 @@ RUN_STORE_INTEGRATION=1 .venv/bin/pytest -q tests/test_store_integration.py
   --output data/reports/knowledge_core_benchmark.json
 ```
 
+## 已完成的知识治理扩展
+
+- 入库主题已调整为可选“知识集合”；空值进入系统“收件箱”，历史主题保留为同名集合。
+- 支持全库探索、集合筛选和在稳定状态下移动入库任务；移动通过持久任务重建 Neo4j/Obsidian 投影。
+- 候选支持 `defer`：待定项保存论文内来源提及，但不进入正式图谱；批量批准不再自动发布关系。
+- 新增来源提及和概念词义持久层；同名词可明确发布为不同词义，链接已有词义必须由审核者操作。
+- Web 词条详情显示关系说明、来源论文阅读卡与页码证据。
+
 ## 后续开发方向
 
 发布门槛全部满足后，再按以下顺序扩展：
@@ -96,5 +104,5 @@ RUN_STORE_INTEGRATION=1 .venv/bin/pytest -q tests/test_store_integration.py
 1. 将已验证的浏览器 fixture 流程固化为 CI 可调用的自动浏览器作业；
 2. 为报告任务增加显式重试 API，并配置 provider 单价完成美元成本计量；
 3. 增加 outbox 管理视图和按 ingestion 重建投影；
-4. 评估是否需要把新报告流程改为全新 LangGraph 状态机；
+4. 为词义链接增加专家复审与拆分工作流；
 5. 只有本地单用户边界改变后，才讨论登录、租户或分布式队列。

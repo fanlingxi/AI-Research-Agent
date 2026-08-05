@@ -72,7 +72,7 @@ def test_schema_migrations_and_sequential_replay_are_idempotent(tmp_path) -> Non
     first = service.decide("candidate-idempotent", CandidateDecision(decision="approve"))
     replay = service.decide("candidate-idempotent", CandidateDecision(decision="approve"))
 
-    assert repository.schema_version() == 4
+    assert repository.schema_version() == 6
     assert first.applied and not first.replayed
     assert replay.replayed and not replay.applied
     with pytest.raises(ValueError, match="不同"):
@@ -230,10 +230,10 @@ def test_347_candidate_batch_reports_exact_conflicts_and_blocked_relations(tmp_p
     result = service.approve_ready(ingestion.id)
 
     assert result.published_entities == 164
-    assert result.published_relations == 163
-    assert result.published_entities + result.published_relations == 327
+    assert result.published_relations == 0
+    assert result.published_entities + result.published_relations == 164
     assert result.skipped_conflicts == 7
-    assert result.blocked_relations == 13
+    assert result.blocked_relations == 176
     assert result.ingestion.candidate_count == 347
-    assert result.ingestion.published_count == 327
+    assert result.ingestion.published_count == 164
     assert result.ingestion.status == "needs_review"

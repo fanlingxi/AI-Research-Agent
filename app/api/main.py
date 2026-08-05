@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.config.settings import get_settings
 from app.knowledge.extractor import LiveLLMRequiredError
@@ -18,23 +18,42 @@ from app.knowledge.service import KnowledgeIngestionService
 
 
 class KnowledgeIngestionRequest(BaseModel):
-    topic: str = Field(min_length=3, max_length=500)
+    topic: str | None = Field(default=None, min_length=2, max_length=500)
+    collection: str | None = Field(default=None, min_length=2, max_length=500)
     sources: list[str] = Field(min_length=1, max_length=30)
     pdf_max_pages: int = Field(default=20, ge=1, le=100)
+
+    @model_validator(mode="after")
+    def collection_aliases_must_agree(self):
+        if self.topic and self.collection and self.topic.strip() != self.collection.strip():
+            raise ValueError("topic 与 collection 同时提供时必须一致。")
+        return self
+
+
+class CollectionRequest(BaseModel):
+    collection: str = Field(min_length=2, max_length=500)
 
 
 class KnowledgeCandidatePatch(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=160)
     summary: str | None = Field(default=None, min_length=12, max_length=900)
     aliases: list[str] | None = Field(default=None, max_length=12)
+    sense_qualifier: str | None = Field(default=None, max_length=160)
     confidence: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class ReportCreateRequest(BaseModel):
     query: str = Field(min_length=3, max_length=1000)
     topic_slugs: list[str] = Field(default_factory=list, max_length=20)
+    collection_slugs: list[str] = Field(default_factory=list, max_length=20)
     top_k: int = Field(default=8, ge=1, le=30)
     report_depth: Literal["brief", "standard", "deep"] = "standard"
+
+    @model_validator(mode="after")
+    def collection_scope_aliases_must_agree(self):
+        if self.topic_slugs and self.collection_slugs and self.topic_slugs != self.collection_slugs:
+            raise ValueError("topic_slugs 与 collection_slugs 同时提供时必须一致。")
+        return self
 
 
 def create_app(
@@ -94,6 +113,18 @@ def create_app(
     def list_knowledge_ingestions() -> list[dict[str, Any]]:
         return [item.model_dump() for item in repository.list_ingestions()]
 
+    @app.patch("/api/knowledge/ingestions/{ingestion_id}/collection")
+    def move_knowledge_ingestion_collection(
+        ingestion_id: str, payload: CollectionRequest
+    ) -> dict[str, Any]:
+        _require_ingestion(repository, ingestion_id)
+        try:
+            return repository.move_ingestion_collection(
+                ingestion_id, payload.collection
+            ).model_dump()
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     @app.get("/api/knowledge/ingestions/{ingestion_id}")
     def get_knowledge_ingestion(ingestion_id: str) -> dict[str, Any]:
         return _require_ingestion(repository, ingestion_id).model_dump()
@@ -146,6 +177,25 @@ def create_app(
     def list_knowledge_topics() -> list[dict[str, Any]]:
         return repository.list_topics()
 
+    @app.get("/api/knowledge/collections")
+    def list_knowledge_collections() -> list[dict[str, Any]]:
+        return [item.model_dump() for item in repository.list_collections()]
+
+    @app.post("/api/knowledge/collections", status_code=201)
+    def create_knowledge_collection(payload: CollectionRequest) -> dict[str, Any]:
+        try:
+            return repository.create_collection(payload.collection).model_dump()
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.get("/api/knowledge/collections/{collection_slug}")
+    def get_knowledge_collection(collection_slug: str) -> dict[str, Any]:
+        try:
+            result = service.collection(collection_slug)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Knowledge collection not found.") from exc
+        return result
+
     @app.get("/api/knowledge/topics/{topic_slug}")
     def get_knowledge_topic(topic_slug: str) -> dict[str, Any]:
         result = service.topic(topic_slug)
@@ -154,19 +204,34 @@ def create_app(
         return result
 
     @app.get("/api/knowledge/graph")
-    def get_knowledge_graph(topic_slug: str | None = None) -> dict[str, Any]:
-        return service.graph(topic_slug)
+    def get_knowledge_graph(
+        topic_slug: str | None = None, collection_slug: str | None = None
+    ) -> dict[str, Any]:
+        if topic_slug and collection_slug and topic_slug != collection_slug:
+            raise HTTPException(status_code=422, detail="topic_slug 与 collection_slug 必须一致。")
+        return service.graph(collection_slug or topic_slug)
+
+    @app.get("/api/knowledge/entities/{entity_id}")
+    def get_knowledge_entity_detail(entity_id: str) -> dict[str, Any]:
+        try:
+            return service.entity_detail(entity_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Knowledge entity not found.") from exc
 
     @app.get("/api/knowledge/search")
     def search_knowledge(
         q: Annotated[str, Query(min_length=2, max_length=1000)],
         topic_slug: Annotated[list[str] | None, Query()] = None,
+        collection_slug: Annotated[list[str] | None, Query()] = None,
         top_k: Annotated[int, Query(ge=1, le=30)] = 8,
     ) -> dict[str, Any]:
+        if topic_slug and collection_slug and topic_slug != collection_slug:
+            raise HTTPException(status_code=422, detail="topic_slug 与 collection_slug 必须一致。")
         try:
+            selected_collections = collection_slug or topic_slug or []
             return reports.query_service.search(
                 q,
-                topic_slugs=topic_slug or [],
+                topic_slugs=selected_collections,
                 top_k=top_k,
             )
         except Exception as exc:
@@ -175,7 +240,9 @@ def create_app(
     @app.post("/api/reports", status_code=202)
     def submit_report(payload: ReportCreateRequest) -> dict[str, Any]:
         try:
-            return reports.submit(**payload.model_dump()).model_dump()
+            values = payload.model_dump()
+            values["topic_slugs"] = values.pop("collection_slugs") or values["topic_slugs"]
+            return reports.submit(**values).model_dump()
         except LiveLLMRequiredError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:

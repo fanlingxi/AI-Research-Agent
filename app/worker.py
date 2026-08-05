@@ -32,10 +32,14 @@ class KnowledgeWorker:
                     result = self.ingestion_service.run(job.resource_id)
                     if result.status == "failed":
                         raise RuntimeError(result.error or "知识入库失败")
-                else:
+                elif job.kind == "report":
                     result = self.report_service.run(job.resource_id)
                     if result.status == "failed":
                         raise RuntimeError(result.error or "报告生成失败")
+                else:
+                    self.ingestion_service.sync_collections(
+                        list(job.payload.get("collection_slugs", []))
+                    )
                 self.repository.complete_job(job.id)
             except Exception as exc:
                 self.repository.fail_job(job.id, str(exc))

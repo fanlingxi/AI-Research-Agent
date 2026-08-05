@@ -25,7 +25,7 @@ KnowledgeRelationType = Literal[
     "HAS_LIMITATION",
     "SUPPORTS",
 ]
-CandidateStatus = Literal["draft", "approved", "rejected", "merged", "published"]
+CandidateStatus = Literal["draft", "approved", "rejected", "merged", "published", "deferred"]
 IngestionStatus = Literal[
     "queued",
     "running",
@@ -65,6 +65,10 @@ class ExtractedEntity(BaseModel):
     type: KnowledgeNodeType
     summary: str = Field(min_length=12, max_length=900)
     aliases: list[str] = Field(default_factory=list, max_length=12)
+    sense_qualifier: str = Field(default="", max_length=160)
+    paper_context: str = Field(default="", max_length=1200)
+    role: str = Field(default="", max_length=900)
+    conditions: str = Field(default="", max_length=900)
     confidence: float = Field(ge=0.0, le=1.0)
     evidence: EvidenceSpan
 
@@ -107,6 +111,10 @@ class CandidateEntity(BaseModel):
     type: KnowledgeNodeType
     summary: str
     aliases: list[str] = Field(default_factory=list)
+    sense_qualifier: str = ""
+    paper_context: str = ""
+    role: str = ""
+    conditions: str = ""
     confidence: float
     evidence: EvidenceSpan
     status: CandidateStatus = "draft"
@@ -147,6 +155,7 @@ class PublishedEntity(BaseModel):
     aliases: list[str] = Field(default_factory=list)
     evidence: list[EvidenceSpan] = Field(default_factory=list)
     topic_slugs: list[str] = Field(default_factory=list)
+    collection_slugs: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -159,6 +168,7 @@ class PublishedRelation(BaseModel):
     confidence: float
     evidence: list[EvidenceSpan] = Field(default_factory=list)
     topic_slugs: list[str] = Field(default_factory=list)
+    collection_slugs: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -166,6 +176,8 @@ class KnowledgeIngestion(BaseModel):
     id: str
     topic: str
     topic_slug: str
+    collection: str = "收件箱"
+    collection_slug: str = "inbox"
     sources: list[str]
     pdf_max_pages: int
     status: IngestionStatus
@@ -182,14 +194,15 @@ class KnowledgeIngestion(BaseModel):
 
 
 class CandidateDecision(BaseModel):
-    decision: Literal["approve", "reject", "merge"]
+    decision: Literal["approve", "reject", "merge", "link", "defer"]
     canonical_id: str | None = None
+    review_note: str | None = Field(default=None, max_length=1200)
 
     @field_validator("canonical_id")
     @classmethod
     def merge_requires_canonical(cls, value: str | None, info) -> str | None:
-        if info.data.get("decision") == "merge" and not value:
-            raise ValueError("canonical_id is required when merging")
+        if info.data.get("decision") in {"merge", "link"} and not value:
+            raise ValueError("canonical_id is required when linking or merging")
         return value
 
 
@@ -210,7 +223,7 @@ class BulkApprovalResult(BaseModel):
 
 class KnowledgeJob(BaseModel):
     id: str
-    kind: Literal["ingestion", "report"]
+    kind: Literal["ingestion", "report", "collection_sync"]
     resource_id: str
     status: JobStatus
     payload: dict[str, Any] = Field(default_factory=dict)
@@ -234,6 +247,49 @@ class ProjectionEvent(BaseModel):
     last_error: str | None = None
     created_at: str
     updated_at: str
+
+
+class KnowledgeCollection(BaseModel):
+    slug: str
+    name: str
+    is_system: bool = False
+    ingestion_count: int = 0
+    updated_at: str | None = None
+
+
+class SourceMention(BaseModel):
+    """A reviewed, paper-scoped use of a term before cross-paper identity is decided."""
+
+    id: str
+    candidate_id: str
+    ingestion_id: str
+    paper_id: str
+    name: str
+    type: KnowledgeNodeType
+    summary: str
+    sense_qualifier: str = ""
+    paper_context: str = ""
+    role: str = ""
+    conditions: str = ""
+    aliases: list[str] = Field(default_factory=list)
+    evidence: EvidenceSpan
+    status: Literal["source_only", "linked", "rejected"]
+    created_at: str
+    updated_at: str
+
+
+class ConceptSense(BaseModel):
+    """A canonical, reviewer-approved meaning that may have many paper mentions."""
+
+    id: str
+    name: str
+    type: KnowledgeNodeType
+    qualifier: str = ""
+    definition: str
+    scope: str = ""
+    aliases: list[str] = Field(default_factory=list)
+    status: Literal["published", "legacy"] = "published"
+    source_mention_ids: list[str] = Field(default_factory=list)
 
 
 class ReportEvidence(BaseModel):

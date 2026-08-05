@@ -13,6 +13,8 @@ from app.knowledge.schemas import (
     CandidateEntity,
     CandidateRelation,
     CandidateStatus,
+    ConceptSense,
+    KnowledgeCollection,
     KnowledgeIngestion,
     KnowledgeJob,
     MergeSuggestion,
@@ -22,9 +24,12 @@ from app.knowledge.schemas import (
     ReportEvaluation,
     ReportEvidence,
     ResearchReport,
+    SourceMention,
 )
 
 CandidateKind = Literal["entity", "relation"]
+INBOX_COLLECTION_NAME = "收件箱"
+INBOX_COLLECTION_SLUG = "inbox"
 
 
 class DecisionAlreadyApplied(ValueError):
@@ -65,6 +70,9 @@ class KnowledgeRepository:
         self._apply_migration(2, _RELIABILITY_SCHEMA)
         self._apply_migration(3, _CONSISTENCY_SCHEMA)
         self._apply_migration(4, _REPORT_METADATA_SCHEMA)
+        self._apply_migration(5, _COLLECTION_SCHEMA)
+        self._apply_migration(6, _SEMANTIC_LAYER_SCHEMA)
+        self._backfill_semantic_records()
 
     def _apply_migration(self, version: int, sql: str) -> None:
         with self._connect() as connection:
@@ -89,11 +97,20 @@ class KnowledgeRepository:
     def create_ingestion(
         self,
         *,
-        topic: str,
+        topic: str | None = None,
+        collection: str | None = None,
         sources: list[str],
         pdf_max_pages: int,
         enqueue: bool = True,
     ) -> KnowledgeIngestion:
+        collection_name = (
+            collection or topic or INBOX_COLLECTION_NAME
+        ).strip() or INBOX_COLLECTION_NAME
+        collection_slug = (
+            INBOX_COLLECTION_SLUG
+            if collection_name == INBOX_COLLECTION_NAME
+            else slugify(collection_name)
+        )
         ingestion_id = f"ing-{uuid4().hex}"
         created_at = _now()
         with self._connect() as connection:
@@ -107,13 +124,21 @@ class KnowledgeRepository:
                 """,
                 (
                     ingestion_id,
-                    topic.strip(),
-                    slugify(topic),
+                    collection_name,
+                    collection_slug,
                     _dump(sources),
                     pdf_max_pages,
                     created_at,
                     created_at,
                 ),
+            )
+            self._ensure_collection_tx(connection, collection_name, collection_slug)
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO ingestion_collections (ingestion_id, collection_slug)
+                VALUES (?, ?)
+                """,
+                (ingestion_id, collection_slug),
             )
             if enqueue:
                 self._enqueue_job_tx(
@@ -215,6 +240,153 @@ class KnowledgeRepository:
                     force_requeue=True,
                 )
         return self.get_ingestion(ingestion_id)
+
+    # Collections ---------------------------------------------------------------
+
+    def _ensure_collection_tx(
+        self, connection: sqlite3.Connection, name: str, slug: str | None = None
+    ) -> KnowledgeCollection:
+        collection_slug = slug or slugify(name)
+        is_system = int(collection_slug == INBOX_COLLECTION_SLUG)
+        now = _now()
+        connection.execute(
+            """
+            INSERT INTO knowledge_collections (slug, name, is_system, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(slug) DO UPDATE SET name = excluded.name, updated_at = excluded.updated_at
+            """,
+            (collection_slug, name.strip() or INBOX_COLLECTION_NAME, is_system, now, now),
+        )
+        return KnowledgeCollection(slug=collection_slug, name=name, is_system=bool(is_system))
+
+    def create_collection(self, name: str) -> KnowledgeCollection:
+        normalized = name.strip()
+        if len(normalized) < 2:
+            raise ValueError("知识集合名称至少需要 2 个字符。")
+        with self._connect() as connection:
+            collection = self._ensure_collection_tx(
+                connection,
+                normalized,
+                INBOX_COLLECTION_SLUG if normalized == INBOX_COLLECTION_NAME else None,
+            )
+        return self.get_collection(collection.slug)
+
+    def get_collection(self, collection_slug: str) -> KnowledgeCollection:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT c.slug, c.name, c.is_system, c.updated_at,
+                       COUNT(ic.ingestion_id) AS ingestion_count
+                FROM knowledge_collections c
+                LEFT JOIN ingestion_collections ic ON ic.collection_slug = c.slug
+                WHERE c.slug = ? GROUP BY c.slug
+                """,
+                (collection_slug,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(collection_slug)
+        return KnowledgeCollection(**dict(row))
+
+    def list_collections(self) -> list[KnowledgeCollection]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT c.slug, c.name, c.is_system, c.updated_at,
+                       COUNT(ic.ingestion_id) AS ingestion_count
+                FROM knowledge_collections c
+                LEFT JOIN ingestion_collections ic ON ic.collection_slug = c.slug
+                GROUP BY c.slug
+                ORDER BY c.is_system DESC, c.updated_at DESC, c.name COLLATE NOCASE
+                """
+            ).fetchall()
+        return [KnowledgeCollection(**dict(row)) for row in rows]
+
+    def move_ingestion_collection(self, ingestion_id: str, collection: str) -> KnowledgeIngestion:
+        new_name = collection.strip() or INBOX_COLLECTION_NAME
+        new_slug = INBOX_COLLECTION_SLUG if new_name == INBOX_COLLECTION_NAME else slugify(new_name)
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            ingestion = connection.execute(
+                "SELECT status, topic_slug FROM ingestions WHERE id = ?", (ingestion_id,)
+            ).fetchone()
+            if ingestion is None:
+                raise KeyError(ingestion_id)
+            if ingestion["status"] in {"queued", "running", "publishing"}:
+                raise ValueError("任务排队、运行或投影期间不能移动知识集合。")
+            old_slug = str(ingestion["topic_slug"])
+            if old_slug == new_slug:
+                affected_slugs = [new_slug]
+            else:
+                self._ensure_collection_tx(connection, new_name, new_slug)
+                now = _now()
+                connection.execute(
+                    "UPDATE ingestions SET topic = ?, topic_slug = ?, updated_at = ? WHERE id = ?",
+                    (new_name, new_slug, now, ingestion_id),
+                )
+                connection.execute(
+                    "UPDATE ingestion_collections SET collection_slug = ? WHERE ingestion_id = ?",
+                    (new_slug, ingestion_id),
+                )
+                candidates = connection.execute(
+                    "SELECT id, payload_json FROM candidates WHERE ingestion_id = ?",
+                    (ingestion_id,),
+                ).fetchall()
+                for candidate in candidates:
+                    payload = json.loads(candidate["payload_json"])
+                    payload["topic_slug"] = new_slug
+                    connection.execute(
+                        "UPDATE candidates SET payload_json = ?, updated_at = ? WHERE id = ?",
+                        (_dump(payload), now, candidate["id"]),
+                    )
+                memberships = connection.execute(
+                    """
+                    SELECT DISTINCT aggregate_type, aggregate_id FROM collection_memberships
+                    WHERE ingestion_id = ?
+                    """,
+                    (ingestion_id,),
+                ).fetchall()
+                connection.execute(
+                    "UPDATE collection_memberships SET collection_slug = ? WHERE ingestion_id = ?",
+                    (new_slug, ingestion_id),
+                )
+                for item in memberships:
+                    self._refresh_aggregate_collections_tx(
+                        connection, str(item["aggregate_type"]), str(item["aggregate_id"]), now
+                    )
+                affected_slugs = [old_slug, new_slug]
+            self._enqueue_job_tx(
+                connection,
+                kind="collection_sync",
+                resource_id=ingestion_id,
+                payload={"collection_slugs": affected_slugs},
+                force_requeue=True,
+            )
+        return self.get_ingestion(ingestion_id)
+
+    def _refresh_aggregate_collections_tx(
+        self, connection: sqlite3.Connection, aggregate_type: str, aggregate_id: str, now: str
+    ) -> None:
+        rows = connection.execute(
+            """
+            SELECT DISTINCT collection_slug FROM collection_memberships
+            WHERE aggregate_type = ? AND aggregate_id = ? ORDER BY collection_slug
+            """,
+            (aggregate_type, aggregate_id),
+        ).fetchall()
+        slugs = [str(row["collection_slug"]) for row in rows]
+        table = "published_entities" if aggregate_type == "entity" else "published_relations"
+        row = connection.execute(
+            f"SELECT payload_json FROM {table} WHERE id = ?", (aggregate_id,)
+        ).fetchone()
+        if row is None:
+            return
+        payload = json.loads(row["payload_json"])
+        payload["topic_slugs"] = slugs
+        payload["collection_slugs"] = slugs
+        connection.execute(
+            f"UPDATE {table} SET payload_json = ?, updated_at = ? WHERE id = ?",
+            (_dump(payload), now, aggregate_id),
+        )
 
     def mark_interrupted(self) -> None:
         """Compatibility helper for explicit administrative interruption."""
@@ -517,7 +689,7 @@ class KnowledgeRepository:
             raise ValueError("only draft candidates can be edited")
         payload = dict(stored["candidate"])
         allowed = (
-            {"name", "summary", "aliases", "confidence"}
+            {"name", "summary", "aliases", "sense_qualifier", "confidence"}
             if stored["kind"] == "entity"
             else {"summary", "confidence"}
         )
@@ -554,7 +726,7 @@ class KnowledgeRepository:
 
     # Transactional review and outbox -------------------------------------------
 
-    def reject_candidate(self, candidate_id: str) -> dict[str, Any]:
+    def reject_candidate(self, candidate_id: str, review_note: str | None = None) -> dict[str, Any]:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = self._candidate_row_tx(connection, candidate_id)
@@ -570,7 +742,33 @@ class KnowledgeRepository:
                 decision="reject",
                 status="rejected",
                 canonical_id=None,
+                review_note=review_note,
             )
+        return self.get_candidate(candidate_id)
+
+    def defer_candidate(self, candidate_id: str, review_note: str | None = None) -> dict[str, Any]:
+        """Keep a source-scoped assertion without publishing a graph fact."""
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = self._candidate_row_tx(connection, candidate_id)
+            if row["status"] != "draft":
+                raise DecisionAlreadyApplied(candidate_id)
+            stored = self._candidate_from_row(row)
+            payload = dict(stored["candidate"])
+            payload["status"] = "deferred"
+            self._record_decision_tx(
+                connection,
+                row=row,
+                payload=payload,
+                decision="defer",
+                status="deferred",
+                canonical_id=None,
+                review_note=review_note,
+            )
+            if stored["kind"] == "entity":
+                self._upsert_source_mention_tx(
+                    connection, CandidateEntity.model_validate(stored["candidate"]), "source_only"
+                )
         return self.get_candidate(candidate_id)
 
     def record_decision(
@@ -585,7 +783,14 @@ class KnowledgeRepository:
             return self.reject_candidate(candidate_id)
         raise ValueError("publish entities and relations through their transactional methods")
 
-    def publish_entity(self, candidate_id: str, canonical_id: str | None = None) -> PublishedEntity:
+    def publish_entity(
+        self,
+        candidate_id: str,
+        canonical_id: str | None = None,
+        *,
+        review_note: str | None = None,
+        decision_name: str | None = None,
+    ) -> PublishedEntity:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = self._candidate_row_tx(connection, candidate_id)
@@ -609,6 +814,9 @@ class KnowledgeRepository:
                         "aliases": _unique(existing.aliases + [candidate.name] + candidate.aliases),
                         "evidence": _unique_models(existing.evidence + [candidate.evidence]),
                         "topic_slugs": _unique(existing.topic_slugs + [candidate.topic_slug]),
+                        "collection_slugs": _unique(
+                            existing.collection_slugs + [candidate.topic_slug]
+                        ),
                     }
                 )
                 connection.execute(
@@ -626,7 +834,11 @@ class KnowledgeRepository:
                     aliases=_unique(candidate.aliases),
                     evidence=[candidate.evidence],
                     topic_slugs=[candidate.topic_slug],
-                    metadata=candidate.metadata,
+                    collection_slugs=[candidate.topic_slug],
+                    metadata={
+                        **candidate.metadata,
+                        "sense_qualifier": candidate.sense_qualifier,
+                    },
                 )
                 try:
                     connection.execute(
@@ -645,22 +857,34 @@ class KnowledgeRepository:
                         ),
                     )
                 except sqlite3.IntegrityError as exc:
-                    raise ValueError("检测到已有规范实体，请人工确认合并后再发布。") from exc
+                    raise ValueError("无法发布实体，请检查规范名称与数据完整性。") from exc
                 status = "published"
                 decision = "approve"
             connection.execute(
                 "INSERT OR IGNORE INTO entity_topics (entity_id, topic_slug) VALUES (?, ?)",
                 (entity.id, candidate.topic_slug),
             )
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO collection_memberships
+                    (aggregate_type, aggregate_id, ingestion_id, collection_slug, created_at)
+                VALUES ('entity', ?, ?, ?, ?)
+                """,
+                (entity.id, candidate.ingestion_id, candidate.topic_slug, now),
+            )
+            self._refresh_aggregate_collections_tx(connection, "entity", entity.id, now)
+            self._upsert_source_mention_tx(connection, candidate, "linked")
+            self._upsert_concept_sense_tx(connection, entity, candidate)
             payload = candidate.model_dump()
             payload.update({"status": status, "canonical_id": entity.id})
             self._record_decision_tx(
                 connection,
                 row=row,
                 payload=payload,
-                decision=decision,
+                decision=decision_name or decision,
                 status=status,
                 canonical_id=entity.id,
+                review_note=review_note,
             )
             self._enqueue_projection_tx(
                 connection,
@@ -701,6 +925,7 @@ class KnowledgeRepository:
                 confidence=candidate.confidence,
                 evidence=[candidate.evidence],
                 topic_slugs=[candidate.topic_slug],
+                collection_slugs=[candidate.topic_slug],
                 metadata=candidate.metadata,
             )
             now = _now()
@@ -725,6 +950,15 @@ class KnowledgeRepository:
                 "INSERT INTO relation_topics (relation_id, topic_slug) VALUES (?, ?)",
                 (relation.id, candidate.topic_slug),
             )
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO collection_memberships
+                    (aggregate_type, aggregate_id, ingestion_id, collection_slug, created_at)
+                VALUES ('relation', ?, ?, ?, ?)
+                """,
+                (relation.id, candidate.ingestion_id, candidate.topic_slug, now),
+            )
+            self._refresh_aggregate_collections_tx(connection, "relation", relation.id, now)
             payload = candidate.model_dump()
             payload["status"] = "published"
             self._record_decision_tx(
@@ -734,6 +968,7 @@ class KnowledgeRepository:
                 decision="approve",
                 status="published",
                 canonical_id=None,
+                review_note=None,
             )
             self._enqueue_projection_tx(
                 connection,
@@ -762,6 +997,7 @@ class KnowledgeRepository:
         decision: str,
         status: CandidateStatus,
         canonical_id: str | None,
+        review_note: str | None = None,
     ) -> None:
         candidate = self._model_for_kind(row["kind"], payload)
         updated = connection.execute(
@@ -774,6 +1010,9 @@ class KnowledgeRepository:
         )
         if updated.rowcount != 1:
             raise DecisionAlreadyApplied(str(row["id"]))
+        event_payload = candidate.model_dump()
+        if review_note:
+            event_payload["review_note"] = review_note
         connection.execute(
             """
             INSERT INTO review_events (
@@ -785,9 +1024,107 @@ class KnowledgeRepository:
                 row["id"],
                 decision,
                 canonical_id,
-                _dump(payload),
+                _dump(event_payload),
                 _now(),
             ),
+        )
+
+    def _upsert_source_mention_tx(
+        self, connection: sqlite3.Connection, candidate: CandidateEntity, status: str
+    ) -> str:
+        mention_id = f"mention-{candidate.id}"
+        now = _now()
+        payload = {
+            "id": mention_id,
+            "candidate_id": candidate.id,
+            "ingestion_id": candidate.ingestion_id,
+            "paper_id": candidate.evidence.paper_id,
+            "name": candidate.name,
+            "type": candidate.type,
+            "summary": candidate.summary,
+            "sense_qualifier": candidate.sense_qualifier,
+            "paper_context": candidate.paper_context,
+            "role": candidate.role,
+            "conditions": candidate.conditions,
+            "aliases": candidate.aliases,
+            "evidence": candidate.evidence.model_dump(),
+            "status": status,
+            "created_at": now,
+            "updated_at": now,
+        }
+        connection.execute(
+            """
+            INSERT INTO source_mentions
+                (id, candidate_id, ingestion_id, paper_id, status, payload_json,
+                 created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(candidate_id) DO UPDATE SET status = excluded.status,
+                payload_json = excluded.payload_json, updated_at = excluded.updated_at
+            """,
+            (
+                mention_id,
+                candidate.id,
+                candidate.ingestion_id,
+                candidate.evidence.paper_id,
+                status,
+                _dump(payload),
+                now,
+                now,
+            ),
+        )
+        return mention_id
+
+    def _upsert_concept_sense_tx(
+        self, connection: sqlite3.Connection, entity: PublishedEntity, candidate: CandidateEntity
+    ) -> None:
+        mention_id = f"mention-{candidate.id}"
+        existing = connection.execute(
+            "SELECT payload_json FROM concept_senses WHERE id = ?", (entity.id,)
+        ).fetchone()
+        if existing:
+            payload = json.loads(existing["payload_json"])
+            payload["aliases"] = _unique(payload.get("aliases", []) + entity.aliases)
+            payload["source_mention_ids"] = _unique(
+                payload.get("source_mention_ids", []) + [mention_id]
+            )
+        else:
+            payload = ConceptSense(
+                id=entity.id,
+                name=entity.name,
+                type=entity.type,
+                qualifier=candidate.sense_qualifier,
+                definition=entity.summary,
+                scope=candidate.paper_context or candidate.role,
+                aliases=entity.aliases,
+                status="published",
+                source_mention_ids=[mention_id],
+            ).model_dump()
+        now = _now()
+        connection.execute(
+            """
+            INSERT INTO concept_senses
+                (id, normalized_name, entity_type, status, payload_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                payload_json = excluded.payload_json,
+                updated_at = excluded.updated_at
+            """,
+            (
+                entity.id,
+                _normalize(entity.name),
+                entity.type,
+                "published",
+                _dump(payload),
+                now,
+                now,
+            ),
+        )
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO mention_sense_links (mention_id, sense_id, link_kind, created_at)
+            VALUES (?, ?, 'linked', ?)
+            """,
+            (mention_id, entity.id, now),
         )
 
     def _enqueue_projection_tx(
@@ -971,9 +1308,11 @@ class KnowledgeRepository:
         params: tuple[Any, ...] = ()
         if topic_slug:
             query = """
-                SELECT e.payload_json FROM published_entities e
-                JOIN entity_topics t ON t.entity_id = e.id WHERE t.topic_slug = ?
-                """
+                SELECT DISTINCT e.payload_json FROM published_entities e
+                JOIN collection_memberships m
+                  ON m.aggregate_type = 'entity' AND m.aggregate_id = e.id
+                WHERE m.collection_slug = ?
+            """
             params = (topic_slug,)
         with self._connect() as connection:
             rows = connection.execute(query, params).fetchall()
@@ -984,24 +1323,151 @@ class KnowledgeRepository:
         params: tuple[Any, ...] = ()
         if topic_slug:
             query = """
-                SELECT r.payload_json FROM published_relations r
-                JOIN relation_topics t ON t.relation_id = r.id WHERE t.topic_slug = ?
-                """
+                SELECT DISTINCT r.payload_json FROM published_relations r
+                JOIN collection_memberships m
+                  ON m.aggregate_type = 'relation' AND m.aggregate_id = r.id
+                WHERE m.collection_slug = ?
+            """
             params = (topic_slug,)
         with self._connect() as connection:
             rows = connection.execute(query, params).fetchall()
         return [PublishedRelation.model_validate_json(row["payload_json"]) for row in rows]
 
     def list_topics(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "topic_slug": item.slug,
+                "topic": item.name,
+                "collection_slug": item.slug,
+                "collection": item.name,
+                "is_system": item.is_system,
+                "updated_at": item.updated_at,
+                "ingestion_count": item.ingestion_count,
+                "vault_path": None,
+            }
+            for item in self.list_collections()
+        ]
+
+    def entity_detail(self, entity_id: str) -> dict[str, Any]:
+        entity = self.get_published_entity(entity_id)
+        relations = [
+            item
+            for item in self.list_published_relations()
+            if entity_id in {item.source_entity_id, item.target_entity_id}
+        ]
+        evidence_paper_ids = {item.paper_id for item in entity.evidence}
         with self._connect() as connection:
-            rows = connection.execute(
+            documents = (
+                connection.execute(
+                    "SELECT id, title, ingestion_id, pages FROM documents WHERE id IN ({})".format(
+                        ",".join("?" for _ in evidence_paper_ids) or "''"
+                    ),
+                    tuple(sorted(evidence_paper_ids)),
+                ).fetchall()
+                if evidence_paper_ids
+                else []
+            )
+            mentions = connection.execute(
+                "SELECT payload_json FROM source_mentions WHERE candidate_id IN "
+                "(SELECT id FROM candidates WHERE canonical_id = ?)",
+                (entity_id,),
+            ).fetchall()
+        papers = []
+        for paper in self.list_published_entities():
+            if paper.type == "Paper" and any(
+                evidence.paper_id in evidence_paper_ids for evidence in paper.evidence
+            ):
+                papers.append(paper.model_dump())
+        sense_row = None
+        with self._connect() as connection:
+            sense_row = connection.execute(
+                "SELECT payload_json FROM concept_senses WHERE id = ?", (entity_id,)
+            ).fetchone()
+        return {
+            "entity": entity.model_dump(),
+            "concept_sense": json.loads(sense_row["payload_json"]) if sense_row else None,
+            "relations": [item.model_dump() for item in relations],
+            "documents": [dict(item) for item in documents],
+            "papers": papers,
+            "source_mentions": [json.loads(item["payload_json"]) for item in mentions],
+        }
+
+    def list_source_mentions(self, entity_id: str | None = None) -> list[SourceMention]:
+        query = "SELECT m.payload_json FROM source_mentions m"
+        params: tuple[Any, ...] = ()
+        if entity_id:
+            query += " JOIN mention_sense_links l ON l.mention_id = m.id WHERE l.sense_id = ?"
+            params = (entity_id,)
+        with self._connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        return [SourceMention.model_validate_json(item["payload_json"]) for item in rows]
+
+    def get_concept_sense(self, sense_id: str) -> ConceptSense:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT payload_json FROM concept_senses WHERE id = ?", (sense_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(sense_id)
+        return ConceptSense.model_validate_json(row["payload_json"])
+
+    def _backfill_semantic_records(self) -> None:
+        """Create provenance records for pre-semantic-layer publications without altering facts."""
+        with self._connect() as connection:
+            entities = connection.execute("SELECT * FROM published_entities").fetchall()
+            for row in entities:
+                entity = PublishedEntity.model_validate_json(row["payload_json"])
+                now = _now()
+                self._refresh_aggregate_collections_tx(connection, "entity", entity.id, now)
+                sense = ConceptSense(
+                    id=entity.id,
+                    name=entity.name,
+                    type=entity.type,
+                    definition=entity.summary,
+                    aliases=entity.aliases,
+                    status="legacy",
+                )
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO concept_senses
+                        (id, normalized_name, entity_type, status, payload_json,
+                         created_at, updated_at)
+                    VALUES (?, ?, ?, 'legacy', ?, ?, ?)
+                    """,
+                    (
+                        entity.id,
+                        _normalize(entity.name),
+                        entity.type,
+                        _dump(sense.model_dump()),
+                        now,
+                        now,
+                    ),
+                )
+            relation_ids = connection.execute("SELECT id FROM published_relations").fetchall()
+            for row in relation_ids:
+                self._refresh_aggregate_collections_tx(
+                    connection, "relation", str(row["id"]), _now()
+                )
+            candidates = connection.execute(
                 """
-                SELECT topic_slug, MAX(topic) AS topic, MAX(updated_at) AS updated_at,
-                       MAX(vault_path) AS vault_path
-                FROM ingestions GROUP BY topic_slug ORDER BY updated_at DESC
+                SELECT * FROM candidates WHERE kind = 'entity'
+                  AND status IN ('published', 'merged', 'deferred')
                 """
             ).fetchall()
-        return [dict(row) for row in rows]
+            for row in candidates:
+                stored = self._candidate_from_row(row)
+                candidate = CandidateEntity.model_validate(stored["candidate"])
+                mention_status = "source_only" if candidate.status == "deferred" else "linked"
+                mention_id = self._upsert_source_mention_tx(connection, candidate, mention_status)
+                if candidate.canonical_id:
+                    connection.execute(
+                        """
+                        INSERT OR IGNORE INTO mention_sense_links
+                            (mention_id, sense_id, link_kind, created_at)
+                        VALUES (?, ?, 'legacy', ?)
+                        """,
+                        (mention_id, candidate.canonical_id, _now()),
+                    )
 
     def published_paper_ids(self, topic_slugs: list[str] | None = None) -> set[str]:
         entities: list[PublishedEntity] = []
@@ -1153,6 +1619,14 @@ class KnowledgeRepository:
 
     def _ingestion_from_row(self, row: sqlite3.Row) -> KnowledgeIngestion:
         with self._connect() as connection:
+            collection_row = connection.execute(
+                """
+                SELECT c.name, c.slug FROM ingestion_collections ic
+                JOIN knowledge_collections c ON c.slug = ic.collection_slug
+                WHERE ic.ingestion_id = ?
+                """,
+                (row["id"],),
+            ).fetchone()
             document_count = connection.execute(
                 "SELECT COUNT(*) FROM documents WHERE ingestion_id = ?", (row["id"],)
             ).fetchone()[0]
@@ -1191,6 +1665,8 @@ class KnowledgeRepository:
             id=row["id"],
             topic=row["topic"],
             topic_slug=row["topic_slug"],
+            collection=(collection_row["name"] if collection_row else row["topic"]),
+            collection_slug=(collection_row["slug"] if collection_row else row["topic_slug"]),
             sources=json.loads(row["sources_json"]),
             pdf_max_pages=row["pdf_max_pages"],
             status=row["status"],
@@ -1438,4 +1914,77 @@ CREATE INDEX IF NOT EXISTS projection_outbox_lease_idx
 
 _REPORT_METADATA_SCHEMA = """
 ALTER TABLE reports ADD COLUMN run_metadata_json TEXT NOT NULL DEFAULT '{}';
+"""
+
+
+_COLLECTION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS knowledge_collections (
+    slug TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    is_system INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+INSERT OR IGNORE INTO knowledge_collections (slug, name, is_system, created_at, updated_at)
+VALUES ('inbox', '收件箱', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT OR IGNORE INTO knowledge_collections (slug, name, is_system, created_at, updated_at)
+SELECT topic_slug, topic, 0, created_at, updated_at FROM ingestions;
+CREATE TABLE IF NOT EXISTS ingestion_collections (
+    ingestion_id TEXT PRIMARY KEY REFERENCES ingestions(id),
+    collection_slug TEXT NOT NULL REFERENCES knowledge_collections(slug)
+);
+INSERT OR IGNORE INTO ingestion_collections (ingestion_id, collection_slug)
+SELECT id, topic_slug FROM ingestions;
+CREATE TABLE IF NOT EXISTS collection_memberships (
+    aggregate_type TEXT NOT NULL CHECK (aggregate_type IN ('entity', 'relation')),
+    aggregate_id TEXT NOT NULL,
+    ingestion_id TEXT NOT NULL REFERENCES ingestions(id),
+    collection_slug TEXT NOT NULL REFERENCES knowledge_collections(slug),
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (aggregate_type, aggregate_id, ingestion_id)
+);
+CREATE INDEX IF NOT EXISTS collection_memberships_scope_idx
+    ON collection_memberships(collection_slug, aggregate_type, aggregate_id);
+INSERT OR IGNORE INTO collection_memberships
+    (aggregate_type, aggregate_id, ingestion_id, collection_slug, created_at)
+SELECT 'entity', canonical_id, ingestion_id, json_extract(payload_json, '$.topic_slug'), created_at
+FROM candidates
+WHERE kind = 'entity' AND canonical_id IS NOT NULL AND status IN ('published', 'merged');
+INSERT OR IGNORE INTO collection_memberships
+    (aggregate_type, aggregate_id, ingestion_id, collection_slug, created_at)
+SELECT aggregate_type, aggregate_id, ingestion_id, topic_slug, created_at
+FROM projection_outbox WHERE aggregate_type = 'relation';
+"""
+
+
+_SEMANTIC_LAYER_SCHEMA = """
+DROP INDEX IF EXISTS published_entities_name_idx;
+CREATE TABLE IF NOT EXISTS source_mentions (
+    id TEXT PRIMARY KEY,
+    candidate_id TEXT NOT NULL UNIQUE REFERENCES candidates(id),
+    ingestion_id TEXT NOT NULL REFERENCES ingestions(id),
+    paper_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS source_mentions_paper_idx ON source_mentions(paper_id, status);
+CREATE TABLE IF NOT EXISTS concept_senses (
+    id TEXT PRIMARY KEY,
+    normalized_name TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS concept_senses_name_idx ON concept_senses(normalized_name, entity_type);
+CREATE TABLE IF NOT EXISTS mention_sense_links (
+    mention_id TEXT NOT NULL REFERENCES source_mentions(id),
+    sense_id TEXT NOT NULL REFERENCES concept_senses(id),
+    link_kind TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (mention_id, sense_id)
+);
 """

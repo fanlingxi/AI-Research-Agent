@@ -16,6 +16,11 @@ EXTRACTION_SYSTEM_PROMPT = """你是严谨的科研知识工程师。你的任�
 只抽取对理解研究有价值的论文、概念、方法、任务、数据集、指标或发现。禁止抽取作者姓名、会议模板词、
 章节标题、参考文献条目、泛化词（例如 Association、Introduction、Proceedings）。
 
+实体摘要只能描述该论文中的用法，不要把模型常识写成跨论文定义。若正文足以支持，请补充：
+paper_context（这篇论文如何使用该术语）、role（它在研究中的作用）、conditions（适用条件或局限）和
+sense_qualifier（不超过 16 字的词义限定语）；没有明确证据时返回空字符串。
+没有明确证据时返回空字符串。
+
 关系只能使用：PRESENTS、ADDRESSES、USES、EVALUATES、IMPROVES、COMPARES_WITH、APPLIES_TO、
 HAS_LIMITATION、SUPPORTS。
 每个实体和关系必须给出一条提供的原文证据。evidence.chunk_id 必须精确使用上下文中的 chunk_id；
@@ -111,7 +116,9 @@ class SchemaKnowledgeExtractor:
   },
   "entities": [{
     "name": "string", "type": "Concept|Method|Task|Dataset|Metric|Finding",
-    "summary": "string", "aliases": ["string"], "confidence": 0.0,
+    "summary": "string", "aliases": ["string"], "sense_qualifier": "string",
+    "paper_context": "string",
+    "role": "string", "conditions": "string", "confidence": 0.0,
     "evidence": {"paper_id": "string", "chunk_id": "string", "page_start": 1,
       "page_end": 1, "quote": "string"}
   }],

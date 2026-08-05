@@ -52,7 +52,10 @@ def _render_knowledge_ingestion() -> None:
         st.caption("无法读取服务状态；请确认 API 已启动。")
 
     with st.form("knowledge_ingestion_form"):
-        topic = st.text_input("主题", placeholder="例如：LLM Agent 的工具使用与规划")
+        collection = st.text_input(
+            "知识集合（可选）",
+            placeholder="留空进入“收件箱”，例如：LLM Agent 的工具使用与规划",
+        )
         sources = st.text_area(
             "PDF 路径或 URL（每行一个）",
             placeholder="data/raw_papers/2302.04761.pdf\nhttps://arxiv.org/pdf/2302.04761",
@@ -66,7 +69,7 @@ def _render_knowledge_ingestion() -> None:
                 "POST",
                 "/api/knowledge/ingestions",
                 json={
-                    "topic": topic,
+                    "collection": collection or None,
                     "sources": [line.strip() for line in sources.splitlines() if line.strip()],
                     "pdf_max_pages": int(max_pages),
                 },
@@ -80,7 +83,7 @@ def _render_knowledge_ingestion() -> None:
 def _ingestion_options() -> tuple[list[dict[str, Any]], dict[str, str]]:
     ingestions = _api("GET", "/api/knowledge/ingestions")
     labels = {
-        item["id"]: f"{item['topic']} · {item['status']} · {item['created_at'][:19]}"
+        item["id"]: f"{item['collection']} · {item['status']} · {item['created_at'][:19]}"
         for item in ingestions
     }
     return ingestions, labels
@@ -88,7 +91,7 @@ def _ingestion_options() -> tuple[list[dict[str, Any]], dict[str, str]]:
 
 def _render_review_queue() -> None:
     st.subheader("审核队列")
-    st.caption("候选只能从 draft 进入一次终态；发布事实先落 SQLite，再由 outbox 投影。")
+    st.caption("候选只能从 draft 进入一次终态；待定项保留论文内证据，但不会进入正式图谱。")
     try:
         ingestions, labels = _ingestion_options()
     except httpx.HTTPError as exc:
@@ -121,8 +124,8 @@ def _render_review_queue() -> None:
             result = _api("POST", f"/api/knowledge/ingestions/{ingestion_id}/approve-ready")
             st.success(
                 "已保存审核："
-                f"实体 {result['published_entities']}、关系 {result['published_relations']}、"
-                f"冲突 {result['skipped_conflicts']}、阻塞关系 {result['blocked_relations']}。"
+                f"实体 {result['published_entities']}、冲突 {result['skipped_conflicts']}、"
+                f"需逐项审核关系 {result['blocked_relations']}。"
             )
             st.rerun()
         except httpx.HTTPError as exc:
@@ -148,11 +151,14 @@ def _review_candidate(item: dict[str, Any], ingestion_id: str) -> None:
         with st.form(f"candidate_form_{candidate['id']}"):
             if kind == "entity":
                 name = st.text_input("规范名称", value=candidate["name"])
+                sense_qualifier = st.text_input(
+                    "词义限定语（可选）", value=candidate.get("sense_qualifier", "")
+                )
                 aliases = st.text_input(
                     "别名（逗号分隔）", value=", ".join(candidate.get("aliases", []))
                 )
             else:
-                name = aliases = None
+                name = aliases = sense_qualifier = None
                 st.code(
                     f"{candidate['source_candidate_id']} --{candidate['type']}--> "
                     f"{candidate['target_candidate_id']}"
@@ -167,6 +173,7 @@ def _review_candidate(item: dict[str, Any], ingestion_id: str) -> None:
                     {
                         "name": name,
                         "aliases": [value.strip() for value in aliases.split(",") if value.strip()],
+                        "sense_qualifier": sense_qualifier,
                     }
                 )
             try:
@@ -175,6 +182,7 @@ def _review_candidate(item: dict[str, Any], ingestion_id: str) -> None:
             except httpx.HTTPError as exc:
                 _show_api_error(exc)
         _evidence(candidate)
+        review_note = st.text_input("审核备注（可选）", key=f"review_note_{candidate['id']}")
         suggestions = candidate.get("merge_suggestions", []) if kind == "entity" else []
         if suggestions:
             target = st.selectbox(
@@ -186,23 +194,51 @@ def _review_candidate(item: dict[str, Any], ingestion_id: str) -> None:
                 ),
                 key=f"merge_target_{candidate['id']}",
             )
-            approve, merge, reject = st.columns(3)
+            approve, merge, defer, reject = st.columns(4)
             if approve.button("作为新实体批准", key=f"approve_{candidate['id']}"):
-                _decide_candidate(candidate["id"], {"decision": "approve"}, ingestion_id)
-            if merge.button("确认合并", key=f"merge_{candidate['id']}"):
                 _decide_candidate(
                     candidate["id"],
-                    {"decision": "merge", "canonical_id": target["entity_id"]},
+                    {"decision": "approve", "review_note": review_note},
                     ingestion_id,
                 )
+            if merge.button("链接到已有词义", key=f"merge_{candidate['id']}"):
+                _decide_candidate(
+                    candidate["id"],
+                    {
+                        "decision": "link",
+                        "canonical_id": target["entity_id"],
+                        "review_note": review_note,
+                    },
+                    ingestion_id,
+                )
+            if defer.button("仅保留论文内提及", key=f"defer_{candidate['id']}"):
+                _decide_candidate(
+                    candidate["id"], {"decision": "defer", "review_note": review_note}, ingestion_id
+                )
             if reject.button("驳回", key=f"reject_{candidate['id']}"):
-                _decide_candidate(candidate["id"], {"decision": "reject"}, ingestion_id)
+                _decide_candidate(
+                    candidate["id"],
+                    {"decision": "reject", "review_note": review_note},
+                    ingestion_id,
+                )
         else:
-            approve, reject = st.columns(2)
+            approve, defer, reject = st.columns(3)
             if approve.button("批准", key=f"approve_{candidate['id']}"):
-                _decide_candidate(candidate["id"], {"decision": "approve"}, ingestion_id)
+                _decide_candidate(
+                    candidate["id"],
+                    {"decision": "approve", "review_note": review_note},
+                    ingestion_id,
+                )
+            if defer.button("待定", key=f"defer_{candidate['id']}"):
+                _decide_candidate(
+                    candidate["id"], {"decision": "defer", "review_note": review_note}, ingestion_id
+                )
             if reject.button("驳回", key=f"reject_{candidate['id']}"):
-                _decide_candidate(candidate["id"], {"decision": "reject"}, ingestion_id)
+                _decide_candidate(
+                    candidate["id"],
+                    {"decision": "reject", "review_note": review_note},
+                    ingestion_id,
+                )
 
 
 def _decide_candidate(candidate_id: str, payload: dict[str, str], ingestion_id: str) -> None:
@@ -220,26 +256,30 @@ def _render_knowledge_explorer() -> None:
     st.subheader("知识探索")
     st.caption("这里只展示已审核的 SQLite 正式知识；Neo4j 和 Obsidian 是可恢复投影。")
     try:
-        topics = _api("GET", "/api/knowledge/topics")
+        collections = _api("GET", "/api/knowledge/collections")
     except httpx.HTTPError as exc:
         _show_api_error(exc)
         return
-    if not topics:
-        st.info("暂无主题。")
-        return
-    topic_slug = st.selectbox(
-        "主题",
-        [item["topic_slug"] for item in topics],
-        format_func=lambda slug: next(
-            item["topic"] for item in topics if item["topic_slug"] == slug
-        ),
+    collection_by_slug = {item["slug"]: item["name"] for item in collections}
+    collection_slug = st.selectbox(
+        "知识集合",
+        ["__all__", *collection_by_slug],
+        format_func=lambda slug: "全部正式知识" if slug == "__all__" else collection_by_slug[slug],
     )
     try:
-        data = _api("GET", f"/api/knowledge/topics/{topic_slug}")
+        data = _api(
+            "GET",
+            "/api/knowledge/graph",
+            **(
+                {}
+                if collection_slug == "__all__"
+                else {"params": {"collection_slug": collection_slug}}
+            ),
+        )
     except httpx.HTTPError as exc:
         _show_api_error(exc)
         return
-    entities, relations = data.get("entities", []), data.get("relations", [])
+    entities, relations = data.get("nodes", []), data.get("edges", [])
     st.info(f"已发布 {len(entities)} 个节点、{len(relations)} 条关系。")
     if not entities:
         return
@@ -247,7 +287,15 @@ def _render_knowledge_explorer() -> None:
     center_id = st.selectbox(
         "以节点为中心浏览",
         list(by_id),
-        format_func=lambda item_id: f"{by_id[item_id]['name']} · {by_id[item_id]['type']}",
+        format_func=lambda item_id: (
+            (
+                f"{by_id[item_id]['name']}"
+                f"（{by_id[item_id].get('metadata', {}).get('sense_qualifier')}）"
+                if by_id[item_id].get("metadata", {}).get("sense_qualifier")
+                else by_id[item_id]["name"]
+            )
+            + f" · {by_id[item_id]['type']}"
+        ),
     )
     local_relations = [
         item
@@ -258,9 +306,39 @@ def _render_knowledge_explorer() -> None:
     for relation in local_relations:
         local_ids.update({relation["source_entity_id"], relation["target_entity_id"]})
     _graph_chart([by_id[item_id] for item_id in local_ids if item_id in by_id], local_relations)
-    selected = by_id[center_id]
-    st.markdown(f"### {selected['name']}")
+    try:
+        detail = _api("GET", f"/api/knowledge/entities/{center_id}")
+    except httpx.HTTPError as exc:
+        _show_api_error(exc)
+        return
+    selected = detail["entity"]
+    qualifier = selected.get("metadata", {}).get("sense_qualifier", "")
+    st.markdown(f"### {selected['name']}{f'（{qualifier}）' if qualifier else ''}")
     st.write(selected["summary"])
+    sense = detail.get("concept_sense") or {}
+    if sense.get("scope"):
+        st.caption("词义语境：" + sense["scope"])
+    if selected.get("aliases"):
+        st.caption("别名：" + "、".join(selected["aliases"]))
+    if detail.get("relations"):
+        st.markdown("#### 关联知识")
+        for relation in detail["relations"]:
+            other_id = (
+                relation["target_entity_id"]
+                if relation["source_entity_id"] == center_id
+                else relation["source_entity_id"]
+            )
+            other = by_id.get(other_id, {"name": other_id})
+            st.write(f"- {relation['type']} · {other['name']}：{relation['summary']}")
+    if detail.get("papers"):
+        st.markdown("#### 来源论文阅读卡")
+        for paper in detail["papers"]:
+            reading = paper.get("metadata", {}).get("reading", {})
+            if reading:
+                st.write(
+                    f"**{paper['name']}**：{reading.get('research_problem', paper['summary'])}"
+                )
+    st.markdown("#### 证据来源")
     for evidence in selected.get("evidence", []):
         _evidence({"evidence": evidence})
 
@@ -287,17 +365,17 @@ def _render_reports() -> None:
     st.subheader("研究报告")
     st.caption("报告只消费已审核 PDF 切片和正式图谱；证据不足会明确失败。")
     try:
-        topics = _api("GET", "/api/knowledge/topics")
+        collections = _api("GET", "/api/knowledge/collections")
     except httpx.HTTPError as exc:
         _show_api_error(exc)
         return
-    topic_by_slug = {item["topic_slug"]: item["topic"] for item in topics}
+    collection_by_slug = {item["slug"]: item["name"] for item in collections}
     with st.form("report_form"):
         query = st.text_area("研究问题", height=100)
-        topic_slugs = st.multiselect(
-            "主题范围（留空表示全部正式知识）",
-            list(topic_by_slug),
-            format_func=topic_by_slug.get,
+        collection_slugs = st.multiselect(
+            "知识集合范围（留空表示全部正式知识）",
+            list(collection_by_slug),
+            format_func=collection_by_slug.get,
         )
         left, right = st.columns(2)
         top_k = left.number_input("证据切片数", 1, 30, 8)
@@ -310,7 +388,7 @@ def _render_reports() -> None:
                 "/api/reports",
                 json={
                     "query": query,
-                    "topic_slugs": topic_slugs,
+                    "collection_slugs": collection_slugs,
                     "top_k": int(top_k),
                     "report_depth": depth,
                 },
@@ -381,7 +459,7 @@ def _render_task_history() -> None:
     st.dataframe(
         [
             {
-                "主题": item["topic"],
+                "知识集合": item["collection"],
                 "状态": item["status"],
                 "文档": item["document_count"],
                 "候选": item["candidate_count"],
@@ -404,6 +482,32 @@ def _render_task_history() -> None:
     )
     selected = next(item for item in ingestions if item["id"] == selected_id)
     st.json(selected)
+    try:
+        collections = _api("GET", "/api/knowledge/collections")
+    except httpx.HTTPError:
+        collections = []
+    if collections and selected["status"] not in {"queued", "running", "publishing"}:
+        names = {item["slug"]: item["name"] for item in collections}
+        target_slug = st.selectbox(
+            "移动到知识集合",
+            list(names),
+            index=list(names).index(selected["collection_slug"])
+            if selected["collection_slug"] in names
+            else 0,
+            format_func=names.get,
+            key=f"move_collection_{selected_id}",
+        )
+        if target_slug != selected["collection_slug"] and st.button("移动集合"):
+            try:
+                _api(
+                    "PATCH",
+                    f"/api/knowledge/ingestions/{selected_id}/collection",
+                    json={"collection": names[target_slug]},
+                )
+                st.success("集合移动已排队同步。")
+                st.rerun()
+            except httpx.HTTPError as exc:
+                _show_api_error(exc)
     if selected["status"] in {"failed", "interrupted"} and st.button("重试此任务", type="primary"):
         try:
             _api("POST", f"/api/knowledge/ingestions/{selected_id}/retry")

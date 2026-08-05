@@ -2,7 +2,7 @@
 
 ## 1. 架构目标
 
-主项目只承担两件事：把 PDF 转换为可审核、可恢复的正式研究知识；只使用这些正式知识生成可追溯报告。它不兼容归档版本的 Planner、Search Agent、ResearchState、启发式图谱、JSON Memory、Evaluation 或旧导出器。
+主项目只承担两件事：把 PDF 转换为可审核、可恢复的正式研究知识；只使用这些正式知识生成可追溯报告。知识集合是可选组织维度，留空进入“收件箱”。它不兼容归档版本的 Planner、Search Agent、ResearchState、启发式图谱、JSON Memory、Evaluation 或旧导出器。
 
 本阶段面向本地单用户，不包含登录、租户隔离、Redis、Celery 或云端分布式部署。
 
@@ -39,6 +39,8 @@ flowchart TB
 | 正式实体与关系路径 | Neo4j | 从 SQLite 正式事实重放 |
 | 人类可读笔记、MOC、Canvas | Obsidian | 从 SQLite 重建，保留 `## 人工笔记` |
 | 报告正文、证据包和评估 | SQLite | API 可重复读取和下载 |
+| 论文内术语提及 | SQLite `source_mentions` | 可保留为待定，不进入跨论文图谱 |
+| 跨论文概念词义 | SQLite `concept_senses` | 同名可有多个词义，显式链接才复用 |
 
 物理存储名保留 `knowledge_chunks_v2`、`KnowledgeEntityV2` 和 `data/obsidian_vault_v2`，仅为兼容已有当前数据；这些名称不代表对外版本协议。
 
@@ -65,12 +67,14 @@ Qdrant 索引在候选创建前完成。索引失败可以留下可清理的文�
 
 ### 审核一致性
 
-每个候选的终态更新使用 `UPDATE ... WHERE status = 'draft'` 并检查受影响行数。事务内同时写入：
+每个候选的终态更新使用 `UPDATE ... WHERE status = 'draft'` 并检查受影响行数。批准或链接事务内同时写入：
 
 1. 正式实体或关系；
 2. 候选终态；
 3. 唯一审核事件；
 4. 对发布/合并决定创建 projection outbox。
+
+“仅保留论文内提及”同样写入唯一审核事件和 `source_mentions`，但不创建正式实体、关系或 projection outbox。论文正文仍可作为报告证据，未解决的词义不会污染正式图谱。
 
 相同决定再次提交返回幂等结果；不同终态重放返回 `409`。并发审核由 SQLite `BEGIN IMMEDIATE` 串行化，最终只产生一份正式事实、一条审核事件和一个 outbox 事件。
 
@@ -134,6 +138,8 @@ flowchart LR
 2. 持久任务、projection outbox 和报告；
 3. 每候选唯一审核事件与任务/投影租约索引；
 4. 报告运行版本、模型、配置、调用次数、成本和时延元数据。
+5. 知识集合、入库主集合和知识项来源集合归属；
+6. 来源提及、概念词义和显式提及—词义链接，并移除“名称 + 类型”唯一约束。
 
 生产数据迁移只允许追加新版本，不修改已记录的历史迁移。
 

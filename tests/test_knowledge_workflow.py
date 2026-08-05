@@ -124,9 +124,14 @@ def test_reviewable_workflow_publishes_readable_vault_only_after_approval(tmp_pa
 
     approved = service.approve_ready(ingestion.id)
 
-    assert approved.ingestion.status == "publishing"
+    assert approved.ingestion.status == "needs_review"
     assert approved.published_entities == 3
-    assert approved.published_relations == 3
+    assert approved.published_relations == 0
+    assert approved.blocked_relations == 3
+    for item in repository.list_candidates(ingestion.id, status="draft"):
+        if item["kind"] == "relation":
+            service.decide(item["candidate"]["id"], CandidateDecision(decision="approve"))
+    assert repository.get_ingestion(ingestion.id).status == "publishing"
     assert not vault.exists()
     assert service.drain_projections() == 6
     assert repository.get_ingestion(ingestion.id).status == "completed"

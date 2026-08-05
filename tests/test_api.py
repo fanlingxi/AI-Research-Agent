@@ -100,7 +100,7 @@ def test_health_is_knowledge_only_and_v1_routes_are_absent(tmp_path) -> None:
         old_task = client.get("/api/tasks/does-not-exist")
 
     assert health.status_code == 200
-    assert health.json()["knowledge"]["schema_version"] == 4
+    assert health.json()["knowledge"]["schema_version"] == 6
     assert old_research.status_code == 404
     assert old_task.status_code == 404
 
@@ -127,7 +127,14 @@ def test_api_queues_ingestion_and_worker_publishes_outbox(tmp_path) -> None:
 
         candidates = client.get(f"/api/knowledge/ingestions/{ingestion_id}/candidates")
         approved = client.post(f"/api/knowledge/ingestions/{ingestion_id}/approve-ready")
-        assert approved.json()["ingestion"]["status"] == "publishing"
+        assert approved.json()["ingestion"]["status"] == "needs_review"
+        for item in candidates.json():
+            if item["kind"] == "relation":
+                response = client.post(
+                    f"/api/knowledge/candidates/{item['candidate']['id']}/decision",
+                    json={"decision": "approve"},
+                )
+                assert response.status_code == 200
 
         while worker.run_once():
             pass

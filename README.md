@@ -6,11 +6,11 @@ Research Knowledge Core 是一个面向本地单用户的科研知识系统：�
 
 ## 核心能力
 
-- 本地路径或 URL 的 PDF 入库；不使用在线搜索或演示数据兜底。
+- 本地路径或 URL 的 PDF 入库；知识集合可选，留空自动进入“收件箱”。
 - Pydantic Schema 约束的实体、关系、阅读卡和页码证据抽取。
 - SQLite 持久化任务队列、审核事件、正式事实、投影 outbox 和报告。
-- 候选只能从 `draft` 进入一次终态；相同决定幂等，不同决定返回 `409`。
-- Qdrant 保存 PDF 正文切片，Neo4j 保存正式语义图，Obsidian 保存可再生阅读投影。
+- 候选只能从 `draft` 进入一次终态；支持批准、链接已有词义、仅保留论文内提及与驳回。
+- Qdrant 保存 PDF 正文切片，Neo4j 保存正式语义图，Obsidian 保存可再生阅读投影；待定提及不进入图谱。
 - 报告只消费已发布论文允许范围内的切片和正式图谱；最多修订一次。
 - 报告持久化正文、证据包、证据落地率、引用覆盖率、引用忠实度和结构评分。
 
@@ -73,9 +73,9 @@ CLI 只保留 PDF 解析和 worker：
 
 ## 使用流程
 
-1. 在“知识入库”提交主题和 PDF 来源；API 返回 `202`，worker 异步领取任务。
+1. 在“知识入库”提交可选知识集合和 PDF 来源；未指定集合时进入“收件箱”，API 返回 `202`，worker 异步领取任务。
 2. worker 先完成所有 PDF 解析和 Qdrant 索引，再创建可审核候选。Qdrant 失败不会留下候选半成品。
-3. 在“审核队列”编辑、批准、驳回或合并候选。
+3. 在“审核队列”编辑候选，并批准为新词义、链接已有词义、仅保留论文内提及或驳回。
 4. SQLite 在同一事务中写入正式事实、唯一审核事件和 projection outbox。
 5. worker 幂等投影到 Neo4j 和 Obsidian；全部成功后入库状态变为 `completed`。
 6. 在“研究报告”提交研究问题。报告只检索已发布论文的切片，并保存引用证据和质量评估。
@@ -96,6 +96,7 @@ running -> interrupted -> retry
 - `POST /api/knowledge/ingestions`
 - `GET /api/knowledge/ingestions`
 - `GET /api/knowledge/ingestions/{id}`
+- `PATCH /api/knowledge/ingestions/{id}/collection`
 - `POST /api/knowledge/ingestions/{id}/retry`
 - `GET /api/knowledge/ingestions/{id}/candidates`
 - `PATCH /api/knowledge/candidates/{id}`
@@ -103,6 +104,9 @@ running -> interrupted -> retry
 - `POST /api/knowledge/ingestions/{id}/approve-ready`
 - `GET /api/knowledge/topics`
 - `GET /api/knowledge/topics/{slug}`
+- `GET|POST /api/knowledge/collections`
+- `GET /api/knowledge/collections/{slug}`
+- `GET /api/knowledge/entities/{id}`
 - `GET /api/knowledge/graph`
 - `GET /api/knowledge/search`
 

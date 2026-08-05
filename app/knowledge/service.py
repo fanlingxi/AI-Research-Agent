@@ -88,7 +88,8 @@ class KnowledgeIngestionService:
     def submit(
         self,
         *,
-        topic: str,
+        topic: str | None = None,
+        collection: str | None = None,
         sources: list[str],
         pdf_max_pages: int,
     ) -> KnowledgeIngestion:
@@ -101,6 +102,7 @@ class KnowledgeIngestionService:
             raise ValueError("至少需要提供一个本地 PDF 路径或 PDF URL。")
         return self.repository.create_ingestion(
             topic=topic,
+            collection=collection,
             sources=cleaned_sources,
             pdf_max_pages=pdf_max_pages,
         )
@@ -176,25 +178,21 @@ class KnowledgeIngestionService:
             return self._replayed_decision(stored, decision)
         try:
             if decision.decision == "reject":
-                self.repository.reject_candidate(candidate_id)
+                self.repository.reject_candidate(candidate_id, decision.review_note)
+            elif decision.decision == "defer":
+                self.repository.defer_candidate(candidate_id, decision.review_note)
             elif stored["kind"] == "entity":
-                candidate = CandidateEntity.model_validate(stored["candidate"])
-                if decision.decision == "approve":
-                    suggestions = self.repository.find_merge_suggestions(
-                        name=candidate.name,
-                        entity_type=candidate.type,
-                        aliases=candidate.aliases,
-                    )
-                    if any(item.match_kind == "exact" for item in suggestions):
-                        self.repository.set_merge_suggestions(candidate_id, suggestions)
-                        raise ValueError("检测到已有规范实体，请人工确认合并后再发布。")
                 self.repository.publish_entity(
                     candidate_id,
-                    canonical_id=(decision.canonical_id if decision.decision == "merge" else None),
+                    canonical_id=(
+                        decision.canonical_id if decision.decision in {"merge", "link"} else None
+                    ),
+                    review_note=decision.review_note,
+                    decision_name=("link" if decision.decision == "link" else None),
                 )
             else:
-                if decision.decision == "merge":
-                    raise ValueError("关系候选不支持合并，请编辑后批准或驳回。")
+                if decision.decision in {"merge", "link"}:
+                    raise ValueError("关系候选不支持链接或合并，请编辑后批准、待定或驳回。")
                 self.repository.publish_relation(candidate_id)
         except DecisionAlreadyApplied:
             return self._replayed_decision(self.repository.get_candidate(candidate_id), decision)
@@ -213,7 +211,7 @@ class KnowledgeIngestionService:
         if existing is None:
             raise ValueError("候选已不在草稿状态，但没有可验证的审核记录。")
         same_decision = existing["decision"] == requested.decision
-        if requested.decision == "merge":
+        if requested.decision in {"merge", "link"}:
             same_decision = same_decision and existing["canonical_id"] == requested.canonical_id
         if not same_decision:
             raise ValueError("候选已经存在不同的终态审核决定。")
@@ -227,7 +225,7 @@ class KnowledgeIngestionService:
         )
 
     def approve_ready(self, ingestion_id: str) -> BulkApprovalResult:
-        """Approve unambiguous entities, then relations with published endpoints."""
+        """Approve only unambiguous entities; semantic relations always need individual review."""
         published_entities = 0
         published_relations = 0
         skipped_conflicts = 0
@@ -235,7 +233,14 @@ class KnowledgeIngestionService:
         for item in self.repository.list_candidates(ingestion_id, status="draft"):
             if item["kind"] != "entity":
                 continue
-            if item["candidate"].get("merge_suggestions"):
+            candidate = CandidateEntity.model_validate(item["candidate"])
+            suggestions = candidate.merge_suggestions or self.repository.find_merge_suggestions(
+                name=candidate.name,
+                entity_type=candidate.type,
+                aliases=candidate.aliases,
+            )
+            if any(item.match_kind == "exact" for item in suggestions):
+                self.repository.set_merge_suggestions(candidate.id, suggestions)
                 skipped_conflicts += 1
                 continue
             try:
@@ -243,14 +248,10 @@ class KnowledgeIngestionService:
                 published_entities += int(result.applied)
             except ValueError:
                 skipped_conflicts += 1
-        for item in self.repository.list_candidates(ingestion_id, status="draft"):
-            if item["kind"] != "relation":
-                continue
-            try:
-                result = self.decide(item["candidate"]["id"], CandidateDecision(decision="approve"))
-                published_relations += int(result.applied)
-            except ValueError:
-                blocked_relations += 1
+        blocked_relations = sum(
+            item["kind"] == "relation"
+            for item in self.repository.list_candidates(ingestion_id, status="draft")
+        )
         return BulkApprovalResult(
             ingestion=self.repository.refresh_ingestion_status(ingestion_id),
             published_entities=published_entities,
@@ -304,6 +305,29 @@ class KnowledgeIngestionService:
             ],
         }
 
+    def collection(self, collection_slug: str) -> dict:
+        return {
+            "collection": self.repository.get_collection(collection_slug).model_dump(),
+            "entities": [
+                item.model_dump()
+                for item in self.repository.list_published_entities(collection_slug)
+            ],
+            "relations": [
+                item.model_dump()
+                for item in self.repository.list_published_relations(collection_slug)
+            ],
+        }
+
+    def entity_detail(self, entity_id: str) -> dict:
+        return self.repository.entity_detail(entity_id)
+
+    def sync_collections(self, collection_slugs: list[str]) -> None:
+        """Rebuild affected collection projections from SQLite after a durable move job."""
+        entities = self.repository.list_published_entities()
+        if entities:
+            self.projector.upsert_entities(entities)
+        self._render_topics(list(dict.fromkeys(collection_slugs)))
+
     def graph(self, topic_slug: str | None = None) -> dict:
         return {
             "nodes": [
@@ -352,6 +376,10 @@ class KnowledgeIngestionService:
                 type=extracted.type,
                 summary=extracted.summary,
                 aliases=extracted.aliases,
+                sense_qualifier=extracted.sense_qualifier,
+                paper_context=extracted.paper_context,
+                role=extracted.role,
+                conditions=extracted.conditions,
                 confidence=extracted.confidence,
                 evidence=extracted.evidence,
                 merge_suggestions=self.repository.find_merge_suggestions(
