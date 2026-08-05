@@ -7,6 +7,7 @@ from typing import Protocol
 from app.config.settings import Settings, get_settings
 from app.knowledge.schemas import PublishedEntity, PublishedRelation
 from app.schemas.documents import DocumentChunk
+from app.tools.text_safety import sanitize_json_value
 
 
 class KnowledgeProjector(Protocol):
@@ -133,8 +134,12 @@ class QdrantKnowledgeIndexer:
 
         from app.retrieval.embeddings import get_embedding_provider
 
+        safe_chunks = [
+            DocumentChunk.model_validate(sanitize_json_value(chunk.model_dump()))
+            for chunk in chunks
+        ]
         embeddings = get_embedding_provider(self.settings).embed_documents(
-            [chunk.text for chunk in chunks]
+            [chunk.text for chunk in safe_chunks]
         )
         client = QdrantClient(url=self.settings.qdrant_url)
         if not client.collection_exists(self.settings.knowledge_qdrant_collection):
@@ -153,7 +158,7 @@ class QdrantKnowledgeIndexer:
                     vector=embedding,
                     payload=chunk.model_dump(),
                 )
-                for chunk, embedding in zip(chunks, embeddings, strict=True)
+                for chunk, embedding in zip(safe_chunks, embeddings, strict=True)
             ],
         )
 

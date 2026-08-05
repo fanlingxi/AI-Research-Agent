@@ -1,6 +1,7 @@
 import httpx
 
 from app.tools.pdf_tools import _download_pdf
+from app.tools.text_safety import sanitize_json_value, sanitize_utf8_text
 
 
 def test_download_pdf_follows_standard_redirects(tmp_path, monkeypatch) -> None:
@@ -27,3 +28,13 @@ def test_download_pdf_follows_standard_redirects(tmp_path, monkeypatch) -> None:
     assert calls == [
         (("https://arxiv.org/pdf/2601.14192.pdf",), {"timeout": 30.0, "follow_redirects": True})
     ]
+
+
+def test_text_sanitization_replaces_lone_surrogates_recursively() -> None:
+    value = {"title": "数学符号 \ud835", "metadata": {"symbols": ["x\ud835y"]}}
+
+    assert sanitize_utf8_text("x\ud835y") == "x�y"
+    assert sanitize_json_value(value) == {
+        "title": "数学符号 �",
+        "metadata": {"symbols": ["x�y"]},
+    }

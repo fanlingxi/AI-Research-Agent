@@ -1,6 +1,7 @@
 from app.config.settings import Settings
-from app.knowledge.projector import Neo4jKnowledgeProjector
+from app.knowledge.projector import Neo4jKnowledgeProjector, QdrantKnowledgeIndexer
 from app.knowledge.schemas import EvidenceSpan, PublishedEntity, PublishedRelation
+from app.schemas.documents import DocumentChunk
 
 
 class _Session:
@@ -77,3 +78,56 @@ def test_neo4j_projector_uses_only_v2_labels_and_controlled_edge(monkeypatch) ->
     assert "ResearchEntity" not in queries
     assert "CO_OCCURS_WITH" not in queries
     assert "RELATED" not in queries
+
+
+def test_qdrant_indexer_sanitizes_chunk_before_embedding_and_json_payload(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    class _EmbeddingProvider:
+        def embed_documents(self, texts):
+            captured["embedded_texts"] = texts
+            return [[0.0, 1.0]]
+
+    class _QdrantClient:
+        def __init__(self, **kwargs) -> None:
+            captured["url"] = kwargs["url"]
+
+        def collection_exists(self, collection_name: str) -> bool:
+            return True
+
+        def upsert(self, *, collection_name: str, points) -> None:
+            captured["collection"] = collection_name
+            captured["payload"] = points[0].payload
+
+    monkeypatch.setattr(
+        "app.retrieval.embeddings.get_embedding_provider", lambda settings: _EmbeddingProvider()
+    )
+    monkeypatch.setattr("qdrant_client.QdrantClient", _QdrantClient)
+    settings = Settings(
+        qdrant_url="http://qdrant.test",
+        knowledge_qdrant_collection="safe-chunks",
+        embedding_dimension=2,
+    )
+    chunk = DocumentChunk(
+        id="chunk\ud835",
+        paper_id="paper\ud835",
+        title="Title \ud835",
+        text="Evidence \ud835",
+        chunk_index=0,
+        token_count=2,
+        metadata={"nested": ["value \ud835"]},
+    )
+
+    QdrantKnowledgeIndexer(settings).index([chunk])
+
+    assert captured["embedded_texts"] == ["Evidence �"]
+    assert captured["payload"] == {
+        "id": "chunk�",
+        "paper_id": "paper�",
+        "title": "Title �",
+        "text": "Evidence �",
+        "chunk_index": 0,
+        "token_count": 2,
+        "source_tier": "unknown",
+        "metadata": {"nested": ["value �"]},
+    }

@@ -5,6 +5,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from app.schemas.documents import ParsedDocument
+from app.tools.text_safety import sanitize_utf8_text
 
 
 def parse_pdf_source(
@@ -27,11 +28,15 @@ def parse_pdf_source(
     for page_index in range(page_limit):
         text = reader.pages[page_index].extract_text() or ""
         if text.strip():
-            page_texts.append(text.strip())
+            page_texts.append(sanitize_utf8_text(text.strip()))
             page_numbers.append(page_index + 1)
 
     metadata_title = reader.metadata.title if reader.metadata and reader.metadata.title else None
-    title = _usable_title(metadata_title) or _infer_title(page_texts) or path.stem
+    title = (
+        _usable_title(sanitize_utf8_text(metadata_title or ""))
+        or _infer_title(page_texts)
+        or path.stem
+    )
     return ParsedDocument(
         source=str(path),
         title=title,
