@@ -42,6 +42,7 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
+      - ./app:/app/app:ro
       - ./data:/app/data
     depends_on:
       qdrant:
@@ -59,6 +60,7 @@ services:
       NEO4J_USERNAME: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-research-agent}
     volumes:
+      - ./app:/app/app:ro
       - ./data:/app/data
     depends_on:
       qdrant:
@@ -71,6 +73,8 @@ services:
     command: streamlit run app/ui/streamlit_app.py --server.address 0.0.0.0 --server.port 8501
     environment:
       AI_RESEARCH_API_URL: http://api:8000
+    volumes:
+      - ./app:/app/app:ro
     ports:
       - "${STREAMLIT_PORT:-8501}:8501"
     depends_on:
