@@ -30,6 +30,7 @@ from app.knowledge.schemas import (
 CandidateKind = Literal["entity", "relation"]
 INBOX_COLLECTION_NAME = "收件箱"
 INBOX_COLLECTION_SLUG = "inbox"
+ACTIVE_INGESTION_STATUSES = ("queued", "running", "needs_review", "publishing")
 
 
 class DecisionAlreadyApplied(ValueError):
@@ -103,6 +104,30 @@ class KnowledgeRepository:
         pdf_max_pages: int,
         enqueue: bool = True,
     ) -> KnowledgeIngestion:
+        ingestion, _ = self.create_or_reuse_active_ingestion(
+            topic=topic,
+            collection=collection,
+            sources=sources,
+            pdf_max_pages=pdf_max_pages,
+            enqueue=enqueue,
+        )
+        return ingestion
+
+    def create_or_reuse_active_ingestion(
+        self,
+        *,
+        topic: str | None = None,
+        collection: str | None = None,
+        sources: list[str],
+        pdf_max_pages: int,
+        enqueue: bool = True,
+    ) -> tuple[KnowledgeIngestion, bool]:
+        """Create one active ingestion per equivalent submission.
+
+        ``BEGIN IMMEDIATE`` serializes concurrent browser submissions.  That makes the
+        read-for-duplicate and the insert one atomic decision without relying on a
+        best-effort UI guard.
+        """
         collection_name = (
             collection or topic or INBOX_COLLECTION_NAME
         ).strip() or INBOX_COLLECTION_NAME
@@ -111,43 +136,61 @@ class KnowledgeRepository:
             if collection_name == INBOX_COLLECTION_NAME
             else slugify(collection_name)
         )
+        normalized_sources = _normalized_sources(sources)
         ingestion_id = f"ing-{uuid4().hex}"
         created_at = _now()
+        existing_id: str | None = None
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            connection.execute(
+            rows = connection.execute(
                 """
-                INSERT INTO ingestions (
-                    id, topic, topic_slug, sources_json, pdf_max_pages,
-                    status, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, 'queued', ?, ?)
+                SELECT id, sources_json FROM ingestions
+                WHERE topic_slug = ? AND pdf_max_pages = ?
+                  AND status IN ('queued', 'running', 'needs_review', 'publishing')
+                ORDER BY created_at
                 """,
-                (
-                    ingestion_id,
-                    collection_name,
-                    collection_slug,
-                    _dump(sources),
-                    pdf_max_pages,
-                    created_at,
-                    created_at,
-                ),
-            )
-            self._ensure_collection_tx(connection, collection_name, collection_slug)
-            connection.execute(
-                """
-                INSERT OR REPLACE INTO ingestion_collections (ingestion_id, collection_slug)
-                VALUES (?, ?)
-                """,
-                (ingestion_id, collection_slug),
-            )
-            if enqueue:
-                self._enqueue_job_tx(
-                    connection,
-                    kind="ingestion",
-                    resource_id=ingestion_id,
-                    payload={},
+                (collection_slug, pdf_max_pages),
+            ).fetchall()
+            for row in rows:
+                if _normalized_sources(json.loads(row["sources_json"])) == normalized_sources:
+                    existing_id = str(row["id"])
+                    break
+            if existing_id is None:
+                connection.execute(
+                    """
+                    INSERT INTO ingestions (
+                        id, topic, topic_slug, sources_json, pdf_max_pages,
+                        status, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, 'queued', ?, ?)
+                    """,
+                    (
+                        ingestion_id,
+                        collection_name,
+                        collection_slug,
+                        _dump(normalized_sources),
+                        pdf_max_pages,
+                        created_at,
+                        created_at,
+                    ),
                 )
-        return self.get_ingestion(ingestion_id)
+                self._ensure_collection_tx(connection, collection_name, collection_slug)
+                connection.execute(
+                    """
+                    INSERT OR REPLACE INTO ingestion_collections (ingestion_id, collection_slug)
+                    VALUES (?, ?)
+                    """,
+                    (ingestion_id, collection_slug),
+                )
+                if enqueue:
+                    self._enqueue_job_tx(
+                        connection,
+                        kind="ingestion",
+                        resource_id=ingestion_id,
+                        payload={},
+                    )
+        if existing_id is not None:
+            return self.get_ingestion(existing_id), True
+        return self.get_ingestion(ingestion_id), False
 
     def list_ingestions(self, limit: int = 100) -> list[KnowledgeIngestion]:
         with self._connect() as connection:
@@ -1647,6 +1690,24 @@ class KnowledgeRepository:
                 """,
                 (row["id"],),
             ).fetchone()[0]
+            job_row = connection.execute(
+                """
+                SELECT id, status, attempts, lease_until, created_at
+                FROM knowledge_jobs
+                WHERE kind = 'ingestion' AND resource_id = ?
+                """,
+                (row["id"],),
+            ).fetchone()
+            queue_position = None
+            if job_row is not None and job_row["status"] == "queued":
+                queue_position = connection.execute(
+                    """
+                    SELECT COUNT(*) FROM knowledge_jobs
+                    WHERE kind = 'ingestion' AND status = 'queued'
+                      AND (created_at < ? OR (created_at = ? AND id <= ?))
+                    """,
+                    (job_row["created_at"], job_row["created_at"], job_row["id"]),
+                ).fetchone()[0]
             pending_projection_count = connection.execute(
                 """
                 SELECT COUNT(*) FROM projection_outbox
@@ -1678,6 +1739,9 @@ class KnowledgeRepository:
             candidate_count=candidate_count,
             published_count=published_count,
             queued_job_count=queued_job_count,
+            job_status=(str(job_row["status"]) if job_row is not None else None),
+            job_attempts=(int(job_row["attempts"]) if job_row is not None else 0),
+            queue_position=queue_position,
             pending_projection_count=pending_projection_count,
             failed_projection_count=failed_projection_count,
         )
@@ -1764,6 +1828,12 @@ def _normalize(value: str) -> str:
 
 def _unique(values: list[str]) -> list[str]:
     return list(dict.fromkeys(value.strip() for value in values if value and value.strip()))
+
+
+def _normalized_sources(values: list[str]) -> list[str]:
+    """Normalize a multi-PDF submission so URL order cannot create a duplicate job."""
+
+    return sorted(_unique(values))
 
 
 def _unique_models(values: list[Any]) -> list[Any]:

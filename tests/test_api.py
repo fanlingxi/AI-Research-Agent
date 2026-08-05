@@ -123,6 +123,8 @@ def test_api_queues_ingestion_and_worker_publishes_outbox(tmp_path) -> None:
 
         assert queued.json()["status"] == "queued"
         assert queued.json()["queued_job_count"] == 1
+        assert queued.json()["job_status"] == "queued"
+        assert queued.json()["queue_position"] == 1
         assert worker.run_once()
 
         candidates = client.get(f"/api/knowledge/ingestions/{ingestion_id}/candidates")
@@ -148,3 +150,39 @@ def test_api_queues_ingestion_and_worker_publishes_outbox(tmp_path) -> None:
     assert topic.status_code == 200
     assert len(graph.json()["nodes"]) == 2
     assert len(graph.json()["edges"]) == 1
+
+
+def test_api_reuses_an_equivalent_active_ingestion_submission(tmp_path) -> None:
+    repository, service, reports, _ = _stack(tmp_path)
+    with TestClient(
+        create_app(
+            knowledge_repository=repository,
+            knowledge_service=service,
+            report_service=reports,
+        )
+    ) as client:
+        first = client.post(
+            "/api/knowledge/ingestions",
+            json={
+                "collection": "重复提交保护",
+                "sources": ["https://example.com/a.pdf", "https://example.com/b.pdf"],
+                "pdf_max_pages": 20,
+            },
+        )
+        repeated = client.post(
+            "/api/knowledge/ingestions",
+            json={
+                "collection": "重复提交保护",
+                "sources": ["https://example.com/b.pdf", "https://example.com/a.pdf"],
+                "pdf_max_pages": 20,
+            },
+        )
+        ingestions = client.get("/api/knowledge/ingestions")
+
+    assert first.status_code == 202
+    assert repeated.status_code == 202
+    assert first.json()["deduplicated"] is False
+    assert repeated.json()["deduplicated"] is True
+    assert repeated.json()["id"] == first.json()["id"]
+    assert len(ingestions.json()) == 1
+    assert repository.job_summary() == {"queued": 1}

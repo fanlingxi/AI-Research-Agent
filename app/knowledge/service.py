@@ -100,12 +100,13 @@ class KnowledgeIngestionService:
         )
         if not cleaned_sources:
             raise ValueError("至少需要提供一个本地 PDF 路径或 PDF URL。")
-        return self.repository.create_ingestion(
+        ingestion, deduplicated = self.repository.create_or_reuse_active_ingestion(
             topic=topic,
             collection=collection,
             sources=cleaned_sources,
             pdf_max_pages=pdf_max_pages,
         )
+        return ingestion.model_copy(update={"deduplicated": deduplicated})
 
     def run(self, ingestion_id: str) -> KnowledgeIngestion:
         ingestion = self.repository.get_ingestion(ingestion_id)

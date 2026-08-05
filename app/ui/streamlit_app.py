@@ -1,12 +1,24 @@
 from __future__ import annotations
 
 import os
+from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 import streamlit as st
 
 API_BASE_URL = os.getenv("AI_RESEARCH_API_URL", "http://localhost:8000")
+BEIJING_TIMEZONE = ZoneInfo("Asia/Shanghai")
+INGESTION_STATUS_LABELS = {
+    "queued": "排队中",
+    "running": "处理中",
+    "needs_review": "等待审核",
+    "publishing": "正在发布",
+    "completed": "已完成",
+    "failed": "处理失败",
+    "interrupted": "已中断",
+}
 
 st.set_page_config(page_title="Research Knowledge Core", page_icon="R", layout="wide")
 st.title("Research Knowledge Core")
@@ -27,6 +39,85 @@ def _show_api_error(exc: httpx.HTTPError) -> None:
         except ValueError:
             detail = exc.response.text
     st.error(f"请求失败：{detail or exc}")
+
+
+def _format_beijing_time(value: str | None) -> str:
+    """Keep storage in UTC while consistently presenting the workspace in Beijing time."""
+
+    if not value:
+        return "—"
+    try:
+        timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return value
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=UTC)
+    return timestamp.astimezone(BEIJING_TIMEZONE).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _ingestion_progress(item: dict[str, Any]) -> tuple[int, str]:
+    status = item["status"]
+    source_count = len(item.get("sources", []))
+    document_count = min(item.get("document_count", 0), source_count)
+    candidate_count = item.get("candidate_count", 0)
+    if status == "queued":
+        position = item.get("queue_position")
+        suffix = f"，当前第 {position} 位" if position else ""
+        return 5, f"已入队，等待 worker 领取{suffix}。"
+    if status == "running":
+        if document_count < source_count:
+            return (
+                max(10, int(10 + 45 * document_count / max(source_count, 1))),
+                f"正在解析 PDF：已完成 {document_count} / {source_count} 篇。",
+            )
+        if candidate_count:
+            return (
+                70,
+                f"已解析 {document_count} / {source_count} 篇，"
+                f"正在抽取候选（{candidate_count} 个）。",
+            )
+        return 60, f"已解析 {document_count} / {source_count} 篇，正在索引并抽取候选。"
+    if status == "needs_review":
+        return 80, f"解析和候选抽取完成，共 {candidate_count} 个候选，等待人工审核。"
+    if status == "publishing":
+        return 90, "审核已完成，正在发布正式知识投影。"
+    if status == "completed":
+        return 100, "任务已完成。"
+    if status == "failed":
+        return 100, "任务失败；请查看错误并在修复后重试。"
+    return 100, "任务被中断；可在任务历史中重新排队。"
+
+
+def _render_ingestion_status_card(item: dict[str, Any], *, key_prefix: str) -> None:
+    status = item["status"]
+    progress, message = _ingestion_progress(item)
+    source_count = len(item.get("sources", []))
+    status_label = INGESTION_STATUS_LABELS.get(status, status)
+    if status in {"failed", "interrupted"}:
+        st.error(f"{status_label} · {message}")
+    elif status == "completed":
+        st.success(f"{status_label} · {message}")
+    else:
+        st.info(f"{status_label} · {message}")
+    st.progress(progress, text=message)
+    metrics = st.columns(4)
+    metrics[0].metric("PDF", f"{item.get('document_count', 0)} / {source_count}")
+    metrics[1].metric("候选", item.get("candidate_count", 0))
+    metrics[2].metric("已发布", item.get("published_count", 0))
+    if status == "queued" and item.get("queue_position"):
+        metrics[3].metric("队列位置", f"第 {item['queue_position']} 位")
+    else:
+        metrics[3].metric("执行尝试", item.get("job_attempts", 0))
+    st.caption(
+        f"任务 ID：{item['id']} · 提交于 {_format_beijing_time(item.get('created_at'))} 北京时间"
+        f" · 更新于 {_format_beijing_time(item.get('updated_at'))} 北京时间"
+    )
+    if item.get("error"):
+        st.warning(f"处理说明：{item['error']}")
+    if status in {"queued", "running", "publishing"} and st.button(
+        "刷新任务进度", key=f"{key_prefix}_refresh_{item['id']}"
+    ):
+        st.rerun()
 
 
 def _evidence(item: dict[str, Any]) -> None:
@@ -63,19 +154,35 @@ def _render_knowledge_ingestion() -> None:
         )
         max_pages = st.number_input("每篇 PDF 页数上限", 1, 100, 20)
         submitted = st.form_submit_button("提交入库任务", type="primary", use_container_width=True)
+    submitted_ingestion: dict[str, Any] | None = None
     if submitted:
         try:
-            ingestion = _api(
-                "POST",
-                "/api/knowledge/ingestions",
-                json={
-                    "collection": collection or None,
-                    "sources": [line.strip() for line in sources.splitlines() if line.strip()],
-                    "pdf_max_pages": int(max_pages),
-                },
-            )
-            st.session_state.knowledge_ingestion_id = ingestion["id"]
-            st.success(f"已排队：{ingestion['id']}。可在任务历史查看 worker 进度。")
+            with st.spinner("正在创建入库任务…"):
+                submitted_ingestion = _api(
+                    "POST",
+                    "/api/knowledge/ingestions",
+                    json={
+                        "collection": collection or None,
+                        "sources": [line.strip() for line in sources.splitlines() if line.strip()],
+                        "pdf_max_pages": int(max_pages),
+                    },
+                )
+            st.session_state.knowledge_ingestion_id = submitted_ingestion["id"]
+            if submitted_ingestion.get("deduplicated"):
+                st.warning(
+                    "相同的任务已在处理中，未重复创建。以下展示现有任务的实时状态。"
+                )
+            else:
+                st.success("任务已提交并持久化到队列。")
+        except httpx.HTTPError as exc:
+            _show_api_error(exc)
+    if submitted_ingestion is not None:
+        _render_ingestion_status_card(submitted_ingestion, key_prefix="submitted")
+    elif latest_id := st.session_state.get("knowledge_ingestion_id"):
+        try:
+            latest = _api("GET", f"/api/knowledge/ingestions/{latest_id}")
+            st.markdown("### 最近提交任务")
+            _render_ingestion_status_card(latest, key_prefix="latest")
         except httpx.HTTPError as exc:
             _show_api_error(exc)
 
@@ -83,7 +190,10 @@ def _render_knowledge_ingestion() -> None:
 def _ingestion_options() -> tuple[list[dict[str, Any]], dict[str, str]]:
     ingestions = _api("GET", "/api/knowledge/ingestions")
     labels = {
-        item["id"]: f"{item['collection']} · {item['status']} · {item['created_at'][:19]}"
+        item["id"]: (
+            f"{item['collection']} · {INGESTION_STATUS_LABELS.get(item['status'], item['status'])}"
+            f" · {_format_beijing_time(item['created_at'])} 北京时间"
+        )
         for item in ingestions
     }
     return ingestions, labels
@@ -445,7 +555,9 @@ def _render_reports() -> None:
 
 def _render_task_history() -> None:
     st.subheader("任务历史")
-    st.caption("队列、租约、尝试次数和最近错误均保存在 SQLite，worker 重启可恢复。")
+    st.caption(
+        "所有时间均为北京时间；队列、租约、尝试次数和最近错误均保存在 SQLite，worker 重启可恢复。"
+    )
     try:
         ingestions, labels = _ingestion_options()
         health = _api("GET", "/health").get("knowledge", {})
@@ -460,14 +572,19 @@ def _render_task_history() -> None:
         [
             {
                 "知识集合": item["collection"],
-                "状态": item["status"],
-                "文档": item["document_count"],
+                "状态": INGESTION_STATUS_LABELS.get(item["status"], item["status"]),
+                "进度": _ingestion_progress(item)[1],
+                "PDF": f"{item['document_count']} / {len(item['sources'])}",
                 "候选": item["candidate_count"],
                 "已发布": item["published_count"],
-                "执行中任务": item["queued_job_count"],
+                "队列位置": (
+                    f"第 {item['queue_position']} 位" if item.get("queue_position") else "—"
+                ),
+                "执行尝试": item.get("job_attempts", 0),
                 "待投影": item["pending_projection_count"],
                 "失败投影": item["failed_projection_count"],
-                "更新时间": item["updated_at"],
+                "提交时间（北京时间）": _format_beijing_time(item["created_at"]),
+                "更新时间（北京时间）": _format_beijing_time(item["updated_at"]),
                 "错误": item.get("error") or "",
             }
             for item in ingestions
@@ -481,7 +598,8 @@ def _render_task_history() -> None:
         format_func=labels.get,
     )
     selected = next(item for item in ingestions if item["id"] == selected_id)
-    st.json(selected)
+    st.markdown("### 任务详情")
+    _render_ingestion_status_card(selected, key_prefix="history")
     try:
         collections = _api("GET", "/api/knowledge/collections")
     except httpx.HTTPError:

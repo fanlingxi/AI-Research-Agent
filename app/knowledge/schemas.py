@@ -188,9 +188,13 @@ class KnowledgeIngestion(BaseModel):
     candidate_count: int = 0
     published_count: int = 0
     queued_job_count: int = 0
+    job_status: JobStatus | None = None
+    job_attempts: int = 0
+    queue_position: int | None = None
     pending_projection_count: int = 0
     failed_projection_count: int = 0
     vault_path: str | None = None
+    deduplicated: bool = False
 
 
 class CandidateDecision(BaseModel):
