@@ -70,7 +70,7 @@ def _download_pdf(source: str, download_dir: str) -> Path:
         file_name = f"{_slugify(file_name)}.pdf"
     target_path = target_dir / file_name
 
-    response = httpx.get(source, timeout=30.0)
+    response = httpx.get(source, timeout=30.0, follow_redirects=True)
     response.raise_for_status()
     target_path.write_bytes(response.content)
     return target_path
