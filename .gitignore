@@ -17,7 +17,12 @@ data/processed/*
 data/reports/*
 data/memory/*.json
 data/obsidian_vault/*
+data/knowledge/*
+data/obsidian_vault_v2/*
+data/manual_test/
 !data/raw_papers/.gitkeep
 !data/processed/.gitkeep
 !data/reports/.gitkeep
 !data/memory/.gitkeep
+!data/knowledge/.gitkeep
+!data/obsidian_vault_v2/.gitkeep

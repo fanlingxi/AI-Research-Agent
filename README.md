@@ -1,273 +1,170 @@
-# AI-Research-Agent
+# Research Knowledge Core
 
-AI Research Agent with GraphRAG is a multi-agent research analysis system. It is designed to take a research topic, plan the work, call tools, analyze documents, build a knowledge graph, run GraphRAG reasoning, and generate a structured research report.
+Research Knowledge Core 是一个面向本地单用户的科研知识系统：将 PDF 解析为带页码证据的候选知识，经人工审核后保存为正式事实，并基于这些已审核知识生成可追溯的 Markdown 报告。
 
-This repository is being built phase by phase. The current implementation is **Phase 5: Evidence-Governed Agentic GraphRAG**.
+当前主线不兼容旧 API、CLI、配置或数据格式。历史版本已冻结在 [`archive/v1`](archive/v1/README.md)，不参与主项目导入、测试、Docker 构建和发布。
 
-默认交互和报告输出优先面向中文用户；工具名和模块名保留英文，方便工程调试和 GitHub 展示。
+## 核心能力
 
-## Core Features
+- 本地路径或 URL 的 PDF 入库；不使用在线搜索或演示数据兜底。
+- Pydantic Schema 约束的实体、关系、阅读卡和页码证据抽取。
+- SQLite 持久化任务队列、审核事件、正式事实、投影 outbox 和报告。
+- 候选只能从 `draft` 进入一次终态；相同决定幂等，不同决定返回 `409`。
+- Qdrant 保存 PDF 正文切片，Neo4j 保存正式语义图，Obsidian 保存可再生阅读投影。
+- 报告只消费已发布论文允许范围内的切片和正式图谱；最多修订一次。
+- 报告持久化正文、证据包、证据落地率、引用覆盖率、引用忠实度和结构评分。
 
-- LangGraph-based agent workflow
-- Planner Agent for task decomposition
-- Basic tool calling with a tool registry
-- LLM provider abstraction for OpenAI, Qwen, DeepSeek, and local mock mode
-- Typed research state and structured plan schema
-- arXiv-compatible paper search with offline fallback
-- Multi-query arXiv retrieval with topic-aware reranking
-- Explicit PDF ingestion into the GraphRAG workflow
-- Document chunking
-- Chinese-aware lightweight hash embeddings for local demos
-- In-memory vector retrieval and Qdrant integration
-- Entity and relation extraction
-- In-memory knowledge graph and Neo4j integration
-- Graph path retrieval and GraphRAG reasoning
-- Long-term JSON memory
-- LLM-backed Writer Agent with evidence-constrained Chinese report drafting
-- Critic Agent feedback with a bounded Writer revision loop
-- Post-reflection quality reevaluation
-- Quality-aware evaluation for retrieval coverage, relevance, graph paths, report structure, and citation fidelity
-- Critical quality gates that prevent high structural scores from masking low relevance
-- Source provenance tiers for primary full text, online metadata, and offline demos
-- Obsidian-compatible Markdown Vault export with GraphML and JSON graph artifacts
-- FastAPI task API, Streamlit research workspace, and Docker Compose deployment
-- CLI demo for running the research pipeline
-
-## Target Architecture
+## 数据流
 
 ```mermaid
-flowchart TD
-    U["User Query"] --> UI["FastAPI / Streamlit"]
-    UI --> G["LangGraph Workflow"]
-    G --> P["Planner Agent"]
-    P --> S["Search Agent"]
-    P --> D["Document Agent"]
-    P --> K["Knowledge Agent"]
-    P --> R["Reasoning Agent"]
-    P --> W["Writer Agent"]
-    P --> C["Critic Agent"]
-    S --> WEB["Web / Paper Search"]
-    D --> VDB["Qdrant Vector DB"]
-    K --> KG["Neo4j Knowledge Graph"]
-    R --> VDB
-    R --> KG
-    W --> REPORT["Markdown / PDF Report"]
-    C --> W
+flowchart LR
+    UI["Streamlit / API"] --> SQLite["SQLite 业务事实源"]
+    SQLite --> Worker["单 worker：任务、租约、重试"]
+    Worker --> PDF["PDF 解析与 Schema 抽取"]
+    PDF --> Qdrant["Qdrant 正文切片"]
+    PDF --> Draft["SQLite 待审核候选"]
+    Draft --> Review["人工审核"]
+    Review --> Facts["SQLite 正式事实 + outbox"]
+    Facts --> Neo4j["Neo4j 正式语义图"]
+    Facts --> Obsidian["Obsidian 阅读投影"]
+    Facts --> Report["正式知识检索与报告"]
 ```
 
-## Installation
+SQLite 是业务事实源。Neo4j、Qdrant 和 Obsidian 都是可恢复下游；下游暂时不可用不会撤销已经提交的审核事实。
+
+## 快速开始
+
+要求 Python 3.11+、Docker 和 Docker Compose。
 
 ```bash
-python3.11 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 ```
 
-By default, `.env.example` uses `LLM_PROVIDER=mock`, so the Phase 4 workflow can run without an API key.
+在 `.env` 中配置真实 LLM provider 和 API Key。正式入库和报告明确拒绝 `mock`。
 
-To use OpenAI:
-
-```env
-LLM_PROVIDER=openai
-OPENAI_API_KEY=your_api_key
-LLM_MODEL=gpt-4o-mini
-```
-
-To use Qwen:
-
-```env
-LLM_PROVIDER=qwen
-QWEN_API_KEY=your_api_key
-QWEN_MODEL=qwen-plus
-```
-
-To use DeepSeek:
-
-```env
-LLM_PROVIDER=deepseek
-DEEPSEEK_API_KEY=your_api_key
-DEEPSEEK_MODEL=deepseek-v4-flash
-```
-
-DeepSeek 推荐模型：
-
-```env
-# 更快、更适合日常开发验证
-DEEPSEEK_MODEL=deepseek-v4-flash
-
-# 更强、更适合高质量报告生成
-DEEPSEEK_MODEL=deepseek-v4-pro
-```
-
-项目配置层会校验 DeepSeek 模型名，目前仅允许 `deepseek-v4-flash` 和 `deepseek-v4-pro`，避免误用旧模型名。
-
-## Run Evidence-Governed Demo
-
-```bash
-python main.py run "GraphRAG 在科研文献综述中的应用"
-```
-
-Expected output:
-
-- 中文结构化研究计划
-- 工具调用结果
-- 候选论文集合
-- 文档切片统计
-- 向量检索证据
-- 实体和关系抽取结果
-- 图谱路径
-- GraphRAG 推理总结
-- Evaluation 评估指标
-- Critic Review 审查意见
-- 主题相关性与引用忠实度评估
-- Writer Agent 研究结论与受控 Reflection 修订
-- 长期记忆读写状态
-- Phase 4.3 Markdown 研究报告与证据状态
-
-Offline mode is the default so the project can run without network access:
-
-```bash
-python main.py run "AI Agent 在科学发现中的应用" --offline
-```
-
-离线模式只用于演示：报告会标记为 `simulation`，不会写入长期记忆或 Obsidian Vault。
-
-Disable memory for a stateless run:
-
-```bash
-python main.py run "AI Agent 在科学发现中的应用" --offline --no-memory
-```
-
-Enable live arXiv search:
-
-```bash
-python main.py run "GraphRAG for scientific literature review" --live-search --paper-limit 5
-```
-
-Run GraphRAG against an external paper's full text. `--pdf` is explicit: the
-workflow will not automatically download every paper returned by search.
-
-```bash
-python main.py run "GraphRAG 如何改进面向科研文献综述的查询聚焦摘要？" \
-  --live-search \
-  --paper-limit 5 \
-  --top-k 5 \
-  --pdf "https://arxiv.org/pdf/2404.16130" \
-  --pdf-max-pages 10 \
-  --no-memory
-```
-
-For multiple source papers, repeat `--pdf`:
-
-```bash
-python main.py run "比较多智能体协作、长期记忆与智能体评估方法" \
-  --live-search \
-  --pdf "https://arxiv.org/pdf/2308.08155" \
-  --pdf "https://arxiv.org/pdf/2310.08560" \
-  --pdf "https://arxiv.org/pdf/2308.03688" \
-  --pdf-max-pages 10 \
-  --no-memory
-```
-
-## Obsidian Knowledge Vault
-
-仅当真实来源质量门槛通过时，系统才会将报告、论文、概念和关系写入 Obsidian Vault。原始 PDF 不会复制到 Vault；笔记保存本地路径、URL、DOI 和证据 ID。
-
-```bash
-python main.py run "GraphRAG 如何支持科研文献综述？" \
-  --live-search \
-  --pdf "data/raw_papers/2404-16130.pdf" \
-  --export-obsidian \
-  --obsidian-vault data/obsidian_vault
-```
-
-打开 `data/obsidian_vault` 作为 Obsidian Vault 后，可使用原生 Graph View 浏览 Wiki Links。`Exports/<run-id>/graph.json` 与 `graph.graphml` 可供 Streamlit、Gephi 或其他图工具使用。
-
-## API, UI, and Docker
-
-启动 API：
-
-```bash
-uvicorn app.api.main:app --reload --port 8000
-```
-
-启动 Streamlit：
-
-```bash
-streamlit run app/ui/streamlit_app.py
-```
-
-启动完整持久化环境：
+一键启动：
 
 ```bash
 docker compose up --build
 ```
 
-If the default host ports are already in use, set `API_PORT` and
-`STREAMLIT_PORT` in `.env` before starting Compose (for example, `8003` and
-`8503`). Qdrant and Neo4j ports can be overridden with `QDRANT_PORT`,
-`NEO4J_HTTP_PORT`, and `NEO4J_BOLT_PORT` as well.
+- Streamlit：<http://localhost:8501>
+- FastAPI：<http://localhost:8000/docs>
+- Qdrant：<http://localhost:6333/dashboard>
+- Neo4j：<http://localhost:7474>
 
-The Compose stack uses Qdrant 1.18 and a `qdrant_data_v118` volume. This keeps
-an older 1.10 development volume intact; re-ingest source PDFs when migrating
-from that earlier local format.
-
-- API 文档：`http://localhost:8000/docs`
-- Streamlit：`http://localhost:8501`
-- Neo4j Browser：`http://localhost:7474`
-
-`GET /health` 会显示 Qdrant 与 Neo4j 连通性；不可用时工作流会记录原因并降级到内存后端。
-
-Use Qdrant after starting a local Qdrant service:
+也可以分别启动：
 
 ```bash
-python main.py run "GraphRAG for scientific literature review" --vector-store qdrant
+.venv/bin/uvicorn app.api.main:app --reload
+.venv/bin/python -m app.worker
+.venv/bin/streamlit run app/ui/streamlit_app.py
 ```
 
-Use Neo4j after starting a local Neo4j service:
+CLI 只保留 PDF 解析和 worker：
 
 ```bash
-python main.py run "GraphRAG for scientific literature review" --graph-store neo4j
+.venv/bin/python main.py parse-pdf data/raw_papers/example.pdf --max-pages 10
+.venv/bin/python main.py worker
 ```
 
-Long-term memory is stored locally at `data/memory/research_memory.json`. The JSON memory file is ignored by Git.
+## 使用流程
 
-Parse a local or remote PDF:
+1. 在“知识入库”提交主题和 PDF 来源；API 返回 `202`，worker 异步领取任务。
+2. worker 先完成所有 PDF 解析和 Qdrant 索引，再创建可审核候选。Qdrant 失败不会留下候选半成品。
+3. 在“审核队列”编辑、批准、驳回或合并候选。
+4. SQLite 在同一事务中写入正式事实、唯一审核事件和 projection outbox。
+5. worker 幂等投影到 Neo4j 和 Obsidian；全部成功后入库状态变为 `completed`。
+6. 在“研究报告”提交研究问题。报告只检索已发布论文的切片，并保存引用证据和质量评估。
 
-```bash
-python main.py parse-pdf data/raw_papers/example.pdf --max-pages 5
-```
-
-## Development Roadmap
-
-- Phase 1: Basic Agent Framework
-- Phase 2: Research Pipeline with search, PDF parsing, chunking, and vector RAG
-- Phase 3: GraphRAG with entity extraction, relation extraction, Neo4j storage, and graph reasoning
-- Phase 4: Memory, reflection, critic loop, and evaluation
-- Phase 4.1: Full-text PDF ingestion, query-aware retrieval, graph hygiene, and quality-aware evaluation
-- Phase 4.2: LLM Writer, bounded Critic-Reflection revision, critical quality gates, and bilingual retrieval expansion
-- Phase 4.3: source governance, Obsidian Vault export, graph artifacts, and metadata enrichment
-- Phase 4.4: memory-store abstraction, local/global/hybrid GraphRAG, and query-personalized graph reranking
-- Phase 5: FastAPI backend, Streamlit UI, Docker Compose, health checks, and deployment documentation
-
-## Suggested Git Commit Plan
+入库状态：
 
 ```text
-init project structure
-add llm provider abstraction
-add langgraph workflow state
-implement planner agent
-add basic tool calling
-implement search and document pipeline
-add vector retrieval with qdrant
-integrate neo4j knowledge graph
-implement graphrag reasoning
-add memory and reflection loop
-add evaluation module
-add fastapi backend
-add streamlit demo ui
-add docker deployment
-complete docs and readme
-release v1.0
+queued -> running -> needs_review -> publishing -> completed
+                    |                 |
+                    +-> failed <------+-> retry
+running -> interrupted -> retry
 ```
+
+## API
+
+知识接口：
+
+- `POST /api/knowledge/ingestions`
+- `GET /api/knowledge/ingestions`
+- `GET /api/knowledge/ingestions/{id}`
+- `POST /api/knowledge/ingestions/{id}/retry`
+- `GET /api/knowledge/ingestions/{id}/candidates`
+- `PATCH /api/knowledge/candidates/{id}`
+- `POST /api/knowledge/candidates/{id}/decision`
+- `POST /api/knowledge/ingestions/{id}/approve-ready`
+- `GET /api/knowledge/topics`
+- `GET /api/knowledge/topics/{slug}`
+- `GET /api/knowledge/graph`
+- `GET /api/knowledge/search`
+
+报告接口：
+
+- `POST /api/reports`
+- `GET /api/reports`
+- `GET /api/reports/{id}`
+- `GET /api/reports/{id}/evidence`
+- `GET /api/reports/{id}/download`
+
+健康检查 `GET /health` 返回 Schema 版本、真实 LLM 状态、任务队列、待投影/失败投影，以及 Qdrant 和 Neo4j 可用性。
+
+## 存储与兼容边界
+
+为保留已有 Knowledge Base 数据，当前物理名称暂不迁移：
+
+- SQLite：`data/knowledge/knowledge.db`
+- Qdrant collection：`knowledge_chunks_v2`
+- Neo4j labels：`KnowledgeEntityV2`、`KnowledgeTopicV2`、`KG_RELATION_V2`
+- Obsidian：`data/obsidian_vault_v2`
+
+这些只是稳定的内部存储名，对外产品统一称为 Research Knowledge Core。系统不会删除或读写历史 `data/obsidian_vault`、memory 等用户数据。
+
+## 测试与质量评测
+
+```bash
+.venv/bin/pytest -q
+.venv/bin/ruff check .
+git diff --check
+```
+
+30 问题、10 PDF 的版本化检索集位于 [`benchmarks/knowledge_core_questions.json`](benchmarks/knowledge_core_questions.json)：
+
+```bash
+.venv/bin/python -m app.knowledge.benchmark --top-k 5 \
+  --output data/reports/knowledge_core_benchmark.json
+```
+
+目标门槛为 Recall@5 ≥ 0.80、正式证据落地率 100%、报告引用覆盖率 ≥ 0.90。每次正式评测都应固定模型、Prompt、数据和配置版本。
+
+已保存的固定检索基准、隔离浏览器 E2E、真实 LLM 合成证据 smoke 和 Docker 构建验收结果位于 [`benchmarks/results`](benchmarks/results)。
+
+## v1 冻结归档
+
+归档基线为提交 `1fb7dc6`，Git tag 为 `v1-archive-1fb7dc6`。归档拥有独立依赖、锁文件、运行说明和 38 项原测试：
+
+```bash
+cd archive/v1
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.lock
+pytest -q
+```
+
+归档只用于历史复现、简历取材和项目复盘，不接受主线模块依赖或功能修复。
+
+## 文档
+
+- [当前与目标架构](docs/architecture.md)
+- [三个迭代路线与验收](docs/development_roadmap.md)
+- [完整开发复盘与简历素材](docs/project_development_review.md)
+- [开发日志](docs/development_journal.md)
+- [人工验收流程与 API 脚本](docs/manual_testing_guide.md)
+- [v1 归档清单](archive/v1/ARCHIVE_MANIFEST.md)

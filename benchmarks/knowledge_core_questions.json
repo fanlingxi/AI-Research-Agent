@@ -1,0 +1,52 @@
+{
+  "version": "knowledge-core-10pdf-v1",
+  "description": "30 个基于十篇本地演示 PDF 的标注检索问题；每篇论文三个问题。",
+  "data_profile": {
+    "pdf_count": 10,
+    "question_count": 30,
+    "collection": "knowledge_chunks_v2",
+    "embedding_provider": "hash",
+    "metric": "Recall@5"
+  },
+  "questions": [
+    {"id": "Q01", "query": "AgentBench 如何评估大语言模型智能体的推理与决策能力？", "expected_paper_ids": ["paper:d5d6ebcfa6f7355a"]},
+    {"id": "Q02", "query": "AgentBench 包含哪些智能体评测环境与任务？", "expected_paper_ids": ["paper:d5d6ebcfa6f7355a"]},
+    {"id": "Q03", "query": "AgentBench 揭示了当前 LLM agent 的哪些局限？", "expected_paper_ids": ["paper:d5d6ebcfa6f7355a"]},
+
+    {"id": "Q04", "query": "AutoGen 如何通过多智能体对话构建 LLM 应用？", "expected_paper_ids": ["paper:07e4db60b6f848e9"]},
+    {"id": "Q05", "query": "AutoGen 的 conversable agent 机制是什么？", "expected_paper_ids": ["paper:07e4db60b6f848e9"]},
+    {"id": "Q06", "query": "AutoGen 如何支持人类参与和工具调用？", "expected_paper_ids": ["paper:07e4db60b6f848e9"]},
+
+    {"id": "Q07", "query": "GraphRAG 如何从局部社区生成全局查询聚焦摘要？", "expected_paper_ids": ["paper:dd446fd447ca4137"]},
+    {"id": "Q08", "query": "From Local to Global GraphRAG 中社区摘要的作用是什么？", "expected_paper_ids": ["paper:dd446fd447ca4137"]},
+    {"id": "Q09", "query": "GraphRAG 相比传统 RAG 如何回答数据集整体性问题？", "expected_paper_ids": ["paper:dd446fd447ca4137"]},
+
+    {"id": "Q10", "query": "MemGPT 如何通过分层内存突破上下文窗口限制？", "expected_paper_ids": ["paper:f645fac252ef8043"]},
+    {"id": "Q11", "query": "MemGPT 的虚拟上下文管理借鉴了操作系统的什么机制？", "expected_paper_ids": ["paper:f645fac252ef8043"]},
+    {"id": "Q12", "query": "MemGPT 如何处理长期对话和文档分析？", "expected_paper_ids": ["paper:f645fac252ef8043"]},
+
+    {"id": "Q13", "query": "ReAct 如何协同语言模型的推理轨迹与行动？", "expected_paper_ids": ["paper:89cfadae0f457de4"]},
+    {"id": "Q14", "query": "ReAct 中 reasoning trace 如何帮助工具交互？", "expected_paper_ids": ["paper:89cfadae0f457de4"]},
+    {"id": "Q15", "query": "ReAct 在知识问答和交互决策任务上的优势是什么？", "expected_paper_ids": ["paper:89cfadae0f457de4"]},
+
+    {"id": "Q16", "query": "语言智能体的认知架构由哪些关键模块组成？", "expected_paper_ids": ["paper:d97138b633045630"]},
+    {"id": "Q17", "query": "Cognitive Architectures for Language Agents 如何组织记忆、规划和行动？", "expected_paper_ids": ["paper:d97138b633045630"]},
+    {"id": "Q18", "query": "CoALA 框架如何统一描述语言智能体？", "expected_paper_ids": ["paper:d97138b633045630"]},
+
+    {"id": "Q19", "query": "Reflexion 如何使用语言反馈实现强化学习？", "expected_paper_ids": ["paper:ec59e1df935cdff7"]},
+    {"id": "Q20", "query": "Reflexion 的 verbal reinforcement learning 如何改进后续尝试？", "expected_paper_ids": ["paper:ec59e1df935cdff7"]},
+    {"id": "Q21", "query": "Reflexion 智能体如何把失败经验存入情景记忆？", "expected_paper_ids": ["paper:ec59e1df935cdff7"]},
+
+    {"id": "Q22", "query": "SWE-agent 如何设计 agent-computer interface 修复 GitHub issue？", "expected_paper_ids": ["paper:6431142148f239f3"]},
+    {"id": "Q23", "query": "SWE-agent 的 ACI 为什么能改善软件工程智能体表现？", "expected_paper_ids": ["paper:6431142148f239f3"]},
+    {"id": "Q24", "query": "SWE-agent 如何在真实代码仓库中编辑、浏览和执行测试？", "expected_paper_ids": ["paper:6431142148f239f3"]},
+
+    {"id": "Q25", "query": "大语言模型智能体综述如何划分 brain perception action 模块？", "expected_paper_ids": ["paper:60d35374a52bbadf"]},
+    {"id": "Q26", "query": "The Rise and Potential of LLM Based Agents 总结了哪些应用场景？", "expected_paper_ids": ["paper:60d35374a52bbadf"]},
+    {"id": "Q27", "query": "LLM agent survey 讨论了哪些开放问题与风险？", "expected_paper_ids": ["paper:60d35374a52bbadf"]},
+
+    {"id": "Q28", "query": "Toolformer 如何让语言模型自监督学习调用外部工具？", "expected_paper_ids": ["paper:4947b44325ac2f1d"]},
+    {"id": "Q29", "query": "Toolformer 如何决定调用哪个 API 以及何时调用？", "expected_paper_ids": ["paper:4947b44325ac2f1d"]},
+    {"id": "Q30", "query": "Toolformer 使用了哪些工具以及如何过滤工具调用样本？", "expected_paper_ids": ["paper:4947b44325ac2f1d"]}
+  ]
+}

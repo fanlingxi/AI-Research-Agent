@@ -6,3 +6,6 @@ __pycache__
 .ruff_cache
 data/raw_papers
 data/obsidian_vault
+data/obsidian_vault_v2
+data/manual_test
+archive

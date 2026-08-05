@@ -1,72 +1,28 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.config.settings import Settings, get_settings
 
 
 class LLMClient:
-    """Minimal text-generation interface used by agents."""
+    """Minimal text-generation interface used by extraction and report services."""
 
     def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
         raise NotImplementedError
 
+    last_usage: dict[str, int]
+
 
 @dataclass
 class MockLLMClient(LLMClient):
-    """Deterministic local fallback so the workflow can run without API keys."""
+    """Development sentinel; formal knowledge and reports explicitly reject it."""
 
     provider_name: str = "mock"
+    last_usage: dict[str, int] = field(default_factory=dict, init=False)
 
     def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
-        return """
-{
-  "objective": "围绕用户给定主题制定一份可执行的科研分析计划。",
-  "research_questions": [
-    "该主题的核心概念、定义和研究背景是什么？",
-    "哪些论文、系统或基准最值得优先分析？",
-    "需要比较哪些方法、局限性和未来研究方向？"
-  ],
-  "steps": [
-    {
-      "id": "S1",
-      "description": "将研究主题扩展为检索关键词和子问题。",
-      "agent": "Search Agent",
-      "expected_output": "关键词集合和检索策略"
-    },
-    {
-      "id": "S2",
-      "description": "收集候选论文、技术报告和相关资料。",
-      "agent": "Search Agent",
-      "expected_output": "候选资料列表"
-    },
-    {
-      "id": "S3",
-      "description": "抽取实体、方法、数据集、指标和关系。",
-      "agent": "Knowledge Agent",
-      "expected_output": "初始知识图谱结构"
-    },
-    {
-      "id": "S4",
-      "description": "结合向量证据和图谱路径生成结构化研究报告。",
-      "agent": "Writer Agent",
-      "expected_output": "Markdown 研究报告大纲"
-    }
-  ],
-  "tool_calls": [
-    {
-      "tool_name": "topic_keyword_expander",
-      "arguments": {"topic": "user topic"},
-      "purpose": "为研究主题生成检索关键词"
-    },
-    {
-      "tool_name": "paper_search",
-      "arguments": {"query": "user topic", "limit": 5, "live_search": false},
-      "purpose": "为研究主题收集候选论文"
-    }
-  ]
-}
-""".strip()
+        return "mock output is disabled for formal knowledge and reports"
 
 
 @dataclass
@@ -78,6 +34,7 @@ class LangChainChatClient(LLMClient):
     api_key: str
     base_url: str
     temperature: float = 0.2
+    last_usage: dict[str, int] = field(default_factory=dict, init=False)
 
     def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
         from langchain_core.messages import HumanMessage, SystemMessage
@@ -102,6 +59,15 @@ class LangChainChatClient(LLMClient):
                 HumanMessage(content=prompt),
             ]
         )
+        raw_usage = response.usage_metadata or response.response_metadata.get("token_usage", {})
+        self.last_usage = {
+            "input_tokens": int(
+                raw_usage.get("input_tokens", raw_usage.get("prompt_tokens", 0)) or 0
+            ),
+            "output_tokens": int(
+                raw_usage.get("output_tokens", raw_usage.get("completion_tokens", 0)) or 0
+            ),
+        }
         return str(response.content)
 
 
@@ -109,7 +75,7 @@ def get_llm_client(settings: Settings | None = None) -> LLMClient:
     """Create an LLM client from settings.
 
     Qwen and DeepSeek are used through their OpenAI-compatible endpoints.
-    If provider credentials are missing, the client falls back to mock mode.
+    Missing credentials produce the mock sentinel, which formal services reject.
     """
 
     settings = settings or get_settings()

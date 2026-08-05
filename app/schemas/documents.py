@@ -4,12 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-EvidenceSourceTier = Literal[
-    "primary_fulltext",
-    "online_metadata",
-    "offline_demo",
-    "unknown",
-]
+EvidenceSourceTier = Literal["primary_fulltext", "unknown"]
 
 
 class PaperMetadata(BaseModel):
@@ -37,6 +32,8 @@ class ParsedDocument(BaseModel):
     title: str | None = None
     text: str
     pages: int = 0
+    page_texts: list[str] = Field(default_factory=list)
+    page_numbers: list[int] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -49,17 +46,5 @@ class DocumentChunk(BaseModel):
     text: str
     chunk_index: int
     token_count: int
-    source_tier: EvidenceSourceTier = "unknown"
-    metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class RetrievalHit(BaseModel):
-    """A ranked chunk returned by vector retrieval."""
-
-    chunk_id: str
-    paper_id: str
-    title: str
-    text: str
-    score: float
     source_tier: EvidenceSourceTier = "unknown"
     metadata: dict[str, Any] = Field(default_factory=dict)

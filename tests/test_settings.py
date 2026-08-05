@@ -14,9 +14,11 @@ def test_deepseek_model_rejects_legacy_names() -> None:
         Settings(deepseek_model="deepseek-chat")
 
 
-def test_phase_43_defaults_are_safe_for_local_development() -> None:
+def test_knowledge_core_defaults_preserve_current_physical_storage_names() -> None:
     settings = Settings()
 
-    assert settings.memory_backend == "json"
-    assert not settings.obsidian_export_enabled
-    assert settings.obsidian_vault_path == "data/obsidian_vault"
+    assert settings.knowledge_db_path == "data/knowledge/knowledge.db"
+    assert settings.knowledge_vault_path == "data/obsidian_vault_v2"
+    assert settings.knowledge_qdrant_collection == "knowledge_chunks_v2"
+    assert settings.knowledge_worker_lease_seconds > 0
+    assert settings.report_min_citation_coverage == 0.9

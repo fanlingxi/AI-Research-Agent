@@ -1,0 +1,504 @@
+from __future__ import annotations
+
+import hashlib
+import re
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Protocol
+from uuid import uuid4
+
+from app.config.settings import Settings, get_settings
+from app.knowledge.extractor import LiveLLMRequiredError, SchemaKnowledgeExtractor
+from app.knowledge.obsidian import KnowledgeVaultExporter
+from app.knowledge.projector import (
+    KnowledgeProjector,
+    Neo4jKnowledgeProjector,
+    QdrantKnowledgeIndexer,
+)
+from app.knowledge.repository import DecisionAlreadyApplied, KnowledgeRepository
+from app.knowledge.schemas import (
+    BulkApprovalResult,
+    CandidateDecision,
+    CandidateEntity,
+    CandidateRelation,
+    DecisionResult,
+    KnowledgeIngestion,
+    ProjectionEvent,
+)
+from app.llms.provider import LLMClient, MockLLMClient, get_llm_client
+from app.schemas.documents import DocumentChunk, PaperMetadata, ParsedDocument
+from app.tools.pdf_tools import parse_pdf_source
+
+
+class KnowledgeExtractor(Protocol):
+    def extract(self, paper: PaperMetadata, chunks: list[DocumentChunk]): ...
+
+
+class ChunkIndexer(Protocol):
+    def index(self, chunks: list[DocumentChunk]) -> None: ...
+
+
+@dataclass
+class NoopKnowledgeProjector:
+    """Test-only projector for deterministic unit tests."""
+
+    def upsert_entities(self, entities) -> None:
+        return None
+
+    def upsert_relations(self, relations) -> None:
+        return None
+
+
+@dataclass
+class NoopChunkIndexer:
+    """Test-only Qdrant substitute; production service always uses QdrantKnowledgeIndexer."""
+
+    def index(self, chunks: list[DocumentChunk]) -> None:
+        return None
+
+
+class KnowledgeIngestionService:
+    """Coordinates PDF-only candidate extraction, human review, and published projections."""
+
+    def __init__(
+        self,
+        repository: KnowledgeRepository,
+        *,
+        settings: Settings | None = None,
+        llm: LLMClient | None = None,
+        extractor: KnowledgeExtractor | None = None,
+        parser: Callable[..., ParsedDocument] = parse_pdf_source,
+        indexer: ChunkIndexer | None = None,
+        projector: KnowledgeProjector | None = None,
+        vault_exporter: KnowledgeVaultExporter | None = None,
+        require_live_llm: bool = True,
+    ) -> None:
+        self.settings = settings or get_settings()
+        self.repository = repository
+        self.llm = llm or get_llm_client(self.settings)
+        self.extractor = extractor or SchemaKnowledgeExtractor(self.llm)
+        self.parser = parser
+        self.indexer = indexer or QdrantKnowledgeIndexer(self.settings)
+        self.projector = projector or Neo4jKnowledgeProjector(self.settings)
+        self.vault_exporter = vault_exporter or KnowledgeVaultExporter(
+            self.settings.knowledge_vault_path
+        )
+        self.require_live_llm = require_live_llm
+
+    def submit(
+        self,
+        *,
+        topic: str,
+        sources: list[str],
+        pdf_max_pages: int,
+    ) -> KnowledgeIngestion:
+        if self.require_live_llm and self._is_mock_llm():
+            raise LiveLLMRequiredError("知识入库需要配置 OPENAI、QWEN 或 DEEPSEEK 的真实 API Key。")
+        cleaned_sources = list(
+            dict.fromkeys(source.strip() for source in sources if source.strip())
+        )
+        if not cleaned_sources:
+            raise ValueError("至少需要提供一个本地 PDF 路径或 PDF URL。")
+        return self.repository.create_ingestion(
+            topic=topic,
+            sources=cleaned_sources,
+            pdf_max_pages=pdf_max_pages,
+        )
+
+    def run(self, ingestion_id: str) -> KnowledgeIngestion:
+        ingestion = self.repository.get_ingestion(ingestion_id)
+        self.repository.update_ingestion(ingestion_id, status="running")
+        errors: list[str] = []
+        indexed_chunks: list[DocumentChunk] = []
+        documents: list[tuple[PaperMetadata, list[DocumentChunk]]] = []
+        try:
+            for source in ingestion.sources:
+                try:
+                    parsed = self.parser(source=source, max_pages=ingestion.pdf_max_pages)
+                    paper = self._paper_from_document(parsed, source)
+                    chunks = [
+                        chunk.model_copy(
+                            update={
+                                "metadata": {
+                                    **chunk.metadata,
+                                    "ingestion_id": ingestion.id,
+                                    "topic_slug": ingestion.topic_slug,
+                                }
+                            }
+                        )
+                        for chunk in self._page_chunks(paper, parsed)
+                    ]
+                    if not chunks:
+                        raise ValueError("PDF 未提取到可用正文。")
+                    self.repository.add_document(
+                        ingestion_id=ingestion.id,
+                        document_id=paper.id,
+                        title=paper.title,
+                        source="pdf",
+                        source_url=paper.url,
+                        local_path=str(paper.metadata.get("local_path") or ""),
+                        pages=parsed.pages,
+                        metadata=paper.metadata,
+                    )
+                    documents.append((paper, chunks))
+                    indexed_chunks.extend(chunks)
+                except Exception as exc:
+                    errors.append(f"{source}：{exc}")
+
+            if not documents:
+                raise RuntimeError(
+                    "没有任何 PDF 能够完成解析。" + (" " + "；".join(errors) if errors else "")
+                )
+
+            self.indexer.index(indexed_chunks)
+            for paper, chunks in documents:
+                self._create_candidates(ingestion, paper, chunks)
+            warning = "；".join(errors) if errors else None
+            result = self.repository.update_ingestion(
+                ingestion_id,
+                status="needs_review",
+                error=warning,
+            )
+            self.repository.complete_resource_job("ingestion", ingestion_id)
+            return result
+        except Exception as exc:
+            return self.repository.update_ingestion(ingestion_id, status="failed", error=str(exc))
+
+    def retry(self, ingestion_id: str) -> KnowledgeIngestion:
+        ingestion = self.repository.get_ingestion(ingestion_id)
+        if ingestion.status not in {"failed", "interrupted"}:
+            raise ValueError("只有失败或中断的入库任务可以重试。")
+        return self.repository.reset_ingestion(ingestion_id)
+
+    def decide(self, candidate_id: str, decision: CandidateDecision) -> DecisionResult:
+        stored = self.repository.get_candidate(candidate_id)
+        if stored["candidate"]["status"] != "draft":
+            return self._replayed_decision(stored, decision)
+        try:
+            if decision.decision == "reject":
+                self.repository.reject_candidate(candidate_id)
+            elif stored["kind"] == "entity":
+                candidate = CandidateEntity.model_validate(stored["candidate"])
+                if decision.decision == "approve":
+                    suggestions = self.repository.find_merge_suggestions(
+                        name=candidate.name,
+                        entity_type=candidate.type,
+                        aliases=candidate.aliases,
+                    )
+                    if any(item.match_kind == "exact" for item in suggestions):
+                        self.repository.set_merge_suggestions(candidate_id, suggestions)
+                        raise ValueError("检测到已有规范实体，请人工确认合并后再发布。")
+                self.repository.publish_entity(
+                    candidate_id,
+                    canonical_id=(decision.canonical_id if decision.decision == "merge" else None),
+                )
+            else:
+                if decision.decision == "merge":
+                    raise ValueError("关系候选不支持合并，请编辑后批准或驳回。")
+                self.repository.publish_relation(candidate_id)
+        except DecisionAlreadyApplied:
+            return self._replayed_decision(self.repository.get_candidate(candidate_id), decision)
+
+        result = self.repository.get_candidate(candidate_id)
+        self.repository.refresh_ingestion_status(result["candidate"]["ingestion_id"])
+        return DecisionResult(
+            candidate=result,
+            applied=True,
+            replayed=False,
+            projection_status=self.repository.projection_status_for_candidate(candidate_id),
+        )
+
+    def _replayed_decision(self, stored: dict, requested: CandidateDecision) -> DecisionResult:
+        existing = self.repository.get_review_decision(stored["candidate"]["id"])
+        if existing is None:
+            raise ValueError("候选已不在草稿状态，但没有可验证的审核记录。")
+        same_decision = existing["decision"] == requested.decision
+        if requested.decision == "merge":
+            same_decision = same_decision and existing["canonical_id"] == requested.canonical_id
+        if not same_decision:
+            raise ValueError("候选已经存在不同的终态审核决定。")
+        return DecisionResult(
+            candidate=stored,
+            applied=False,
+            replayed=True,
+            projection_status=self.repository.projection_status_for_candidate(
+                stored["candidate"]["id"]
+            ),
+        )
+
+    def approve_ready(self, ingestion_id: str) -> BulkApprovalResult:
+        """Approve unambiguous entities, then relations with published endpoints."""
+        published_entities = 0
+        published_relations = 0
+        skipped_conflicts = 0
+        blocked_relations = 0
+        for item in self.repository.list_candidates(ingestion_id, status="draft"):
+            if item["kind"] != "entity":
+                continue
+            if item["candidate"].get("merge_suggestions"):
+                skipped_conflicts += 1
+                continue
+            try:
+                result = self.decide(item["candidate"]["id"], CandidateDecision(decision="approve"))
+                published_entities += int(result.applied)
+            except ValueError:
+                skipped_conflicts += 1
+        for item in self.repository.list_candidates(ingestion_id, status="draft"):
+            if item["kind"] != "relation":
+                continue
+            try:
+                result = self.decide(item["candidate"]["id"], CandidateDecision(decision="approve"))
+                published_relations += int(result.applied)
+            except ValueError:
+                blocked_relations += 1
+        return BulkApprovalResult(
+            ingestion=self.repository.refresh_ingestion_status(ingestion_id),
+            published_entities=published_entities,
+            published_relations=published_relations,
+            skipped_conflicts=skipped_conflicts,
+            blocked_relations=blocked_relations,
+        )
+
+    def process_projection(self, event: ProjectionEvent) -> KnowledgeIngestion:
+        """Project one durable outbox event into Neo4j and the readable Vault."""
+        try:
+            if event.aggregate_type == "entity":
+                self.projector.upsert_entities(
+                    [self.repository.get_published_entity(event.aggregate_id)]
+                )
+            else:
+                self.projector.upsert_relations(
+                    [self.repository.get_published_relation(event.aggregate_id)]
+                )
+            self._render_topics([event.topic_slug])
+        except Exception as exc:
+            self.repository.fail_projection(event.id, str(exc))
+            raise
+        return self.repository.complete_projection(event.id)
+
+    def drain_projections(self, limit: int = 1000) -> int:
+        processed = 0
+        while processed < limit:
+            event = self.repository.claim_projection()
+            if event is None:
+                break
+            self.process_projection(event)
+            processed += 1
+        return processed
+
+    def topic(self, topic_slug: str) -> dict:
+        return {
+            "topic": next(
+                (
+                    item
+                    for item in self.repository.list_topics()
+                    if item["topic_slug"] == topic_slug
+                ),
+                None,
+            ),
+            "entities": [
+                item.model_dump() for item in self.repository.list_published_entities(topic_slug)
+            ],
+            "relations": [
+                item.model_dump() for item in self.repository.list_published_relations(topic_slug)
+            ],
+        }
+
+    def graph(self, topic_slug: str | None = None) -> dict:
+        return {
+            "nodes": [
+                item.model_dump() for item in self.repository.list_published_entities(topic_slug)
+            ],
+            "edges": [
+                item.model_dump() for item in self.repository.list_published_relations(topic_slug)
+            ],
+        }
+
+    def _create_candidates(
+        self,
+        ingestion: KnowledgeIngestion,
+        paper: PaperMetadata,
+        chunks: list[DocumentChunk],
+    ) -> None:
+        result = self.extractor.extract(paper, chunks)
+        reading = result.payload.reading
+        paper_candidate = CandidateEntity(
+            id=_candidate_id(),
+            ingestion_id=ingestion.id,
+            topic_slug=ingestion.topic_slug,
+            name=paper.title,
+            type="Paper",
+            summary=reading.research_problem,
+            aliases=[],
+            confidence=0.95,
+            evidence=reading.evidence,
+            metadata={
+                "source_url": paper.url,
+                "pdf_url": paper.pdf_url,
+                "local_path": paper.metadata.get("local_path"),
+                "reading": reading.model_dump(),
+                "used_json_repair": result.used_repair,
+            },
+        )
+        self.repository.add_candidate_entity(paper_candidate)
+        entities_by_name: dict[str, CandidateEntity] = {_normal_name(paper.title): paper_candidate}
+
+        for extracted in result.payload.entities:
+            candidate = CandidateEntity(
+                id=_candidate_id(),
+                ingestion_id=ingestion.id,
+                topic_slug=ingestion.topic_slug,
+                name=extracted.name,
+                type=extracted.type,
+                summary=extracted.summary,
+                aliases=extracted.aliases,
+                confidence=extracted.confidence,
+                evidence=extracted.evidence,
+                merge_suggestions=self.repository.find_merge_suggestions(
+                    name=extracted.name,
+                    entity_type=extracted.type,
+                    aliases=extracted.aliases,
+                ),
+            )
+            self.repository.add_candidate_entity(candidate)
+            entities_by_name.setdefault(_normal_name(candidate.name), candidate)
+
+            relation_type = {
+                "Method": "PRESENTS",
+                "Task": "ADDRESSES",
+                "Dataset": "EVALUATES",
+                "Metric": "EVALUATES",
+                "Finding": "SUPPORTS",
+                "Concept": "SUPPORTS",
+                "Topic": "SUPPORTS",
+            }[candidate.type]
+            self.repository.add_candidate_relation(
+                CandidateRelation(
+                    id=_candidate_id(),
+                    ingestion_id=ingestion.id,
+                    topic_slug=ingestion.topic_slug,
+                    source_candidate_id=paper_candidate.id,
+                    target_candidate_id=candidate.id,
+                    type=relation_type,  # type: ignore[arg-type]
+                    summary=f"《{paper.title}》{_relation_phrase(relation_type)}“{candidate.name}”。",
+                    confidence=extracted.confidence,
+                    evidence=extracted.evidence,
+                    metadata={"generated_from": "paper_entity_link"},
+                )
+            )
+
+        for extracted in result.payload.relations:
+            source = entities_by_name.get(_normal_name(extracted.source_name))
+            target = entities_by_name.get(_normal_name(extracted.target_name))
+            if source is None or target is None or source.id == target.id:
+                continue
+            self.repository.add_candidate_relation(
+                CandidateRelation(
+                    id=_candidate_id(),
+                    ingestion_id=ingestion.id,
+                    topic_slug=ingestion.topic_slug,
+                    source_candidate_id=source.id,
+                    target_candidate_id=target.id,
+                    type=extracted.type,
+                    summary=extracted.summary,
+                    confidence=extracted.confidence,
+                    evidence=extracted.evidence,
+                )
+            )
+
+    def _paper_from_document(self, parsed: ParsedDocument, source: str) -> PaperMetadata:
+        source_id = hashlib.sha1(source.encode("utf-8")).hexdigest()[:16]
+        is_url = source.startswith(("http://", "https://"))
+        return PaperMetadata(
+            id=f"paper:{source_id}",
+            title=parsed.title or "未命名论文",
+            abstract=parsed.text,
+            source="pdf",
+            url=source if is_url else None,
+            pdf_url=source,
+            source_tier="primary_fulltext",
+            metadata={
+                "content_kind": "pdf_full_text",
+                "local_path": parsed.source,
+                "page_count": parsed.pages,
+                "original_source": source,
+            },
+        )
+
+    def _page_chunks(self, paper: PaperMetadata, parsed: ParsedDocument) -> list[DocumentChunk]:
+        page_texts = parsed.page_texts or [parsed.text]
+        page_numbers = parsed.page_numbers or list(range(1, len(page_texts) + 1))
+        chunks: list[DocumentChunk] = []
+        for page_number, text in zip(page_numbers, page_texts, strict=False):
+            words = re.sub(r"\s+", " ", text).strip().split(" ")
+            step = max(1, self.settings.chunk_size - self.settings.chunk_overlap)
+            for page_chunk_index, start in enumerate(range(0, len(words), step)):
+                window = words[start : start + self.settings.chunk_size]
+                if not window:
+                    break
+                chunks.append(
+                    DocumentChunk(
+                        id=f"{paper.id}:page:{page_number}:chunk:{page_chunk_index}",
+                        paper_id=paper.id,
+                        title=paper.title,
+                        text=" ".join(window),
+                        chunk_index=len(chunks),
+                        token_count=len(window),
+                        source_tier="primary_fulltext",
+                        metadata={
+                            "source": "pdf",
+                            "source_tier": "primary_fulltext",
+                            "url": paper.url,
+                            "pdf_url": paper.pdf_url,
+                            "local_path": paper.metadata.get("local_path"),
+                            "content_kind": "pdf_full_text",
+                            "page_start": page_number,
+                            "page_end": page_number,
+                        },
+                    )
+                )
+                if start + self.settings.chunk_size >= len(words):
+                    break
+        return chunks
+
+    def _render_topics(self, topic_slugs: list[str]) -> None:
+        topics = {item["topic_slug"]: item["topic"] for item in self.repository.list_topics()}
+        for topic_slug in topic_slugs:
+            topic = topics.get(topic_slug, topic_slug)
+            result = self.vault_exporter.render_topic(
+                topic=topic,
+                topic_slug=topic_slug,
+                entities=self.repository.list_published_entities(topic_slug),
+                relations=self.repository.list_published_relations(topic_slug),
+            )
+            for ingestion in self.repository.list_ingestions():
+                if ingestion.topic_slug == topic_slug:
+                    self.repository.update_ingestion(
+                        ingestion.id,
+                        status=ingestion.status,
+                        error=ingestion.error,
+                        vault_path=result.vault_path,
+                    )
+
+    def _is_mock_llm(self) -> bool:
+        return (
+            isinstance(self.llm, MockLLMClient)
+            or getattr(self.llm, "provider_name", "mock") == "mock"
+        )
+
+
+def _candidate_id() -> str:
+    return f"candidate-{uuid4().hex}"
+
+
+def _normal_name(value: str) -> str:
+    return re.sub(r"\s+", " ", value.strip()).casefold()
+
+
+def _relation_phrase(relation_type: str) -> str:
+    return {
+        "PRESENTS": "提出了",
+        "ADDRESSES": "关注",
+        "EVALUATES": "评估了",
+        "SUPPORTS": "讨论了",
+    }.get(relation_type, "关联到")

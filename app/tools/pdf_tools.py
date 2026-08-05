@@ -5,31 +5,6 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from app.schemas.documents import ParsedDocument
-from app.schemas.research import ToolResult
-
-
-def parse_pdf(
-    source: str,
-    download_dir: str = "data/raw_papers",
-    max_pages: int | None = None,
-) -> ToolResult:
-    """Parse a local or remote PDF into extracted text."""
-
-    try:
-        parsed = parse_pdf_source(source=source, download_dir=download_dir, max_pages=max_pages)
-        return ToolResult(
-            tool_name="parse_pdf",
-            status="success",
-            content=f"Extracted {len(parsed.text)} characters from {parsed.pages} pages.",
-            metadata={"document": parsed.model_dump()},
-        )
-    except Exception as exc:  # pragma: no cover - defensive tool boundary
-        return ToolResult(
-            tool_name="parse_pdf",
-            status="error",
-            content=str(exc),
-            metadata={"source": source},
-        )
 
 
 def parse_pdf_source(
@@ -48,10 +23,12 @@ def parse_pdf_source(
     page_limit = min(len(reader.pages), max_pages) if max_pages else len(reader.pages)
 
     page_texts = []
+    page_numbers = []
     for page_index in range(page_limit):
         text = reader.pages[page_index].extract_text() or ""
         if text.strip():
             page_texts.append(text.strip())
+            page_numbers.append(page_index + 1)
 
     metadata_title = reader.metadata.title if reader.metadata and reader.metadata.title else None
     title = _usable_title(metadata_title) or _infer_title(page_texts) or path.stem
@@ -60,6 +37,8 @@ def parse_pdf_source(
         title=title,
         text="\n\n".join(page_texts),
         pages=page_limit,
+        page_texts=page_texts,
+        page_numbers=page_numbers,
         metadata={
             "file_name": path.name,
             "original_source": source,
