@@ -529,7 +529,7 @@ python main.py run "GraphRAG 在科研文献综述中的应用" --offline
 
 ```bash
 docker compose up qdrant neo4j
-.venv/bin/uvicorn app.api.main:app --reload --port 8000
+.venv/bin/uvicorn app.api.main:create_app --factory --reload --port 8000
 AI_RESEARCH_API_URL=http://localhost:8000 \
   .venv/bin/streamlit run app/ui/streamlit_app.py
 ```

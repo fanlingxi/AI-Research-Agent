@@ -12,9 +12,14 @@ dist/
 build/
 *.egg-info/
 
+frontend/node_modules/
+frontend/.vite/
+.pnpm-store/
+
 data/raw_papers/*
 data/processed/*
 data/reports/*
+data/runtime/*
 data/memory/*.json
 data/obsidian_vault/*
 data/knowledge/*
@@ -23,6 +28,7 @@ data/manual_test/
 !data/raw_papers/.gitkeep
 !data/processed/.gitkeep
 !data/reports/.gitkeep
+!data/runtime/.gitkeep
 !data/memory/.gitkeep
 !data/knowledge/.gitkeep
 !data/obsidian_vault_v2/.gitkeep

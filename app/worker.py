@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import time
 
+from app.agent.checkpoint import AgentCheckpointFactory
+from app.agent.runtime import AgentRuntime
+from app.agent.service import AgentRunService
 from app.config.settings import get_settings
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
@@ -17,11 +20,13 @@ class KnowledgeWorker:
         *,
         ingestion_service: KnowledgeIngestionService,
         report_service: KnowledgeReportService,
+        agent_runtime: AgentRuntime | None = None,
         lease_seconds: int = 180,
     ) -> None:
         self.repository = repository
         self.ingestion_service = ingestion_service
         self.report_service = report_service
+        self.agent_runtime = agent_runtime
         self.lease_seconds = lease_seconds
 
     def run_once(self) -> bool:
@@ -36,6 +41,17 @@ class KnowledgeWorker:
                     result = self.report_service.run(job.resource_id)
                     if result.status == "failed":
                         raise RuntimeError(result.error or "报告生成失败")
+                elif job.kind == "agent_run":
+                    if self.agent_runtime is None:
+                        raise RuntimeError("Agent Runtime is not configured")
+                    result = self.agent_runtime.execute_queued(job.resource_id)
+                    if result.status not in {
+                        "completed",
+                        "cancelled",
+                        "needs_review",
+                        "stale_context",
+                    }:
+                        raise RuntimeError(result.error_message or "AgentRun did not complete")
                 else:
                     self.ingestion_service.sync_collections(
                         list(job.payload.get("collection_slugs", []))
@@ -68,6 +84,10 @@ def build_worker() -> KnowledgeWorker:
         repository,
         ingestion_service=KnowledgeIngestionService(repository, settings=settings),
         report_service=KnowledgeReportService(repository, settings=settings),
+        agent_runtime=AgentRuntime(
+            AgentRunService(repository, settings=settings),
+            checkpoint_factory=AgentCheckpointFactory(settings.agent_checkpoint_path),
+        ),
         lease_seconds=settings.knowledge_worker_lease_seconds,
     )
 

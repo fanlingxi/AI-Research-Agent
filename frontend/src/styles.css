@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --color-canvas: #f5f5f3;
+  --color-panel: #fcfcfb;
+  --color-ink: #18212f;
+  --color-muted-ink: #697386;
+  --color-line: #e5e7eb;
+  --color-brand: #195f63;
+  --color-brand-soft: #e6f1f0;
+  --color-warning-soft: #fff4df;
+  --color-danger-soft: #fce8e6;
+}
+
+@layer base {
+  * {
+    @apply border-line;
+  }
+
+  body {
+    @apply m-0 min-w-80 bg-canvas font-sans text-ink antialiased;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    @apply cursor-pointer;
+  }
+}
+
+.prose-workspace {
+  @apply max-w-none text-[15px] leading-7 text-slate-700;
+}
+
+.prose-workspace h1,
+.prose-workspace h2,
+.prose-workspace h3 {
+  @apply mt-7 text-ink;
+}
+
+.prose-workspace h1 {
+  @apply text-2xl font-semibold;
+}
+
+.prose-workspace h2 {
+  @apply text-xl font-semibold;
+}
+
+.prose-workspace h3 {
+  @apply text-lg font-semibold;
+}
+
+.prose-workspace p,
+.prose-workspace ul,
+.prose-workspace ol {
+  @apply my-4;
+}
+
+.prose-workspace code {
+  @apply rounded bg-slate-100 px-1.5 py-0.5 text-[0.9em];
+}

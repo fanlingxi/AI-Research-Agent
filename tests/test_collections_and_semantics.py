@@ -10,6 +10,7 @@ from app.knowledge.service import (
     NoopChunkIndexer,
     NoopKnowledgeProjector,
 )
+from tests.core_fixtures import persist_evidence_chunk
 
 
 def _stack(tmp_path):
@@ -51,6 +52,14 @@ def _candidate(ingestion, candidate_id: str, name: str) -> CandidateEntity:
     )
 
 
+def _persist_candidate_evidence(repository, ingestion) -> None:
+    persist_evidence_chunk(
+        repository,
+        ingestion_id=ingestion.id,
+        evidence=_candidate(ingestion, "fixture", "Fixture").evidence,
+    )
+
+
 def test_blank_collection_uses_inbox_and_topic_alias_is_compatible(tmp_path) -> None:
     repository, service = _stack(tmp_path)
     app = create_app(knowledge_repository=repository, knowledge_service=service)
@@ -87,6 +96,7 @@ def test_move_collection_reassigns_membership_and_queues_durable_sync(tmp_path) 
         collection="初始集合", sources=["paper.pdf"], pdf_max_pages=2, enqueue=False
     )
     repository.update_ingestion(ingestion.id, status="needs_review")
+    _persist_candidate_evidence(repository, ingestion)
     repository.add_candidate_entity(_candidate(ingestion, "candidate-move", "可移动概念"))
     entity = service.decide("candidate-move", CandidateDecision(decision="approve"))
     service.drain_projections()
@@ -108,6 +118,7 @@ def test_defer_keeps_source_mention_out_of_formal_graph(tmp_path) -> None:
     repository, service = _stack(tmp_path)
     ingestion = service.submit(sources=["paper.pdf"], pdf_max_pages=2)
     repository.update_ingestion(ingestion.id, status="needs_review")
+    _persist_candidate_evidence(repository, ingestion)
     paper = _candidate(ingestion, "candidate-paper", "Evidence Paper").model_copy(
         update={"type": "Paper"}
     )
@@ -138,6 +149,8 @@ def test_same_name_can_be_published_as_distinct_senses_only_by_explicit_choice(t
     second_ingestion = service.submit(collection="领域乙", sources=["two.pdf"], pdf_max_pages=2)
     repository.update_ingestion(first_ingestion.id, status="needs_review")
     repository.update_ingestion(second_ingestion.id, status="needs_review")
+    _persist_candidate_evidence(repository, first_ingestion)
+    _persist_candidate_evidence(repository, second_ingestion)
     repository.add_candidate_entity(_candidate(first_ingestion, "candidate-sense-a", "Alignment"))
     repository.add_candidate_entity(_candidate(second_ingestion, "candidate-sense-b", "Alignment"))
 
@@ -147,6 +160,7 @@ def test_same_name_can_be_published_as_distinct_senses_only_by_explicit_choice(t
         collection="领域甲", sources=["three.pdf"], pdf_max_pages=2, enqueue=False
     )
     repository.update_ingestion(linked_ingestion.id, status="needs_review")
+    _persist_candidate_evidence(repository, linked_ingestion)
     repository.add_candidate_entity(
         _candidate(linked_ingestion, "candidate-sense-link", "Alignment")
     )

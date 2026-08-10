@@ -5,15 +5,17 @@ import re
 import sqlite3
 from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
-from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
 
+from app.knowledge.core_models import CoreEntityClaimOverride
+from app.knowledge.core_repository import ClaimEvidenceValidationError, KnowledgeCoreRepository
 from app.knowledge.schemas import (
     CandidateEntity,
     CandidateRelation,
     CandidateStatus,
     ConceptSense,
+    EvidenceSpan,
     KnowledgeCollection,
     KnowledgeIngestion,
     KnowledgeJob,
@@ -26,6 +28,9 @@ from app.knowledge.schemas import (
     ResearchReport,
     SourceMention,
 )
+from app.memory.repository import MemoryRepository
+from app.persistence.migrations import apply_structural_migration, sql_migration
+from app.persistence.sqlite import SQLiteDatabase
 
 CandidateKind = Literal["entity", "relation"]
 INBOX_COLLECTION_NAME = "收件箱"
@@ -42,19 +47,23 @@ class DecisionAlreadyApplied(ValueError):
 
 
 class KnowledgeRepository:
-    """SQLite source of truth for ingestion, review, jobs, reports, and outbox state."""
+    """SQLite source of truth for ingestion, review, jobs, reports, and outbox state.
+
+    During Phase 1A, legacy ``published_*`` records remain the compatibility
+    runtime source.  The v8+ Core is the migration target and new-write
+    foundation; it is synchronized in the same transaction and is not a third
+    independent fact store.
+    """
 
     def __init__(self, path: str) -> None:
         self.path = path
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        self.database = SQLiteDatabase(path)
         self._initialize()
+        self.core_repository = KnowledgeCoreRepository(path, self.database)
+        self.memory_repository = MemoryRepository(path, self.database)
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.path, timeout=10, check_same_thread=False)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
-        connection.execute("PRAGMA busy_timeout = 10000")
-        return connection
+        return self.database.connect()
 
     def _initialize(self) -> None:
         with self._connect() as connection:
@@ -74,6 +83,13 @@ class KnowledgeRepository:
         self._apply_migration(5, _COLLECTION_SCHEMA)
         self._apply_migration(6, _SEMANTIC_LAYER_SCHEMA)
         self._apply_migration(7, _COLLECTION_RELATION_BACKFILL_SCHEMA)
+        self._apply_structural_migration(8)
+        self._apply_structural_migration(10)
+        self._apply_structural_migration(11)
+        self._apply_structural_migration(12)
+        self._apply_structural_migration(13)
+        self._apply_structural_migration(14)
+        self._apply_structural_migration(15)
         self._backfill_legacy_relation_collections()
         self._backfill_semantic_records()
 
@@ -88,6 +104,15 @@ class KnowledgeRepository:
             connection.execute(
                 "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
                 (version, _now()),
+            )
+
+    def _apply_structural_migration(self, version: int) -> None:
+        with self._connect() as connection:
+            apply_structural_migration(
+                connection,
+                version=version,
+                sql=sql_migration(version),
+                applied_at=_now(),
             )
 
     def schema_version(self) -> int:
@@ -227,6 +252,30 @@ class KnowledgeRepository:
             raise KeyError(ingestion_id)
         return self._ingestion_from_row(row)
 
+    def require_evidence_for_ingestion(
+        self, ingestion_id: str, evidence: EvidenceSpan
+    ) -> None:
+        """Require a candidate EvidenceSpan to belong to its declared ingestion.
+
+        Candidate publication already verifies the Source → Document → Chunk
+        chain.  Domain authoring also needs to prevent a caller from attaching
+        an otherwise valid EvidenceSpan from a different Collection ingestion.
+        This keeps the existing ingestion/Collection ownership model intact.
+        """
+
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT 1
+                FROM documents AS d
+                JOIN chunks AS c ON c.document_id = d.id
+                WHERE d.ingestion_id = ? AND d.id = ? AND c.id = ?
+                """,
+                (ingestion_id, evidence.paper_id, evidence.chunk_id),
+            ).fetchone()
+        if row is None:
+            raise ValueError("Evidence must belong to the declared Knowledge ingestion.")
+
     def update_ingestion(
         self,
         ingestion_id: str,
@@ -286,6 +335,24 @@ class KnowledgeRepository:
                     (ingestion_id,),
                 )
                 connection.execute("DELETE FROM candidates WHERE ingestion_id = ?", (ingestion_id,))
+                evidence_count = connection.execute(
+                    """
+                    SELECT COUNT(*) FROM evidences evidence
+                    JOIN chunks chunk ON chunk.id = evidence.chunk_id
+                    JOIN documents document ON document.id = chunk.document_id
+                    WHERE document.ingestion_id = ?
+                    """,
+                    (ingestion_id,),
+                ).fetchone()[0]
+                if evidence_count:
+                    raise ValueError(
+                        "cannot reset an ingestion whose chunks support published Core evidence"
+                    )
+                connection.execute(
+                    "DELETE FROM chunks WHERE document_id IN "
+                    "(SELECT id FROM documents WHERE ingestion_id = ?)",
+                    (ingestion_id,),
+                )
                 connection.execute("DELETE FROM documents WHERE ingestion_id = ?", (ingestion_id,))
                 connection.execute(
                     """
@@ -510,7 +577,7 @@ class KnowledgeRepository:
     def enqueue_job(
         self,
         *,
-        kind: Literal["ingestion", "report"],
+        kind: Literal["ingestion", "report", "agent_run"],
         resource_id: str,
         payload: dict[str, Any] | None = None,
         force_requeue: bool = False,
@@ -788,13 +855,20 @@ class KnowledgeRepository:
 
     # Transactional review and outbox -------------------------------------------
 
-    def reject_candidate(self, candidate_id: str, review_note: str | None = None) -> dict[str, Any]:
+    def reject_candidate(
+        self,
+        candidate_id: str,
+        review_note: str | None = None,
+        *,
+        domain_plugin_key: str | None = None,
+    ) -> dict[str, Any]:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = self._candidate_row_tx(connection, candidate_id)
             if row["status"] != "draft":
                 raise DecisionAlreadyApplied(candidate_id)
             stored = self._candidate_from_row(row)
+            self._require_domain_candidate_owner(stored, domain_plugin_key)
             payload = dict(stored["candidate"])
             payload["status"] = "rejected"
             self._record_decision_tx(
@@ -808,7 +882,13 @@ class KnowledgeRepository:
             )
         return self.get_candidate(candidate_id)
 
-    def defer_candidate(self, candidate_id: str, review_note: str | None = None) -> dict[str, Any]:
+    def defer_candidate(
+        self,
+        candidate_id: str,
+        review_note: str | None = None,
+        *,
+        domain_plugin_key: str | None = None,
+    ) -> dict[str, Any]:
         """Keep a source-scoped assertion without publishing a graph fact."""
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -816,6 +896,7 @@ class KnowledgeRepository:
             if row["status"] != "draft":
                 raise DecisionAlreadyApplied(candidate_id)
             stored = self._candidate_from_row(row)
+            self._require_domain_candidate_owner(stored, domain_plugin_key)
             payload = dict(stored["candidate"])
             payload["status"] = "deferred"
             self._record_decision_tx(
@@ -852,6 +933,38 @@ class KnowledgeRepository:
         *,
         review_note: str | None = None,
         decision_name: str | None = None,
+        domain_plugin_key: str | None = None,
+        core_domain: str = "",
+        core_claim_override: CoreEntityClaimOverride | None = None,
+    ) -> PublishedEntity:
+        try:
+            return self._publish_entity(
+                candidate_id,
+                canonical_id,
+                review_note=review_note,
+                decision_name=decision_name,
+                domain_plugin_key=domain_plugin_key,
+                core_domain=core_domain,
+                core_claim_override=core_claim_override,
+            )
+        except ClaimEvidenceValidationError as exc:
+            self.core_repository.record_attention(
+                item_type="candidate_entity",
+                item_id=candidate_id,
+                reason=str(exc),
+            )
+            raise
+
+    def _publish_entity(
+        self,
+        candidate_id: str,
+        canonical_id: str | None = None,
+        *,
+        review_note: str | None = None,
+        decision_name: str | None = None,
+        domain_plugin_key: str | None = None,
+        core_domain: str = "",
+        core_claim_override: CoreEntityClaimOverride | None = None,
     ) -> PublishedEntity:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -862,6 +975,11 @@ class KnowledgeRepository:
             if stored["kind"] != "entity":
                 raise ValueError("only entity candidates can be published as entities")
             candidate = CandidateEntity.model_validate(stored["candidate"])
+            self._require_domain_candidate_owner(stored, domain_plugin_key)
+            if domain_plugin_key and (not core_domain or core_claim_override is None):
+                raise ValueError(
+                    "Domain Knowledge publication requires Core domain and Claim data."
+                )
             target_id = canonical_id or candidate.canonical_id
             now = _now()
             if target_id:
@@ -937,6 +1055,21 @@ class KnowledgeRepository:
             self._refresh_aggregate_collections_tx(connection, "entity", entity.id, now)
             self._upsert_source_mention_tx(connection, candidate, "linked")
             self._upsert_concept_sense_tx(connection, entity, candidate)
+            if core_claim_override is not None:
+                source_version = str(core_claim_override.properties.get("source_version") or "")
+                if source_version:
+                    self.core_repository.require_source_version_for_evidence_tx(
+                        connection, candidate.evidence, version=source_version
+                    )
+            self.core_repository.synchronize_published_entity_tx(
+                connection,
+                entity,
+                domain=core_domain,
+                claim_override=core_claim_override,
+            )
+            self.core_repository.resolve_attention_tx(
+                connection, item_type="candidate_entity", item_id=candidate.id
+            )
             payload = candidate.model_dump()
             payload.update({"status": status, "canonical_id": entity.id})
             self._record_decision_tx(
@@ -959,6 +1092,17 @@ class KnowledgeRepository:
         return entity
 
     def publish_relation(self, candidate_id: str) -> PublishedRelation:
+        try:
+            return self._publish_relation(candidate_id)
+        except ClaimEvidenceValidationError as exc:
+            self.core_repository.record_attention(
+                item_type="candidate_relation",
+                item_id=candidate_id,
+                reason=str(exc),
+            )
+            raise
+
+    def _publish_relation(self, candidate_id: str) -> PublishedRelation:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = self._candidate_row_tx(connection, candidate_id)
@@ -1021,6 +1165,10 @@ class KnowledgeRepository:
                 (relation.id, candidate.ingestion_id, candidate.topic_slug, now),
             )
             self._refresh_aggregate_collections_tx(connection, "relation", relation.id, now)
+            self.core_repository.synchronize_published_relation_tx(connection, relation)
+            self.core_repository.resolve_attention_tx(
+                connection, item_type="candidate_relation", item_id=candidate.id
+            )
             payload = candidate.model_dump()
             payload["status"] = "published"
             self._record_decision_tx(
@@ -1041,6 +1189,24 @@ class KnowledgeRepository:
                 topic_slug=candidate.topic_slug,
             )
         return relation
+
+    @staticmethod
+    def _require_domain_candidate_owner(
+        stored: dict[str, Any], domain_plugin_key: str | None
+    ) -> None:
+        """Keep plugin-owned candidates on their explicit review route."""
+
+        candidate = stored["candidate"]
+        metadata = candidate.get("metadata") if isinstance(candidate, dict) else None
+        requested_plugin = str(
+            (metadata.get("domain_review_route") if isinstance(metadata, dict) else "") or ""
+        ).strip()
+        if requested_plugin and requested_plugin != domain_plugin_key:
+            raise ValueError(
+                "Domain Knowledge candidates must be reviewed through their Domain Plugin."
+            )
+        if domain_plugin_key and requested_plugin != domain_plugin_key:
+            raise ValueError("Candidate is not owned by the requested Domain Plugin.")
 
     def _candidate_row_tx(self, connection: sqlite3.Connection, candidate_id: str) -> sqlite3.Row:
         row = connection.execute(
@@ -1532,6 +1698,8 @@ class KnowledgeRepository:
                     )
 
     def published_paper_ids(self, topic_slugs: list[str] | None = None) -> set[str]:
+        if self.core_repository.is_v0009_backfill_ready():
+            return self.core_repository.published_paper_ids(topic_slugs)
         entities: list[PublishedEntity] = []
         if topic_slugs:
             for slug in topic_slugs:

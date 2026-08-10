@@ -13,6 +13,11 @@ KnowledgeNodeType = Literal[
     "Dataset",
     "Metric",
     "Finding",
+    # Domain-owned labels remain opaque strings to the Core. They let the
+    # existing candidate/review/published pipeline carry reviewed Game facts
+    # without creating a second Knowledge store.
+    "Formula",
+    "Patch",
 ]
 KnowledgeRelationType = Literal[
     "PRESENTS",
@@ -227,7 +232,7 @@ class BulkApprovalResult(BaseModel):
 
 class KnowledgeJob(BaseModel):
     id: str
-    kind: Literal["ingestion", "report", "collection_sync"]
+    kind: Literal["ingestion", "report", "collection_sync", "agent_run"]
     resource_id: str
     status: JobStatus
     payload: dict[str, Any] = Field(default_factory=dict)

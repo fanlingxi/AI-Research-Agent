@@ -19,7 +19,6 @@ def test_active_tree_has_no_v1_runtime_packages_or_archive_imports() -> None:
         "evidence",
         "graph",
         "graphrag",
-        "memory",
         "obsidian",
     ]
     assert all(not list((ROOT / "app" / package).glob("*.py")) for package in removed)

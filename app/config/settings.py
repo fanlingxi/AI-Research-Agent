@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     embedding_dimension: int = 384
 
     knowledge_db_path: str = "data/knowledge/knowledge.db"
+    agent_checkpoint_path: str = "data/runtime/agent_checkpoints.db"
     knowledge_vault_path: str = "data/obsidian_vault_v2"
     knowledge_qdrant_collection: str = "knowledge_chunks_v2"
     knowledge_worker_lease_seconds: int = 180

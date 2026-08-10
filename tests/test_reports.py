@@ -15,6 +15,7 @@ from app.knowledge.service import (
 )
 from app.llms.provider import MockLLMClient
 from app.worker import KnowledgeWorker
+from tests.core_fixtures import persist_evidence_chunk
 
 
 def _repository_with_paper(tmp_path):
@@ -40,6 +41,7 @@ def _repository_with_paper(tmp_path):
         confidence=0.95,
         evidence=evidence,
     )
+    persist_evidence_chunk(repository, ingestion_id=ingestion.id, evidence=evidence)
     repository.add_candidate_entity(candidate)
     repository.publish_entity(candidate.id)
     return repository, ingestion

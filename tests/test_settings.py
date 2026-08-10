@@ -14,7 +14,9 @@ def test_deepseek_model_rejects_legacy_names() -> None:
         Settings(deepseek_model="deepseek-chat")
 
 
-def test_knowledge_core_defaults_preserve_current_physical_storage_names() -> None:
+def test_knowledge_core_defaults_preserve_current_physical_storage_names(monkeypatch) -> None:
+    monkeypatch.delenv("KNOWLEDGE_DB_PATH")
+    monkeypatch.delenv("KNOWLEDGE_VAULT_PATH")
     settings = Settings()
 
     assert settings.knowledge_db_path == "data/knowledge/knowledge.db"

@@ -1,174 +1,237 @@
-# Research Knowledge Core
+# Evidence-Grounded Personal Knowledge Agent Workspace
 
-Research Knowledge Core 是一个面向本地单用户的科研知识系统：将 PDF 解析为带页码证据的候选知识，经人工审核后保存为正式事实，并基于这些已审核知识生成可追溯的 Markdown 报告。
-
-当前主线不兼容旧 API、CLI、配置或数据格式。历史版本已冻结在 [`archive/v1`](archive/v1/README.md)，不参与主项目导入、测试、Docker 构建和发布。
-
-## 核心能力
-
-- 本地路径或 URL 的 PDF 入库；知识集合可选，留空自动进入“收件箱”。
-- Pydantic Schema 约束的实体、关系、阅读卡和页码证据抽取。
-- SQLite 持久化任务队列、审核事件、正式事实、投影 outbox 和报告。
-- 候选只能从 `draft` 进入一次终态；支持批准、链接已有词义、仅保留论文内提及与驳回。
-- Qdrant 保存 PDF 正文切片，Neo4j 保存正式语义图，Obsidian 保存可再生阅读投影；待定提及不进入图谱。
-- 报告只消费已发布论文允许范围内的切片和正式图谱；最多修订一次。
-- 报告持久化正文、证据包、证据落地率、引用覆盖率、引用忠实度和结构评分。
-
-## 数据流
+**证据约束的本地优先个人知识 Agent 工作台** —— 一个把已审核知识、项目记忆、受控上下文与可追溯 Agent 产物连接起来的本地优先工作空间。它不是把任意文档直接塞进提示词的普通 RAG：每次运行都绑定明确的 Knowledge scope、不可变 `ContextSnapshot`、领域插件 pin、工具审计、引用校验与人工治理边界。
 
 ```mermaid
 flowchart LR
-    UI["Streamlit / API"] --> SQLite["SQLite 业务事实源"]
-    SQLite --> Worker["单 worker：任务、租约、重试"]
-    Worker --> PDF["PDF 解析与 Schema 抽取"]
-    PDF --> Qdrant["Qdrant 正文切片"]
-    PDF --> Draft["SQLite 待审核候选"]
-    Draft --> Review["人工审核"]
-    Review --> Facts["SQLite 正式事实 + outbox"]
-    Facts --> Neo4j["Neo4j 正式语义图"]
-    Facts --> Obsidian["Obsidian 阅读投影"]
-    Facts --> Report["正式知识检索与报告"]
+    S["Sources"] --> K["Knowledge Core"]
+    M["Memory Core"] --> C["Context Builder"]
+    K --> C
+    C --> CS["Immutable ContextSnapshot"]
+    CS --> P["Research / Game Modeling Plugin"]
+    P --> R["Bounded LangGraph Runtime"]
+    R --> V["Validator + Platform Finalizer"]
+    V --> A["Artifact"]
+    V --> MP["MemoryProposal"]
+    MP --> M
+
+    subgraph E["Independent Evaluation Plane"]
+      VC["Versioned Cases"] --> IF["Isolated Fixtures"]
+      IF --> PS["Production Service Paths"]
+      PS --> EV["Deterministic Evaluators"]
+      EV --> BR["Candidate Benchmark Report"]
+    end
 ```
 
-SQLite 是业务事实源。Neo4j、Qdrant 和 Obsidian 都是可恢复下游；下游暂时不可用不会撤销已经提交的审核事实。
+## Why this project
 
-## 快速开始
+An answer is not enough for long-running research or modeling work. The system needs to answer four questions together:
 
-要求 Python 3.11+、Docker 和 Docker Compose。
+- Which reviewed evidence was allowed to influence this task?
+- Which project facts and decisions were in scope?
+- Which domain workflow and tool permissions produced the result?
+- Which output or proposed memory update may a human accept, reject, or audit later?
+
+The workspace keeps these responsibilities separate. Knowledge is reviewed evidence; Memory is project state; a `ContextSnapshot` is the governed, reproducible runtime input; an AgentRun produces traceable outputs rather than silently mutating trusted records.
+
+## Core capabilities
+
+- Evidence-grounded Knowledge Core with reviewed sources, documents, chunks, claims, evidence, and collection scope.
+- Project-oriented Memory Core for projects, tasks, decisions, artifacts, knowledge scopes, plugin enablement, and reviewable memory proposals.
+- Immutable, budgeted `ContextSnapshot` construction with provenance and scope filtering.
+- Bounded, checkpointed LangGraph execution with auditable tool calls, cancellation/recovery semantics, validation, and finalization.
+- Two first-party domain plugins: Research and deterministic Game Modeling.
+- React Project Workspace projections for projects, tasks, context, runs, artifacts, and proposal review.
+- Offline, local-first Phase 6 evaluation and demo evidence pack that exercise production service paths through isolated fixtures.
+
+## Architecture
+
+The product path is deliberately one-way at its trust boundaries:
+
+1. Knowledge Core stores reviewed evidence and Memory Core stores project state.
+2. Context Builder reads both under a task/project scope and persists a canonical `ContextSnapshot` only after the payload is normalized.
+3. Agent Runtime resolves a static plugin pin, invokes its bounded LangGraph workflow, and records trace and tool-call facts.
+4. The validator and Platform Finalizer decide whether an output may become an Artifact and whether a MemoryProposal may be created.
+5. A proposal still requires the repository's review/commit governance; the Agent does not directly promote unreviewed facts or project state.
+
+The detailed, current architecture is in [docs/architecture/01_PROJECT_SPEC.md](docs/architecture/01_PROJECT_SPEC.md). Historical pre-platform material is kept in [docs/legacy](docs/legacy/).
+
+## Knowledge and Memory Governance
+
+**Knowledge Core** is the evidence layer: sources, documents, chunks, entities, relations, claims, and evidence are not interchangeable with generated prose. Candidate knowledge follows review before it becomes usable formal knowledge.
+
+**Memory Core** is the project layer: projects, workspace tasks, decisions, artifacts, scopes, enabled plugins, and `MemoryProposal` records have explicit lifecycle state and revisions. An Agent can propose a change; it cannot bypass review to make trusted project state.
+
+SQLite is the operational fact store. Qdrant, Neo4j, and Obsidian-compatible projections remain supporting retrieval/projection components rather than alternate business truth.
+
+## ContextSnapshot
+
+`ContextSnapshot` is the contract between governed data and an AgentRun. It contains the selected task, project memory, allowed knowledge bundles, evidence provenance, constraints, tool context, selection trace, and token-budget diagnostics. It is canonicalized and hashable, so a later run, artifact projection, or evaluator can identify the exact input contract it used.
+
+No-scope requests fail closed: no knowledge bundle and no business output are created merely to make a response look complete.
+
+## Agent Runtime
+
+The runtime dispatches a persisted AgentRun through a finite LangGraph workflow selected by its immutable plugin pin. Checkpoints support recovery from interruption; queue retries do not intentionally replay already completed business transitions. Tool calls are recorded with permissions, inputs, result summaries, and idempotency keys.
+
+The Platform Finalizer owns writes for Agent outputs, Artifacts, and optional MemoryProposals. Plugins describe a governed finalization command but receive no direct persistence handle.
+
+## Domain Plugins
+
+### Research
+
+The Research plugin exposes a foundation workflow and a research workflow. The research path requires a configured live LLM in normal product operation and validates evidence citations before finalization. Invalid citations can receive one bounded repair attempt; unresolved violations end in review rather than creating an Artifact or MemoryProposal.
+
+### Game Modeling
+
+The Game Modeling plugin is a first-party deterministic workflow over scoped Formula and Patch knowledge. It performs pure calculations, emits evidence-linked output, and fails closed when the requested patch version does not match the governed input. It owns neither a separate database nor a separate runtime.
+
+## Human-in-the-loop
+
+- Knowledge candidates require review before becoming trusted facts.
+- Memory changes are represented as proposals with review/commit status.
+- Artifact and run projections preserve AgentRun and ContextSnapshot provenance.
+- Domain plugins are statically registered and project-enabled; they do not dynamically install code or gain arbitrary storage access.
+
+## Evaluation
+
+Phase 6 is an **independent Evaluation Plane**, not a product runtime or new fact source. Each case builds a fresh temporary SQLite database, checkpoint path, vault path, and fixture root; it blocks network sockets and drives existing Context Builder, Runtime, validator, finalizer, plugin registry, and Workspace services.
+
+The current public result is a **deterministic evaluation candidate**. No human-approved baseline exists, so no regression comparison is available:
+
+| Candidate experiment | Result | Isolation | Scope |
+| --- | --- | --- | --- |
+| `phase6-20260807T101302Z-7b90a436e6` | 13 passed, 0 failed, 0 error, 0 skipped | 4/4 attestations true | Full contract suite |
+| `phase6-20260807T101505Z-534b3819bd` | 3 passed, 0 failed, 0 error, 0 skipped | passed | Reproducible demo subset |
+
+Manifest SHA-256: `5c1a4878d037c7df0187b8f50daf2a8b96e6fcadc5f3834a307ee0061f1705c2`.
+
+Evaluation fixtures use schema v15 only. The real operational SQLite baseline remains schema v14 and is not opened by the evaluation. `v0009` was not executed. There is no human-approved Phase 6 baseline; do not describe these results as baseline comparison or model-quality evidence.
+
+Run the full offline suite:
+
+```bash
+./.venv/bin/python -m app.benchmarking \
+  --manifest benchmarks/phase6/cases/v1/manifest.json \
+  --output data/reports/phase6
+```
+
+See [docs/demo/BENCHMARK_SUMMARY.md](docs/demo/BENCHMARK_SUMMARY.md) for exact scope and [benchmarks/phase6/README.md](benchmarks/phase6/README.md) for runner details.
+
+## Project Workspace
+
+The React Workspace is a client over existing projections, not another fact store. Its routes cover the dashboard, project sections, task detail, AgentRun trace, artifact content, and proposal review. It does not expose checkpoint internals or arbitrary raw context payloads.
+
+The repository also retains a Streamlit service in `docker-compose.yml` for compatibility with the earlier knowledge workflow. It is not the React Workspace. Public deployment documentation must select and verify the desired UI entry point rather than treating them as interchangeable.
+
+## Demo
+
+The deterministic demo is local and offline. It runs three curated service-path scenarios:
+
+1. cited Research finalization;
+2. deterministic Game Modeling calculation;
+3. Workspace Artifact provenance projection.
+
+```bash
+./.venv/bin/python scripts/run_phase6_demo.py --output data/reports/phase6
+```
+
+The resulting immutable directory contains `run.json`, `report.md`, and `demo-summary.md`. It does not claim real-provider quality, production database validation, browser validation, or an accepted benchmark baseline. Use [docs/demo/DEMO_GUIDE.md](docs/demo/DEMO_GUIDE.md) to present it safely.
+
+## Quick Start
+
+### Backend and offline verification
+
+Requirements: Python 3.11+, Docker Compose for the compatibility stack. Keep the default mock configuration for local tests; never copy a real provider key into source code or frontend build variables.
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 cp .env.example .env
-```
 
-在 `.env` 中配置真实 LLM provider 和 API Key。正式入库和报告明确拒绝 `mock`。
-
-一键启动：
-
-```bash
-docker compose up --build
-```
-
-- Streamlit：<http://localhost:8501>
-- FastAPI：<http://localhost:8000/docs>
-- Qdrant：<http://localhost:6333/dashboard>
-- Neo4j：<http://localhost:7474>
-
-也可以分别启动：
-
-```bash
-.venv/bin/uvicorn app.api.main:app --reload
-.venv/bin/python -m app.worker
-.venv/bin/streamlit run app/ui/streamlit_app.py
-```
-
-CLI 只保留 PDF 解析和 worker：
-
-```bash
-.venv/bin/python main.py parse-pdf data/raw_papers/example.pdf --max-pages 10
-.venv/bin/python main.py worker
-```
-
-## 使用流程
-
-1. 在“知识入库”提交可选知识集合和 PDF 来源；未指定集合时进入“收件箱”，API 返回 `202`，worker 异步领取任务。
-2. worker 先完成所有 PDF 解析和 Qdrant 索引，再创建可审核候选。Qdrant 失败不会留下候选半成品。
-3. 在“审核队列”编辑候选，并批准为新词义、链接已有词义、仅保留论文内提及或驳回。
-4. SQLite 在同一事务中写入正式事实、唯一审核事件和 projection outbox。
-5. worker 幂等投影到 Neo4j 和 Obsidian；全部成功后入库状态变为 `completed`。
-6. 在“研究报告”提交研究问题。报告只检索已发布论文的切片，并保存引用证据和质量评估。
-
-入库状态：
-
-```text
-queued -> running -> needs_review -> publishing -> completed
-                    |                 |
-                    +-> failed <------+-> retry
-running -> interrupted -> retry
-```
-
-## API
-
-知识接口：
-
-- `POST /api/knowledge/ingestions`
-- `GET /api/knowledge/ingestions`
-- `GET /api/knowledge/ingestions/{id}`
-- `PATCH /api/knowledge/ingestions/{id}/collection`
-- `POST /api/knowledge/ingestions/{id}/retry`
-- `GET /api/knowledge/ingestions/{id}/candidates`
-- `PATCH /api/knowledge/candidates/{id}`
-- `POST /api/knowledge/candidates/{id}/decision`
-- `POST /api/knowledge/ingestions/{id}/approve-ready`
-- `GET /api/knowledge/topics`
-- `GET /api/knowledge/topics/{slug}`
-- `GET|POST /api/knowledge/collections`
-- `GET /api/knowledge/collections/{slug}`
-- `GET /api/knowledge/entities/{id}`
-- `GET /api/knowledge/graph`
-- `GET /api/knowledge/search`
-
-报告接口：
-
-- `POST /api/reports`
-- `GET /api/reports`
-- `GET /api/reports/{id}`
-- `GET /api/reports/{id}/evidence`
-- `GET /api/reports/{id}/download`
-
-健康检查 `GET /health` 返回 Schema 版本、真实 LLM 状态、任务队列、待投影/失败投影，以及 Qdrant 和 Neo4j 可用性。
-
-## 存储与兼容边界
-
-为保留已有 Knowledge Base 数据，当前物理名称暂不迁移：
-
-- SQLite：`data/knowledge/knowledge.db`
-- Qdrant collection：`knowledge_chunks_v2`
-- Neo4j labels：`KnowledgeEntityV2`、`KnowledgeTopicV2`、`KG_RELATION_V2`
-- Obsidian：`data/obsidian_vault_v2`
-
-这些只是稳定的内部存储名，对外产品统一称为 Research Knowledge Core。系统不会删除或读写历史 `data/obsidian_vault`、memory 等用户数据。
-
-## 测试与质量评测
-
-```bash
-.venv/bin/pytest -q
-.venv/bin/ruff check .
+./.venv/bin/python -m pytest -p no:cacheprovider
+./.venv/bin/python -m ruff check --no-cache .
+./.venv/bin/python -m pip check
 git diff --check
+docker compose config --quiet
 ```
 
-30 问题、10 PDF 的版本化检索集位于 [`benchmarks/knowledge_core_questions.json`](benchmarks/knowledge_core_questions.json)：
+`docker compose up --build` starts the legacy-compatible API, worker, Qdrant, Neo4j, and Streamlit services. Treat it as a local development stack: set a non-default Neo4j password, review mounted data paths, and do not point it at an operational database without a backup and an explicit migration review.
+
+### React Workspace
+
+The React application lives in `frontend/` and is run separately from the Compose Streamlit service:
 
 ```bash
-.venv/bin/python -m app.knowledge.benchmark --top-k 5 \
-  --output data/reports/knowledge_core_benchmark.json
+cd frontend
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
-目标门槛为 Recall@5 ≥ 0.80、正式证据落地率 100%、报告引用覆盖率 ≥ 0.90。每次正式评测都应固定模型、Prompt、数据和配置版本。
+Validate it in a declared Node/pnpm environment with `pnpm test` and `pnpm build`. Node/npm were unavailable during the latest release audit, so that audit did not rerun these commands.
 
-已保存的固定检索基准、隔离浏览器 E2E、真实 LLM 合成证据 smoke 和 Docker 构建验收结果位于 [`benchmarks/results`](benchmarks/results)。
+## Tech Stack
 
-## v1 冻结归档
+| Area | Implementation |
+| --- | --- |
+| Backend | Python, FastAPI, Pydantic, SQLite |
+| Agent runtime | LangGraph, SQLite checkpointing, bounded workflows |
+| Knowledge and projections | SQLite fact store, Qdrant, Neo4j, Obsidian-compatible projections |
+| Frontend | React 19, TypeScript, Vite, Vitest, TanStack Query, Radix UI |
+| Quality | Pytest, Ruff, deterministic Phase 6 evaluation, Docker Compose validation |
 
-归档基线为提交 `1fb7dc6`，Git tag 为 `v1-archive-1fb7dc6`。归档拥有独立依赖、锁文件、运行说明和 38 项原测试：
+The repository package name remains `research-knowledge-core` for compatibility. The public product title is the title of this README.
 
-```bash
-cd archive/v1
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.lock
-pytest -q
-```
+## Safety Model
 
-归档只用于历史复现、简历取材和项目复盘，不接受主线模块依赖或功能修复。
+- Local-first operational data is kept outside the evaluation fixtures.
+- `.env`, operational SQLite, checkpoints, raw papers, frontend dependency directories, and frontend build output are ignored by Git. Ignored does not make a file safe to upload: inspect archives and generated assets before sharing them.
+- API keys belong only in local environment configuration. Do not compile them into browser assets; rotate any credential suspected to have entered a build artifact.
+- Phase 6 blocks network access, uses scripted fixtures, and verifies that its temporary sandbox is removed.
+- Production migrations, including `v0009`, are outside the evaluation and demo commands.
 
-## 文档
+## Verified Engineering Status
 
-- [当前与目标架构](docs/architecture.md)
-- [三个迭代路线与验收](docs/development_roadmap.md)
-- [完整开发复盘与简历素材](docs/project_development_review.md)
-- [开发日志](docs/development_journal.md)
-- [人工验收流程与 API 脚本](docs/manual_testing_guide.md)
-- [v1 归档清单](archive/v1/ARCHIVE_MANIFEST.md)
+Latest release audit verification:
+
+- Backend pytest: **112 passed, 3 skipped**.
+- Ruff: **passed**.
+- `pip check`: **passed**.
+- `git diff --check`: **passed**.
+- `docker compose config --quiet`: **passed**.
+- Phase 6 full candidate: **13 passed, 0 failed, 0 error, 0 skipped; 4/4 isolation attestations true**.
+- Phase 6 demo candidate: **3 passed, 0 failed; isolation passed**.
+
+These facts establish deterministic local contract coverage. They do not replace a human-approved benchmark baseline, browser build verification, a real-provider evaluation, or public-release security review.
+
+## Limitations
+
+- The curated Phase 6 suite measures governance and deterministic service-path contracts, not open-domain retrieval quality or real-LLM quality.
+- No Phase 6 baseline has been accepted by a human reviewer.
+- Frontend test/build was not rerun in the release-audit environment because Node/npm was unavailable.
+- The Compose Streamlit compatibility UI and React Workspace require a deliberate deployment decision.
+- This repository is local-first and does not claim multi-agent, MCP, web-search, temporal-memory, or production-monitoring capabilities.
+
+## Roadmap
+
+Release packaging work is intentionally separate from product capability work. Before a public release:
+
+1. review and commit the current worktree as a coherent release candidate;
+2. run React tests and production build in a declared Node environment;
+3. verify no local secrets or generated assets are included in the published archive;
+4. obtain explicit human approval before creating any Phase 6 baseline;
+5. retain offline demo evidence alongside the release notes.
+
+## Documentation
+
+- [Current architecture](docs/architecture/01_PROJECT_SPEC.md)
+- [Data and governance model](docs/architecture/03_DATA_MODEL_SPEC.md)
+- [ContextSnapshot contract](docs/architecture/04_CONTEXT_ENGINEERING_SPEC.md)
+- [Agent Runtime](docs/architecture/05_AGENT_RUNTIME_SPEC.md)
+- [Domain Plugins](docs/architecture/06_DOMAIN_PLUGIN_SPEC.md)
+- [Project Workspace](docs/architecture/07_UI_PRODUCT_SPEC.md)
+- [Benchmark summary](docs/demo/BENCHMARK_SUMMARY.md)
+- [Demo guide](docs/demo/DEMO_GUIDE.md)
+- [Resume project brief](docs/demo/RESUME_PROJECT_BRIEF.md)
+- [Historical material](docs/legacy/)

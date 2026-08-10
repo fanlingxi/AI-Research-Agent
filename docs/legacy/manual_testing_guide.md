@@ -39,7 +39,7 @@ export NEO4J_URI=bolt://localhost:7787
 
 ```bash
 # 终端 A
-.venv/bin/uvicorn app.api.main:app --reload --port 8000
+.venv/bin/uvicorn app.api.main:create_app --factory --reload --port 8000
 
 # 终端 B
 .venv/bin/python -m app.worker

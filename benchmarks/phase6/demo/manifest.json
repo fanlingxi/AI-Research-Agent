@@ -1,0 +1,14 @@
+{
+  "demo_version": "phase6-demo-v1",
+  "description": "Offline reproducible demo using existing Workspace projections; no real provider, database, retrieval service, or product UI route is required.",
+  "case_ids": [
+    "research-cited-finalization",
+    "game-deterministic-formula",
+    "workspace-artifact-provenance"
+  ],
+  "evidence": [
+    "run.json",
+    "report.md",
+    "demo-summary.md"
+  ]
+}

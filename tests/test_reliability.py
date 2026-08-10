@@ -18,6 +18,7 @@ from app.knowledge.service import (
     NoopChunkIndexer,
     NoopKnowledgeProjector,
 )
+from tests.core_fixtures import persist_evidence_chunk
 
 
 def _service(tmp_path, *, projector=None):
@@ -67,12 +68,13 @@ def test_schema_migrations_and_sequential_replay_are_idempotent(tmp_path) -> Non
         topic="幂等审核", sources=["paper.pdf"], pdf_max_pages=3, enqueue=False
     )
     repository.update_ingestion(ingestion.id, status="needs_review")
+    persist_evidence_chunk(repository, ingestion_id=ingestion.id, evidence=_evidence())
     repository.add_candidate_entity(_entity(ingestion, "candidate-idempotent", "幂等实体"))
 
     first = service.decide("candidate-idempotent", CandidateDecision(decision="approve"))
     replay = service.decide("candidate-idempotent", CandidateDecision(decision="approve"))
 
-    assert repository.schema_version() == 7
+    assert repository.schema_version() == 15
     assert first.applied and not first.replayed
     assert replay.replayed and not replay.applied
     with pytest.raises(ValueError, match="不同"):
@@ -89,6 +91,7 @@ def test_concurrent_same_decision_creates_one_fact_event_and_projection(tmp_path
         topic="并发审核", sources=["paper.pdf"], pdf_max_pages=3, enqueue=False
     )
     repository.update_ingestion(ingestion.id, status="needs_review")
+    persist_evidence_chunk(repository, ingestion_id=ingestion.id, evidence=_evidence())
     repository.add_candidate_entity(_entity(ingestion, "candidate-concurrent", "并发实体"))
 
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -152,6 +155,7 @@ def test_projection_failure_preserves_sqlite_fact_and_can_be_requeued(tmp_path) 
         topic="投影恢复", sources=["paper.pdf"], pdf_max_pages=3, enqueue=False
     )
     repository.update_ingestion(ingestion.id, status="needs_review")
+    persist_evidence_chunk(repository, ingestion_id=ingestion.id, evidence=_evidence())
     repository.add_candidate_entity(_entity(ingestion, "candidate-outbox", "可靠事实"))
     service.decide("candidate-outbox", CandidateDecision(decision="approve"))
     event = repository.claim_projection()
@@ -174,6 +178,7 @@ def test_347_candidate_batch_reports_exact_conflicts_and_blocked_relations(tmp_p
         topic="347 候选验收", sources=["paper.pdf"], pdf_max_pages=3, enqueue=False
     )
     repository.update_ingestion(ingestion.id, status="needs_review")
+    persist_evidence_chunk(repository, ingestion_id=ingestion.id, evidence=_evidence())
 
     ready_entities = [
         _entity(ingestion, f"candidate-ready-{index}", f"实体 {index}") for index in range(164)

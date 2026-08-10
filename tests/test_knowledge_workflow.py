@@ -20,6 +20,7 @@ from app.knowledge.service import (
     NoopKnowledgeProjector,
 )
 from app.schemas.documents import ParsedDocument
+from tests.core_fixtures import persist_evidence_chunk
 
 
 class FixtureExtractor:
@@ -212,6 +213,7 @@ def test_repository_requires_an_explicit_entity_merge_and_preserves_aliases(tmp_
         confidence=0.9,
         evidence=evidence,
     )
+    persist_evidence_chunk(repository, ingestion_id=ingestion.id, evidence=evidence)
     repository.add_candidate_entity(first)
     canonical = repository.publish_entity(first.id)
     suggestions = repository.find_merge_suggestions(

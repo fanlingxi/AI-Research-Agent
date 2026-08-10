@@ -1,0 +1,214 @@
+{
+  "contract_version": "phase6-evaluation-v1",
+  "suite_version": "phase6-curated-v1",
+  "description": "Offline, deterministic Platform Evaluation cases. Every case creates reviewed fixture facts in a fresh temporary SQLite database and drives existing Context, Runtime, Plugin, Finalizer, and Workspace paths.",
+  "cases": [
+    {
+      "id": "retrieval-approved-evidence",
+      "suite": "retrieval",
+      "priority": "blocker",
+      "target": "retrieval",
+      "fixture": "retrieval",
+      "scenario": "retrieval_allowed",
+      "expectation": {
+        "expected_status": "completed",
+        "expected_retrieved_paper_ids": ["paper:phase6:allowed"]
+      },
+      "tags": ["offline", "evidence", "retrieval"]
+    },
+    {
+      "id": "retrieval-scope-filter",
+      "suite": "retrieval",
+      "priority": "blocker",
+      "target": "retrieval",
+      "fixture": "retrieval",
+      "scenario": "retrieval_scope_filter",
+      "expectation": {
+        "expected_status": "completed",
+        "expected_retrieved_paper_ids": ["paper:phase6:allowed"],
+        "forbidden_retrieved_paper_ids": ["paper:phase6:denied"]
+      },
+      "tags": ["offline", "scope", "retrieval"]
+    },
+    {
+      "id": "context-only-in-scope-facts",
+      "suite": "context",
+      "priority": "blocker",
+      "target": "context",
+      "fixture": "context",
+      "scenario": "context_scoped",
+      "expectation": {
+        "expected_status": "completed",
+        "expected_claim_aliases": ["Scoped Evaluation Method"]
+      },
+      "tags": ["context", "scope", "provenance"]
+    },
+    {
+      "id": "context-repeatable-payload",
+      "suite": "context",
+      "priority": "core",
+      "target": "context",
+      "fixture": "context",
+      "scenario": "context_repeatable",
+      "expectation": {
+        "expected_status": "completed",
+        "expected_claim_aliases": ["Scoped Evaluation Method"]
+      },
+      "tags": ["context", "repeatability"]
+    },
+    {
+      "id": "context-no-scope-is-empty",
+      "suite": "context",
+      "priority": "blocker",
+      "target": "context",
+      "fixture": "no_scope",
+      "scenario": "context_no_scope",
+      "expectation": {
+        "expected_status": "completed",
+        "expected_knowledge_coverage": "no_scope",
+        "expected_selected_bundle_count": 0,
+        "expect_no_business_outputs": true
+      },
+      "tags": ["context", "scope", "fail-closed"]
+    },
+    {
+      "id": "research-cited-finalization",
+      "suite": "research_runtime",
+      "priority": "blocker",
+      "target": "research_runtime",
+      "fixture": "research",
+      "scenario": "research_success",
+      "expectation": {
+        "expected_status": "completed",
+        "expected_plugin_key": "research",
+        "expected_repair_count": 0,
+        "expected_tool_call_count": 1,
+        "expect_artifact": true,
+        "expect_memory_proposal": true,
+        "required_validation_fields": ["passed", "cited_evidence_ids"]
+      },
+      "tags": ["research", "citation", "artifact", "proposal"]
+    },
+    {
+      "id": "research-single-citation-repair",
+      "suite": "research_runtime",
+      "priority": "core",
+      "target": "research_runtime",
+      "fixture": "research_repair",
+      "scenario": "research_repair",
+      "expectation": {
+        "expected_status": "completed",
+        "expected_plugin_key": "research",
+        "expected_repair_count": 1,
+        "expected_tool_call_count": 1,
+        "expect_artifact": true,
+        "expect_memory_proposal": false,
+        "required_validation_fields": ["passed", "repair_applied"]
+      },
+      "tags": ["research", "citation", "repair"]
+    },
+    {
+      "id": "research-invalid-citation-needs-review",
+      "suite": "research_runtime",
+      "priority": "blocker",
+      "target": "research_runtime",
+      "fixture": "research_invalid",
+      "scenario": "research_needs_review",
+      "expectation": {
+        "expected_status": "needs_review",
+        "expected_error_contains": "outside its bundle",
+        "expected_plugin_key": "research",
+        "expected_repair_count": 1,
+        "expected_tool_call_count": 1,
+        "expect_artifact": false,
+        "expect_memory_proposal": false,
+        "expect_no_business_outputs": true
+      },
+      "tags": ["research", "citation", "fail-closed"]
+    },
+    {
+      "id": "research-checkpoint-recovery-idempotent",
+      "suite": "research_runtime",
+      "priority": "blocker",
+      "target": "research_runtime",
+      "fixture": "research_interrupt",
+      "scenario": "research_recovery",
+      "expectation": {
+        "expected_status": "completed",
+        "expected_plugin_key": "research",
+        "expected_repair_count": 0,
+        "expected_tool_call_count": 1,
+        "expect_artifact": true,
+        "expect_memory_proposal": false,
+        "required_validation_fields": ["passed"]
+      },
+      "tags": ["research", "recovery", "idempotency"]
+    },
+    {
+      "id": "game-deterministic-formula",
+      "suite": "game_runtime",
+      "priority": "blocker",
+      "target": "game_runtime",
+      "fixture": "game",
+      "scenario": "game_success",
+      "expectation": {
+        "expected_status": "completed",
+        "expected_plugin_key": "game_modeling",
+        "expected_tool_call_count": 1,
+        "expected_value": 20.0,
+        "expect_artifact": true,
+        "expect_memory_proposal": true,
+        "required_validation_fields": ["passed", "patch_version", "cited_evidence_ids"]
+      },
+      "tags": ["game", "formula", "provenance"]
+    },
+    {
+      "id": "game-patch-version-fails-closed",
+      "suite": "game_runtime",
+      "priority": "blocker",
+      "target": "game_runtime",
+      "fixture": "game_patch_mismatch",
+      "scenario": "game_patch_mismatch",
+      "expectation": {
+        "expected_status": "failed",
+        "expected_error_contains": "patch_version",
+        "expected_plugin_key": "game_modeling",
+        "expected_tool_call_count": 0,
+        "expect_artifact": false,
+        "expect_memory_proposal": false,
+        "expect_no_business_outputs": true
+      },
+      "tags": ["game", "version", "fail-closed"]
+    },
+    {
+      "id": "plugin-port-isolation",
+      "suite": "plugin_boundary",
+      "priority": "blocker",
+      "target": "plugin_boundary",
+      "fixture": "context",
+      "scenario": "plugin_boundary",
+      "expectation": {
+        "expected_status": "completed"
+      },
+      "tags": ["plugin", "isolation"]
+    },
+    {
+      "id": "workspace-artifact-provenance",
+      "suite": "workspace_projection",
+      "priority": "core",
+      "target": "workspace_projection",
+      "fixture": "research",
+      "scenario": "workspace_artifact",
+      "expectation": {
+        "expected_status": "completed",
+        "expected_plugin_key": "research",
+        "expected_repair_count": 0,
+        "expected_tool_call_count": 1,
+        "expect_artifact": true,
+        "expect_memory_proposal": true,
+        "required_validation_fields": ["passed"]
+      },
+      "tags": ["workspace", "artifact", "provenance"]
+    }
+  ]
+}

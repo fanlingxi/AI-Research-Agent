@@ -75,6 +75,7 @@ class KnowledgeIngestionService:
     ) -> None:
         self.settings = settings or get_settings()
         self.repository = repository
+        self.core_repository = repository.core_repository
         self.llm = llm or get_llm_client(self.settings)
         self.extractor = extractor or SchemaKnowledgeExtractor(self.llm)
         self.parser = parser
@@ -143,6 +144,15 @@ class KnowledgeIngestionService:
                         pages=parsed.pages,
                         metadata=paper.metadata,
                     )
+                    self.core_repository.record_source_document(
+                        document_id=paper.id,
+                        title=paper.title,
+                        uri=source,
+                        content=parsed.text,
+                        parser_version="pypdf-v1",
+                        metadata=paper.metadata,
+                    )
+                    self.core_repository.upsert_chunks(chunks)
                     documents.append((paper, chunks))
                     indexed_chunks.extend(chunks)
                 except Exception as exc:
@@ -400,6 +410,8 @@ class KnowledgeIngestionService:
                 "Finding": "SUPPORTS",
                 "Concept": "SUPPORTS",
                 "Topic": "SUPPORTS",
+                "Formula": "SUPPORTS",
+                "Patch": "SUPPORTS",
             }[candidate.type]
             self.repository.add_candidate_relation(
                 CandidateRelation(
