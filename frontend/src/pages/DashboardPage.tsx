@@ -1,5 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Bot, FileText, FolderKanban, ListTodo, Plus, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  Bot,
+  FileText,
+  FolderKanban,
+  ListTodo,
+  LoaderCircle,
+  Play,
+  Plus,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -52,6 +63,101 @@ function CreateProjectDialog() {
   );
 }
 
+function QuickResearchLauncher() {
+  const navigate = useNavigate();
+  const client = useQueryClient();
+  const [instruction, setInstruction] = useState("");
+  const [collectionSlug, setCollectionSlug] = useState("");
+  const collections = useQuery({ queryKey: ["knowledge-collections"], queryFn: api.collections });
+  const start = useMutation({
+    mutationFn: () => api.submitAndExecuteReport({
+      query: instruction.trim(),
+      collection_slugs: collectionSlug ? [collectionSlug] : [],
+      top_k: 12,
+      report_depth: "standard",
+    }),
+    onSuccess: (report) => {
+      void client.invalidateQueries({ queryKey: ["reports"] });
+      navigate(`/reports?report=${encodeURIComponent(report.id)}`);
+    },
+  });
+  return (
+    <Card className="mt-8 overflow-hidden border-brand/20 bg-gradient-to-br from-white to-brand-soft/40">
+      <CardContent>
+        <form
+          className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-end"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (
+              instruction.trim().length >= 3
+              && !collections.isPending
+              && !collections.isError
+            ) start.mutate();
+          }}
+        >
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-brand">
+              <Sparkles size={18} />
+              <p className="text-sm font-semibold">快速开始研究</p>
+            </div>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">直接告诉工作台你想研究什么</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-ink">
+              一次提交会创建并立即执行证据报告；范围、进度、失败重试和结果都留在主工作台。
+            </p>
+            <input
+              aria-label="研究指令"
+              className="mt-4 min-h-11 w-full rounded-lg border bg-white px-3 py-2 outline-none focus:border-brand"
+              minLength={3}
+              placeholder="例如：梳理 AI Agent 的发展路径、关键方法与当前局限"
+              required
+              value={instruction}
+              onChange={(event) => setInstruction(event.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">
+              证据范围
+              <select
+                className="mt-1.5 min-h-11 w-full rounded-lg border bg-white px-3 py-2"
+                disabled={collections.isPending || collections.isError}
+                value={collectionSlug}
+                onChange={(event) => setCollectionSlug(event.target.value)}
+              >
+                <option value="">
+                  {collections.isPending ? "正在读取集合…" : "全部已发布知识"}
+                </option>
+                {collections.data?.filter((item) => !item.is_system).map((collection) => (
+                  <option key={collection.slug} value={collection.slug}>{collection.name}</option>
+                ))}
+              </select>
+              <span className="mt-2 block text-xs font-normal leading-5 text-muted-ink">
+                默认生成标准报告，最多引用 12 条证据；可在报告页调整高级参数。
+              </span>
+            </label>
+            <Button
+              className="mt-3 w-full"
+              disabled={start.isPending || collections.isPending || collections.isError}
+              size="lg"
+              type="submit"
+            >
+              {start.isPending ? <LoaderCircle className="animate-spin" size={17} /> : <Play size={17} />}
+              {start.isPending ? "正在启动…" : "开始研究"}
+            </Button>
+          </div>
+          {collections.error instanceof Error ? (
+            <div className="lg:col-span-2">
+              <ErrorBlock error={collections.error} onRetry={() => collections.refetch()} />
+            </div>
+          ) : null}
+          {start.error instanceof Error ? (
+            <div className="lg:col-span-2"><ErrorBlock error={start.error} /></div>
+          ) : null}
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function DashboardPage() {
   const dashboard = useQuery({ queryKey: ["dashboard"], queryFn: api.dashboard });
   if (dashboard.isPending) return <div className="p-6 lg:p-8"><LoadingBlock /></div>;
@@ -64,6 +170,8 @@ export function DashboardPage() {
         <div><p className="text-sm font-medium text-brand">Personal Knowledge Agent Platform</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Project workspace</h1><p className="mt-2 text-sm text-muted-ink">把研究从任务、可验证上下文到产物和人工审核连接起来。</p></div>
         <Link to="/?createProject=1"><Button><Plus size={16} /> New project</Button></Link>
       </header>
+
+      <QuickResearchLauncher />
 
       <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {METRICS.map(({ key, label, icon: Icon }) => <Card key={key}><CardContent className="flex items-center gap-4"><span className="grid size-10 place-items-center rounded-lg bg-brand-soft text-brand"><Icon size={20} /></span><div><p className="text-2xl font-semibold">{data[key].length}</p><p className="text-sm text-muted-ink">{label}</p></div></CardContent></Card>)}

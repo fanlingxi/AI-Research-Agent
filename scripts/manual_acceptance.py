@@ -291,7 +291,7 @@ def _search(api: ManualApi, args: argparse.Namespace) -> None:
 def _report(api: ManualApi, args: argparse.Namespace) -> None:
     report = api.request(
         "POST",
-        "/api/reports",
+        "/api/reports/execute",
         json={
             "query": args.query,
             "topic_slugs": args.topic_slug,

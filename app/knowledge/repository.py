@@ -46,6 +46,10 @@ class DecisionAlreadyApplied(ValueError):
         self.candidate_id = candidate_id
 
 
+class StaleReportExecution(RuntimeError):
+    """Raised when an expired report executor tries to write after a newer claim."""
+
+
 class KnowledgeRepository:
     """SQLite source of truth for ingestion, review, jobs, reports, and outbox state.
 
@@ -639,6 +643,20 @@ class KnowledgeRepository:
             raise KeyError(job_id)
         return self._job_from_row(row)
 
+    def get_resource_job(
+        self,
+        kind: Literal["ingestion", "report", "agent_run"],
+        resource_id: str,
+    ) -> KnowledgeJob:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM knowledge_jobs WHERE kind = ? AND resource_id = ?",
+                (kind, resource_id),
+            ).fetchone()
+        if row is None:
+            raise KeyError(resource_id)
+        return self._job_from_row(row)
+
     def claim_job(self, lease_seconds: int = 120) -> KnowledgeJob | None:
         now = datetime.now(tz=UTC)
         with self._connect() as connection:
@@ -669,16 +687,198 @@ class KnowledgeRepository:
             ).fetchone()
         return self._job_from_row(claimed)
 
-    def complete_job(self, job_id: str) -> None:
+    def claim_resource_job(
+        self,
+        kind: Literal["ingestion", "report", "agent_run"],
+        resource_id: str,
+        lease_seconds: int = 120,
+    ) -> KnowledgeJob | None:
+        """Claim one explicitly selected resource without consuming another queued job."""
+        now = datetime.now(tz=UTC)
+        now_text = now.isoformat()
         with self._connect() as connection:
-            connection.execute(
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT * FROM knowledge_jobs WHERE kind = ? AND resource_id = ?",
+                (kind, resource_id),
+            ).fetchone()
+            if row is None:
+                raise KeyError(resource_id)
+            if row["status"] == "running" and (
+                row["lease_until"] is None or str(row["lease_until"]) < now_text
+            ):
+                connection.execute(
+                    """
+                    UPDATE knowledge_jobs
+                    SET status = 'queued', lease_until = NULL, updated_at = ?
+                    WHERE id = ? AND status = 'running'
+                    """,
+                    (now_text, row["id"]),
+                )
+                row = connection.execute(
+                    "SELECT * FROM knowledge_jobs WHERE id = ?", (row["id"],)
+                ).fetchone()
+            if row["status"] != "queued":
+                return None
+            lease_until = (now + timedelta(seconds=lease_seconds)).isoformat()
+            updated = connection.execute(
                 """
                 UPDATE knowledge_jobs
-                SET status = 'completed', lease_until = NULL, last_error = NULL, updated_at = ?
+                SET status = 'running', attempts = attempts + 1,
+                    lease_until = ?, updated_at = ?
+                WHERE id = ? AND status = 'queued'
+                """,
+                (lease_until, now_text, row["id"]),
+            )
+            if updated.rowcount != 1:
+                return None
+            claimed = connection.execute(
+                "SELECT * FROM knowledge_jobs WHERE id = ?", (row["id"],)
+            ).fetchone()
+        return self._job_from_row(claimed)
+
+    def mark_report_for_dispatch(self, report_id: str) -> ResearchReport:
+        """Persist the user's intent to execute a report through the built-in dispatcher."""
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            report = connection.execute(
+                "SELECT status, run_metadata_json FROM reports WHERE id = ?", (report_id,)
+            ).fetchone()
+            if report is None:
+                raise KeyError(report_id)
+            if report["status"] not in {"queued", "running"}:
+                raise ValueError(f"Report cannot be dispatched from {report['status']}.")
+            job = connection.execute(
+                """
+                SELECT id, payload_json FROM knowledge_jobs
+                WHERE kind = 'report' AND resource_id = ?
+                """,
+                (report_id,),
+            ).fetchone()
+            if job is None:
+                raise KeyError(report_id)
+            payload = json.loads(job["payload_json"] or "{}")
+            payload["auto_execute"] = True
+            connection.execute(
+                """
+                UPDATE knowledge_jobs SET payload_json = ?, updated_at = ?
                 WHERE id = ?
                 """,
-                (_now(), job_id),
+                (_dump(payload), _now(), job["id"]),
             )
+            if report["status"] == "queued":
+                metadata = json.loads(report["run_metadata_json"] or "{}")
+                metadata["current_stage"] = "queued_for_dispatch"
+                connection.execute(
+                    """
+                    UPDATE reports SET run_metadata_json = ?, updated_at = ?
+                    WHERE id = ? AND status = 'queued'
+                    """,
+                    (_dump(metadata), _now(), report_id),
+                )
+        return self.get_report(report_id)
+
+    def claim_dispatched_report_job(self, lease_seconds: int = 120) -> KnowledgeJob | None:
+        """Claim the next report explicitly marked for built-in durable dispatch."""
+        now = datetime.now(tz=UTC)
+        now_text = now.isoformat()
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            rows = connection.execute(
+                """
+                SELECT job.* FROM knowledge_jobs AS job
+                JOIN reports AS report ON report.id = job.resource_id
+                WHERE job.kind = 'report'
+                  AND job.status IN ('queued', 'running')
+                  AND report.status IN ('queued', 'running')
+                ORDER BY job.created_at, job.id
+                """
+            ).fetchall()
+            selected = None
+            for row in rows:
+                payload = json.loads(row["payload_json"] or "{}")
+                if not payload.get("auto_execute"):
+                    continue
+                status = str(row["status"])
+                expired = status == "running" and (
+                    row["lease_until"] is None or str(row["lease_until"]) < now_text
+                )
+                if expired:
+                    connection.execute(
+                        """
+                        UPDATE knowledge_jobs
+                        SET status = 'queued', lease_until = NULL, updated_at = ?
+                        WHERE id = ? AND status = 'running'
+                        """,
+                        (now_text, row["id"]),
+                    )
+                    connection.execute(
+                        """
+                        UPDATE reports SET status = 'queued', updated_at = ?
+                        WHERE id = ? AND status = 'running'
+                        """,
+                        (now_text, row["resource_id"]),
+                    )
+                    status = "queued"
+                if status == "queued":
+                    selected = row
+                    break
+            if selected is None:
+                return None
+            lease_until = (now + timedelta(seconds=lease_seconds)).isoformat()
+            updated = connection.execute(
+                """
+                UPDATE knowledge_jobs
+                SET status = 'running', attempts = attempts + 1,
+                    lease_until = ?, updated_at = ?
+                WHERE id = ? AND status = 'queued'
+                """,
+                (lease_until, now_text, selected["id"]),
+            )
+            if updated.rowcount != 1:
+                return None
+            report_row = connection.execute(
+                "SELECT run_metadata_json FROM reports WHERE id = ?",
+                (selected["resource_id"],),
+            ).fetchone()
+            metadata = json.loads(report_row["run_metadata_json"] or "{}")
+            metadata["current_stage"] = "scheduled"
+            connection.execute(
+                """
+                UPDATE reports
+                SET status = 'running', run_metadata_json = ?, error = NULL, updated_at = ?
+                WHERE id = ?
+                """,
+                (_dump(metadata), now_text, selected["resource_id"]),
+            )
+            claimed = connection.execute(
+                "SELECT * FROM knowledge_jobs WHERE id = ?", (selected["id"],)
+            ).fetchone()
+        return self._job_from_row(claimed)
+
+    def complete_job(self, job_id: str, *, expected_attempt: int | None = None) -> bool:
+        with self._connect() as connection:
+            if expected_attempt is None:
+                updated = connection.execute(
+                    """
+                    UPDATE knowledge_jobs
+                    SET status = 'completed', lease_until = NULL,
+                        last_error = NULL, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (_now(), job_id),
+                )
+            else:
+                updated = connection.execute(
+                    """
+                    UPDATE knowledge_jobs
+                    SET status = 'completed', lease_until = NULL,
+                        last_error = NULL, updated_at = ?
+                    WHERE id = ? AND status = 'running' AND attempts = ?
+                    """,
+                    (_now(), job_id, expected_attempt),
+                )
+        return updated.rowcount == 1
 
     def complete_resource_job(self, kind: str, resource_id: str) -> None:
         with self._connect() as connection:
@@ -691,16 +891,54 @@ class KnowledgeRepository:
                 (_now(), kind, resource_id),
             )
 
-    def fail_job(self, job_id: str, error: str) -> None:
+    def renew_job_lease(
+        self,
+        job_id: str,
+        *,
+        expected_attempt: int,
+        lease_seconds: int,
+    ) -> bool:
+        now = datetime.now(tz=UTC)
+        lease_until = (now + timedelta(seconds=lease_seconds)).isoformat()
         with self._connect() as connection:
-            connection.execute(
+            updated = connection.execute(
                 """
-                UPDATE knowledge_jobs
-                SET status = 'failed', lease_until = NULL, last_error = ?, updated_at = ?
-                WHERE id = ?
+                UPDATE knowledge_jobs SET lease_until = ?, updated_at = ?
+                WHERE id = ? AND status = 'running' AND attempts = ?
                 """,
-                (error[:4000], _now(), job_id),
+                (lease_until, now.isoformat(), job_id, expected_attempt),
             )
+        return updated.rowcount == 1
+
+    def fail_job(
+        self,
+        job_id: str,
+        error: str,
+        *,
+        expected_attempt: int | None = None,
+    ) -> bool:
+        with self._connect() as connection:
+            if expected_attempt is None:
+                updated = connection.execute(
+                    """
+                    UPDATE knowledge_jobs
+                    SET status = 'failed', lease_until = NULL,
+                        last_error = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (error[:4000], _now(), job_id),
+                )
+            else:
+                updated = connection.execute(
+                    """
+                    UPDATE knowledge_jobs
+                    SET status = 'failed', lease_until = NULL,
+                        last_error = ?, updated_at = ?
+                    WHERE id = ? AND status = 'running' AND attempts = ?
+                    """,
+                    (error[:4000], _now(), job_id, expected_attempt),
+                )
+        return updated.rowcount == 1
 
     def job_summary(self) -> dict[str, int]:
         with self._connect() as connection:
@@ -1834,6 +2072,7 @@ class KnowledgeRepository:
         top_k: int,
         report_depth: str,
         run_metadata: dict[str, Any] | None = None,
+        auto_execute: bool = False,
     ) -> ResearchReport:
         report_id = f"report-{uuid4().hex}"
         now = _now()
@@ -1862,7 +2101,7 @@ class KnowledgeRepository:
                 connection,
                 kind="report",
                 resource_id=report_id,
-                payload={},
+                payload={"auto_execute": True} if auto_execute else {},
             )
         return self.get_report(report_id)
 
@@ -1880,19 +2119,97 @@ class KnowledgeRepository:
             raise KeyError(report_id)
         return self._report_from_row(row)
 
-    def update_report(
+    def reset_report_for_retry(
         self,
         report_id: str,
         *,
-        status: str,
+        auto_execute: bool = False,
+    ) -> ResearchReport:
+        """Reset a failed report and its durable job without changing its identity."""
+        now = _now()
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            report = connection.execute(
+                "SELECT status, run_metadata_json FROM reports WHERE id = ?", (report_id,)
+            ).fetchone()
+            if report is None:
+                raise KeyError(report_id)
+            if report["status"] != "failed":
+                raise ValueError(
+                    f"Only failed reports can be retried; report is {report['status']}."
+                )
+            job = connection.execute(
+                """
+                SELECT id, status FROM knowledge_jobs
+                WHERE kind = 'report' AND resource_id = ?
+                """,
+                (report_id,),
+            ).fetchone()
+            if job is None:
+                raise KeyError(report_id)
+            if job["status"] == "running":
+                raise ValueError("The report job is already running.")
+            if job["status"] not in {"failed", "queued"}:
+                raise ValueError(f"The report job cannot be retried from {job['status']}.")
+            metadata = json.loads(report["run_metadata_json"] or "{}")
+            metadata.pop("current_stage", None)
+            if auto_execute:
+                metadata["current_stage"] = "queued_for_dispatch"
+            connection.execute(
+                """
+                UPDATE reports
+                SET status = 'queued', content = '', evidence_json = '[]',
+                    evaluation_json = NULL, run_metadata_json = ?, error = NULL,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (_dump(metadata), now, report_id),
+            )
+            connection.execute(
+                """
+                UPDATE knowledge_jobs
+                SET status = 'queued', payload_json = ?, lease_until = NULL,
+                    last_error = NULL, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    _dump({"auto_execute": True}) if auto_execute else "{}",
+                    now,
+                    job["id"],
+                ),
+            )
+        return self.get_report(report_id)
+
+    def finalize_report_execution(
+        self,
+        report_id: str,
+        job_id: str,
+        *,
+        expected_attempt: int,
+        status: Literal["completed", "failed"],
         content: str | None = None,
         evidence: list[ReportEvidence] | None = None,
         evaluation: ReportEvaluation | None = None,
         run_metadata: dict[str, Any] | None = None,
         error: str | None = None,
     ) -> ResearchReport:
+        """Fence and commit a report plus its durable job as one terminal write."""
         report = self.get_report(report_id)
+        now = _now()
         with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            owned = connection.execute(
+                """
+                SELECT 1 FROM knowledge_jobs
+                WHERE id = ? AND kind = 'report' AND resource_id = ?
+                  AND status = 'running' AND attempts = ?
+                """,
+                (job_id, report_id, expected_attempt),
+            ).fetchone()
+            if owned is None:
+                raise StaleReportExecution(
+                    f"Report {report_id} is no longer owned by attempt {expected_attempt}."
+                )
             connection.execute(
                 """
                 UPDATE reports SET status = ?, content = ?, evidence_json = ?,
@@ -1902,7 +2219,12 @@ class KnowledgeRepository:
                 (
                     status,
                     report.content if content is None else content,
-                    _dump([item.model_dump() for item in (evidence or report.evidence)]),
+                    _dump(
+                        [
+                            item.model_dump()
+                            for item in (report.evidence if evidence is None else evidence)
+                        ]
+                    ),
                     (
                         _dump(evaluation.model_dump())
                         if evaluation is not None
@@ -1914,9 +2236,83 @@ class KnowledgeRepository:
                     ),
                     _dump(report.run_metadata if run_metadata is None else run_metadata),
                     error,
-                    _now(),
+                    now,
                     report_id,
                 ),
+            )
+            job_error = (error or "报告生成失败")[:4000] if status == "failed" else None
+            updated = connection.execute(
+                """
+                UPDATE knowledge_jobs
+                SET status = ?, lease_until = NULL, last_error = ?, updated_at = ?
+                WHERE id = ? AND status = 'running' AND attempts = ?
+                """,
+                (status, job_error, now, job_id, expected_attempt),
+            )
+            if updated.rowcount != 1:
+                raise StaleReportExecution(
+                    f"Report {report_id} is no longer owned by attempt {expected_attempt}."
+                )
+        return self.get_report(report_id)
+
+    def update_report(
+        self,
+        report_id: str,
+        *,
+        status: str,
+        content: str | None = None,
+        evidence: list[ReportEvidence] | None = None,
+        evaluation: ReportEvaluation | None = None,
+        run_metadata: dict[str, Any] | None = None,
+        error: str | None = None,
+        expected_job_attempt: int | None = None,
+    ) -> ResearchReport:
+        report = self.get_report(report_id)
+        where_clause = "WHERE id = ?"
+        parameters: list[Any] = [
+            status,
+            report.content if content is None else content,
+            _dump(
+                [
+                    item.model_dump()
+                    for item in (report.evidence if evidence is None else evidence)
+                ]
+            ),
+            (
+                _dump(evaluation.model_dump())
+                if evaluation is not None
+                else (
+                    _dump(report.evaluation.model_dump())
+                    if report.evaluation is not None
+                    else None
+                )
+            ),
+            _dump(report.run_metadata if run_metadata is None else run_metadata),
+            error,
+            _now(),
+            report_id,
+        ]
+        if expected_job_attempt is not None:
+            where_clause += """
+                AND EXISTS (
+                    SELECT 1 FROM knowledge_jobs AS job
+                    WHERE job.kind = 'report' AND job.resource_id = reports.id
+                      AND job.status = 'running' AND job.attempts = ?
+                )
+            """
+            parameters.append(expected_job_attempt)
+        with self._connect() as connection:
+            updated = connection.execute(
+                f"""
+                UPDATE reports SET status = ?, content = ?, evidence_json = ?,
+                    evaluation_json = ?, run_metadata_json = ?, error = ?,
+                    updated_at = ? {where_clause}
+                """,
+                parameters,
+            )
+        if expected_job_attempt is not None and updated.rowcount != 1:
+            raise StaleReportExecution(
+                f"Report {report_id} is no longer owned by attempt {expected_job_attempt}."
             )
         return self.get_report(report_id)
 

@@ -1,11 +1,23 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
-import { ApiError, api, type AgentRun, type AgentTrace, type MemoryProposal, type Project } from "../lib/api";
+import {
+  ApiError,
+  api,
+  type AgentRun,
+  type AgentTrace,
+  type KnowledgeHealth,
+  type MemoryProposal,
+  type Project,
+  type ResearchReport,
+} from "../lib/api";
 import { AgentRunPage } from "../pages/AgentRunPage";
+import { DashboardPage } from "../pages/DashboardPage";
+import { ReportsPage } from "../pages/ReportsPage";
 import { ReviewPage } from "../pages/ReviewPage";
 import { ErrorBlock } from "./AsyncState";
 import { CandidateReviewPanel } from "./CandidateReviewPanel";
@@ -32,6 +44,42 @@ const failedRun: AgentRun = {
 
 const failedTrace: AgentTrace = {
   run: failedRun, events: [], tool_calls: [], next_event_sequence: null, token_usage: {}, total_latency_ms: 0,
+};
+
+const queuedReport: ResearchReport = {
+  id: "report-queued",
+  query: "如何提高研究智能体的可靠性？",
+  topic_slugs: ["papers"],
+  top_k: 8,
+  report_depth: "standard",
+  status: "queued",
+  content: "",
+  evidence: [],
+  evaluation: null,
+  run_metadata: {},
+  error: null,
+  created_at: "2026-01-01T00:00:00+00:00",
+  updated_at: "2026-01-01T00:00:00+00:00",
+};
+
+const healthyKnowledge: KnowledgeHealth = {
+  status: "ok",
+  services: { report_dispatcher: { available: true, detail: "在线" } },
+  knowledge: {
+    schema_version: 15,
+    live_llm_configured: true,
+    llm_provider: "fixture",
+    jobs: {},
+    projections: {},
+  },
+};
+
+const emptyDashboard = {
+  active_projects: [],
+  recent_workspace_tasks: [],
+  recent_agent_runs: [],
+  pending_memory_proposals: [],
+  recent_artifacts: [],
 };
 
 afterEach(() => vi.restoreAllMocks());
@@ -74,5 +122,131 @@ describe("browser acceptance states", () => {
     expect(await screen.findByText("此 Run 未完成，因此没有可展示的输出。")).toBeInTheDocument();
     expect(screen.queryByText("读取输出摘要…")).not.toBeInTheDocument();
     expect(screen.queryByText(/invalid TaskAnalysis JSON/)).not.toBeInTheDocument();
+  });
+
+  it("starts one queued report directly from the report page", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "reports").mockResolvedValue([queuedReport]);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
+    const execute = vi.spyOn(api, "executeReport").mockResolvedValue({
+      ...queuedReport,
+      status: "running",
+      run_metadata: { current_stage: "scheduled" },
+    });
+
+    renderWithQuery(<MemoryRouter><ReportsPage /></MemoryRouter>);
+
+    await user.click(await screen.findByRole("button", { name: "立即执行" }));
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledWith(queuedReport.id);
+  });
+
+  it("retries a failed report in place", async () => {
+    const user = userEvent.setup();
+    const failedReport: ResearchReport = {
+      ...queuedReport,
+      id: "report-failed",
+      status: "failed",
+      error: "引用覆盖不足",
+    };
+    vi.spyOn(api, "reports").mockResolvedValue([failedReport]);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
+    const retry = vi.spyOn(api, "retryReport").mockResolvedValue({
+      ...failedReport,
+      status: "running",
+      error: null,
+    });
+
+    renderWithQuery(<MemoryRouter><ReportsPage /></MemoryRouter>);
+
+    await user.click(await screen.findByRole("button", { name: "清理失败结果并重新执行" }));
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(retry).toHaveBeenCalledWith(failedReport.id);
+  });
+
+  it("submits a three-character research question and starts it immediately", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "reports").mockResolvedValue([]);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
+    const submit = vi.spyOn(api, "submitAndExecuteReport").mockResolvedValue({
+      ...queuedReport,
+      status: "running",
+    });
+
+    renderWithQuery(<MemoryRouter><ReportsPage /></MemoryRouter>);
+    const input = await screen.findByRole("textbox", { name: "研究问题" });
+    expect(input).toHaveAttribute("minlength", "3");
+    await user.type(input, "研究题");
+    await user.click(screen.getByRole("button", { name: "提交并开始生成" }));
+
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ query: "研究题" }));
+  });
+
+  it("offers an in-place recovery action when the report dispatcher is offline", async () => {
+    const user = userEvent.setup();
+    const awaitingReport: ResearchReport = {
+      ...queuedReport,
+      run_metadata: { current_stage: "queued_for_dispatch" },
+    };
+    vi.spyOn(api, "reports").mockResolvedValue([awaitingReport]);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "knowledgeHealth").mockResolvedValue({
+      ...healthyKnowledge,
+      services: { report_dispatcher: { available: false, detail: "离线" } },
+    });
+    const execute = vi.spyOn(api, "executeReport").mockResolvedValue({
+      ...awaitingReport,
+      status: "running",
+      run_metadata: { current_stage: "scheduled" },
+    });
+
+    renderWithQuery(<MemoryRouter><ReportsPage /></MemoryRouter>);
+
+    await user.click(await screen.findByRole("button", { name: "重新启动报告执行器" }));
+    expect(execute).toHaveBeenCalledWith(awaitingReport.id);
+  });
+
+  it("places evidence scope before submit in the quick research flow", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "dashboard").mockResolvedValue(emptyDashboard);
+    vi.spyOn(api, "collections").mockResolvedValue([
+      { slug: "papers", name: "论文", is_system: false, ingestion_count: 1, updated_at: null },
+    ]);
+    const submit = vi.spyOn(api, "submitAndExecuteReport").mockResolvedValue(queuedReport);
+
+    renderWithQuery(<MemoryRouter><DashboardPage /></MemoryRouter>);
+
+    const input = await screen.findByRole("textbox", { name: "研究指令" });
+    const scope = screen.getByRole("combobox", { name: /证据范围/ });
+    const button = screen.getByRole("button", { name: "开始研究" });
+    expect(input.compareDocumentPosition(scope) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(scope.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await user.type(input, "研究可靠性");
+    await user.selectOptions(scope, "papers");
+    await user.click(button);
+
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({
+      query: "研究可靠性",
+      collection_slugs: ["papers"],
+    }));
+  });
+
+  it("blocks quick research when collection scope cannot be loaded", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "dashboard").mockResolvedValue(emptyDashboard);
+    vi.spyOn(api, "collections").mockRejectedValue(new Error("集合读取失败"));
+    const submit = vi.spyOn(api, "submitAndExecuteReport");
+
+    renderWithQuery(<MemoryRouter><DashboardPage /></MemoryRouter>);
+
+    await screen.findByText("集合读取失败");
+    const button = screen.getByRole("button", { name: "开始研究" });
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(submit).not.toHaveBeenCalled();
   });
 });

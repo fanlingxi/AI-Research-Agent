@@ -32,7 +32,7 @@ from app.domain_plugins.models import (
 )
 from app.domain_plugins.service import DomainPluginService
 from app.knowledge.extractor import LiveLLMRequiredError
-from app.knowledge.reports import KnowledgeReportService
+from app.knowledge.reports import KnowledgeReportDispatcher, KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import BulkCandidateDecision, CandidateDecision, CandidateStatus
 from app.knowledge.service import KnowledgeIngestionService
@@ -115,6 +115,12 @@ def create_app(
     repository = knowledge_repository or KnowledgeRepository(settings.knowledge_db_path)
     service = knowledge_service or KnowledgeIngestionService(repository, settings=settings)
     reports = report_service or KnowledgeReportService(repository, settings=settings)
+    report_dispatcher = KnowledgeReportDispatcher(
+        repository,
+        reports,
+        lease_seconds=settings.knowledge_worker_lease_seconds,
+        poll_seconds=min(settings.knowledge_worker_poll_seconds, 0.5),
+    )
     memory = memory_service or MemoryService(repository.memory_repository)
     agents = agent_run_service or AgentRunService(repository)
     domain_plugins = domain_plugin_service or DomainPluginService(
@@ -132,13 +138,18 @@ def create_app(
         app.state.knowledge_repository = repository
         app.state.knowledge_service = service
         app.state.report_service = reports
+        app.state.report_dispatcher = report_dispatcher
         app.state.memory_service = memory
         app.state.agent_run_service = agents
         app.state.domain_plugin_service = domain_plugins
         app.state.game_knowledge_authoring_service = game_knowledge
         app.state.workspace_projection_service = workspace
         repository.recover_running_work()
-        yield
+        report_dispatcher.start()
+        try:
+            yield
+        finally:
+            report_dispatcher.stop()
 
     app = FastAPI(
         title="AI Research Knowledge Core API",
@@ -153,6 +164,14 @@ def create_app(
             "services": {
                 "qdrant": _service_status(settings.qdrant_url),
                 "neo4j": _service_status(settings.neo4j_uri),
+                "report_dispatcher": {
+                    "available": report_dispatcher.is_alive,
+                    "detail": (
+                        "内置报告执行器在线"
+                        if report_dispatcher.is_alive
+                        else "内置报告执行器未启动"
+                    ),
+                },
             },
             "knowledge": {
                 "database": settings.knowledge_db_path,
@@ -355,14 +374,70 @@ def create_app(
 
     @app.post("/api/reports", status_code=202)
     def submit_report(payload: ReportCreateRequest) -> dict[str, Any]:
+        return submit_report_request(payload, auto_execute=False)
+
+    def submit_report_request(
+        payload: ReportCreateRequest,
+        *,
+        auto_execute: bool,
+    ) -> dict[str, Any]:
         try:
             values = payload.model_dump()
             values["topic_slugs"] = values.pop("collection_slugs") or values["topic_slugs"]
-            return reports.submit(**values).model_dump()
+            return reports.submit(**values, auto_execute=auto_execute).model_dump()
         except LiveLLMRequiredError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    def dispatch_report(
+        report_id: str,
+        *,
+        retry_failed: bool,
+    ) -> dict[str, Any]:
+        report = _require_report(repository, report_id)
+        if retry_failed:
+            try:
+                report = repository.reset_report_for_retry(report_id, auto_execute=True)
+            except KeyError as exc:
+                raise HTTPException(status_code=409, detail="Report job is missing.") from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            ensure_report_dispatcher()
+            return report.model_dump()
+        elif report.status not in {"queued", "running"}:
+            action = "retry" if report.status == "failed" else "create a new report"
+            raise HTTPException(
+                status_code=409,
+                detail=f"Report is {report.status}; {action} instead.",
+            )
+        try:
+            report = repository.mark_report_for_dispatch(report_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=409, detail="Report job is missing.") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        ensure_report_dispatcher()
+        return report.model_dump()
+
+    def ensure_report_dispatcher() -> None:
+        if not report_dispatcher.is_alive:
+            report_dispatcher.start()
+        report_dispatcher.wake()
+
+    @app.post("/api/reports/execute", status_code=202)
+    def submit_and_execute_report(payload: ReportCreateRequest) -> dict[str, Any]:
+        report = submit_report_request(payload, auto_execute=True)
+        ensure_report_dispatcher()
+        return report
+
+    @app.post("/api/reports/{report_id}/execute", status_code=202)
+    def execute_report(report_id: str) -> dict[str, Any]:
+        return dispatch_report(report_id, retry_failed=False)
+
+    @app.post("/api/reports/{report_id}/retry", status_code=202)
+    def retry_report(report_id: str) -> dict[str, Any]:
+        return dispatch_report(report_id, retry_failed=True)
 
     @app.get("/api/reports")
     def list_reports() -> list[dict[str, Any]]:

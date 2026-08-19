@@ -127,4 +127,38 @@ describe("workspace API client", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("creates and immediately executes a report from the React workbench", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "report one", status: "queued" }), { status: 202 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.submitAndExecuteReport({
+      query: "agent reliability",
+      collection_slugs: ["papers"],
+      top_k: 12,
+      report_depth: "standard",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reports/execute",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("retries one explicitly selected failed report", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "report one", status: "running" }), { status: 202 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.retryReport("report one");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reports/report%20one/retry",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

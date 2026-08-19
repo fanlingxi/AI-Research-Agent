@@ -300,4 +300,5 @@ def _work() -> None:
             time.sleep(0.05)
 
 
-threading.Thread(target=_work, daemon=True, name="knowledge-e2e-worker").start()
+if os.environ.get("E2E_AUTOSTART_WORKER", "1") == "1":
+    threading.Thread(target=_work, daemon=True, name="knowledge-e2e-worker").start()

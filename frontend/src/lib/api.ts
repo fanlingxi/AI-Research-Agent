@@ -552,6 +552,21 @@ export const api = {
     top_k: number;
     report_depth: "brief" | "standard" | "deep";
   }) => request<ResearchReport>("/api/reports", { method: "POST", body: JSON.stringify(input) }),
+  executeReport: (reportId: string) =>
+    request<ResearchReport>(`/api/reports/${path(reportId)}/execute`, { method: "POST" }),
+  retryReport: (reportId: string) =>
+    request<ResearchReport>(`/api/reports/${path(reportId)}/retry`, { method: "POST" }),
+  submitAndExecuteReport: async (input: {
+    query: string;
+    collection_slugs: string[];
+    top_k: number;
+    report_depth: "brief" | "standard" | "deep";
+  }) => {
+    return request<ResearchReport>("/api/reports/execute", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
   decisions: (projectId: string) =>
     request<Decision[]>(`/api/projects/${path(projectId)}/decisions?include_inactive=true`),
   artifacts: (projectId: string) =>

@@ -120,7 +120,7 @@ See [docs/demo/BENCHMARK_SUMMARY.md](docs/demo/BENCHMARK_SUMMARY.md) for exact s
 
 ## Project Workspace
 
-The React Workspace is a client over existing projections, not another fact store. Its routes cover the dashboard, project sections, task detail, AgentRun trace, artifact content, and proposal review. It does not expose checkpoint internals or arbitrary raw context payloads.
+The React Workspace is a client over existing projections, not another fact store. Its routes cover the dashboard, project sections, task detail, AgentRun trace, artifact content, proposal review, Knowledge Core, evidence reports, and runtime history. The dashboard and report page can create and immediately dispatch one explicitly selected report, poll its visible stages, and retry a failed report in place. A built-in lease-renewing report dispatcher recovers expired work, while attempt fencing and atomic report/job completion prevent stale executors from overwriting a newer run. The durable SQLite queue remains authoritative, and targeted dispatch never consumes an unrelated queued ingestion or AgentRun. The UI does not expose checkpoint internals or arbitrary raw context payloads.
 
 The repository also retains a Streamlit service in `docker-compose.yml` for compatibility with the earlier knowledge workflow. It is not the React Workspace. Public deployment documentation must select and verify the desired UI entry point rather than treating them as interchangeable.
 

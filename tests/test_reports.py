@@ -1,3 +1,7 @@
+import time
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier, Event, Thread
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -5,8 +9,8 @@ from app.api.main import create_app
 from app.config.settings import Settings
 from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.query import KnowledgeQueryService, _latin_query_terms
-from app.knowledge.reports import KnowledgeReportService
-from app.knowledge.repository import KnowledgeRepository
+from app.knowledge.reports import KnowledgeReportDispatcher, KnowledgeReportService
+from app.knowledge.repository import KnowledgeRepository, StaleReportExecution
 from app.knowledge.schemas import CandidateEntity, EvidenceSpan, ReportEvidence
 from app.knowledge.service import (
     KnowledgeIngestionService,
@@ -108,6 +112,24 @@ class _UngroundedLLM:
         return "# 报告\n\n没有合法引用的结论。"
 
 
+class _SlowGroundedLLM:
+    provider_name = "openai"
+
+    def __init__(self):
+        self.calls = 0
+        self.started = Event()
+
+    def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
+        self.calls += 1
+        self.started.set()
+        time.sleep(1.4)
+        return (
+            "# 研究报告\n\n## 背景\n正式知识支持证据约束写作。[E1]\n\n"
+            "## 评估\n引用忠实度在发布前接受检查。[E2]\n\n"
+            "## 结论\n报告结论可回溯到原文页码。[E1][E2]"
+        )
+
+
 def _report_stack(tmp_path):
     repository, ingestion = _repository_with_paper(tmp_path)
     settings = Settings(
@@ -138,6 +160,21 @@ def _report_stack(tmp_path):
     return repository, ingestion, reports, worker, llm
 
 
+def _wait_for_report_status(
+    repository: KnowledgeRepository,
+    report_id: str,
+    status: str,
+    timeout: float = 4.0,
+):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        report = repository.get_report(report_id)
+        if report.status == status:
+            return report
+        time.sleep(0.02)
+    raise AssertionError(f"report {report_id} did not reach {status}")
+
+
 def test_report_worker_revises_once_and_persists_evidence_evaluation(tmp_path) -> None:
     repository, ingestion, reports, worker, llm = _report_stack(tmp_path)
     submitted = reports.submit(
@@ -164,6 +201,317 @@ def test_report_worker_revises_once_and_persists_evidence_evaluation(tmp_path) -
     assert completed.run_metadata["generation_calls"] == 2
     assert completed.run_metadata["latency_ms"] >= 0
     assert repository.job_summary()["completed"] == 1
+
+
+def test_targeted_report_claim_does_not_consume_older_queued_work(tmp_path) -> None:
+    repository, ingestion, reports, _, _ = _report_stack(tmp_path)
+    older_ingestion = repository.create_ingestion(
+        topic="更早的入库任务",
+        sources=["older.pdf"],
+        pdf_max_pages=3,
+        enqueue=True,
+    )
+    report = reports.submit(
+        query="只执行指定报告任务",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+    )
+
+    claimed = repository.claim_resource_job("report", report.id, lease_seconds=30)
+
+    assert claimed is not None
+    assert claimed.kind == "report"
+    assert claimed.resource_id == report.id
+    assert repository.get_resource_job("ingestion", older_ingestion.id).status == "queued"
+    assert repository.get_resource_job("report", report.id).attempts == 1
+
+
+def test_targeted_claim_is_idempotent_until_its_lease_expires(tmp_path) -> None:
+    repository, ingestion, reports, _, _ = _report_stack(tmp_path)
+    report = reports.submit(
+        query="重复点击不得重复执行",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+    )
+
+    first = repository.claim_resource_job("report", report.id, lease_seconds=30)
+    duplicate = repository.claim_resource_job("report", report.id, lease_seconds=30)
+
+    assert first is not None
+    assert duplicate is None
+    assert repository.get_resource_job("report", report.id).attempts == 1
+
+    with repository._connect() as connection:
+        connection.execute(
+            "UPDATE knowledge_jobs SET lease_until = ? WHERE id = ?",
+            ("2000-01-01T00:00:00+00:00", first.id),
+        )
+    reclaimed = repository.claim_resource_job("report", report.id, lease_seconds=30)
+
+    assert reclaimed is not None
+    assert reclaimed.id == first.id
+    assert reclaimed.attempts == 2
+
+
+def test_concurrent_targeted_claims_have_a_single_winner(tmp_path) -> None:
+    repository, ingestion, reports, _, _ = _report_stack(tmp_path)
+    report = reports.submit(
+        query="并发点击只允许一次执行",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+    )
+    barrier = Barrier(2)
+
+    def claim():
+        barrier.wait()
+        return repository.claim_resource_job("report", report.id, lease_seconds=30)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _: claim(), range(2)))
+
+    assert sum(result is not None for result in results) == 1
+    assert repository.get_resource_job("report", report.id).attempts == 1
+
+
+def test_failed_report_job_can_be_cleanly_retried_with_the_same_identity(tmp_path) -> None:
+    repository, ingestion = _repository_with_paper(tmp_path)
+    service = KnowledgeReportService(
+        repository,
+        query_service=_Query(),
+        llm=_UngroundedLLM(),
+        require_live_llm=True,
+    )
+    submitted = service.submit(
+        query="失败后原位重试报告",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+    )
+    first_job = repository.claim_resource_job("report", submitted.id, lease_seconds=30)
+
+    assert first_job is not None
+    failed = service.execute_claimed(submitted.id, first_job.id, first_job.attempts)
+    assert failed.status == "failed"
+    assert failed.content
+    assert failed.evidence
+    assert repository.get_resource_job("report", submitted.id).status == "failed"
+
+    reset = repository.reset_report_for_retry(submitted.id)
+
+    assert reset.id == submitted.id
+    assert reset.status == "queued"
+    assert reset.content == ""
+    assert reset.evidence == []
+    assert reset.evaluation is None
+    assert reset.error is None
+    assert repository.get_resource_job("report", submitted.id).status == "queued"
+
+    service.llm = _RevisingLLM()
+    second_job = repository.claim_resource_job("report", submitted.id, lease_seconds=30)
+    assert second_job is not None
+    completed = service.execute_claimed(submitted.id, second_job.id, second_job.attempts)
+
+    assert completed.status == "completed"
+    assert second_job.attempts == 2
+    assert repository.get_resource_job("report", submitted.id).status == "completed"
+
+
+def test_expired_dispatched_report_is_recovered_after_restart(tmp_path) -> None:
+    repository, ingestion, reports, _, _ = _report_stack(tmp_path)
+    submitted = reports.submit(
+        query="服务重启后继续生成报告",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+        auto_execute=True,
+    )
+    abandoned = repository.claim_dispatched_report_job(lease_seconds=1)
+
+    assert abandoned is not None
+    assert repository.get_report(submitted.id).status == "running"
+
+    restarted = KnowledgeRepository(repository.path)
+    restarted.recover_running_work()
+    assert restarted.get_resource_job("report", submitted.id).status == "running"
+    settings = Settings(
+        knowledge_db_path=restarted.path,
+        knowledge_vault_path=str(tmp_path / "restarted-vault"),
+    )
+    restarted_service = KnowledgeReportService(
+        restarted,
+        query_service=_Query(),
+        llm=_RevisingLLM(),
+        settings=settings,
+        require_live_llm=True,
+    )
+    dispatcher = KnowledgeReportDispatcher(
+        restarted,
+        restarted_service,
+        lease_seconds=30,
+        poll_seconds=0.02,
+    )
+    dispatcher.start()
+    try:
+        completed = _wait_for_report_status(restarted, submitted.id, "completed")
+    finally:
+        dispatcher.stop()
+
+    assert completed.status == "completed"
+    recovered_job = restarted.get_resource_job("report", submitted.id)
+    assert recovered_job.status == "completed"
+    assert recovered_job.attempts == 2
+
+
+def test_report_lease_heartbeat_prevents_duplicate_long_execution(tmp_path) -> None:
+    repository, ingestion = _repository_with_paper(tmp_path)
+    llm = _SlowGroundedLLM()
+    settings = Settings(
+        knowledge_db_path=repository.path,
+        knowledge_vault_path=str(tmp_path / "heartbeat-vault"),
+    )
+    service = KnowledgeReportService(
+        repository,
+        query_service=_Query(),
+        llm=llm,
+        settings=settings,
+        require_live_llm=True,
+    )
+    submitted = service.submit(
+        query="长时间生成时续租避免重复调用",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+        auto_execute=True,
+    )
+    dispatcher = KnowledgeReportDispatcher(
+        repository,
+        service,
+        lease_seconds=1,
+        poll_seconds=0.01,
+    )
+    dispatcher.start()
+    try:
+        assert llm.started.wait(timeout=2.0)
+        initial_job = repository.get_resource_job("report", submitted.id)
+        initial_lease = initial_job.lease_until
+        time.sleep(1.05)
+        renewed_job = repository.get_resource_job("report", submitted.id)
+        duplicate = repository.claim_dispatched_report_job(lease_seconds=1)
+        completed = _wait_for_report_status(repository, submitted.id, "completed")
+    finally:
+        dispatcher.stop()
+
+    assert initial_lease is not None
+    assert renewed_job.lease_until is not None
+    assert renewed_job.lease_until > initial_lease
+    assert renewed_job.attempts == 1
+    assert duplicate is None
+    assert completed.status == "completed"
+    assert llm.calls == 1
+
+
+def test_worker_and_dispatcher_share_heartbeat_without_duplicate_llm_calls(tmp_path) -> None:
+    repository, ingestion = _repository_with_paper(tmp_path)
+    llm = _SlowGroundedLLM()
+    settings = Settings(
+        knowledge_db_path=repository.path,
+        knowledge_vault_path=str(tmp_path / "mixed-executors-vault"),
+    )
+    service = KnowledgeReportService(
+        repository,
+        query_service=_Query(),
+        llm=llm,
+        settings=settings,
+        require_live_llm=True,
+    )
+    ingestion_service = KnowledgeIngestionService(
+        repository,
+        settings=settings,
+        indexer=NoopChunkIndexer(),
+        projector=NoopKnowledgeProjector(),
+        require_live_llm=False,
+    )
+    worker = KnowledgeWorker(
+        repository,
+        ingestion_service=ingestion_service,
+        report_service=service,
+        lease_seconds=1,
+    )
+    submitted = service.submit(
+        query="通用执行器和工作台调度器混跑不重复计费",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+        auto_execute=True,
+    )
+    worker_thread = Thread(target=worker.run_once)
+    worker_thread.start()
+    assert llm.started.wait(timeout=2.0)
+
+    dispatcher = KnowledgeReportDispatcher(
+        repository,
+        service,
+        lease_seconds=1,
+        poll_seconds=0.01,
+    )
+    dispatcher.start()
+    try:
+        completed = _wait_for_report_status(repository, submitted.id, "completed")
+    finally:
+        dispatcher.stop()
+        worker_thread.join(timeout=2.0)
+
+    job = repository.get_resource_job("report", submitted.id)
+    assert completed.status == "completed"
+    assert job.status == "completed"
+    assert job.attempts == 1
+    assert llm.calls == 1
+    assert not worker_thread.is_alive()
+
+
+def test_stale_report_attempt_cannot_overwrite_new_owner(tmp_path) -> None:
+    repository, ingestion, reports, _, _ = _report_stack(tmp_path)
+    submitted = reports.submit(
+        query="旧执行不得覆盖新的报告执行",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+        auto_execute=True,
+    )
+    old = repository.claim_dispatched_report_job(lease_seconds=-1)
+    new = repository.claim_dispatched_report_job(lease_seconds=30)
+
+    assert old is not None
+    assert new is not None
+    assert new.attempts == old.attempts + 1
+    with pytest.raises(StaleReportExecution):
+        repository.update_report(
+            submitted.id,
+            status="failed",
+            error="stale stage write",
+            expected_job_attempt=old.attempts,
+        )
+    with pytest.raises(StaleReportExecution):
+        repository.finalize_report_execution(
+            submitted.id,
+            old.id,
+            expected_attempt=old.attempts,
+            status="failed",
+            error="stale terminal write",
+        )
+    assert not repository.complete_job(old.id, expected_attempt=old.attempts)
+    assert not repository.fail_job(old.id, "stale failure", expected_attempt=old.attempts)
+
+    running = repository.get_resource_job("report", submitted.id)
+    assert running.status == "running"
+    assert running.attempts == new.attempts
+    completed = repository.finalize_report_execution(
+        submitted.id,
+        new.id,
+        expected_attempt=new.attempts,
+        status="completed",
+        content="# 新执行结果",
+        run_metadata={"current_stage": "completed"},
+    )
+
+    assert completed.status == "completed"
+    assert completed.content == "# 新执行结果"
+    assert repository.get_resource_job("report", submitted.id).status == "completed"
 
 
 def test_reports_never_fall_back_to_mock_or_unpublished_evidence(tmp_path) -> None:
@@ -344,3 +692,112 @@ def test_report_api_exposes_content_evidence_and_download(tmp_path) -> None:
     assert download.status_code == 200
     assert "研究报告" in download.text
     assert download.headers["content-type"].startswith("text/markdown")
+
+
+def test_report_api_executes_only_the_selected_report_without_a_worker(tmp_path) -> None:
+    repository, ingestion, reports, worker, _ = _report_stack(tmp_path)
+    first = reports.submit(
+        query="保留在队列中的第一份报告",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+    )
+    second = reports.submit(
+        query="由工作台直接执行的第二份报告",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+    )
+    with TestClient(
+        create_app(
+            knowledge_repository=repository,
+            knowledge_service=worker.ingestion_service,
+            report_service=reports,
+        )
+    ) as client:
+        executed = client.post(f"/api/reports/{second.id}/execute")
+        _wait_for_report_status(repository, second.id, "completed")
+        repeated = client.post(f"/api/reports/{second.id}/execute")
+
+    assert executed.status_code == 202
+    assert repository.get_report(second.id).status == "completed"
+    assert repository.get_resource_job("report", second.id).attempts == 1
+    assert repository.get_report(first.id).status == "queued"
+    assert repository.get_resource_job("report", first.id).status == "queued"
+    assert repeated.status_code == 409
+
+
+def test_report_api_creates_and_dispatches_in_one_request(tmp_path) -> None:
+    repository, ingestion, reports, worker, _ = _report_stack(tmp_path)
+    application = create_app(
+        knowledge_repository=repository,
+        knowledge_service=worker.ingestion_service,
+        report_service=reports,
+    )
+    with TestClient(application) as client:
+        application.state.report_dispatcher.stop()
+        assert not application.state.report_dispatcher.is_alive
+        response = client.post(
+            "/api/reports/execute",
+            json={
+                "query": "一次请求创建并开始研究报告",
+                "collection_slugs": [ingestion.topic_slug],
+                "top_k": 2,
+                "report_depth": "standard",
+            },
+        )
+        report_id = response.json()["id"]
+        assert application.state.report_dispatcher.is_alive
+        completed = _wait_for_report_status(repository, report_id, "completed")
+
+    assert response.status_code == 202
+    assert application.state.report_dispatcher.is_alive is False
+    assert completed.status == "completed"
+    job = repository.get_resource_job("report", report_id)
+    assert job.payload["auto_execute"] is True
+    assert job.status == "completed"
+    assert job.attempts == 1
+
+
+def test_report_api_retries_a_failed_report_in_place(tmp_path) -> None:
+    repository, ingestion = _repository_with_paper(tmp_path)
+    settings = Settings(
+        knowledge_db_path=repository.path,
+        knowledge_vault_path=str(tmp_path / "vault"),
+    )
+    reports = KnowledgeReportService(
+        repository,
+        query_service=_Query(),
+        llm=_UngroundedLLM(),
+        settings=settings,
+        require_live_llm=True,
+    )
+    ingestion_service = KnowledgeIngestionService(
+        repository,
+        settings=settings,
+        indexer=NoopChunkIndexer(),
+        projector=NoopKnowledgeProjector(),
+        require_live_llm=False,
+    )
+    submitted = reports.submit(
+        query="工作台失败报告重试",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+    )
+    with TestClient(
+        create_app(
+            knowledge_repository=repository,
+            knowledge_service=ingestion_service,
+            report_service=reports,
+        )
+    ) as client:
+        first = client.post(f"/api/reports/{submitted.id}/execute")
+        _wait_for_report_status(repository, submitted.id, "failed")
+        reports.llm = _RevisingLLM()
+        retried = client.post(f"/api/reports/{submitted.id}/retry")
+        _wait_for_report_status(repository, submitted.id, "completed")
+
+    assert first.status_code == 202
+    assert retried.status_code == 202
+    assert repository.get_report(submitted.id).status == "completed"
+    job = repository.get_resource_job("report", submitted.id)
+    assert job.status == "completed"
+    assert job.attempts == 2

@@ -38,9 +38,11 @@ class KnowledgeWorker:
                     if result.status == "failed":
                         raise RuntimeError(result.error or "知识入库失败")
                 elif job.kind == "report":
-                    result = self.report_service.run(job.resource_id)
-                    if result.status == "failed":
-                        raise RuntimeError(result.error or "报告生成失败")
+                    self.report_service.execute_claimed_with_heartbeat(
+                        job,
+                        lease_seconds=self.lease_seconds,
+                    )
+                    return True
                 elif job.kind == "agent_run":
                     if self.agent_runtime is None:
                         raise RuntimeError("Agent Runtime is not configured")
@@ -56,9 +58,13 @@ class KnowledgeWorker:
                     self.ingestion_service.sync_collections(
                         list(job.payload.get("collection_slugs", []))
                     )
-                self.repository.complete_job(job.id)
+                self.repository.complete_job(job.id, expected_attempt=job.attempts)
             except Exception as exc:
-                self.repository.fail_job(job.id, str(exc))
+                self.repository.fail_job(
+                    job.id,
+                    str(exc),
+                    expected_attempt=job.attempts,
+                )
             return True
 
         projection = self.repository.claim_projection(self.lease_seconds)

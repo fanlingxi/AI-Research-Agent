@@ -10,6 +10,7 @@
 - 构建本地优先的证据约束知识 Agent 工作台，贯通知识、记忆、上下文、任务与工作区闭环。
 - 设计 ContextSnapshot 与引用校验机制，约束 Agent 输出并让 Artifact、MemoryProposal 全程可追溯。
 - 实现 Research 与 Game Modeling 双领域插件，支持确定性公式计算、版本校验和失效保护。
+- 将 React 报告工作流收敛为“指令提交—指定任务领取—可见进度—失败原位重试”，避免通用队列误消费其他任务。
 - 搭建隔离离线评测平面，13 个版本化契约用例全通过，覆盖恢复、幂等、范围与插件边界。
 
 ## Expanded interview version
@@ -24,7 +25,9 @@ Phase 6 adds an independent evaluation plane. Versioned cases build fresh local 
 
 | Source | Metric | Baseline status | Experiment |
 | --- | --- | --- | --- |
-| Backend verification | 112 passed, 3 skipped | Not applicable | Release audit |
+| Backend verification | 142 passed, 3 skipped | Not applicable | 2026-08-19 workbench regression |
+| React verification | 20 passed; production build passed | Not applicable | 2026-08-19 workbench regression |
+| Isolated browser acceptance | Dashboard executed report B while older report A stayed queued; B completed with evidence and 4/4 quality metrics; Runtime showed the built-in executor online; 0 console errors/warnings | Not applicable | 2026-08-19 mock-LLM browser fixture |
 | Phase 6 full suite | 13 passed, 0 failed/error/skipped; 4/4 isolation true | Candidate only | phase6-20260807T101302Z-7b90a436e6 |
 | Phase 6 demo subset | 3 passed, 0 failed/error/skipped; isolation passed | Candidate only | phase6-20260807T101505Z-534b3819bd |
 
@@ -64,8 +67,8 @@ The evaluator builds isolated fixture data but calls existing Context Builder, R
 
 ## Safe claims and limitations
 
-Safe claim: the documented experiments demonstrate deterministic local governance contracts through isolated fixtures.
+Safe claim: the documented experiments demonstrate deterministic local governance contracts and the targeted React report workflow through isolated fixtures.
 
-Do not claim: real-provider model quality, internet retrieval quality, production-database validation, browser validation, an accepted benchmark baseline, multi-agent orchestration, MCP, web search, or temporal memory.
+Do not claim: real-provider model quality, internet retrieval quality, production-database validation, an accepted benchmark baseline, multi-agent orchestration, MCP, web search, or temporal memory.
 
-The latest release-audit environment did not have Node/npm, so frontend test/build require a separate declared environment before a public UI release.
+The browser acceptance used a deterministic local model and temporary storage. It validates interaction and task isolation, not the semantic quality or cost of a real-provider report.
