@@ -152,7 +152,7 @@ def _render_knowledge_ingestion() -> None:
             placeholder="data/raw_papers/2302.04761.pdf\nhttps://arxiv.org/pdf/2302.04761",
             height=160,
         )
-        max_pages = st.number_input("每篇 PDF 页数上限", 1, 100, 20)
+        max_pages = st.number_input("每篇 PDF 页数上限", 1, 150, 20)
         submitted = st.form_submit_button("提交入库任务", type="primary", use_container_width=True)
     submitted_ingestion: dict[str, Any] | None = None
     if submitted:

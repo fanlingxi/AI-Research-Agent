@@ -27,7 +27,17 @@ describe("workspace API client", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/projects/project/workspace-tasks/task/agent-runs",
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          context_snapshot_id: "snapshot",
+          workflow: "research",
+          create_memory_proposal: false,
+          max_steps: 10,
+          max_tool_calls: 3,
+          token_budget: 6000,
+        }),
+      }),
     );
   });
 

@@ -101,7 +101,7 @@ The current public result is a **deterministic evaluation candidate**. No human-
 
 | Candidate experiment | Result | Isolation | Scope |
 | --- | --- | --- | --- |
-| `phase6-20260807T101302Z-7b90a436e6` | 13 passed, 0 failed, 0 error, 0 skipped | 4/4 attestations true | Full contract suite |
+| `phase6-20260817T164725Z-1cb4eed1d6` | 13 passed, 0 failed, 0 error, 0 skipped | 4/4 attestations true | Full contract suite |
 | `phase6-20260807T101505Z-534b3819bd` | 3 passed, 0 failed, 0 error, 0 skipped | passed | Reproducible demo subset |
 
 Manifest SHA-256: `5c1a4878d037c7df0187b8f50daf2a8b96e6fcadc5f3834a307ee0061f1705c2`.
@@ -159,9 +159,44 @@ docker compose config --quiet
 
 `docker compose up --build` starts the legacy-compatible API, worker, Qdrant, Neo4j, and Streamlit services. Treat it as a local development stack: set a non-default Neo4j password, review mounted data paths, and do not point it at an operational database without a backup and an explicit migration review.
 
+### OpenAI-compatible proxy smoke tests
+
+The backend already switches OpenAI-compatible chat endpoints manually through
+`LLM_PROVIDER=openai`, `OPENAI_BASE_URL`, and `LLM_MODEL`. Keep the provider
+key in the current shell or the Git-ignored `.env` file only; never pass it as
+a command-line argument or add it to source files. Keep `EMBEDDING_PROVIDER=hash`
+for this check, so the smoke test does not create embedding traffic.
+
+Run the bounded compatibility check once per endpoint. It discovers model IDs
+from `/models`, selects an economy-labelled `nano`, `mini`, or `flash` model,
+then sends one 32-token Chat Completions request. It prints a credential-free
+JSON result. The large-file/image endpoint is only validated as a chat proxy:
+this project does not currently upload files or images to a model endpoint.
+
+```bash
+./.venv/bin/python scripts/test_openai_proxy.py --base-url https://api.sharesai.xyz/v1
+./.venv/bin/python scripts/test_openai_proxy.py --base-url https://bnode.sharesai.xyz/v1
+```
+
+After the standard endpoint smoke test succeeds, use its reported
+`selected_model` for the synthetic live report test. The command keeps all
+SQLite and vault writes in pytest's temporary directory and caps each model
+completion at 512 tokens. `OPENAI_API_KEY` must already be set in the process
+environment or in the ignored local `.env` file.
+
+```bash
+LLM_PROVIDER=openai \
+OPENAI_BASE_URL=https://api.sharesai.xyz/v1 \
+LLM_MODEL=<selected_model> \
+LLM_MAX_TOKENS=512 \
+EMBEDDING_PROVIDER=hash \
+RUN_LIVE_LLM_INTEGRATION=1 \
+./.venv/bin/python -m pytest -q tests/test_report_live_integration.py
+```
+
 ### React Workspace
 
-The React application lives in `frontend/` and is run separately from the Compose Streamlit service:
+The React application lives in `frontend/` and is run separately from the Compose Streamlit service. It requires Node.js 22 LTS and uses the Corepack-managed `pnpm@11.21.0` pinned in `frontend/package.json`:
 
 ```bash
 cd frontend
@@ -195,12 +230,13 @@ The repository package name remains `research-knowledge-core` for compatibility.
 
 Latest release audit verification:
 
-- Backend pytest: **112 passed, 3 skipped**.
+- Backend pytest: **124 passed, 3 skipped**.
 - Ruff: **passed**.
 - `pip check`: **passed**.
 - `git diff --check`: **passed**.
 - `docker compose config --quiet`: **passed**.
-- Phase 6 full candidate: **13 passed, 0 failed, 0 error, 0 skipped; 4/4 isolation attestations true**.
+- React unit tests / production build: **8 passed / passed**.
+- Phase 6 full candidate: **13 passed, 0 failed, 0 error, 0 skipped; 4/4 isolation attestations true** (`phase6-20260817T164725Z-1cb4eed1d6`).
 - Phase 6 demo candidate: **3 passed, 0 failed; isolation passed**.
 
 These facts establish deterministic local contract coverage. They do not replace a human-approved benchmark baseline, browser build verification, a real-provider evaluation, or public-release security review.

@@ -17,20 +17,34 @@ REAL_DATABASE = ROOT / "data" / "knowledge" / "knowledge.db"
 TEST_RUNTIME_ROOT = Path(tempfile.mkdtemp(prefix="ai-research-agent-tests-"))
 
 # This module is loaded before test modules are imported, ensuring every test
-# service receives temporary stores and deterministic provider settings.
-os.environ.update(
-    {
-        "LLM_PROVIDER": "mock",
-        "KNOWLEDGE_DB_PATH": str(TEST_RUNTIME_ROOT / "knowledge.db"),
-        "AGENT_CHECKPOINT_PATH": str(TEST_RUNTIME_ROOT / "agent_checkpoints.db"),
-        "KNOWLEDGE_VAULT_PATH": str(TEST_RUNTIME_ROOT / "vault"),
-        "XDG_CACHE_HOME": str(TEST_RUNTIME_ROOT / "cache"),
-        "QDRANT_URL": "http://127.0.0.1:9",
-        "NEO4J_URI": "bolt://127.0.0.1:9",
-        "RUN_STORE_INTEGRATION": "0",
-        "RUN_LIVE_LLM_INTEGRATION": "0",
-    }
-)
+# service receives temporary stores and deterministic provider settings.  The
+# live LLM and live store checks are independently opt-in: they retain only
+# the caller-provided external configuration while keeping all local SQLite,
+# checkpoint, vault, and cache paths ephemeral.
+LIVE_LLM_INTEGRATION = os.getenv("RUN_LIVE_LLM_INTEGRATION") == "1"
+LIVE_STORE_INTEGRATION = os.getenv("RUN_STORE_INTEGRATION") == "1"
+_TEST_ENVIRONMENT = {
+    "KNOWLEDGE_DB_PATH": str(TEST_RUNTIME_ROOT / "knowledge.db"),
+    "AGENT_CHECKPOINT_PATH": str(TEST_RUNTIME_ROOT / "agent_checkpoints.db"),
+    "KNOWLEDGE_VAULT_PATH": str(TEST_RUNTIME_ROOT / "vault"),
+    "XDG_CACHE_HOME": str(TEST_RUNTIME_ROOT / "cache"),
+}
+if not LIVE_STORE_INTEGRATION:
+    _TEST_ENVIRONMENT.update(
+        {
+            "QDRANT_URL": "http://127.0.0.1:9",
+            "NEO4J_URI": "bolt://127.0.0.1:9",
+            "RUN_STORE_INTEGRATION": "0",
+        }
+    )
+if not LIVE_LLM_INTEGRATION:
+    _TEST_ENVIRONMENT.update(
+        {
+            "LLM_PROVIDER": "mock",
+            "RUN_LIVE_LLM_INTEGRATION": "0",
+        }
+    )
+os.environ.update(_TEST_ENVIRONMENT)
 
 
 def database_fingerprint(path: Path = REAL_DATABASE) -> dict[str, Any]:

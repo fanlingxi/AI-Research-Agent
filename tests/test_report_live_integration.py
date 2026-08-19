@@ -8,6 +8,7 @@ from app.config.settings import Settings
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import CandidateEntity, EvidenceSpan, ReportEvidence
+from tests.core_fixtures import persist_evidence_chunk
 
 pytestmark = pytest.mark.skipif(
     os.getenv("RUN_LIVE_LLM_INTEGRATION") != "1",
@@ -77,6 +78,7 @@ def test_live_report_is_grounded_and_versioned_without_local_user_data(tmp_path)
         page_end=1,
         quote="Atomic review stores the fact and projection intent together.",
     )
+    persist_evidence_chunk(repository, ingestion_id=ingestion.id, evidence=evidence)
     repository.add_candidate_entity(
         CandidateEntity(
             id="candidate-synthetic-public-paper",

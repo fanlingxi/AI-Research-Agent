@@ -448,7 +448,9 @@ export const api = {
         workflow: "research",
         create_memory_proposal: createProposal,
         max_steps: 10,
-        max_tool_calls: 1,
+        // All available snapshot tools are local, read-only context views.
+        // Allow the bounded research planner to use the full three-tool set.
+        max_tool_calls: 3,
         token_budget: 6000,
       }),
     }),

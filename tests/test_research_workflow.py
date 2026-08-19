@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from app.agent.checkpoint import AgentCheckpointFactory
 from app.agent.errors import ResearchLLMRequiredError
 from app.agent.models import AgentRunCreateRequest
+from app.agent.research_workflow import ResearchPlan
 from app.agent.runtime import RESEARCH_CHECKPOINT_NAMESPACE, AgentRuntime
 from app.agent.service import AgentRunService
 from app.agent.tools import build_research_tool_registry
@@ -198,6 +199,20 @@ def _research_request(snapshot_id: str, *, propose: bool = False) -> AgentRunCre
     )
 
 
+def test_research_plan_normalizes_common_descriptive_step_objects() -> None:
+    plan = ResearchPlan.model_validate(
+        {
+            "steps": [
+                {"step": 1, "action": "Read the immutable research input."},
+                {"step": 2, "description": "Write a cited conclusion."},
+            ],
+            "tool_sequence": ["context.research_input"],
+        }
+    )
+
+    assert plan.steps == ["Read the immutable research input.", "Write a cited conclusion."]
+
+
 def test_research_workflow_finalizes_cited_output_artifact_and_proposal_atomically(
     tmp_path,
 ) -> None:
@@ -247,6 +262,8 @@ def test_research_workflow_finalizes_cited_output_artifact_and_proposal_atomical
         {"position": 1, "description": "Read immutable research input."},
         {"position": 2, "description": "Write cited findings."},
     ]
+    assert '"task_constraints"' in llm.calls[0]
+    assert "constraints MUST be a JSON array of concise strings" in llm.calls[0]
     assert len(llm.calls) == 3
 
 

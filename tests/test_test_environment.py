@@ -10,6 +10,36 @@ from conftest import REAL_DATABASE, TEST_RUNTIME_ROOT, database_fingerprint
 from app.config.settings import get_settings
 
 
+def _assert_isolation_probe(environment_updates: dict[str, str], assertions: str) -> None:
+    """Import conftest in a fresh process to exercise import-time isolation."""
+
+    environment = os.environ.copy()
+    environment.update(environment_updates)
+    project_root = Path(__file__).resolve().parents[1]
+    python_path = environment.get("PYTHONPATH", "")
+    environment["PYTHONPATH"] = os.pathsep.join(
+        item for item in (str(project_root), str(project_root / "tests"), python_path) if item
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import conftest; "
+                "from app.config.settings import get_settings; "
+                "settings = get_settings(); "
+                + assertions
+            ),
+        ],
+        cwd=project_root,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_application_defaults_are_redirected_before_imports(pytestconfig) -> None:
     settings = get_settings()
 
@@ -18,8 +48,53 @@ def test_application_defaults_are_redirected_before_imports(pytestconfig) -> Non
     assert settings.knowledge_vault_path == str(TEST_RUNTIME_ROOT / "vault")
     assert settings.qdrant_url == "http://127.0.0.1:9"
     assert settings.neo4j_uri == "bolt://127.0.0.1:9"
+    assert os.environ["RUN_LIVE_LLM_INTEGRATION"] == "0"
+    assert os.environ["RUN_STORE_INTEGRATION"] == "0"
     assert REAL_DATABASE not in (TEST_RUNTIME_ROOT / "knowledge.db").parents
     assert database_fingerprint() == pytestconfig._real_database_baseline
+
+
+def test_live_llm_opt_in_preserves_only_caller_llm_configuration() -> None:
+    _assert_isolation_probe(
+        {
+            "RUN_LIVE_LLM_INTEGRATION": "1",
+            "RUN_STORE_INTEGRATION": "0",
+            "LLM_PROVIDER": "openai",
+            "LLM_MODEL": "probe-live-model",
+            "OPENAI_BASE_URL": "https://llm-probe.invalid/v1",
+            "OPENAI_API_KEY": "probe-key-not-a-secret",
+        },
+        (
+            "assert settings.llm_provider == 'openai'; "
+            "assert settings.llm_model == 'probe-live-model'; "
+            "assert settings.openai_base_url == 'https://llm-probe.invalid/v1'; "
+            "assert settings.qdrant_url == 'http://127.0.0.1:9'; "
+            "assert settings.neo4j_uri == 'bolt://127.0.0.1:9'; "
+            "assert settings.knowledge_db_path.startswith(conftest.TEST_RUNTIME_ROOT.as_posix())"
+        ),
+    )
+
+
+def test_live_store_opt_in_preserves_store_configuration_but_not_default_llm() -> None:
+    _assert_isolation_probe(
+        {
+            "RUN_LIVE_LLM_INTEGRATION": "0",
+            "RUN_STORE_INTEGRATION": "1",
+            "LLM_PROVIDER": "openai",
+            "QDRANT_URL": "http://qdrant-probe.invalid:6333",
+            "NEO4J_URI": "bolt://neo4j-probe.invalid:7687",
+            "NEO4J_USERNAME": "probe-user",
+            "NEO4J_PASSWORD": "probe-password-not-a-secret",
+        },
+        (
+            "assert settings.llm_provider == 'mock'; "
+            "assert settings.qdrant_url == 'http://qdrant-probe.invalid:6333'; "
+            "assert settings.neo4j_uri == 'bolt://neo4j-probe.invalid:7687'; "
+            "assert settings.neo4j_username == 'probe-user'; "
+            "assert settings.neo4j_password == 'probe-password-not-a-secret'; "
+            "assert settings.knowledge_db_path.startswith(conftest.TEST_RUNTIME_ROOT.as_posix())"
+        ),
+    )
 
 
 def test_importing_api_module_does_not_initialize_stores(

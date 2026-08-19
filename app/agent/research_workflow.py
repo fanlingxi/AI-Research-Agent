@@ -8,7 +8,7 @@ import time
 from typing import Any, Literal
 
 from langgraph.graph import END, START, StateGraph
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from app.agent.errors import ResearchValidationError
 from app.agent.state import ResearchAgentState
@@ -44,6 +44,26 @@ class ResearchPlan(BaseModel):
             "context.knowledge_bundles",
         ]
     ] = Field(min_length=1, max_length=3)
+
+    @field_validator("steps", mode="before")
+    @classmethod
+    def normalize_descriptive_step_objects(cls, value: Any) -> Any:
+        """Accept the common lossless {step, action} JSON shape from compatible proxies."""
+
+        if not isinstance(value, list):
+            return value
+        normalized: list[Any] = []
+        for item in value:
+            if isinstance(item, str):
+                normalized.append(item)
+                continue
+            if isinstance(item, dict):
+                description = item.get("action", item.get("description"))
+                if isinstance(description, str):
+                    normalized.append(description)
+                    continue
+            normalized.append(item)
+        return normalized
 
     @model_validator(mode="after")
     def requires_one_complete_snapshot_input(self):
@@ -141,13 +161,18 @@ class ResearchWorkflow:
         package = self.service.load_context_snapshot(state["run_id"])
         task_input = {
             "task": package.task.model_dump(mode="json"),
-            "constraints": package.constraints.model_dump(mode="json"),
+            # Keep the source constraint object distinct from the required
+            # output field.  Otherwise models can copy this object verbatim
+            # into TaskAnalysis.constraints, whose contract is a list.
+            "task_constraints": package.constraints.model_dump(mode="json"),
         }
         analysis = self._invoke_model(
             TaskAnalysis,
             prompt=(
                 "Analyze the task using only this snapshot task and constraint data.\n"
                 f"{_canonical_json(task_input)}\n"
+                "In the output, constraints MUST be a JSON array of concise strings, "
+                "never an object.\n"
                 "Return {research_question, intended_output, constraints}."
             ),
         )
@@ -177,6 +202,7 @@ class ResearchWorkflow:
                 "The plan must include context.research_input and use no more than "
                 f"{run.max_tool_calls} tool(s).\n"
                 f"Task analysis: {_canonical_json(analysis.model_dump(mode='json'))}\n"
+                "steps MUST be a JSON array of concise strings, not step objects.\n"
                 "Return {steps, tool_sequence}."
             ),
         )

@@ -62,7 +62,7 @@ class KnowledgeIngestionRequest(BaseModel):
     topic: str | None = Field(default=None, min_length=2, max_length=500)
     collection: str | None = Field(default=None, min_length=2, max_length=500)
     sources: list[str] = Field(min_length=1, max_length=30)
-    pdf_max_pages: int = Field(default=20, ge=1, le=100)
+    pdf_max_pages: int = Field(default=20, ge=1, le=150)
 
     @model_validator(mode="after")
     def collection_aliases_must_agree(self):

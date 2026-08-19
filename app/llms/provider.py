@@ -34,18 +34,30 @@ class LangChainChatClient(LLMClient):
     api_key: str
     base_url: str
     temperature: float = 0.2
+    max_tokens: int | None = None
+    reasoning_effort: str | None = None
     last_usage: dict[str, int] = field(default_factory=dict, init=False)
 
     def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
         from langchain_core.messages import HumanMessage, SystemMessage
         from langchain_openai import ChatOpenAI
 
-        chat = ChatOpenAI(
-            model=self.model,
-            api_key=self.api_key,
-            base_url=self.base_url,
-            temperature=self.temperature,
-        )
+        chat_options: dict[str, object] = {
+            "model": self.model,
+            "api_key": self.api_key,
+            "base_url": self.base_url,
+            "temperature": self.temperature,
+        }
+        if self.max_tokens is not None:
+            # Current LangChain releases translate their top-level max_tokens
+            # argument to max_completion_tokens.  Some OpenAI-compatible
+            # proxies only honor the legacy Chat Completions field, so keep it
+            # in the request body explicitly instead of silently dropping the
+            # configured output cap.
+            chat_options["extra_body"] = {"max_tokens": self.max_tokens}
+        if self.reasoning_effort is not None:
+            chat_options["reasoning_effort"] = self.reasoning_effort
+        chat = ChatOpenAI(**chat_options)
         response = chat.invoke(
             [
                 SystemMessage(
@@ -87,6 +99,8 @@ def get_llm_client(settings: Settings | None = None) -> LLMClient:
             api_key=settings.openai_api_key,
             base_url=settings.openai_base_url,
             temperature=settings.llm_temperature,
+            max_tokens=settings.llm_max_tokens,
+            reasoning_effort=settings.llm_reasoning_effort,
         )
 
     if settings.llm_provider == "qwen" and settings.qwen_api_key:
@@ -96,6 +110,8 @@ def get_llm_client(settings: Settings | None = None) -> LLMClient:
             api_key=settings.qwen_api_key,
             base_url=settings.qwen_base_url,
             temperature=settings.llm_temperature,
+            max_tokens=settings.llm_max_tokens,
+            reasoning_effort=settings.llm_reasoning_effort,
         )
 
     if settings.llm_provider == "deepseek" and settings.deepseek_api_key:
@@ -105,6 +121,8 @@ def get_llm_client(settings: Settings | None = None) -> LLMClient:
             api_key=settings.deepseek_api_key,
             base_url=settings.deepseek_base_url,
             temperature=settings.llm_temperature,
+            max_tokens=settings.llm_max_tokens,
+            reasoning_effort=settings.llm_reasoning_effort,
         )
 
     return MockLLMClient()

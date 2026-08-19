@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     llm_provider: Literal["mock", "openai", "qwen", "deepseek"] = "mock"
     llm_model: str = "gpt-4o-mini"
     llm_temperature: float = 0.2
+    llm_max_tokens: int | None = Field(default=None, ge=1)
+    llm_reasoning_effort: str | None = None
     llm_input_cost_per_million: float | None = None
     llm_output_cost_per_million: float | None = None
 

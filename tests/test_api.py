@@ -105,6 +105,29 @@ def test_health_is_knowledge_only_and_v1_routes_are_absent(tmp_path) -> None:
     assert old_task.status_code == 404
 
 
+def test_api_accepts_150_pdf_pages_and_rejects_151(tmp_path) -> None:
+    repository, service, reports, _ = _stack(tmp_path)
+    with TestClient(
+        create_app(
+            knowledge_repository=repository,
+            knowledge_service=service,
+            report_service=reports,
+        )
+    ) as client:
+        accepted = client.post(
+            "/api/knowledge/ingestions",
+            json={"sources": ["long-paper.pdf"], "pdf_max_pages": 150},
+        )
+        rejected = client.post(
+            "/api/knowledge/ingestions",
+            json={"sources": ["too-long-paper.pdf"], "pdf_max_pages": 151},
+        )
+
+    assert accepted.status_code == 202
+    assert accepted.json()["pdf_max_pages"] == 150
+    assert rejected.status_code == 422
+
+
 def test_api_queues_ingestion_and_worker_publishes_outbox(tmp_path) -> None:
     repository, service, reports, worker = _stack(tmp_path)
     with TestClient(
