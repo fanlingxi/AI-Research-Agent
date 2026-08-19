@@ -90,10 +90,22 @@ export function CandidateReviewPanel() {
       void client.invalidateQueries({ queryKey: ["knowledge-ingestions"] });
     },
   });
+  const autoApproveHighConfidence = useMutation({
+    mutationFn: () => api.autoApproveHighConfidence(selectedId),
+    onSuccess: (result) => {
+      setSelectedCandidateIds([]);
+      setReviewFeedback({
+        summary: `已按置信度 > ${Math.round(result.min_confidence_exclusive * 100)}% 自动处理 ${result.requested} 条：发布 ${result.applied} 条，保留 ${result.skipped.length} 条人工审核。`,
+        issues: result.skipped,
+      });
+      void client.invalidateQueries({ queryKey: ["knowledge-candidates", selectedId] });
+      void client.invalidateQueries({ queryKey: ["knowledge-ingestions"] });
+    },
+  });
   const selectedIngestion = useMemo(() => ingestions.data?.find((item) => item.id === selectedId), [ingestions.data, selectedId]);
   const pageCandidateIds = candidates.data?.items.map((record) => record.candidate.id) ?? [];
   const allPageSelected = pageCandidateIds.length > 0 && pageCandidateIds.every((candidateId) => selectedCandidateIds.includes(candidateId));
-  const reviewPending = decide.isPending || decideBulk.isPending || approveReady.isPending;
+  const reviewPending = decide.isPending || decideBulk.isPending || approveReady.isPending || autoApproveHighConfidence.isPending;
   const pageStart = candidates.data ? candidates.data.total ? candidates.data.offset + 1 : 0 : 0;
   const pageEnd = candidates.data ? Math.min(candidates.data.offset + candidates.data.items.length, candidates.data.total) : 0;
   const clearSelection = () => setSelectedCandidateIds([]);
@@ -116,6 +128,11 @@ export function CandidateReviewPanel() {
       approveReady.mutate();
     }
   };
+  const runAutoApproveHighConfidence = () => {
+    if (window.confirm("确认自动通过当前 ingestion 内置信度严格大于 90% 的候选吗？同名冲突实体和端点未发布的关系仍会保留人工审核。")) {
+      autoApproveHighConfidence.mutate();
+    }
+  };
   return (
     <Card>
       <CardHeader>
@@ -129,12 +146,12 @@ export function CandidateReviewPanel() {
         {ingestions.data?.length ? <label className="mt-4 block text-sm font-medium">Ingestion<select className="mt-1.5 w-full rounded-lg border bg-white px-3 py-2 text-sm" value={selectedId} onChange={(event) => changeIngestion(event.target.value)}>{ingestions.data.map((ingestion) => <option key={ingestion.id} value={ingestion.id}>{ingestion.collection} · {ingestion.topic} · {ingestion.status}</option>)}</select></label> : null}
         {selectedIngestion ? <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-ink"><Badge tone="neutral">{selectedIngestion.collection_slug}</Badge><span>{selectedIngestion.candidate_count} candidates</span><span>updated {formatDate(selectedIngestion.updated_at)}</span></div> : null}
         <div className="mt-5 rounded-lg border bg-slate-50 p-3"><div className="flex items-center gap-2 text-sm font-medium"><Filter size={15} />筛选待审核候选</div><div className="mt-3 grid gap-2 sm:grid-cols-3"><select aria-label="Candidate kind" className="rounded-lg border bg-white px-3 py-1.5 text-sm" value={kind} onChange={(event) => changeKind(event.target.value as typeof kind)}><option value="all">全部类型</option><option value="entity">仅实体</option><option value="relation">仅关系</option></select><select aria-label="Minimum confidence" className="rounded-lg border bg-white px-3 py-1.5 text-sm" value={minConfidence} onChange={(event) => changeMinConfidence(event.target.value as typeof minConfidence)}><option value="all">全部置信度</option><option value="0.8">≥ 80% 置信度</option><option value="0.9">≥ 90% 置信度</option></select><input aria-label="Paper ID" className="rounded-lg border bg-white px-3 py-1.5 text-sm" onChange={(event) => changePaperId(event.target.value)} placeholder="按文献 ID 筛选" value={paperId} /></div></div>
-        {candidates.data?.items.length ? <div className="mt-4 rounded-lg border border-brand/20 bg-brand-soft/35 p-3"><div className="flex flex-wrap items-center justify-between gap-3"><label className="flex items-center gap-2 text-sm font-medium"><input aria-label="全选当前页候选" checked={allPageSelected} className="size-4 accent-[#176469]" disabled={reviewPending} onChange={togglePageSelection} type="checkbox" />全选当前页</label><span className="text-xs text-muted-ink">已选 {selectedCandidateIds.length} 条；每页最多 {PAGE_SIZE} 条。</span></div><div className="mt-3 flex flex-wrap gap-2"><Button disabled={reviewPending} onClick={runApproveReady} size="sm" variant="secondary"><ShieldCheck size={14} />自动批准无冲突实体</Button><Button disabled={!selectedCandidateIds.length || reviewPending} onClick={() => runBulkDecision("approve")} size="sm"><Check size={14} />批量批准</Button><Button disabled={!selectedCandidateIds.length || reviewPending} onClick={() => runBulkDecision("defer")} size="sm" variant="outline"><PauseCircle size={14} />批量待定</Button><Button disabled={!selectedCandidateIds.length || reviewPending} onClick={() => runBulkDecision("reject")} size="sm" variant="danger"><X size={14} />批量驳回</Button></div><p className="mt-3 text-xs leading-5 text-muted-ink">先用筛选定位同类候选，再勾选批量处理。实体批准会自动跳过同名规范实体；关系只有两端实体已发布时才能批准。</p></div> : null}
+        {candidates.data?.items.length ? <div className="mt-4 rounded-lg border border-brand/20 bg-brand-soft/35 p-3"><div className="flex flex-wrap items-center justify-between gap-3"><label className="flex items-center gap-2 text-sm font-medium"><input aria-label="全选当前页候选" checked={allPageSelected} className="size-4 accent-[#176469]" disabled={reviewPending} onChange={togglePageSelection} type="checkbox" />全选当前页</label><span className="text-xs text-muted-ink">已选 {selectedCandidateIds.length} 条；每页最多 {PAGE_SIZE} 条。</span></div><div className="mt-3 flex flex-wrap gap-2"><Button disabled={reviewPending} onClick={runAutoApproveHighConfidence} size="sm"><ShieldCheck size={14} />自动通过 &gt;90%</Button><Button disabled={reviewPending} onClick={runApproveReady} size="sm" variant="secondary"><ShieldCheck size={14} />自动批准无冲突实体</Button><Button disabled={!selectedCandidateIds.length || reviewPending} onClick={() => runBulkDecision("approve")} size="sm"><Check size={14} />批量批准</Button><Button disabled={!selectedCandidateIds.length || reviewPending} onClick={() => runBulkDecision("defer")} size="sm" variant="outline"><PauseCircle size={14} />批量待定</Button><Button disabled={!selectedCandidateIds.length || reviewPending} onClick={() => runBulkDecision("reject")} size="sm" variant="danger"><X size={14} />批量驳回</Button></div><p className="mt-3 text-xs leading-5 text-muted-ink">先用筛选定位同类候选，再勾选批量处理。自动通过仅处理置信度严格大于 90% 的候选；实体同名冲突和端点未发布的关系不会被绕过。</p></div> : null}
         {reviewFeedback ? <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950" role="status"><p>{reviewFeedback.summary}</p>{reviewFeedback.issues.length ? <ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><>{reviewFeedback.issues.slice(0, 5).map((issue) => <li key={issue.candidate_id}>{issue.reason}</li>)}</>{reviewFeedback.issues.length > 5 ? <li>其余 {reviewFeedback.issues.length - 5} 条请保留在当前筛选中逐条处理。</li> : null}</ul> : null}</div> : null}
         {selectedId && candidates.isPending ? <div className="mt-5"><LoadingBlock label="读取本页 draft candidates…" /></div> : null}
         {candidates.error instanceof Error ? <div className="mt-5"><ErrorBlock error={candidates.error} onRetry={() => candidates.refetch()} /></div> : null}
         <div className="mt-5 space-y-3">{candidates.data?.items.map((record) => <CandidateCard key={record.candidate.id} onSelect={() => toggleCandidate(record.candidate.id)} pending={reviewPending} record={record} selected={selectedCandidateIds.includes(record.candidate.id)} onDecide={(decision) => decide.mutate({ candidateId: record.candidate.id, decision })} />)}</div>
-        {decide.error instanceof Error || decideBulk.error instanceof Error || approveReady.error instanceof Error ? <div className="mt-4"><ErrorBlock error={(decide.error ?? decideBulk.error ?? approveReady.error) as Error} /></div> : null}
+        {decide.error instanceof Error || decideBulk.error instanceof Error || approveReady.error instanceof Error || autoApproveHighConfidence.error instanceof Error ? <div className="mt-4"><ErrorBlock error={(decide.error ?? decideBulk.error ?? approveReady.error ?? autoApproveHighConfidence.error) as Error} /></div> : null}
         {candidates.data?.total ? <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4"><p className="text-xs text-muted-ink">显示 {pageStart}–{pageEnd} / {candidates.data.total} 条待审候选</p><div className="flex gap-2"><Button disabled={!offset || candidates.isFetching} size="sm" variant="outline" onClick={() => changePage(Math.max(0, offset - PAGE_SIZE))}><ChevronLeft size={14} />上一页</Button><Button disabled={candidates.data.next_offset === null || candidates.isFetching} size="sm" variant="outline" onClick={() => changePage(candidates.data?.next_offset ?? offset)}>下一页<ChevronRight size={14} /></Button></div></div> : null}
         {ingestions.data && !ingestions.data.length ? <EmptyBlock title="没有 Knowledge ingestion">请先在知识库提交 PDF，审核队列才会出现候选。</EmptyBlock> : null}
         {selectedId && !candidates.isPending && candidates.data && !candidates.data.total ? <EmptyBlock title="没有 draft candidate">当前筛选下没有待审候选；它们可能已经审核完成，或仍在等待抽取。</EmptyBlock> : null}

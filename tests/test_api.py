@@ -220,6 +220,42 @@ def test_api_bulk_candidate_decisions_are_scoped_and_idempotent(tmp_path) -> Non
     assert rejected.json()["applied"] == 1
 
 
+def test_api_auto_approval_uses_a_strict_confidence_cutoff(tmp_path) -> None:
+    repository, service, reports, worker = _stack(tmp_path)
+    with TestClient(
+        create_app(
+            knowledge_repository=repository,
+            knowledge_service=service,
+            report_service=reports,
+        )
+    ) as client:
+        ingestion = client.post(
+            "/api/knowledge/ingestions",
+            json={"sources": ["strict-confidence.pdf"], "pdf_max_pages": 2},
+        ).json()
+        assert worker.run_once()
+        candidates = client.get(
+            f"/api/knowledge/ingestions/{ingestion['id']}/candidates"
+        ).json()
+        for item in candidates:
+            repository.update_candidate(item["candidate"]["id"], {"confidence": 0.9})
+
+        at_cutoff = client.post(
+            f"/api/knowledge/ingestions/{ingestion['id']}/auto-approve-high-confidence"
+        )
+        repository.update_candidate(candidates[0]["candidate"]["id"], {"confidence": 0.91})
+        above_cutoff = client.post(
+            f"/api/knowledge/ingestions/{ingestion['id']}/auto-approve-high-confidence"
+        )
+
+    assert at_cutoff.status_code == 200
+    assert at_cutoff.json()["requested"] == 0
+    assert at_cutoff.json()["min_confidence_exclusive"] == 0.9
+    assert above_cutoff.status_code == 200
+    assert above_cutoff.json()["requested"] == 1
+    assert above_cutoff.json()["applied"] == 1
+
+
 def test_api_queues_ingestion_and_worker_publishes_outbox(tmp_path) -> None:
     repository, service, reports, worker = _stack(tmp_path)
     with TestClient(

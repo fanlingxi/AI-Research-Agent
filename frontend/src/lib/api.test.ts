@@ -113,4 +113,18 @@ describe("workspace API client", () => {
       }),
     );
   });
+
+  it("runs the strict high-confidence approval rule for one ingestion", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ requested: 3, applied: 2, skipped: [] }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.autoApproveHighConfidence("ingestion one");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/knowledge/ingestions/ingestion%20one/auto-approve-high-confidence",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

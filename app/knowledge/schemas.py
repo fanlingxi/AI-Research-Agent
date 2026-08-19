@@ -259,6 +259,12 @@ class BulkCandidateDecisionResult(BaseModel):
     skipped: list[BulkCandidateDecisionIssue] = Field(default_factory=list)
 
 
+class ConfidenceAutoApprovalResult(BulkCandidateDecisionResult):
+    """A deterministic automatic approval run using a strict confidence cutoff."""
+
+    min_confidence_exclusive: float
+
+
 class KnowledgeJob(BaseModel):
     id: str
     kind: Literal["ingestion", "report", "collection_sync", "agent_run"]

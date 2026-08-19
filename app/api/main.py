@@ -273,6 +273,14 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    @app.post("/api/knowledge/ingestions/{ingestion_id}/auto-approve-high-confidence")
+    def auto_approve_high_confidence_candidates(ingestion_id: str) -> dict[str, Any]:
+        _require_ingestion(repository, ingestion_id)
+        try:
+            return service.auto_approve_confident(ingestion_id).model_dump()
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     @app.post("/api/knowledge/ingestions/{ingestion_id}/approve-ready")
     def approve_ready_knowledge_candidates(ingestion_id: str) -> dict[str, Any]:
         _require_ingestion(repository, ingestion_id)

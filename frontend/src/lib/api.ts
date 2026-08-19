@@ -323,6 +323,10 @@ export interface BulkCandidateDecisionResult {
   skipped: Array<{ candidate_id: string; reason: string }>;
 }
 
+export interface ConfidenceAutoApprovalResult extends BulkCandidateDecisionResult {
+  min_confidence_exclusive: number;
+}
+
 export interface ReportEvidence {
   id: string;
   paper_id: string;
@@ -524,6 +528,11 @@ export const api = {
     `/api/knowledge/ingestions/${path(ingestionId)}/candidates/bulk-decision`,
     { method: "POST", body: JSON.stringify({ candidate_ids: candidateIds, decision }) },
   ),
+  autoApproveHighConfidence: (ingestionId: string) =>
+    request<ConfidenceAutoApprovalResult>(
+      `/api/knowledge/ingestions/${path(ingestionId)}/auto-approve-high-confidence`,
+      { method: "POST" },
+    ),
   approveReadyCandidates: (ingestionId: string) =>
     request<BulkApprovalResult>(`/api/knowledge/ingestions/${path(ingestionId)}/approve-ready`, {
       method: "POST",

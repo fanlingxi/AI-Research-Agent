@@ -24,6 +24,7 @@ from app.knowledge.schemas import (
     CandidateDecision,
     CandidateEntity,
     CandidateRelation,
+    ConfidenceAutoApprovalResult,
     DecisionResult,
     KnowledgeIngestion,
     ProjectionEvent,
@@ -361,6 +362,40 @@ class KnowledgeIngestionService:
             applied=applied,
             replayed=replayed,
             skipped=skipped,
+        )
+
+    def auto_approve_confident(
+        self, ingestion_id: str, *, min_confidence_exclusive: float = 0.9
+    ) -> ConfidenceAutoApprovalResult:
+        """Approve only candidates strictly above a configured confidence cutoff.
+
+        This remains a governed operation: exact entity-name conflicts and
+        relations whose endpoints are not both published are returned as
+        skipped items rather than being guessed or force-published.
+        """
+
+        if not 0 < min_confidence_exclusive < 1:
+            raise ValueError("自动审核阈值必须位于 0 与 1 之间。")
+        candidate_ids = [
+            item["candidate"]["id"]
+            for item in self.repository.list_candidates(ingestion_id, status="draft")
+            if float(item["candidate"]["confidence"]) > min_confidence_exclusive
+        ]
+        if not candidate_ids:
+            ingestion = self.repository.get_ingestion(ingestion_id)
+            return ConfidenceAutoApprovalResult(
+                ingestion=ingestion,
+                decision="approve",
+                requested=0,
+                min_confidence_exclusive=min_confidence_exclusive,
+            )
+        result = self.decide_bulk(
+            ingestion_id,
+            BulkCandidateDecision(candidate_ids=candidate_ids, decision="approve"),
+        )
+        return ConfidenceAutoApprovalResult(
+            **result.model_dump(),
+            min_confidence_exclusive=min_confidence_exclusive,
         )
 
     def process_projection(self, event: ProjectionEvent) -> KnowledgeIngestion:
