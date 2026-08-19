@@ -34,14 +34,18 @@ def apply_structural_migration(
     record cannot be separated by a normal application restart.
     """
 
-    applied = connection.execute(
-        "SELECT 1 FROM schema_migrations WHERE version = ?", (version,)
-    ).fetchone()
-    if applied:
-        return
-
     connection.execute("BEGIN IMMEDIATE")
     try:
+        # Recheck only after the write lock is acquired.  A second API/worker
+        # process can observe an unapplied version before the first process
+        # commits; executing the additive ALTER statement after that commit
+        # would otherwise fail with a duplicate-column error.
+        applied = connection.execute(
+            "SELECT 1 FROM schema_migrations WHERE version = ?", (version,)
+        ).fetchone()
+        if applied:
+            connection.commit()
+            return
         for statement in _statements(sql):
             connection.execute(statement)
         connection.execute(

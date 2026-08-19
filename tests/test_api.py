@@ -96,10 +96,13 @@ def test_health_is_knowledge_only_and_v1_routes_are_absent(tmp_path) -> None:
         )
     ) as client:
         health = client.get("/health")
+        proxied_health = client.get("/api/knowledge/health")
         old_research = client.post("/api/research", json={"query": "legacy"})
         old_task = client.get("/api/tasks/does-not-exist")
 
     assert health.status_code == 200
+    assert proxied_health.status_code == 200
+    assert proxied_health.json()["knowledge"]["schema_version"] == 15
     assert health.json()["knowledge"]["schema_version"] == 15
     assert old_research.status_code == 404
     assert old_task.status_code == 404
@@ -126,6 +129,36 @@ def test_api_accepts_150_pdf_pages_and_rejects_151(tmp_path) -> None:
     assert accepted.status_code == 202
     assert accepted.json()["pdf_max_pages"] == 150
     assert rejected.status_code == 422
+
+
+def test_api_returns_bounded_candidate_review_pages(tmp_path) -> None:
+    repository, service, reports, worker = _stack(tmp_path)
+    with TestClient(
+        create_app(
+            knowledge_repository=repository,
+            knowledge_service=service,
+            report_service=reports,
+        )
+    ) as client:
+        ingestion = client.post(
+            "/api/knowledge/ingestions",
+            json={"sources": ["page-fixture.pdf"], "pdf_max_pages": 2},
+        ).json()
+        assert worker.run_once()
+        page = client.get(
+            f"/api/knowledge/ingestions/{ingestion['id']}/candidate-page?limit=1&offset=0"
+        )
+        filtered = client.get(
+            f"/api/knowledge/ingestions/{ingestion['id']}/candidate-page?kind=entity&min_confidence=0.9&limit=25"
+        )
+
+    assert page.status_code == 200
+    assert page.json()["total"] > 1
+    assert len(page.json()["items"]) == 1
+    assert page.json()["next_offset"] == 1
+    assert filtered.status_code == 200
+    assert filtered.json()["total"] == 2
+    assert all(item["kind"] == "entity" for item in filtered.json()["items"])
 
 
 def test_api_queues_ingestion_and_worker_publishes_outbox(tmp_path) -> None:

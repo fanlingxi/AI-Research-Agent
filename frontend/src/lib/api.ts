@@ -249,9 +249,15 @@ export interface KnowledgeIngestion {
   topic_slug: string;
   collection: string;
   collection_slug: string;
+  sources: string[];
+  pdf_max_pages: number;
   status: string;
+  document_count: number;
   candidate_count: number;
   published_count: number;
+  queue_position: number | null;
+  job_attempts: number;
+  error: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -282,12 +288,70 @@ export interface EntityCandidate extends CandidateBase {
 export interface RelationCandidate extends CandidateBase {
   source_candidate_id: string;
   target_candidate_id: string;
+  source_name?: string;
+  target_name?: string;
   type: string;
 }
 
 export interface KnowledgeCandidate {
   kind: "entity" | "relation";
   candidate: EntityCandidate | RelationCandidate;
+}
+
+export interface KnowledgeCandidatePage {
+  items: KnowledgeCandidate[];
+  total: number;
+  offset: number;
+  limit: number;
+  next_offset: number | null;
+}
+
+export interface ReportEvidence {
+  id: string;
+  paper_id: string;
+  chunk_id: string;
+  title: string;
+  text: string;
+  page_start: number;
+  page_end: number;
+  score: number;
+}
+
+export interface ResearchReport {
+  id: string;
+  query: string;
+  topic_slugs: string[];
+  top_k: number;
+  report_depth: "brief" | "standard" | "deep";
+  status: "queued" | "running" | "completed" | "failed";
+  content: string;
+  evidence: ReportEvidence[];
+  evaluation: {
+    evidence_grounding: number;
+    citation_coverage: number;
+    citation_fidelity: number;
+    structure_score: number;
+    cited_evidence: string[];
+    invalid_citations: string[];
+    revision_applied: boolean;
+    passed: boolean;
+  } | null;
+  run_metadata: JsonObject;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeHealth {
+  status: string;
+  services: Record<string, { available?: boolean; detail?: string }>;
+  knowledge: {
+    schema_version: number;
+    live_llm_configured: boolean;
+    llm_provider: string;
+    jobs: Record<string, number>;
+    projections: Record<string, number>;
+  };
 }
 
 export interface KnowledgeSearchResult {
@@ -388,9 +452,35 @@ export const api = {
       }),
     }),
   ingestions: () => request<KnowledgeIngestion[]>("/api/knowledge/ingestions"),
+  submitIngestion: (input: { collection?: string; sources: string[]; pdf_max_pages: number }) =>
+    request<KnowledgeIngestion>("/api/knowledge/ingestions", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
   candidates: (ingestionId: string, status = "draft") =>
     request<KnowledgeCandidate[]>(
       `/api/knowledge/ingestions/${path(ingestionId)}/candidates${query({ status })}`,
+    ),
+  candidatePage: (
+    ingestionId: string,
+    options: {
+      status?: string;
+      kind?: "entity" | "relation";
+      paperId?: string;
+      minConfidence?: number;
+      offset?: number;
+      limit?: number;
+    } = {},
+  ) =>
+    request<KnowledgeCandidatePage>(
+      `/api/knowledge/ingestions/${path(ingestionId)}/candidate-page${query({
+        status: options.status ?? "draft",
+        kind: options.kind,
+        paper_id: options.paperId,
+        min_confidence: options.minConfidence,
+        offset: options.offset ?? 0,
+        limit: options.limit ?? 25,
+      })}`,
     ),
   decideCandidate: (candidateId: string, decision: "approve" | "reject" | "defer") =>
     request<unknown>(`/api/knowledge/candidates/${path(candidateId)}/decision`, {
@@ -402,6 +492,15 @@ export const api = {
     for (const slug of collectionSlugs) params.append("collection_slug", slug);
     return request<KnowledgeSearchResult>(`/api/knowledge/search?${params.toString()}`);
   },
+  knowledgeHealth: () => request<KnowledgeHealth>("/api/knowledge/health"),
+  reports: () => request<ResearchReport[]>("/api/reports"),
+  report: (reportId: string) => request<ResearchReport>(`/api/reports/${path(reportId)}`),
+  submitReport: (input: {
+    query: string;
+    collection_slugs: string[];
+    top_k: number;
+    report_depth: "brief" | "standard" | "deep";
+  }) => request<ResearchReport>("/api/reports", { method: "POST", body: JSON.stringify(input) }),
   decisions: (projectId: string) =>
     request<Decision[]>(`/api/projects/${path(projectId)}/decisions?include_inactive=true`),
   artifacts: (projectId: string) =>

@@ -792,6 +792,81 @@ class KnowledgeRepository:
             rows = connection.execute(query, params).fetchall()
         return [self._candidate_from_row(row) for row in rows]
 
+    def list_candidates_page(
+        self,
+        ingestion_id: str,
+        *,
+        status: CandidateStatus | None = None,
+        kind: CandidateKind | None = None,
+        paper_id: str | None = None,
+        min_confidence: float | None = None,
+        offset: int = 0,
+        limit: int = 25,
+    ) -> dict[str, Any]:
+        """Return a bounded review page while keeping the legacy list API intact.
+
+        Review queues can contain hundreds of relations.  The React workspace
+        needs a small, stable page rather than materialising every candidate in
+        the browser.  Entity names are resolved server-side for relation cards
+        so reviewers never have to interpret internal candidate identifiers.
+        """
+
+        clauses = ["ingestion_id = ?"]
+        params: list[Any] = [ingestion_id]
+        if status is not None:
+            clauses.append("status = ?")
+            params.append(status)
+        if kind is not None:
+            clauses.append("kind = ?")
+            params.append(kind)
+        if paper_id is not None:
+            clauses.append("json_extract(payload_json, '$.evidence.paper_id') = ?")
+            params.append(paper_id)
+        if min_confidence is not None:
+            clauses.append("CAST(json_extract(payload_json, '$.confidence') AS REAL) >= ?")
+            params.append(min_confidence)
+        where = " AND ".join(clauses)
+        with self._connect() as connection:
+            total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM candidates WHERE {where}", params
+                ).fetchone()[0]
+            )
+            rows = connection.execute(
+                (
+                    f"SELECT * FROM candidates WHERE {where} "
+                    "ORDER BY kind, created_at LIMIT ? OFFSET ?"
+                ),
+                [*params, limit, offset],
+            ).fetchall()
+            entity_rows = connection.execute(
+                "SELECT * FROM candidates WHERE ingestion_id = ? AND kind = 'entity'",
+                (ingestion_id,),
+            ).fetchall()
+
+        names = {
+            item["candidate"]["id"]: item["candidate"].get("name", "未命名实体")
+            for item in (self._candidate_from_row(row) for row in entity_rows)
+        }
+        items = [self._candidate_from_row(row) for row in rows]
+        for item in items:
+            if item["kind"] != "relation":
+                continue
+            candidate = item["candidate"]
+            candidate["source_name"] = names.get(
+                candidate["source_candidate_id"], "未解析实体"
+            )
+            candidate["target_name"] = names.get(
+                candidate["target_candidate_id"], "未解析实体"
+            )
+        return {
+            "items": items,
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "next_offset": offset + limit if offset + limit < total else None,
+        }
+
     def get_candidate(self, candidate_id: str) -> dict[str, Any]:
         with self._connect() as connection:
             row = connection.execute(

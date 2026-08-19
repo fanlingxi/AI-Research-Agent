@@ -9,6 +9,7 @@ import httpx
 import streamlit as st
 
 API_BASE_URL = os.getenv("AI_RESEARCH_API_URL", "http://localhost:8000")
+REACT_WORKSPACE_URL = os.getenv("AI_RESEARCH_REACT_URL", "http://localhost:5173")
 BEIJING_TIMEZONE = ZoneInfo("Asia/Shanghai")
 INGESTION_STATUS_LABELS = {
     "queued": "排队中",
@@ -20,9 +21,46 @@ INGESTION_STATUS_LABELS = {
     "interrupted": "已中断",
 }
 
-st.set_page_config(page_title="Research Knowledge Core", page_icon="R", layout="wide")
-st.title("Research Knowledge Core")
-st.caption("PDF 入库 · 人工审核 · 可靠投影 · 有据可查的研究报告")
+st.set_page_config(
+    page_title="Research Operations Console",
+    page_icon="◈",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+st.markdown(
+    """
+    <style>
+      .stApp { background: #f4f5f2; }
+      [data-testid="stSidebar"] { background: #102f31; }
+      [data-testid="stSidebar"] * { color: #edf5f3; }
+      [data-testid="stMetric"] {
+        background: #ffffff; border: 1px solid #e3e9e6; border-radius: 14px; padding: 14px;
+      }
+      .ops-hero {
+        background: linear-gradient(130deg, #123e40, #1b6769); border-radius: 18px;
+        color: #f5fbfa; padding: 28px 30px; margin-bottom: 1.4rem;
+      }
+      .ops-hero__eyebrow {
+        color: #b9ddda; font-size: .78rem; font-weight: 700; letter-spacing: .12em;
+        text-transform: uppercase; margin: 0 0 .35rem;
+      }
+      .ops-hero h1 { color: #ffffff; font-size: 2rem; margin: 0; }
+      .ops-hero p { color: #dcefed; margin: .65rem 0 0; max-width: 54rem; }
+      .ops-note {
+        background: #e8f2ef; border-left: 4px solid #1b6769; border-radius: 8px;
+        color: #234447; padding: .75rem 1rem;
+      }
+      .stButton > button, .stLinkButton > a { border-radius: 9px; font-weight: 600; }
+    </style>
+    <section class="ops-hero">
+      <p class="ops-hero__eyebrow">Research Knowledge Platform</p>
+      <h1>Operations Console</h1>
+      <p>用于队列观测、任务恢复、审核诊断和证据验收。
+      日常入库、检索与报告工作请在 React 主工作台完成。</p>
+    </section>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 def _api(method: str, path: str, **kwargs: Any) -> Any:
@@ -118,6 +156,77 @@ def _render_ingestion_status_card(item: dict[str, Any], *, key_prefix: str) -> N
         "刷新任务进度", key=f"{key_prefix}_refresh_{item['id']}"
     ):
         st.rerun()
+
+
+def _render_operations_overview() -> None:
+    """Keep Streamlit focused on operational visibility, not daily research work."""
+
+    st.subheader("运营概览")
+    st.markdown(
+        "<div class='ops-note'>React 是主工作台：提交文献、检索知识、审核候选和阅读报告。"
+        "此页保留系统健康、队列和恢复入口，避免普通流程接触底层诊断。</div>",
+        unsafe_allow_html=True,
+    )
+    st.link_button("打开 React 主工作台", REACT_WORKSPACE_URL, use_container_width=True)
+    try:
+        health = _api("GET", "/health")
+        ingestions, _ = _ingestion_options()
+        reports = _api("GET", "/api/reports")
+    except httpx.HTTPError as exc:
+        _show_api_error(exc)
+        return
+
+    services = health.get("services", {})
+    knowledge = health.get("knowledge", {})
+    jobs = knowledge.get("jobs", {})
+    metrics = st.columns(4)
+    metrics[0].metric("排队任务", jobs.get("queued", 0))
+    metrics[1].metric("运行中", jobs.get("running", 0))
+    waiting_review = sum(
+        max(0, item.get("candidate_count", 0) - item.get("published_count", 0))
+        for item in ingestions
+    )
+    metrics[2].metric("待审核候选", waiting_review)
+    metrics[3].metric("失败报告", sum(item.get("status") == "failed" for item in reports))
+
+    st.markdown("### 服务健康")
+    service_columns = st.columns(max(1, len(services)))
+    for column, (name, details) in zip(service_columns, services.items(), strict=False):
+        available = bool(details.get("available"))
+        if available:
+            column.success(f"{name} · 可用")
+        else:
+            column.error(f"{name} · {details.get('detail') or '不可用'}")
+
+    left, right = st.columns((1.2, 0.8), gap="large")
+    with left:
+        st.markdown("### 需要关注的任务")
+        active = [
+            item
+            for item in ingestions
+            if item.get("status") in {"queued", "running", "publishing", "failed", "interrupted"}
+        ]
+        if active:
+            for item in active[:5]:
+                _render_ingestion_status_card(item, key_prefix="ops")
+        else:
+            st.success("当前没有需要恢复或追踪的入库任务。")
+    with right:
+        st.markdown("### 运维边界")
+        st.info(
+            "审核中的 merge/link、失败重试和投影恢复应在本控制台完成；"
+            "日常候选审核请使用 React 审核中心。"
+        )
+        st.caption(
+            f"LLM：{knowledge.get('llm_provider', 'unknown')} · "
+            f"{'已配置真实模型' if knowledge.get('live_llm_configured') else '未配置真实模型'}"
+        )
+        st.markdown("#### 最近报告")
+        if reports:
+            for report in reports[:4]:
+                st.write(f"- **{report['status']}** · {report['query'][:48]}")
+        else:
+            st.caption("暂无报告任务。")
 
 
 def _evidence(item: dict[str, Any]) -> None:
@@ -636,17 +745,18 @@ def _render_task_history() -> None:
 
 
 with st.sidebar:
-    st.subheader("工作区")
-    page = st.radio("页面", ["知识入库", "审核队列", "知识探索", "研究报告", "任务历史"])
+    st.subheader("运营导航")
+    page = st.radio("控制台页面", ["运营概览", "任务与恢复", "审核诊断", "知识诊断", "报告验收"])
+    st.caption("主工作台：React · 诊断控制台：Streamlit")
     st.caption(f"API：{API_BASE_URL}")
 
-if page == "知识入库":
-    _render_knowledge_ingestion()
-elif page == "审核队列":
-    _render_review_queue()
-elif page == "知识探索":
-    _render_knowledge_explorer()
-elif page == "研究报告":
-    _render_reports()
-else:
+if page == "运营概览":
+    _render_operations_overview()
+elif page == "任务与恢复":
     _render_task_history()
+elif page == "审核诊断":
+    _render_review_queue()
+elif page == "知识诊断":
+    _render_knowledge_explorer()
+else:
+    _render_reports()

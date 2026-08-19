@@ -1,6 +1,6 @@
 import json
 
-from app.knowledge.extractor import SchemaKnowledgeExtractor
+from app.knowledge.extractor import SchemaKnowledgeExtractor, _sample_chunks
 from app.schemas.documents import DocumentChunk, PaperMetadata
 
 
@@ -73,3 +73,26 @@ def test_schema_extractor_repairs_once_and_normalizes_evidence() -> None:
     assert result.payload.reading.evidence.chunk_id == chunk.id
     assert result.payload.reading.evidence.page_start == 2
     assert result.payload.reading.evidence.quote in chunk.text
+
+
+def test_long_document_sampling_covers_opening_middle_and_conclusion() -> None:
+    chunks = [
+        DocumentChunk(
+            id=f"paper:long:chunk:{index}",
+            paper_id="paper:long",
+            title="Long Paper",
+            text=f"Chunk {index}",
+            chunk_index=index,
+            token_count=4,
+            source_tier="primary_fulltext",
+            metadata={"page_start": index + 1, "page_end": index + 1},
+        )
+        for index in range(100)
+    ]
+
+    selected = _sample_chunks(chunks)
+
+    assert len(selected) == 7
+    assert [chunk.chunk_index for chunk in selected[:2]] == [0, 1]
+    assert [chunk.chunk_index for chunk in selected[-2:]] == [98, 99]
+    assert {chunk.chunk_index for chunk in selected[2:-2]} == {25, 49, 73}

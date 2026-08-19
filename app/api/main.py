@@ -147,8 +147,7 @@ def create_app(
         lifespan=lifespan,
     )
 
-    @app.get("/health")
-    def health() -> dict[str, Any]:
+    def health_payload() -> dict[str, Any]:
         return {
             "status": "ok",
             "services": {
@@ -165,6 +164,16 @@ def create_app(
                 "projections": repository.projection_summary(),
             },
         }
+
+    @app.get("/health")
+    def health() -> dict[str, Any]:
+        """Operational health endpoint used by Streamlit and service probes."""
+        return health_payload()
+
+    @app.get("/api/knowledge/health")
+    def knowledge_health() -> dict[str, Any]:
+        """Health endpoint available through the React development proxy."""
+        return health_payload()
 
     @app.post("/api/knowledge/ingestions", status_code=202)
     def submit_knowledge_ingestion(payload: KnowledgeIngestionRequest) -> dict[str, Any]:
@@ -210,6 +219,27 @@ def create_app(
     ) -> list[dict[str, Any]]:
         _require_ingestion(repository, ingestion_id)
         return repository.list_candidates(ingestion_id, status=status)
+
+    @app.get("/api/knowledge/ingestions/{ingestion_id}/candidate-page")
+    def list_knowledge_candidate_page(
+        ingestion_id: str,
+        status: CandidateStatus | None = "draft",
+        kind: Literal["entity", "relation"] | None = None,
+        paper_id: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
+        min_confidence: Annotated[float | None, Query(ge=0, le=1)] = None,
+        offset: Annotated[int, Query(ge=0)] = 0,
+        limit: Annotated[int, Query(ge=1, le=100)] = 25,
+    ) -> dict[str, Any]:
+        _require_ingestion(repository, ingestion_id)
+        return repository.list_candidates_page(
+            ingestion_id,
+            status=status,
+            kind=kind,
+            paper_id=paper_id,
+            min_confidence=min_confidence,
+            offset=offset,
+            limit=limit,
+        )
 
     @app.patch("/api/knowledge/candidates/{candidate_id}")
     def patch_knowledge_candidate(

@@ -197,10 +197,33 @@ class SchemaKnowledgeExtractor:
 
 
 def _sample_chunks(chunks: list[DocumentChunk], limit: int = 7) -> list[DocumentChunk]:
+    """Select coverage across a long paper without inflating the LLM prompt.
+
+    The former first-five/last-two strategy gave no representation to methods,
+    experiments, or limitations in the middle of a long PDF.  Keep the bounded
+    seven-chunk budget, but reserve the opening and conclusion while spacing the
+    remaining selections through the body.
+    """
+
     if len(chunks) <= limit:
         return chunks
-    first_count = max(1, limit - 2)
-    return chunks[:first_count] + chunks[-2:]
+    if limit <= 0:
+        return []
+
+    opening_count = min(2, limit)
+    closing_count = min(2, max(0, limit - opening_count))
+    middle_count = limit - opening_count - closing_count
+    selected_indexes = list(range(opening_count))
+    if middle_count:
+        body_size = len(chunks) - opening_count - closing_count
+        selected_indexes.extend(
+            opening_count
+            + ((position + 1) * body_size) // (middle_count + 1)
+            - 1
+            for position in range(middle_count)
+        )
+    selected_indexes.extend(range(len(chunks) - closing_count, len(chunks)))
+    return [chunks[index] for index in dict.fromkeys(selected_indexes)]
 
 
 def _meaningful_name(value: str) -> bool:

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { FolderKanban, LayoutDashboard, Plus, SearchCheck, ShieldCheck } from "lucide-react";
+import { Activity, BookOpenCheck, FileText, FolderKanban, LayoutDashboard, Plus, SearchCheck, Settings2, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 
@@ -41,7 +41,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <nav className="space-y-1">
             <MainLink to="/" label="Dashboard" icon={<LayoutDashboard size={17} />} />
+            <MainLink to="/knowledge" label="知识库" icon={<BookOpenCheck size={17} />} />
             <MainLink to="/review" label="Review queue" icon={<SearchCheck size={17} />} />
+            <MainLink to="/reports" label="研究报告" icon={<FileText size={17} />} />
+            <MainLink to="/runtime" label="运行记录" icon={<Activity size={17} />} />
+            <a className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-ink" href="http://127.0.0.1:8503" rel="noreferrer" target="_blank"><Settings2 size={17} />运营控制台</a>
           </nav>
 
           <div className="mt-8 flex items-center justify-between px-2">
