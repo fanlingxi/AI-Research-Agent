@@ -215,6 +215,21 @@ class CandidateDecision(BaseModel):
         return value
 
 
+class BulkCandidateDecision(BaseModel):
+    """One explicit review action applied to a bounded set of candidates."""
+
+    candidate_ids: list[str] = Field(min_length=1, max_length=100)
+    decision: Literal["approve", "reject", "defer"]
+    review_note: str | None = Field(default=None, max_length=1200)
+
+    @field_validator("candidate_ids")
+    @classmethod
+    def candidate_ids_must_be_unique(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("candidate_ids must not contain duplicates")
+        return value
+
+
 class DecisionResult(BaseModel):
     candidate: dict[str, Any]
     applied: bool
@@ -228,6 +243,20 @@ class BulkApprovalResult(BaseModel):
     published_relations: int = 0
     skipped_conflicts: int = 0
     blocked_relations: int = 0
+
+
+class BulkCandidateDecisionIssue(BaseModel):
+    candidate_id: str
+    reason: str
+
+
+class BulkCandidateDecisionResult(BaseModel):
+    ingestion: KnowledgeIngestion
+    decision: Literal["approve", "reject", "defer"]
+    requested: int
+    applied: int = 0
+    replayed: int = 0
+    skipped: list[BulkCandidateDecisionIssue] = Field(default_factory=list)
 
 
 class KnowledgeJob(BaseModel):

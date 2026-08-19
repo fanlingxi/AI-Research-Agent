@@ -18,6 +18,9 @@ from app.knowledge.projector import (
 from app.knowledge.repository import DecisionAlreadyApplied, KnowledgeRepository
 from app.knowledge.schemas import (
     BulkApprovalResult,
+    BulkCandidateDecision,
+    BulkCandidateDecisionIssue,
+    BulkCandidateDecisionResult,
     CandidateDecision,
     CandidateEntity,
     CandidateRelation,
@@ -269,6 +272,95 @@ class KnowledgeIngestionService:
             published_relations=published_relations,
             skipped_conflicts=skipped_conflicts,
             blocked_relations=blocked_relations,
+        )
+
+    def decide_bulk(
+        self, ingestion_id: str, decision: BulkCandidateDecision
+    ) -> BulkCandidateDecisionResult:
+        """Apply an explicit, bounded selection of compatible review decisions.
+
+        The selection is scoped to one ingestion before any write occurs.  Each
+        candidate retains its normal transactional review event, so a stale row
+        can be replayed safely and one unresolved relation never rolls back
+        decisions that were already durably reviewed.
+        """
+
+        self.repository.get_ingestion(ingestion_id)
+        candidates = {
+            candidate_id: self.repository.get_candidate(candidate_id)
+            for candidate_id in decision.candidate_ids
+        }
+        if any(
+            item["candidate"]["ingestion_id"] != ingestion_id
+            for item in candidates.values()
+        ):
+            raise ValueError("批量审核的候选必须属于当前 ingestion。")
+
+        applied = 0
+        replayed = 0
+        skipped: list[BulkCandidateDecisionIssue] = []
+        for candidate_id in decision.candidate_ids:
+            stored = candidates[candidate_id]
+            # Preserve the single-candidate endpoint's idempotency semantics
+            # before looking for merge suggestions. A previously approved
+            # candidate naturally matches the entity it just created.
+            if stored["candidate"]["status"] != "draft":
+                try:
+                    result = self.decide(
+                        candidate_id,
+                        CandidateDecision(
+                            decision=decision.decision,
+                            review_note=decision.review_note,
+                        ),
+                    )
+                    applied += int(result.applied)
+                    replayed += int(result.replayed)
+                except ValueError as exc:
+                    skipped.append(
+                        BulkCandidateDecisionIssue(candidate_id=candidate_id, reason=str(exc))
+                    )
+                continue
+            if decision.decision == "approve" and stored["kind"] == "entity":
+                candidate = CandidateEntity.model_validate(stored["candidate"])
+                suggestions = (
+                    candidate.merge_suggestions
+                    or self.repository.find_merge_suggestions(
+                        name=candidate.name,
+                        entity_type=candidate.type,
+                        aliases=candidate.aliases,
+                    )
+                )
+                if any(item.match_kind == "exact" for item in suggestions):
+                    self.repository.set_merge_suggestions(candidate.id, suggestions)
+                    skipped.append(
+                        BulkCandidateDecisionIssue(
+                            candidate_id=candidate_id,
+                            reason="发现同名规范实体，请逐条选择合并目标。",
+                        )
+                    )
+                    continue
+            try:
+                result = self.decide(
+                    candidate_id,
+                    CandidateDecision(
+                        decision=decision.decision,
+                        review_note=decision.review_note,
+                    ),
+                )
+                applied += int(result.applied)
+                replayed += int(result.replayed)
+            except ValueError as exc:
+                skipped.append(
+                    BulkCandidateDecisionIssue(candidate_id=candidate_id, reason=str(exc))
+                )
+
+        return BulkCandidateDecisionResult(
+            ingestion=self.repository.refresh_ingestion_status(ingestion_id),
+            decision=decision.decision,
+            requested=len(decision.candidate_ids),
+            applied=applied,
+            replayed=replayed,
+            skipped=skipped,
         )
 
     def process_projection(self, event: ProjectionEvent) -> KnowledgeIngestion:

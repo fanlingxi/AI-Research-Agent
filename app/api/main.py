@@ -34,7 +34,7 @@ from app.domain_plugins.service import DomainPluginService
 from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
-from app.knowledge.schemas import CandidateDecision, CandidateStatus
+from app.knowledge.schemas import BulkCandidateDecision, CandidateDecision, CandidateStatus
 from app.knowledge.service import KnowledgeIngestionService
 from app.memory.schemas import (
     ArtifactCreateRequest,
@@ -256,6 +256,18 @@ def create_app(
     def decide_knowledge_candidate(candidate_id: str, payload: CandidateDecision) -> dict[str, Any]:
         try:
             return service.decide(candidate_id, payload).model_dump()
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Knowledge candidate not found.") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/knowledge/ingestions/{ingestion_id}/candidates/bulk-decision")
+    def decide_knowledge_candidates_bulk(
+        ingestion_id: str, payload: BulkCandidateDecision
+    ) -> dict[str, Any]:
+        _require_ingestion(repository, ingestion_id)
+        try:
+            return service.decide_bulk(ingestion_id, payload).model_dump()
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Knowledge candidate not found.") from exc
         except ValueError as exc:

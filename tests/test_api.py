@@ -161,6 +161,65 @@ def test_api_returns_bounded_candidate_review_pages(tmp_path) -> None:
     assert all(item["kind"] == "entity" for item in filtered.json()["items"])
 
 
+def test_api_bulk_candidate_decisions_are_scoped_and_idempotent(tmp_path) -> None:
+    repository, service, reports, worker = _stack(tmp_path)
+    with TestClient(
+        create_app(
+            knowledge_repository=repository,
+            knowledge_service=service,
+            report_service=reports,
+        )
+    ) as client:
+        first = client.post(
+            "/api/knowledge/ingestions",
+            json={"sources": ["bulk-first.pdf"], "pdf_max_pages": 2},
+        ).json()
+        assert worker.run_once()
+        first_candidate = client.get(
+            f"/api/knowledge/ingestions/{first['id']}/candidates"
+        ).json()[0]["candidate"]["id"]
+
+        second = client.post(
+            "/api/knowledge/ingestions",
+            json={"sources": ["bulk-second.pdf"], "pdf_max_pages": 2},
+        ).json()
+        assert worker.run_once()
+        second_candidate = client.get(
+            f"/api/knowledge/ingestions/{second['id']}/candidates"
+        ).json()[0]["candidate"]["id"]
+
+        cross_ingestion = client.post(
+            f"/api/knowledge/ingestions/{first['id']}/candidates/bulk-decision",
+            json={"candidate_ids": [first_candidate, second_candidate], "decision": "approve"},
+        )
+        invalid_duplicate = client.post(
+            f"/api/knowledge/ingestions/{first['id']}/candidates/bulk-decision",
+            json={"candidate_ids": [first_candidate, first_candidate], "decision": "approve"},
+        )
+        approved = client.post(
+            f"/api/knowledge/ingestions/{first['id']}/candidates/bulk-decision",
+            json={"candidate_ids": [first_candidate], "decision": "approve"},
+        )
+        replayed = client.post(
+            f"/api/knowledge/ingestions/{first['id']}/candidates/bulk-decision",
+            json={"candidate_ids": [first_candidate], "decision": "approve"},
+        )
+        rejected = client.post(
+            f"/api/knowledge/ingestions/{second['id']}/candidates/bulk-decision",
+            json={"candidate_ids": [second_candidate], "decision": "reject"},
+        )
+
+    assert cross_ingestion.status_code == 409
+    assert invalid_duplicate.status_code == 422
+    assert approved.status_code == 200
+    assert approved.json()["applied"] == 1
+    assert approved.json()["skipped"] == []
+    assert replayed.status_code == 200
+    assert replayed.json()["replayed"] == 1
+    assert rejected.status_code == 200
+    assert rejected.json()["applied"] == 1
+
+
 def test_api_queues_ingestion_and_worker_publishes_outbox(tmp_path) -> None:
     repository, service, reports, worker = _stack(tmp_path)
     with TestClient(

@@ -96,4 +96,21 @@ describe("workspace API client", () => {
       message: "后端暂时不可用",
     });
   });
+
+  it("submits an explicitly selected batch review to its ingestion", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ requested: 2, applied: 2, replayed: 0, skipped: [] }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.decideCandidatesBulk("ingestion one", ["candidate-a", "candidate-b"], "approve");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/knowledge/ingestions/ingestion%20one/candidates/bulk-decision",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ candidate_ids: ["candidate-a", "candidate-b"], decision: "approve" }),
+      }),
+    );
+  });
 });

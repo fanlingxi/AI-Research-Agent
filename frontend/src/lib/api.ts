@@ -306,6 +306,23 @@ export interface KnowledgeCandidatePage {
   next_offset: number | null;
 }
 
+export interface BulkApprovalResult {
+  ingestion: KnowledgeIngestion;
+  published_entities: number;
+  published_relations: number;
+  skipped_conflicts: number;
+  blocked_relations: number;
+}
+
+export interface BulkCandidateDecisionResult {
+  ingestion: KnowledgeIngestion;
+  decision: "approve" | "reject" | "defer";
+  requested: number;
+  applied: number;
+  replayed: number;
+  skipped: Array<{ candidate_id: string; reason: string }>;
+}
+
 export interface ReportEvidence {
   id: string;
   paper_id: string;
@@ -498,6 +515,18 @@ export const api = {
     request<unknown>(`/api/knowledge/candidates/${path(candidateId)}/decision`, {
       method: "POST",
       body: JSON.stringify({ decision }),
+    }),
+  decideCandidatesBulk: (
+    ingestionId: string,
+    candidateIds: string[],
+    decision: "approve" | "reject" | "defer",
+  ) => request<BulkCandidateDecisionResult>(
+    `/api/knowledge/ingestions/${path(ingestionId)}/candidates/bulk-decision`,
+    { method: "POST", body: JSON.stringify({ candidate_ids: candidateIds, decision }) },
+  ),
+  approveReadyCandidates: (ingestionId: string) =>
+    request<BulkApprovalResult>(`/api/knowledge/ingestions/${path(ingestionId)}/approve-ready`, {
+      method: "POST",
     }),
   searchKnowledge: (searchQuery: string, collectionSlugs: string[]) => {
     const params = new URLSearchParams({ q: searchQuery, top_k: "8" });
