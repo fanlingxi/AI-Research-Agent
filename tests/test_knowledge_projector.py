@@ -1,12 +1,23 @@
+import pytest
+
 from app.config.settings import Settings
 from app.knowledge.projector import Neo4jKnowledgeProjector, QdrantKnowledgeIndexer
 from app.knowledge.schemas import EvidenceSpan, PublishedEntity, PublishedRelation
 from app.schemas.documents import DocumentChunk
 
 
+class _Result:
+    def __init__(self, record) -> None:
+        self.record = record
+
+    def single(self):
+        return self.record
+
+
 class _Session:
-    def __init__(self, calls) -> None:
+    def __init__(self, calls, *, relation_endpoints_exist: bool) -> None:
         self.calls = calls
+        self.relation_endpoints_exist = relation_endpoints_exist
 
     def __enter__(self):
         return self
@@ -14,16 +25,28 @@ class _Session:
     def __exit__(self, *args) -> None:
         return None
 
-    def run(self, query: str, **params) -> None:
+    def run(self, query: str, **params):
         self.calls.append((query, params))
+        if "RETURN edge.id AS projected_relation_id" in query:
+            record = (
+                {"projected_relation_id": params["id"]}
+                if self.relation_endpoints_exist
+                else None
+            )
+            return _Result(record)
+        return _Result({})
 
 
 class _Driver:
-    def __init__(self) -> None:
+    def __init__(self, *, relation_endpoints_exist: bool = True) -> None:
         self.calls = []
+        self.relation_endpoints_exist = relation_endpoints_exist
 
     def session(self):
-        return _Session(self.calls)
+        return _Session(
+            self.calls,
+            relation_endpoints_exist=self.relation_endpoints_exist,
+        )
 
     def close(self) -> None:
         return None
@@ -78,6 +101,69 @@ def test_neo4j_projector_uses_only_v2_labels_and_controlled_edge(monkeypatch) ->
     assert "ResearchEntity" not in queries
     assert "CO_OCCURS_WITH" not in queries
     assert "RELATED" not in queries
+
+
+def test_neo4j_projector_rejects_relation_when_an_endpoint_is_missing(monkeypatch) -> None:
+    driver = _Driver(relation_endpoints_exist=False)
+    monkeypatch.setattr("neo4j.GraphDatabase.driver", lambda *args, **kwargs: driver)
+    projector = Neo4jKnowledgeProjector(Settings())
+    evidence = EvidenceSpan(
+        paper_id="paper:test",
+        chunk_id="paper:test:page:1:chunk:0",
+        page_start=1,
+        page_end=1,
+        quote="A grounded statement from the paper.",
+    )
+    relation = PublishedRelation(
+        id="relation-missing-endpoint",
+        source_entity_id="entity-missing-source",
+        target_entity_id="entity-missing-target",
+        type="SUPPORTS",
+        summary="缺失端点的关系不得被静默视为投影成功。",
+        confidence=0.91,
+        evidence=[evidence],
+        topic_slugs=["agent"],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "relation=relation-missing-endpoint, "
+            "source=entity-missing-source, target=entity-missing-target"
+        ),
+    ):
+        projector.upsert_relations([relation])
+
+
+def test_neo4j_projector_accepts_created_or_existing_relation(monkeypatch) -> None:
+    driver = _Driver()
+    monkeypatch.setattr("neo4j.GraphDatabase.driver", lambda *args, **kwargs: driver)
+    projector = Neo4jKnowledgeProjector(Settings())
+    evidence = EvidenceSpan(
+        paper_id="paper:test",
+        chunk_id="paper:test:page:1:chunk:0",
+        page_start=1,
+        page_end=1,
+        quote="A grounded statement from the paper.",
+    )
+    relation = PublishedRelation(
+        id="relation-idempotent",
+        source_entity_id="entity-source",
+        target_entity_id="entity-target",
+        type="SUPPORTS",
+        summary="新建或已存在的关系都应返回投影记录。",
+        confidence=0.91,
+        evidence=[evidence],
+        topic_slugs=["agent"],
+    )
+
+    projector.upsert_relations([relation])
+    projector.upsert_relations([relation])
+
+    relation_queries = [
+        query for query, _ in driver.calls if "RETURN edge.id AS projected_relation_id" in query
+    ]
+    assert len(relation_queries) == 2
 
 
 def test_qdrant_indexer_sanitizes_chunk_before_embedding_and_json_payload(monkeypatch) -> None:

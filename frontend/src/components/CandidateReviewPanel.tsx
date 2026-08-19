@@ -31,7 +31,7 @@ function CandidateCard({ record, onDecide, onSelect, pending, selected }: {
       <div className="flex flex-wrap items-start justify-between gap-3"><div className="flex min-w-0 gap-3"><input aria-label={`选择候选：${title}`} checked={selected} className="mt-1 size-4 accent-[#176469]" disabled={pending} onChange={onSelect} type="checkbox" /><div className="min-w-0"><p className="font-medium">{title}</p><p className="mt-1 text-xs text-muted-ink">{record.kind} · {candidate.type} · confidence {Math.round(candidate.confidence * 100)}%</p></div></div><StatusBadge status={candidate.status} /></div>
       <p className="mt-3 text-sm leading-6 text-slate-700">{candidate.summary}</p>
       <blockquote className="mt-3 rounded-md border-l-2 border-brand bg-brand-soft/40 px-3 py-2 text-xs leading-5 text-slate-700">“{candidate.evidence.quote}”<footer className="mt-1 font-mono text-[10px] text-muted-ink">{candidate.evidence.paper_id} · p. {candidate.evidence.page_start}{candidate.evidence.page_end !== candidate.evidence.page_start ? `–${candidate.evidence.page_end}` : ""}</footer></blockquote>
-      <div className="mt-3 flex flex-wrap justify-end gap-2"><Button disabled={pending} size="sm" variant="outline" onClick={() => onDecide("defer")}><PauseCircle size={14} /> Defer</Button><Button disabled={pending} size="sm" variant="outline" onClick={() => onDecide("reject")}><X size={14} /> Reject</Button><Button disabled={pending} size="sm" onClick={() => onDecide("approve")}><Check size={14} /> Approve</Button></div>
+      <div className="mt-3 flex flex-wrap justify-end gap-2"><Button disabled={pending} size="sm" variant="outline" onClick={() => onDecide("defer")}><PauseCircle size={14} /> 待定</Button><Button disabled={pending} size="sm" variant="outline" onClick={() => onDecide("reject")}><X size={14} /> 驳回</Button><Button disabled={pending} size="sm" onClick={() => onDecide("approve")}><Check size={14} /> 批准</Button></div>
     </article>
   );
 }
@@ -136,7 +136,7 @@ export function CandidateReviewPanel() {
   return (
     <Card>
       <CardHeader>
-        <div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">Knowledge</p><h2 className="mt-1 text-lg font-semibold">Candidate review</h2></div>
+        <div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">知识治理</p><h2 className="mt-1 text-lg font-semibold">知识候选审核</h2></div>
         <FlaskConical className="text-brand" size={20} />
       </CardHeader>
       <CardContent>

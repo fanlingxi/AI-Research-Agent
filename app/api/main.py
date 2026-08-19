@@ -35,7 +35,7 @@ from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.reports import KnowledgeReportDispatcher, KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import BulkCandidateDecision, CandidateDecision, CandidateStatus
-from app.knowledge.service import KnowledgeIngestionService
+from app.knowledge.service import KnowledgeIngestionDispatcher, KnowledgeIngestionService
 from app.memory.schemas import (
     ArtifactCreateRequest,
     ArtifactNextVersionRequest,
@@ -114,6 +114,12 @@ def create_app(
     settings = get_settings()
     repository = knowledge_repository or KnowledgeRepository(settings.knowledge_db_path)
     service = knowledge_service or KnowledgeIngestionService(repository, settings=settings)
+    ingestion_dispatcher = KnowledgeIngestionDispatcher(
+        repository,
+        service,
+        lease_seconds=settings.knowledge_worker_lease_seconds,
+        poll_seconds=min(settings.knowledge_worker_poll_seconds, 0.5),
+    )
     reports = report_service or KnowledgeReportService(repository, settings=settings)
     report_dispatcher = KnowledgeReportDispatcher(
         repository,
@@ -137,6 +143,7 @@ def create_app(
     async def lifespan(app: FastAPI):
         app.state.knowledge_repository = repository
         app.state.knowledge_service = service
+        app.state.ingestion_dispatcher = ingestion_dispatcher
         app.state.report_service = reports
         app.state.report_dispatcher = report_dispatcher
         app.state.memory_service = memory
@@ -145,11 +152,13 @@ def create_app(
         app.state.game_knowledge_authoring_service = game_knowledge
         app.state.workspace_projection_service = workspace
         repository.recover_running_work()
+        ingestion_dispatcher.start()
         report_dispatcher.start()
         try:
             yield
         finally:
             report_dispatcher.stop()
+            ingestion_dispatcher.stop()
 
     app = FastAPI(
         title="AI Research Knowledge Core API",
@@ -170,6 +179,14 @@ def create_app(
                         "内置报告执行器在线"
                         if report_dispatcher.is_alive
                         else "内置报告执行器未启动"
+                    ),
+                },
+                "ingestion_dispatcher": {
+                    "available": ingestion_dispatcher.is_alive,
+                    "detail": (
+                        "内置入库与知识投影执行器在线"
+                        if ingestion_dispatcher.is_alive
+                        else "内置入库与知识投影执行器未启动"
                     ),
                 },
             },
@@ -203,6 +220,21 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    @app.post("/api/knowledge/ingestions/execute", status_code=202)
+    def submit_and_execute_knowledge_ingestion(
+        payload: KnowledgeIngestionRequest,
+    ) -> dict[str, Any]:
+        try:
+            ingestion = service.submit(**payload.model_dump(), auto_execute=True)
+            if not ingestion_dispatcher.is_alive:
+                ingestion_dispatcher.start()
+            ingestion_dispatcher.wake()
+            return ingestion.model_dump()
+        except LiveLLMRequiredError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     @app.get("/api/knowledge/ingestions")
     def list_knowledge_ingestions() -> list[dict[str, Any]]:
         return [item.model_dump() for item in repository.list_ingestions()]
@@ -227,7 +259,28 @@ def create_app(
     def retry_knowledge_ingestion(ingestion_id: str) -> dict[str, Any]:
         _require_ingestion(repository, ingestion_id)
         try:
-            return service.retry(ingestion_id).model_dump()
+            ingestion = service.retry(ingestion_id, auto_execute=True)
+            if not ingestion_dispatcher.is_alive:
+                ingestion_dispatcher.start()
+            ingestion_dispatcher.wake()
+            return ingestion.model_dump()
+        except LiveLLMRequiredError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/knowledge/ingestions/{ingestion_id}/execute", status_code=202)
+    def execute_knowledge_ingestion(ingestion_id: str) -> dict[str, Any]:
+        _require_ingestion(repository, ingestion_id)
+        try:
+            service.ensure_execution_available()
+            ingestion = repository.mark_ingestion_for_dispatch(ingestion_id)
+            if not ingestion_dispatcher.is_alive:
+                ingestion_dispatcher.start()
+            ingestion_dispatcher.wake()
+            return ingestion.model_dump()
+        except LiveLLMRequiredError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 

@@ -34,9 +34,11 @@ class KnowledgeWorker:
         if job is not None:
             try:
                 if job.kind == "ingestion":
-                    result = self.ingestion_service.run(job.resource_id)
-                    if result.status == "failed":
-                        raise RuntimeError(result.error or "知识入库失败")
+                    self.ingestion_service.execute_claimed_with_heartbeat(
+                        job,
+                        lease_seconds=self.lease_seconds,
+                    )
+                    return True
                 elif job.kind == "report":
                     self.report_service.execute_claimed_with_heartbeat(
                         job,

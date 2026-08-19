@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
@@ -15,7 +17,11 @@ from app.knowledge.projector import (
     Neo4jKnowledgeProjector,
     QdrantKnowledgeIndexer,
 )
-from app.knowledge.repository import DecisionAlreadyApplied, KnowledgeRepository
+from app.knowledge.repository import (
+    DecisionAlreadyApplied,
+    KnowledgeRepository,
+    StaleIngestionExecution,
+)
 from app.knowledge.schemas import (
     BulkApprovalResult,
     BulkCandidateDecision,
@@ -27,11 +33,14 @@ from app.knowledge.schemas import (
     ConfidenceAutoApprovalResult,
     DecisionResult,
     KnowledgeIngestion,
+    KnowledgeJob,
     ProjectionEvent,
 )
 from app.llms.provider import LLMClient, MockLLMClient, get_llm_client
 from app.schemas.documents import DocumentChunk, PaperMetadata, ParsedDocument
 from app.tools.pdf_tools import parse_pdf_source
+
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeExtractor(Protocol):
@@ -97,9 +106,9 @@ class KnowledgeIngestionService:
         collection: str | None = None,
         sources: list[str],
         pdf_max_pages: int,
+        auto_execute: bool = False,
     ) -> KnowledgeIngestion:
-        if self.require_live_llm and self._is_mock_llm():
-            raise LiveLLMRequiredError("知识入库需要配置 OPENAI、QWEN 或 DEEPSEEK 的真实 API Key。")
+        self.ensure_execution_available()
         cleaned_sources = list(
             dict.fromkeys(source.strip() for source in sources if source.strip())
         )
@@ -110,19 +119,57 @@ class KnowledgeIngestionService:
             collection=collection,
             sources=cleaned_sources,
             pdf_max_pages=pdf_max_pages,
+            auto_execute=auto_execute,
         )
         return ingestion.model_copy(update={"deduplicated": deduplicated})
 
-    def run(self, ingestion_id: str) -> KnowledgeIngestion:
+    def run(
+        self,
+        ingestion_id: str,
+        *,
+        expected_job_id: str | None = None,
+        expected_job_attempt: int | None = None,
+    ) -> KnowledgeIngestion:
+        if (expected_job_id is None) != (expected_job_attempt is None):
+            raise ValueError("A claimed ingestion requires both its job id and attempt.")
         ingestion = self.repository.get_ingestion(ingestion_id)
-        self.repository.update_ingestion(ingestion_id, status="running")
+        try:
+            self.ensure_execution_available()
+        except LiveLLMRequiredError as exc:
+            if expected_job_id is not None and expected_job_attempt is not None:
+                return self.repository.finalize_ingestion_execution(
+                    ingestion_id,
+                    expected_job_id,
+                    expected_attempt=expected_job_attempt,
+                    status="failed",
+                    error=str(exc),
+                )
+            raise
+        if expected_job_id is not None and expected_job_attempt is not None:
+            ingestion = self.repository.begin_ingestion_execution(
+                ingestion_id,
+                expected_job_id,
+                expected_attempt=expected_job_attempt,
+            )
+        else:
+            ingestion = self.repository.update_ingestion(ingestion_id, status="running")
         errors: list[str] = []
         indexed_chunks: list[DocumentChunk] = []
         documents: list[tuple[PaperMetadata, list[DocumentChunk]]] = []
         try:
             for source in ingestion.sources:
                 try:
+                    self._assert_claim(
+                        ingestion_id,
+                        expected_job_id=expected_job_id,
+                        expected_job_attempt=expected_job_attempt,
+                    )
                     parsed = self.parser(source=source, max_pages=ingestion.pdf_max_pages)
+                    self._assert_claim(
+                        ingestion_id,
+                        expected_job_id=expected_job_id,
+                        expected_job_attempt=expected_job_attempt,
+                    )
                     paper = self._paper_from_document(parsed, source)
                     chunks = [
                         chunk.model_copy(
@@ -159,6 +206,8 @@ class KnowledgeIngestionService:
                     self.core_repository.upsert_chunks(chunks)
                     documents.append((paper, chunks))
                     indexed_chunks.extend(chunks)
+                except StaleIngestionExecution:
+                    raise
                 except Exception as exc:
                     errors.append(f"{source}：{exc}")
 
@@ -167,30 +216,146 @@ class KnowledgeIngestionService:
                     "没有任何 PDF 能够完成解析。" + (" " + "；".join(errors) if errors else "")
                 )
 
+            self._assert_claim(
+                ingestion_id,
+                expected_job_id=expected_job_id,
+                expected_job_attempt=expected_job_attempt,
+            )
             self.indexer.index(indexed_chunks)
             for paper, chunks in documents:
-                self._create_candidates(ingestion, paper, chunks)
+                candidates = self._candidate_batch(ingestion, paper, chunks)
+                self.repository.replace_draft_candidates_for_paper(
+                    ingestion.id,
+                    paper.id,
+                    candidates,
+                    expected_job_id=expected_job_id,
+                    expected_job_attempt=expected_job_attempt,
+                )
             warning = "；".join(errors) if errors else None
+            if expected_job_id is not None and expected_job_attempt is not None:
+                return self.repository.finalize_ingestion_execution(
+                    ingestion_id,
+                    expected_job_id,
+                    expected_attempt=expected_job_attempt,
+                    status="needs_review",
+                    error=warning,
+                )
             result = self.repository.update_ingestion(
-                ingestion_id,
-                status="needs_review",
-                error=warning,
+                ingestion_id, status="needs_review", error=warning
             )
             self.repository.complete_resource_job("ingestion", ingestion_id)
             return result
+        except StaleIngestionExecution:
+            raise
         except Exception as exc:
+            if expected_job_id is not None and expected_job_attempt is not None:
+                return self.repository.finalize_ingestion_execution(
+                    ingestion_id,
+                    expected_job_id,
+                    expected_attempt=expected_job_attempt,
+                    status="failed",
+                    error=str(exc),
+                )
             return self.repository.update_ingestion(ingestion_id, status="failed", error=str(exc))
 
-    def retry(self, ingestion_id: str) -> KnowledgeIngestion:
+    def retry(self, ingestion_id: str, *, auto_execute: bool = False) -> KnowledgeIngestion:
         ingestion = self.repository.get_ingestion(ingestion_id)
         if ingestion.status not in {"failed", "interrupted"}:
             raise ValueError("只有失败或中断的入库任务可以重试。")
-        return self.repository.reset_ingestion(ingestion_id)
+        self.ensure_execution_available()
+        return self.repository.reset_ingestion(ingestion_id, auto_execute=auto_execute)
+
+    def ensure_execution_available(self) -> None:
+        """Fail before any ingestion side effect when formal extraction lacks a live LLM."""
+        if self.require_live_llm and self._is_mock_llm():
+            raise LiveLLMRequiredError(
+                "知识入库需要配置 OPENAI、QWEN 或 DEEPSEEK 的真实 API Key。"
+            )
+
+    def execute_claimed(self, job: KnowledgeJob) -> KnowledgeIngestion:
+        """Execute one claimed ingestion while fencing every terminal write."""
+        try:
+            return self.run(
+                job.resource_id,
+                expected_job_id=job.id,
+                expected_job_attempt=job.attempts,
+            )
+        except StaleIngestionExecution:
+            return self.repository.get_ingestion(job.resource_id)
+
+    def fail_claimed(self, job: KnowledgeJob, error: str) -> KnowledgeIngestion:
+        """Atomically fail a claimed ingestion if this attempt still owns it."""
+        return self.repository.finalize_ingestion_execution(
+            job.resource_id,
+            job.id,
+            expected_attempt=job.attempts,
+            status="failed",
+            error=error,
+        )
+
+    def execute_claimed_with_heartbeat(
+        self,
+        job: KnowledgeJob,
+        *,
+        lease_seconds: int,
+    ) -> KnowledgeIngestion:
+        """Run one claimed ingestion while renewing the same fenced attempt."""
+        heartbeat_stop = threading.Event()
+        heartbeat = threading.Thread(
+            target=self._renew_claimed_lease,
+            args=(job, lease_seconds, heartbeat_stop),
+            daemon=True,
+            name=f"ingestion-lease-{job.id}",
+        )
+        heartbeat.start()
+        try:
+            return self.execute_claimed(job)
+        finally:
+            heartbeat_stop.set()
+            heartbeat.join(timeout=1.0)
+
+    def _renew_claimed_lease(
+        self,
+        job: KnowledgeJob,
+        lease_seconds: int,
+        stopped: threading.Event,
+    ) -> None:
+        interval = max(0.05, min(30.0, max(1, lease_seconds) / 3))
+        while not stopped.wait(interval):
+            try:
+                renewed = self.repository.renew_job_lease(
+                    job.id,
+                    expected_attempt=job.attempts,
+                    lease_seconds=lease_seconds,
+                )
+            except Exception:
+                logger.exception("Failed to renew ingestion lease for %s", job.resource_id)
+                continue
+            if not renewed:
+                return
+
+    def _assert_claim(
+        self,
+        ingestion_id: str,
+        *,
+        expected_job_id: str | None,
+        expected_job_attempt: int | None,
+    ) -> None:
+        if expected_job_id is None or expected_job_attempt is None:
+            return
+        self.repository.assert_ingestion_execution(
+            ingestion_id,
+            expected_job_id,
+            expected_attempt=expected_job_attempt,
+        )
 
     def decide(self, candidate_id: str, decision: CandidateDecision) -> DecisionResult:
         stored = self.repository.get_candidate(candidate_id)
         if stored["candidate"]["status"] != "draft":
             return self._replayed_decision(stored, decision)
+        ingestion = self.repository.get_ingestion(stored["candidate"]["ingestion_id"])
+        if ingestion.status != "needs_review":
+            raise ValueError("入库任务完成抽取后才能审核候选。")
         try:
             if decision.decision == "reject":
                 self.repository.reject_candidate(candidate_id, decision.review_note)
@@ -389,12 +554,27 @@ class KnowledgeIngestionService:
                 requested=0,
                 min_confidence_exclusive=min_confidence_exclusive,
             )
-        result = self.decide_bulk(
-            ingestion_id,
-            BulkCandidateDecision(candidate_ids=candidate_ids, decision="approve"),
-        )
+        applied = 0
+        replayed = 0
+        skipped: list[BulkCandidateDecisionIssue] = []
+        for offset in range(0, len(candidate_ids), 100):
+            result = self.decide_bulk(
+                ingestion_id,
+                BulkCandidateDecision(
+                    candidate_ids=candidate_ids[offset : offset + 100],
+                    decision="approve",
+                ),
+            )
+            applied += result.applied
+            replayed += result.replayed
+            skipped.extend(result.skipped)
         return ConfidenceAutoApprovalResult(
-            **result.model_dump(),
+            ingestion=self.repository.refresh_ingestion_status(ingestion_id),
+            decision="approve",
+            requested=len(candidate_ids),
+            applied=applied,
+            replayed=replayed,
+            skipped=skipped,
             min_confidence_exclusive=min_confidence_exclusive,
         )
 
@@ -476,14 +656,15 @@ class KnowledgeIngestionService:
             ],
         }
 
-    def _create_candidates(
+    def _candidate_batch(
         self,
         ingestion: KnowledgeIngestion,
         paper: PaperMetadata,
         chunks: list[DocumentChunk],
-    ) -> None:
+    ) -> list[CandidateEntity | CandidateRelation]:
         result = self.extractor.extract(paper, chunks)
         reading = result.payload.reading
+        candidates: list[CandidateEntity | CandidateRelation] = []
         paper_candidate = CandidateEntity(
             id=_candidate_id(),
             ingestion_id=ingestion.id,
@@ -502,7 +683,7 @@ class KnowledgeIngestionService:
                 "used_json_repair": result.used_repair,
             },
         )
-        self.repository.add_candidate_entity(paper_candidate)
+        candidates.append(paper_candidate)
         entities_by_name: dict[str, CandidateEntity] = {_normal_name(paper.title): paper_candidate}
 
         for extracted in result.payload.entities:
@@ -526,7 +707,7 @@ class KnowledgeIngestionService:
                     aliases=extracted.aliases,
                 ),
             )
-            self.repository.add_candidate_entity(candidate)
+            candidates.append(candidate)
             entities_by_name.setdefault(_normal_name(candidate.name), candidate)
 
             relation_type = {
@@ -540,7 +721,7 @@ class KnowledgeIngestionService:
                 "Formula": "SUPPORTS",
                 "Patch": "SUPPORTS",
             }[candidate.type]
-            self.repository.add_candidate_relation(
+            candidates.append(
                 CandidateRelation(
                     id=_candidate_id(),
                     ingestion_id=ingestion.id,
@@ -560,7 +741,7 @@ class KnowledgeIngestionService:
             target = entities_by_name.get(_normal_name(extracted.target_name))
             if source is None or target is None or source.id == target.id:
                 continue
-            self.repository.add_candidate_relation(
+            candidates.append(
                 CandidateRelation(
                     id=_candidate_id(),
                     ingestion_id=ingestion.id,
@@ -573,6 +754,7 @@ class KnowledgeIngestionService:
                     evidence=extracted.evidence,
                 )
             )
+        return candidates
 
     def _paper_from_document(self, parsed: ParsedDocument, source: str) -> PaperMetadata:
         source_id = hashlib.sha1(source.encode("utf-8")).hexdigest()[:16]
@@ -653,6 +835,91 @@ class KnowledgeIngestionService:
             isinstance(self.llm, MockLLMClient)
             or getattr(self.llm, "provider_name", "mock") == "mock"
         )
+
+
+class KnowledgeIngestionDispatcher:
+    """Durably execute browser-started ingestions and queued knowledge projections."""
+
+    def __init__(
+        self,
+        repository: KnowledgeRepository,
+        service: KnowledgeIngestionService,
+        *,
+        lease_seconds: int = 180,
+        poll_seconds: float = 0.5,
+    ) -> None:
+        self.repository = repository
+        self.service = service
+        self.lease_seconds = lease_seconds
+        self.poll_seconds = poll_seconds
+        self._stop = threading.Event()
+        self._wake = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self._thread is not None and self._thread.is_alive():
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(
+            target=self._run,
+            daemon=True,
+            name="knowledge-ingestion-dispatcher",
+        )
+        self._thread.start()
+
+    def stop(self, timeout: float = 5.0) -> None:
+        self._stop.set()
+        self._wake.set()
+        if self._thread is not None:
+            self._thread.join(timeout=timeout)
+
+    def wake(self) -> None:
+        self._wake.set()
+
+    @property
+    def is_alive(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            try:
+                job = self.repository.claim_dispatched_ingestion_job(self.lease_seconds)
+            except Exception:
+                logger.exception("Failed to claim a dispatched ingestion job")
+                job = None
+            if job is not None:
+                self._execute_ingestion(job)
+                continue
+            try:
+                projection = self.repository.claim_projection(self.lease_seconds)
+            except Exception:
+                logger.exception("Failed to claim a knowledge projection")
+                projection = None
+            if projection is not None:
+                try:
+                    self.service.process_projection(projection)
+                except Exception:
+                    logger.exception(
+                        "Knowledge projection failed for %s", projection.aggregate_id
+                    )
+                continue
+            self._wake.wait(self.poll_seconds)
+            self._wake.clear()
+
+    def _execute_ingestion(self, job: KnowledgeJob) -> None:
+        try:
+            self.service.execute_claimed_with_heartbeat(
+                job,
+                lease_seconds=self.lease_seconds,
+            )
+        except Exception as exc:
+            logger.exception("Ingestion dispatcher failed while executing %s", job.resource_id)
+            try:
+                self.service.fail_claimed(job, str(exc))
+            except StaleIngestionExecution:
+                pass
+            except Exception:
+                logger.exception("Failed to persist ingestion dispatcher failure")
 
 
 def _candidate_id() -> str:

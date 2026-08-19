@@ -1,23 +1,30 @@
 import sqlite3
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
 from app.config.settings import Settings
+from app.knowledge.extractor import ExtractionResult
 from app.knowledge.obsidian import KnowledgeVaultExporter
-from app.knowledge.repository import KnowledgeRepository
+from app.knowledge.repository import KnowledgeRepository, StaleIngestionExecution
 from app.knowledge.schemas import (
     CandidateDecision,
     CandidateEntity,
     CandidateRelation,
     EvidenceSpan,
+    KnowledgeExtraction,
     MergeSuggestion,
+    PaperReading,
 )
 from app.knowledge.service import (
     KnowledgeIngestionService,
     NoopChunkIndexer,
     NoopKnowledgeProjector,
 )
+from app.llms.provider import MockLLMClient
+from app.schemas.documents import ParsedDocument
 from tests.core_fixtures import persist_evidence_chunk
 
 
@@ -45,6 +52,71 @@ def _evidence() -> EvidenceSpan:
         page_end=1,
         quote="Approved evidence remains durable while downstream projections recover.",
     )
+
+
+class _SlowExtractor:
+    def __init__(self, delay: float = 0.0) -> None:
+        self.delay = delay
+        self.calls = 0
+
+    def extract(self, paper, chunks):
+        self.calls += 1
+        time.sleep(self.delay)
+        evidence = EvidenceSpan(
+            paper_id=paper.id,
+            chunk_id=chunks[0].id,
+            page_start=1,
+            page_end=1,
+            quote="A durable ingestion lease prevents duplicate extraction work.",
+        )
+        return ExtractionResult(
+            KnowledgeExtraction(
+                reading=PaperReading(
+                    research_problem="验证长时间知识入库任务不会被其他执行器重复领取。",
+                    core_contributions=["为入库执行增加租约续期与尝试代隔离。"],
+                    method_summary="使用短租约和慢抽取器验证同一任务只有一个执行代。",
+                    evidence=evidence,
+                )
+            )
+        )
+
+
+def _slow_parser(*, source: str, max_pages: int) -> ParsedDocument:
+    text = "A durable ingestion lease prevents duplicate extraction work."
+    return ParsedDocument(
+        source=source,
+        title="Durable Ingestion Paper",
+        text=text,
+        pages=1,
+        page_texts=[text],
+        page_numbers=[1],
+    )
+
+
+def _claimed_ingestion_service(tmp_path, extractor):
+    repository = KnowledgeRepository(str(tmp_path / "claimed.db"))
+    settings = Settings(
+        knowledge_db_path=repository.path,
+        knowledge_vault_path=str(tmp_path / "claimed-vault"),
+        chunk_size=40,
+        chunk_overlap=10,
+    )
+    service = KnowledgeIngestionService(
+        repository,
+        settings=settings,
+        extractor=extractor,
+        parser=_slow_parser,
+        indexer=NoopChunkIndexer(),
+        projector=NoopKnowledgeProjector(),
+        vault_exporter=KnowledgeVaultExporter(settings.knowledge_vault_path),
+        require_live_llm=False,
+    )
+    ingestion = repository.create_ingestion(
+        topic="入库租约测试",
+        sources=["slow.pdf"],
+        pdf_max_pages=150,
+    )
+    return repository, service, ingestion
 
 
 def _entity(ingestion, candidate_id: str, name: str, **updates) -> CandidateEntity:
@@ -141,6 +213,136 @@ def test_recovery_does_not_steal_an_active_worker_lease(tmp_path) -> None:
     assert repository.get_job(active.id).status == "running"
 
 
+def test_ingestion_heartbeat_prevents_duplicate_long_execution(tmp_path) -> None:
+    extractor = _SlowExtractor(delay=1.4)
+    repository, service, ingestion = _claimed_ingestion_service(tmp_path, extractor)
+    claimed = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=1)
+    assert claimed is not None
+
+    thread = threading.Thread(
+        target=service.execute_claimed_with_heartbeat,
+        args=(claimed,),
+        kwargs={"lease_seconds": 1},
+    )
+    thread.start()
+    time.sleep(1.1)
+    duplicate = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=1)
+    thread.join(timeout=3)
+
+    assert not thread.is_alive()
+    assert duplicate is None
+    assert extractor.calls == 1
+    assert repository.get_resource_job("ingestion", ingestion.id).attempts == 1
+    assert repository.get_ingestion(ingestion.id).status == "needs_review"
+    assert len(repository.list_candidates(ingestion.id)) == 1
+
+
+def test_recovered_ingestion_replaces_partial_draft_candidates(tmp_path) -> None:
+    extractor = _SlowExtractor()
+    repository, service, ingestion = _claimed_ingestion_service(tmp_path, extractor)
+    first = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=-1)
+    assert first is not None
+    partial = _entity(
+        ingestion,
+        "candidate-partial",
+        "崩溃前半成品",
+        evidence=EvidenceSpan(
+            paper_id="paper:c3967d170ddd2213",
+            chunk_id="paper:c3967d170ddd2213:page:1:chunk:0",
+            page_start=1,
+            page_end=1,
+            quote="A durable ingestion lease prevents duplicate extraction work.",
+        ),
+    )
+    repository.add_candidate_entity(partial)
+    recovered = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=30)
+    assert recovered is not None and recovered.attempts == 2
+
+    result = service.execute_claimed(recovered)
+
+    assert result.status == "needs_review"
+    candidates = repository.list_candidates(ingestion.id)
+    assert len(candidates) == 1
+    assert candidates[0]["candidate"]["name"] == "Durable Ingestion Paper"
+
+
+def test_stale_ingestion_attempt_cannot_write_or_finalize(tmp_path) -> None:
+    repository, service, ingestion = _claimed_ingestion_service(tmp_path, _SlowExtractor())
+    stale = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=-1)
+    current = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=30)
+    assert stale is not None and current is not None
+
+    with pytest.raises(StaleIngestionExecution):
+        service.run(
+            ingestion.id,
+            expected_job_id=stale.id,
+            expected_job_attempt=stale.attempts,
+        )
+
+    assert repository.list_candidates(ingestion.id) == []
+    assert repository.get_resource_job("ingestion", ingestion.id).attempts == 2
+    assert service.execute_claimed(current).status == "needs_review"
+
+
+def test_claimed_ingestion_with_mock_llm_fails_before_any_extraction_side_effect(
+    tmp_path,
+) -> None:
+    repository = KnowledgeRepository(str(tmp_path / "mock-claimed.db"))
+    settings = Settings(
+        knowledge_db_path=repository.path,
+        knowledge_vault_path=str(tmp_path / "mock-claimed-vault"),
+        chunk_size=40,
+        chunk_overlap=10,
+        llm_provider="mock",
+    )
+    extractor = _SlowExtractor()
+    parser_calls: list[str] = []
+    indexed_batches: list[list] = []
+
+    def parser(*, source: str, max_pages: int) -> ParsedDocument:
+        parser_calls.append(source)
+        return _slow_parser(source=source, max_pages=max_pages)
+
+    class RecordingIndexer:
+        def index(self, chunks) -> None:
+            indexed_batches.append(chunks)
+
+    service = KnowledgeIngestionService(
+        repository,
+        settings=settings,
+        llm=MockLLMClient(),
+        extractor=extractor,
+        parser=parser,
+        indexer=RecordingIndexer(),
+        projector=NoopKnowledgeProjector(),
+        vault_exporter=KnowledgeVaultExporter(settings.knowledge_vault_path),
+        require_live_llm=True,
+    )
+    ingestion = repository.create_ingestion(
+        topic="恢复任务 live LLM 门禁",
+        sources=["must-not-parse.pdf"],
+        pdf_max_pages=150,
+        auto_execute=True,
+    )
+    claimed = repository.claim_dispatched_ingestion_job(lease_seconds=30)
+    assert claimed is not None
+
+    result = service.execute_claimed(claimed)
+
+    assert result.status == "failed"
+    assert "真实 API Key" in (result.error or "")
+    assert result.document_count == 0
+    assert result.candidate_count == 0
+    assert parser_calls == []
+    assert indexed_batches == []
+    assert extractor.calls == 0
+    assert repository.list_candidates(ingestion.id) == []
+    job = repository.get_resource_job("ingestion", ingestion.id)
+    assert job.status == "failed"
+    assert job.attempts == 1
+    assert "真实 API Key" in (job.last_error or "")
+
+
 class _FailingProjector:
     def upsert_entities(self, entities) -> None:
         raise RuntimeError("neo4j unavailable")
@@ -165,6 +367,11 @@ def test_projection_failure_preserves_sqlite_fact_and_can_be_requeued(tmp_path) 
         service.process_projection(event)
     assert repository.get_published_entity(event.aggregate_id).name == "可靠事实"
     assert repository.get_ingestion(ingestion.id).status == "failed"
+    with sqlite3.connect(repository.path) as connection:
+        outbox_status = connection.execute(
+            "SELECT status, last_error FROM projection_outbox WHERE id = ?", (event.id,)
+        ).fetchone()
+    assert outbox_status == ("failed", "neo4j unavailable")
 
     retried = service.retry(ingestion.id)
 
@@ -242,3 +449,36 @@ def test_347_candidate_batch_reports_exact_conflicts_and_blocked_relations(tmp_p
     assert result.ingestion.candidate_count == 347
     assert result.ingestion.published_count == 164
     assert result.ingestion.status == "needs_review"
+
+
+@pytest.mark.parametrize("candidate_count", [101, 279])
+def test_confidence_auto_approval_chunks_candidates_at_the_public_batch_limit(
+    tmp_path, candidate_count: int
+) -> None:
+    repository, service = _service(tmp_path)
+    ingestion = repository.create_ingestion(
+        topic=f"{candidate_count} 条高置信度候选",
+        sources=["paper.pdf"],
+        pdf_max_pages=3,
+        enqueue=False,
+    )
+    repository.update_ingestion(ingestion.id, status="needs_review")
+    persist_evidence_chunk(repository, ingestion_id=ingestion.id, evidence=_evidence())
+    for index in range(candidate_count):
+        repository.add_candidate_entity(
+            _entity(
+                ingestion,
+                f"candidate-confident-{index}",
+                f"高置信度实体 {index}",
+                confidence=0.91,
+            )
+        )
+
+    result = service.auto_approve_confident(ingestion.id)
+
+    assert result.requested == candidate_count
+    assert result.applied == candidate_count
+    assert result.replayed == 0
+    assert result.skipped == []
+    assert result.ingestion.published_count == candidate_count
+    assert result.ingestion.status == "publishing"

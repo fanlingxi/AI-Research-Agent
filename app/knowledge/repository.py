@@ -50,6 +50,10 @@ class StaleReportExecution(RuntimeError):
     """Raised when an expired report executor tries to write after a newer claim."""
 
 
+class StaleIngestionExecution(RuntimeError):
+    """Raised when an expired ingestion executor tries to write after a newer claim."""
+
+
 class KnowledgeRepository:
     """SQLite source of truth for ingestion, review, jobs, reports, and outbox state.
 
@@ -151,6 +155,7 @@ class KnowledgeRepository:
         sources: list[str],
         pdf_max_pages: int,
         enqueue: bool = True,
+        auto_execute: bool = False,
     ) -> KnowledgeIngestion:
         ingestion, _ = self.create_or_reuse_active_ingestion(
             topic=topic,
@@ -158,6 +163,7 @@ class KnowledgeRepository:
             sources=sources,
             pdf_max_pages=pdf_max_pages,
             enqueue=enqueue,
+            auto_execute=auto_execute,
         )
         return ingestion
 
@@ -169,6 +175,7 @@ class KnowledgeRepository:
         sources: list[str],
         pdf_max_pages: int,
         enqueue: bool = True,
+        auto_execute: bool = False,
     ) -> tuple[KnowledgeIngestion, bool]:
         """Create one active ingestion per equivalent submission.
 
@@ -234,7 +241,25 @@ class KnowledgeRepository:
                         connection,
                         kind="ingestion",
                         resource_id=ingestion_id,
-                        payload={},
+                        payload={"auto_execute": True} if auto_execute else {},
+                    )
+            elif enqueue and auto_execute:
+                job = connection.execute(
+                    """
+                    SELECT id, payload_json FROM knowledge_jobs
+                    WHERE kind = 'ingestion' AND resource_id = ?
+                    """,
+                    (existing_id,),
+                ).fetchone()
+                if job is not None:
+                    payload = json.loads(job["payload_json"] or "{}")
+                    payload["auto_execute"] = True
+                    connection.execute(
+                        """
+                        UPDATE knowledge_jobs SET payload_json = ?, updated_at = ?
+                        WHERE id = ? AND status IN ('queued', 'running')
+                        """,
+                        (_dump(payload), _now(), job["id"]),
                     )
         if existing_id is not None:
             return self.get_ingestion(existing_id), True
@@ -299,7 +324,9 @@ class KnowledgeRepository:
             )
         return self.get_ingestion(ingestion_id)
 
-    def reset_ingestion(self, ingestion_id: str) -> KnowledgeIngestion:
+    def reset_ingestion(
+        self, ingestion_id: str, *, auto_execute: bool = False
+    ) -> KnowledgeIngestion:
         """Reset failed extraction work while preserving the ingestion identity."""
         projection_requeued = False
         with self._connect() as connection:
@@ -369,7 +396,7 @@ class KnowledgeRepository:
                     connection,
                     kind="ingestion",
                     resource_id=ingestion_id,
-                    payload={},
+                    payload={"auto_execute": True} if auto_execute else {},
                     force_requeue=True,
                 )
         return self.get_ingestion(ingestion_id)
@@ -737,6 +764,161 @@ class KnowledgeRepository:
             ).fetchone()
         return self._job_from_row(claimed)
 
+    def mark_ingestion_for_dispatch(self, ingestion_id: str) -> KnowledgeIngestion:
+        """Persist browser intent to run one ingestion through the built-in dispatcher."""
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            ingestion = connection.execute(
+                "SELECT status FROM ingestions WHERE id = ?", (ingestion_id,)
+            ).fetchone()
+            if ingestion is None:
+                raise KeyError(ingestion_id)
+            if ingestion["status"] not in {"queued", "running"}:
+                raise ValueError(
+                    f"Ingestion cannot be dispatched from {ingestion['status']}."
+                )
+            job = connection.execute(
+                """
+                SELECT id, status, payload_json FROM knowledge_jobs
+                WHERE kind = 'ingestion' AND resource_id = ?
+                """,
+                (ingestion_id,),
+            ).fetchone()
+            if job is None:
+                raise KeyError(ingestion_id)
+            if job["status"] not in {"queued", "running"}:
+                raise ValueError(f"Ingestion job cannot be dispatched from {job['status']}.")
+            payload = json.loads(job["payload_json"] or "{}")
+            payload["auto_execute"] = True
+            connection.execute(
+                "UPDATE knowledge_jobs SET payload_json = ?, updated_at = ? WHERE id = ?",
+                (_dump(payload), _now(), job["id"]),
+            )
+        return self.get_ingestion(ingestion_id)
+
+    def claim_dispatched_ingestion_job(self, lease_seconds: int = 120) -> KnowledgeJob | None:
+        """Claim the next ingestion explicitly marked for built-in durable dispatch."""
+        now = datetime.now(tz=UTC)
+        now_text = now.isoformat()
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            rows = connection.execute(
+                """
+                SELECT job.* FROM knowledge_jobs AS job
+                JOIN ingestions AS ingestion ON ingestion.id = job.resource_id
+                WHERE job.kind = 'ingestion'
+                  AND job.status IN ('queued', 'running')
+                  AND ingestion.status IN ('queued', 'running')
+                ORDER BY job.created_at, job.id
+                """
+            ).fetchall()
+            selected = None
+            for row in rows:
+                payload = json.loads(row["payload_json"] or "{}")
+                if not payload.get("auto_execute"):
+                    continue
+                status = str(row["status"])
+                expired = status == "running" and (
+                    row["lease_until"] is None or str(row["lease_until"]) < now_text
+                )
+                if expired:
+                    connection.execute(
+                        """
+                        UPDATE knowledge_jobs
+                        SET status = 'queued', lease_until = NULL, updated_at = ?
+                        WHERE id = ? AND status = 'running'
+                        """,
+                        (now_text, row["id"]),
+                    )
+                    connection.execute(
+                        """
+                        UPDATE ingestions SET status = 'queued', updated_at = ?
+                        WHERE id = ? AND status = 'running'
+                        """,
+                        (now_text, row["resource_id"]),
+                    )
+                    status = "queued"
+                if status == "queued":
+                    selected = row
+                    break
+            if selected is None:
+                return None
+            lease_until = (now + timedelta(seconds=lease_seconds)).isoformat()
+            updated = connection.execute(
+                """
+                UPDATE knowledge_jobs
+                SET status = 'running', attempts = attempts + 1,
+                    lease_until = ?, updated_at = ?
+                WHERE id = ? AND status = 'queued'
+                """,
+                (lease_until, now_text, selected["id"]),
+            )
+            if updated.rowcount != 1:
+                return None
+            connection.execute(
+                """
+                UPDATE ingestions SET status = 'running', error = NULL, updated_at = ?
+                WHERE id = ?
+                """,
+                (now_text, selected["resource_id"]),
+            )
+            claimed = connection.execute(
+                "SELECT * FROM knowledge_jobs WHERE id = ?", (selected["id"],)
+            ).fetchone()
+        return self._job_from_row(claimed)
+
+    def begin_ingestion_execution(
+        self,
+        ingestion_id: str,
+        job_id: str,
+        *,
+        expected_attempt: int,
+    ) -> KnowledgeIngestion:
+        """Mark one claimed ingestion running only while this attempt owns its job."""
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            owned = connection.execute(
+                """
+                SELECT 1 FROM knowledge_jobs
+                WHERE id = ? AND kind = 'ingestion' AND resource_id = ?
+                  AND status = 'running' AND attempts = ?
+                """,
+                (job_id, ingestion_id, expected_attempt),
+            ).fetchone()
+            if owned is None:
+                raise StaleIngestionExecution(
+                    f"Ingestion {ingestion_id} is no longer owned by attempt {expected_attempt}."
+                )
+            connection.execute(
+                """
+                UPDATE ingestions SET status = 'running', error = NULL, updated_at = ?
+                WHERE id = ?
+                """,
+                (_now(), ingestion_id),
+            )
+        return self.get_ingestion(ingestion_id)
+
+    def assert_ingestion_execution(
+        self,
+        ingestion_id: str,
+        job_id: str,
+        *,
+        expected_attempt: int,
+    ) -> None:
+        with self._connect() as connection:
+            owned = connection.execute(
+                """
+                SELECT 1 FROM knowledge_jobs
+                WHERE id = ? AND kind = 'ingestion' AND resource_id = ?
+                  AND status = 'running' AND attempts = ?
+                """,
+                (job_id, ingestion_id, expected_attempt),
+            ).fetchone()
+        if owned is None:
+            raise StaleIngestionExecution(
+                f"Ingestion {ingestion_id} is no longer owned by attempt {expected_attempt}."
+            )
+
     def mark_report_for_dispatch(self, report_id: str) -> ResearchReport:
         """Persist the user's intent to execute a report through the built-in dispatcher."""
         with self._connect() as connection:
@@ -992,6 +1174,84 @@ class KnowledgeRepository:
 
     def add_candidate_relation(self, candidate: CandidateRelation) -> None:
         self._add_candidate("relation", candidate)
+
+    def replace_draft_candidates_for_paper(
+        self,
+        ingestion_id: str,
+        paper_id: str,
+        candidates: list[CandidateEntity | CandidateRelation],
+        *,
+        expected_job_id: str | None = None,
+        expected_job_attempt: int | None = None,
+    ) -> None:
+        """Replace one paper's unreviewed extraction as a fenced, atomic batch."""
+        if (expected_job_id is None) != (expected_job_attempt is None):
+            raise ValueError("A claimed ingestion requires both its job id and attempt.")
+        now = _now()
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            if expected_job_id is not None and expected_job_attempt is not None:
+                owned = connection.execute(
+                    """
+                    SELECT 1 FROM knowledge_jobs
+                    WHERE id = ? AND kind = 'ingestion' AND resource_id = ?
+                      AND status = 'running' AND attempts = ?
+                    """,
+                    (
+                        expected_job_id,
+                        ingestion_id,
+                        expected_job_attempt,
+                    ),
+                ).fetchone()
+                if owned is None:
+                    raise StaleIngestionExecution(
+                        f"Ingestion {ingestion_id} is no longer owned by attempt "
+                        f"{expected_job_attempt}."
+                    )
+            reviewed = connection.execute(
+                """
+                SELECT COUNT(*) FROM candidates
+                WHERE ingestion_id = ?
+                  AND json_extract(payload_json, '$.evidence.paper_id') = ?
+                  AND status <> 'draft'
+                """,
+                (ingestion_id, paper_id),
+            ).fetchone()[0]
+            if reviewed:
+                raise ValueError(
+                    "cannot replace an ingestion paper whose candidates were already reviewed"
+                )
+            connection.execute(
+                """
+                DELETE FROM candidates
+                WHERE ingestion_id = ?
+                  AND json_extract(payload_json, '$.evidence.paper_id') = ?
+                  AND status = 'draft'
+                """,
+                (ingestion_id, paper_id),
+            )
+            for candidate in candidates:
+                kind: CandidateKind = (
+                    "relation" if isinstance(candidate, CandidateRelation) else "entity"
+                )
+                connection.execute(
+                    """
+                    INSERT INTO candidates (
+                        id, ingestion_id, kind, status, canonical_id, payload_json,
+                        created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        candidate.id,
+                        candidate.ingestion_id,
+                        kind,
+                        candidate.status,
+                        getattr(candidate, "canonical_id", None),
+                        _dump(candidate.model_dump()),
+                        now,
+                        now,
+                    ),
+                )
 
     def _add_candidate(
         self, kind: CandidateKind, candidate: CandidateEntity | CandidateRelation
@@ -2012,7 +2272,18 @@ class KnowledgeRepository:
 
     def published_paper_ids(self, topic_slugs: list[str] | None = None) -> set[str]:
         if self.core_repository.is_v0009_backfill_ready():
-            return self.core_repository.published_paper_ids(topic_slugs)
+            core_paper_ids = self.core_repository.published_paper_ids()
+            if not topic_slugs:
+                return core_paper_ids
+            membership_paper_ids = {
+                evidence.paper_id
+                for topic_slug in topic_slugs
+                for entity in self.list_published_entities(topic_slug)
+                if entity.type == "Paper"
+                for evidence in entity.evidence
+                if evidence.paper_id
+            }
+            return core_paper_ids.intersection(membership_paper_ids)
         entities: list[PublishedEntity] = []
         if topic_slugs:
             for slug in topic_slugs:
@@ -2179,6 +2450,54 @@ class KnowledgeRepository:
                 ),
             )
         return self.get_report(report_id)
+
+    def finalize_ingestion_execution(
+        self,
+        ingestion_id: str,
+        job_id: str,
+        *,
+        expected_attempt: int,
+        status: Literal["needs_review", "failed"],
+        error: str | None = None,
+    ) -> KnowledgeIngestion:
+        """Fence and commit an ingestion plus its durable job as one terminal write."""
+        now = _now()
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            owned = connection.execute(
+                """
+                SELECT 1 FROM knowledge_jobs
+                WHERE id = ? AND kind = 'ingestion' AND resource_id = ?
+                  AND status = 'running' AND attempts = ?
+                """,
+                (job_id, ingestion_id, expected_attempt),
+            ).fetchone()
+            if owned is None:
+                raise StaleIngestionExecution(
+                    f"Ingestion {ingestion_id} is no longer owned by attempt {expected_attempt}."
+                )
+            connection.execute(
+                """
+                UPDATE ingestions SET status = ?, error = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (status, error, now, ingestion_id),
+            )
+            job_status = "completed" if status == "needs_review" else "failed"
+            job_error = (error or "知识入库失败")[:4000] if job_status == "failed" else None
+            updated = connection.execute(
+                """
+                UPDATE knowledge_jobs
+                SET status = ?, lease_until = NULL, last_error = ?, updated_at = ?
+                WHERE id = ? AND status = 'running' AND attempts = ?
+                """,
+                (job_status, job_error, now, job_id, expected_attempt),
+            )
+            if updated.rowcount != 1:
+                raise StaleIngestionExecution(
+                    f"Ingestion {ingestion_id} is no longer owned by attempt {expected_attempt}."
+                )
+        return self.get_ingestion(ingestion_id)
 
     def finalize_report_execution(
         self,

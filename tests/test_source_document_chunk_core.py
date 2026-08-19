@@ -1,4 +1,9 @@
-from app.knowledge.core_repository import KnowledgeCoreRepository
+import pytest
+
+from app.knowledge.core_repository import (
+    ClaimEvidenceValidationError,
+    KnowledgeCoreRepository,
+)
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import CandidateEntity, EvidenceSpan
 from app.schemas.documents import DocumentChunk
@@ -80,3 +85,88 @@ def test_new_ingestion_content_is_persisted_in_sqlite_before_projection(tmp_path
     assert document["content_status"] == "available"
     assert mapped is not None and mapped["core_id"] != legacy_entity.id
     assert evidence_link_count == 1
+
+
+def _repository_with_quote_candidate(tmp_path, quote: str) -> KnowledgeRepository:
+    repository = KnowledgeRepository(str(tmp_path / "knowledge.db"))
+    ingestion = repository.create_ingestion(
+        topic="Evidence Quote Matching",
+        sources=["quote-fixture.pdf"],
+        pdf_max_pages=2,
+        enqueue=False,
+    )
+    repository.add_document(
+        ingestion_id=ingestion.id,
+        document_id="paper:quote",
+        title="Quote Matching Paper",
+        source="pdf",
+        source_url=None,
+        local_path="quote-fixture.pdf",
+        pages=1,
+        metadata={"original_source": "quote-fixture.pdf"},
+    )
+    content = "we introduce a grounded method for strict evidence validation."
+    repository.core_repository.record_source_document(
+        document_id="paper:quote",
+        title="Quote Matching Paper",
+        uri="quote-fixture.pdf",
+        content=content,
+        parser_version="test-parser-v1",
+        metadata={"original_source": "quote-fixture.pdf"},
+    )
+    repository.core_repository.upsert_chunks(
+        [
+            DocumentChunk(
+                id="paper:quote:page:1:chunk:0",
+                paper_id="paper:quote",
+                title="Quote Matching Paper",
+                text=content,
+                chunk_index=0,
+                token_count=9,
+                source_tier="primary_fulltext",
+                metadata={"page_start": 1, "page_end": 1},
+            )
+        ]
+    )
+    repository.add_candidate_entity(
+        CandidateEntity(
+            id="candidate-quote",
+            ingestion_id=ingestion.id,
+            topic_slug=ingestion.topic_slug,
+            name="Evidence Quote Matching",
+            type="Paper",
+            summary="一篇用于验证证据引用归一化仍保持严格内容约束的论文。",
+            confidence=0.95,
+            evidence=EvidenceSpan(
+                paper_id="paper:quote",
+                chunk_id="paper:quote:page:1:chunk:0",
+                page_start=1,
+                page_end=1,
+                quote=quote,
+            ),
+        )
+    )
+    return repository
+
+
+def test_core_evidence_quote_matching_is_case_insensitive(tmp_path) -> None:
+    repository = _repository_with_quote_candidate(
+        tmp_path,
+        "We introduce a grounded method for strict evidence validation.",
+    )
+
+    published = repository.publish_entity("candidate-quote")
+
+    assert published.name == "Evidence Quote Matching"
+
+
+def test_core_evidence_quote_matching_still_rejects_different_content(tmp_path) -> None:
+    repository = _repository_with_quote_candidate(
+        tmp_path,
+        "We introduce an unrelated result that is absent from the source.",
+    )
+
+    with pytest.raises(ClaimEvidenceValidationError, match="cannot be located"):
+        repository.publish_entity("candidate-quote")
+
+    assert repository.get_candidate("candidate-quote")["candidate"]["status"] == "draft"

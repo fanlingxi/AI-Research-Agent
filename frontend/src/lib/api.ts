@@ -491,6 +491,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  submitAndExecuteIngestion: (input: { collection?: string; sources: string[]; pdf_max_pages: number }) =>
+    request<KnowledgeIngestion>("/api/knowledge/ingestions/execute", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  retryIngestion: (ingestionId: string) =>
+    request<KnowledgeIngestion>(`/api/knowledge/ingestions/${path(ingestionId)}/retry`, {
+      method: "POST",
+    }),
   candidates: (ingestionId: string, status = "draft") =>
     request<KnowledgeCandidate[]>(
       `/api/knowledge/ingestions/${path(ingestionId)}/candidates${query({ status })}`,

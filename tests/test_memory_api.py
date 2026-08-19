@@ -89,3 +89,30 @@ def test_memory_api_uses_explicit_workspace_routes_and_reviewed_commits(tmp_path
     assert len(snapshot.json()["workspace_tasks"]) == 1
     assert len(snapshot.json()["decisions"]) == 1
     assert ambiguous_task.status_code == 404
+
+
+def test_project_knowledge_scope_api_rejects_system_collections_atomically(tmp_path) -> None:
+    repository = KnowledgeRepository(str(tmp_path / "knowledge.db"))
+    memory = MemoryService(repository.memory_repository)
+    regular = repository.create_collection("Project Scope")
+    app = create_app(knowledge_repository=repository, memory_service=memory)
+
+    with TestClient(app) as client:
+        project = client.post(
+            "/api/projects",
+            json={"name": "Scoped Project", "goal": "Reject system scope", "domain": "testing"},
+        ).json()
+        rejected = client.put(
+            f"/api/projects/{project['id']}/knowledge-scopes",
+            json={
+                "expected_project_revision": project["revision"],
+                "collection_slugs": [regular.slug, "inbox"],
+            },
+        )
+        scopes = client.get(f"/api/projects/{project['id']}/knowledge-scopes")
+        unchanged = client.get(f"/api/projects/{project['id']}")
+
+    assert rejected.status_code == 409
+    assert "System Knowledge Collections" in rejected.json()["detail"]
+    assert scopes.json() == []
+    assert unchanged.json()["revision"] == project["revision"]

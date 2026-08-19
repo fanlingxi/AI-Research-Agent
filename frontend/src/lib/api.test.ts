@@ -148,6 +148,42 @@ describe("workspace API client", () => {
     );
   });
 
+  it("creates and immediately executes a knowledge ingestion from the workbench", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "ingestion one", status: "queued" }), { status: 202 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.submitAndExecuteIngestion({
+      collection: "papers",
+      sources: ["paper.pdf"],
+      pdf_max_pages: 150,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/knowledge/ingestions/execute",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ collection: "papers", sources: ["paper.pdf"], pdf_max_pages: 150 }),
+      }),
+    );
+  });
+
+  it("retries one failed knowledge ingestion in place", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "ingestion one", status: "queued" }), { status: 202 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.retryIngestion("ingestion one");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/knowledge/ingestions/ingestion%20one/retry",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("retries one explicitly selected failed report", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: "report one", status: "running" }), { status: 202 }),

@@ -99,7 +99,7 @@ class Neo4jKnowledgeProjector:
         self._ensure_constraints()
         with self.driver.session() as session:
             for relation in relations:
-                session.run(
+                result = session.run(
                     """
                     MATCH (source:KnowledgeEntityV2 {id: $source_id})
                     MATCH (target:KnowledgeEntityV2 {id: $target_id})
@@ -109,6 +109,7 @@ class Neo4jKnowledgeProjector:
                         edge.confidence = $confidence,
                         edge.evidence_json = $evidence_json,
                         edge.metadata_json = $metadata_json
+                    RETURN edge.id AS projected_relation_id
                     """,
                     id=relation.id,
                     source_id=relation.source_entity_id,
@@ -119,6 +120,12 @@ class Neo4jKnowledgeProjector:
                     evidence_json=_dump(relation.evidence),
                     metadata_json=_dump(relation.metadata),
                 )
+                if result.single() is None:
+                    raise RuntimeError(
+                        "Neo4j relation projection failed because the source or target "
+                        f"entity is missing: relation={relation.id}, "
+                        f"source={relation.source_entity_id}, target={relation.target_entity_id}"
+                    )
 
 
 class QdrantKnowledgeIndexer:

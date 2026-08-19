@@ -114,6 +114,51 @@ def test_move_collection_reassigns_membership_and_queues_durable_sync(tmp_path) 
     assert set(sync.payload["collection_slugs"]) == {"初始集合", "目标集合"}
 
 
+def test_move_collection_authorizes_new_retrieval_scope_after_v9_backfill(tmp_path) -> None:
+    repository, service = _stack(tmp_path)
+    ingestion = repository.create_ingestion(
+        collection="旧检索集合",
+        sources=["paper.pdf"],
+        pdf_max_pages=2,
+        enqueue=False,
+    )
+    repository.update_ingestion(ingestion.id, status="needs_review")
+    paper = _candidate(ingestion, "candidate-paper-move", "可移动论文").model_copy(
+        update={"type": "Paper"}
+    )
+    persist_evidence_chunk(
+        repository,
+        ingestion_id=ingestion.id,
+        evidence=paper.evidence,
+        title=paper.name,
+    )
+    repository.add_candidate_entity(paper)
+    service.decide(paper.id, CandidateDecision(decision="approve"))
+    service.drain_projections()
+    repository.core_repository.backfill_legacy_documents(
+        [
+            {
+                "id": paper.evidence.chunk_id,
+                "paper_id": paper.evidence.paper_id,
+                "title": paper.name,
+                "text": paper.evidence.quote,
+                "chunk_index": 0,
+                "token_count": len(paper.evidence.quote.split()),
+                "source_tier": "primary_fulltext",
+                "metadata": {"page_start": 1, "page_end": 1},
+            }
+        ]
+    )
+
+    assert repository.core_repository.is_v0009_backfill_ready()
+    assert repository.published_paper_ids([ingestion.collection_slug]) == {paper.evidence.paper_id}
+
+    moved = repository.move_ingestion_collection(ingestion.id, "新检索集合")
+
+    assert repository.published_paper_ids([ingestion.collection_slug]) == set()
+    assert repository.published_paper_ids([moved.collection_slug]) == {paper.evidence.paper_id}
+
+
 def test_defer_keeps_source_mention_out_of_formal_graph(tmp_path) -> None:
     repository, service = _stack(tmp_path)
     ingestion = service.submit(sources=["paper.pdf"], pdf_max_pages=2)

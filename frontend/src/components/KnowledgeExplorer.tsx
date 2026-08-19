@@ -22,8 +22,8 @@ function SearchResults({ result }: { result: KnowledgeSearchResult }) {
       <Card>
         <CardHeader>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">Evidence</p>
-            <h3 className="mt-1 font-semibold">Retrieved source passages</h3>
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">证据</p>
+            <h3 className="mt-1 font-semibold">检索到的原文片段</h3>
           </div>
           <span className="text-xs text-muted-ink">{result.evidence.length}</span>
         </CardHeader>
@@ -35,14 +35,14 @@ function SearchResults({ result }: { result: KnowledgeSearchResult }) {
               <p className="mt-2 font-mono text-[11px] text-muted-ink">{evidence.paper_id} · p. {evidence.page_start}{evidence.page_end !== evidence.page_start ? `–${evidence.page_end}` : ""}</p>
             </article>
           ))}
-          {!result.evidence.length ? <EmptyBlock title="未找到 Evidence">没有与当前已授权 Collection 匹配的可定位证据。</EmptyBlock> : null}
+          {!result.evidence.length ? <EmptyBlock title="未找到证据">没有与当前授权知识集合匹配的可定位证据。</EmptyBlock> : null}
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">Relations</p>
-            <h3 className="mt-1 font-semibold">Bounded graph hints</h3>
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">关系</p>
+            <h3 className="mt-1 font-semibold">范围内关系提示</h3>
           </div>
           <Network className="text-brand" size={18} />
         </CardHeader>
@@ -75,17 +75,17 @@ export function KnowledgeExplorer({ collectionSlugs }: { collectionSlugs: string
     <Card>
       <CardHeader>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">Knowledge Explorer</p>
-          <h2 className="mt-1 text-lg font-semibold">Project-scoped research</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">知识检索</p>
+          <h2 className="mt-1 text-lg font-semibold">授权范围内检索</h2>
         </div>
         <ShieldCheck className="text-brand" size={20} />
       </CardHeader>
       <CardContent>
-        <p className="max-w-3xl text-sm leading-6 text-muted-ink">查询只会提交当前 Project 已绑定的 Collection。结果用于人工探索；Agent 仍只能使用 immutable ContextSnapshot。</p>
-        {collectionSlugs.length ? <div className="mt-4 flex flex-wrap gap-2">{collectionSlugs.map((slug) => <Badge key={slug} tone="brand">{slug}</Badge>)}</div> : <EmptyBlock title="未绑定 Collection">先在 Overview 绑定 Knowledge Collection，避免跨 scope 检索。</EmptyBlock>}
+        <p className="max-w-3xl text-sm leading-6 text-muted-ink">查询只会使用页面当前列出的知识集合。结果用于人工探索；Agent 正式运行仍只使用不可变的 ContextSnapshot。</p>
+        {collectionSlugs.length ? <div className="mt-4 flex flex-wrap gap-2">{collectionSlugs.map((slug) => <Badge key={slug} tone="brand">{slug}</Badge>)}</div> : <EmptyBlock title="未选择知识集合">请先创建知识集合，或在项目概览中绑定允许检索的集合。</EmptyBlock>}
         <form className="mt-5 flex gap-2" onSubmit={submit}>
-          <input aria-label="Search knowledge" className="min-w-0 flex-1 rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand" disabled={!collectionSlugs.length} minLength={2} placeholder="搜索 Entity、Claim 或 Evidence" required value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
-          <Button disabled={!collectionSlugs.length || search.isPending} type="submit"><Search size={16} /> {search.isPending ? "检索中…" : "Search"}</Button>
+          <input aria-label="检索知识" className="min-w-0 flex-1 rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand" disabled={!collectionSlugs.length} minLength={2} placeholder="搜索实体、主张或证据" required value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
+          <Button disabled={!collectionSlugs.length || search.isPending} type="submit"><Search size={16} /> {search.isPending ? "检索中…" : "检索"}</Button>
         </form>
         {search.error instanceof Error ? <div className="mt-5"><ErrorBlock error={search.error} /></div> : null}
         {search.data ? <SearchResults result={search.data} /> : null}

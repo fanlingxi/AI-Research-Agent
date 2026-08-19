@@ -1165,12 +1165,19 @@ class MemoryRepository:
             return
         placeholders = ", ".join("?" for _ in slugs)
         rows = connection.execute(
-            f"SELECT slug FROM knowledge_collections WHERE slug IN ({placeholders})", slugs
+            f"SELECT slug, is_system FROM knowledge_collections WHERE slug IN ({placeholders})",
+            slugs,
         ).fetchall()
         found = {str(row["slug"]) for row in rows}
         missing = sorted(set(slugs) - found)
         if missing:
             raise KeyError(f"Knowledge Collection not found: {', '.join(missing)}")
+        system_collections = sorted(str(row["slug"]) for row in rows if row["is_system"])
+        if system_collections:
+            raise ValueError(
+                "System Knowledge Collections cannot be bound to a Project: "
+                + ", ".join(system_collections)
+            )
 
     def _committed_record_tx(
         self, connection: sqlite3.Connection, proposal: MemoryProposal

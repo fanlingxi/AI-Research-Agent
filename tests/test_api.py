@@ -1,3 +1,5 @@
+import time
+
 from fastapi.testclient import TestClient
 
 from app.api.main import create_app
@@ -12,6 +14,7 @@ from app.knowledge.service import (
     NoopChunkIndexer,
     NoopKnowledgeProjector,
 )
+from app.llms.provider import MockLLMClient
 from app.schemas.documents import ParsedDocument
 from app.worker import KnowledgeWorker
 
@@ -84,6 +87,19 @@ def _stack(tmp_path):
         lease_seconds=30,
     )
     return repository, service, reports, worker
+
+
+def _wait_for_ingestion_status(repository, ingestion_id: str, status: str, timeout=3.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        ingestion = repository.get_ingestion(ingestion_id)
+        if ingestion.status == status:
+            return ingestion
+        time.sleep(0.02)
+    raise AssertionError(
+        f"ingestion {ingestion_id} did not reach {status}: "
+        f"{repository.get_ingestion(ingestion_id).status}"
+    )
 
 
 def test_health_is_knowledge_only_and_v1_routes_are_absent(tmp_path) -> None:
@@ -302,6 +318,101 @@ def test_api_queues_ingestion_and_worker_publishes_outbox(tmp_path) -> None:
     assert topic.status_code == 200
     assert len(graph.json()["nodes"]) == 2
     assert len(graph.json()["edges"]) == 1
+
+
+def test_api_creates_and_dispatches_ingestion_without_external_worker(tmp_path) -> None:
+    repository, service, reports, _ = _stack(tmp_path)
+    application = create_app(
+        knowledge_repository=repository,
+        knowledge_service=service,
+        report_service=reports,
+    )
+    with TestClient(application) as client:
+        application.state.ingestion_dispatcher.stop()
+        response = client.post(
+            "/api/knowledge/ingestions/execute",
+            json={
+                "collection": "PC 直接入库",
+                "sources": ["browser-fixture.pdf"],
+                "pdf_max_pages": 150,
+            },
+        )
+        ingestion_id = response.json()["id"]
+        completed = _wait_for_ingestion_status(
+            repository, ingestion_id, "needs_review"
+        )
+
+    assert response.status_code == 202
+    assert completed.document_count == 1
+    assert completed.candidate_count == 3
+    job = repository.get_resource_job("ingestion", ingestion_id)
+    assert job.payload["auto_execute"] is True
+    assert job.status == "completed"
+    assert job.attempts == 1
+
+
+def test_execute_and_retry_reject_mock_llm_without_mutating_existing_jobs(tmp_path) -> None:
+    settings = Settings(
+        knowledge_db_path=str(tmp_path / "mock-api.db"),
+        knowledge_vault_path=str(tmp_path / "mock-api-vault"),
+        chunk_size=40,
+        chunk_overlap=10,
+        llm_provider="mock",
+    )
+    repository = KnowledgeRepository(settings.knowledge_db_path)
+    service = KnowledgeIngestionService(
+        repository,
+        settings=settings,
+        llm=MockLLMClient(),
+        extractor=_ApiExtractor(),
+        parser=_api_parser,
+        indexer=NoopChunkIndexer(),
+        projector=NoopKnowledgeProjector(),
+        vault_exporter=KnowledgeVaultExporter(settings.knowledge_vault_path),
+        require_live_llm=True,
+    )
+    reports = KnowledgeReportService(repository, settings=settings, require_live_llm=False)
+    queued = repository.create_ingestion(
+        topic="待手动执行",
+        sources=["queued.pdf"],
+        pdf_max_pages=150,
+    )
+    failed = repository.create_ingestion(
+        topic="待重试",
+        sources=["failed.pdf"],
+        pdf_max_pages=150,
+    )
+    failed_job = repository.get_resource_job("ingestion", failed.id)
+    repository.fail_job(failed_job.id, "prior failure")
+    repository.update_ingestion(failed.id, status="failed", error="prior failure")
+
+    with TestClient(
+        create_app(
+            knowledge_repository=repository,
+            knowledge_service=service,
+            report_service=reports,
+        )
+    ) as client:
+        execute_response = client.post(f"/api/knowledge/ingestions/{queued.id}/execute")
+        retry_response = client.post(f"/api/knowledge/ingestions/{failed.id}/retry")
+
+    assert execute_response.status_code == 409
+    assert retry_response.status_code == 409
+    assert "真实 API Key" in execute_response.json()["detail"]
+    assert "真实 API Key" in retry_response.json()["detail"]
+    assert repository.get_ingestion(queued.id).status == "queued"
+    queued_job = repository.get_resource_job("ingestion", queued.id)
+    assert queued_job.status == "queued"
+    assert queued_job.attempts == 0
+    assert queued_job.payload.get("auto_execute") is not True
+    unchanged_failed = repository.get_ingestion(failed.id)
+    assert unchanged_failed.status == "failed"
+    assert unchanged_failed.error == "prior failure"
+    unchanged_failed_job = repository.get_resource_job("ingestion", failed.id)
+    assert unchanged_failed_job.status == "failed"
+    assert unchanged_failed_job.attempts == 0
+    assert repository.list_candidates(queued.id) == []
+    assert repository.list_candidates(failed.id) == []
 
 
 def test_api_reuses_an_equivalent_active_ingestion_submission(tmp_path) -> None:

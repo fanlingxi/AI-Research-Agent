@@ -45,8 +45,13 @@ function ScopeManager({ project, scopes }: { project: Project; scopes: ProjectKn
     queryFn: api.collections,
     enabled: open,
   });
+  const availableCollections = collections.data?.filter((collection) => !collection.is_system) ?? [];
   const replace = useMutation({
-    mutationFn: () => api.replaceScopes(project.id, project.revision, selected),
+    mutationFn: () => api.replaceScopes(
+      project.id,
+      project.revision,
+      selected.filter((slug) => availableCollections.some((collection) => collection.slug === slug)),
+    ),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["project", project.id] });
       void client.invalidateQueries({ queryKey: ["scopes", project.id] });
@@ -65,18 +70,18 @@ function ScopeManager({ project, scopes }: { project: Project; scopes: ProjectKn
   };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button size="sm" variant="outline" onClick={openDialog}>Manage scopes</Button>
+      <Button size="sm" variant="outline" onClick={openDialog}>管理知识范围</Button>
       <DialogContent>
-        <DialogTitle>绑定 Knowledge Collections</DialogTitle>
+        <DialogTitle>绑定知识集合</DialogTitle>
         <DialogDescription>
-          访问范围只由显式 Collection scope 决定。保存时使用 Project revision，冲突不会静默覆盖他人的变更。
+          访问范围只由显式知识集合决定。系统收件箱不会作为正式研究范围；并发修改也不会被静默覆盖。
         </DialogDescription>
         <form className="mt-5 space-y-3" onSubmit={(event) => { event.preventDefault(); replace.mutate(); }}>
           {collections.isPending ? <LoadingBlock label="读取 Collections…" /> : null}
           {collections.error instanceof Error ? <ErrorBlock error={collections.error} onRetry={() => collections.refetch()} /> : null}
-          {collections.data?.length ? (
+          {availableCollections.length ? (
             <div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border p-2">
-              {collections.data.map((collection) => (
+              {availableCollections.map((collection) => (
                 <label className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-slate-50" key={collection.slug}>
                   <input
                     checked={selected.includes(collection.slug)}
@@ -89,9 +94,9 @@ function ScopeManager({ project, scopes }: { project: Project; scopes: ProjectKn
               ))}
             </div>
           ) : null}
-          {collections.data && !collections.data.length ? <EmptyBlock title="没有可绑定的 Collection">先在 Knowledge Core 创建或导入一个 Collection。</EmptyBlock> : null}
+          {collections.data && !availableCollections.length ? <EmptyBlock title="没有可绑定的知识集合">先在知识库创建或导入一个集合。</EmptyBlock> : null}
           {replace.error instanceof Error ? <ErrorBlock error={replace.error} /> : null}
-          <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setOpen(false)}>取消</Button><Button disabled={replace.isPending || collections.isPending} type="submit">{replace.isPending ? "保存中…" : "保存 scopes"}</Button></div>
+          <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setOpen(false)}>取消</Button><Button disabled={replace.isPending || collections.isPending} type="submit">{replace.isPending ? "保存中…" : "保存范围"}</Button></div>
         </form>
       </DialogContent>
     </Dialog>

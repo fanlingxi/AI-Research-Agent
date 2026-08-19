@@ -1115,7 +1115,7 @@ def _normalize(value: str) -> str:
 
 
 def _normalize_for_match(value: str) -> str:
-    return re.sub(r"\s+", " ", value.strip())
+    return re.sub(r"\s+", " ", value.strip()).casefold()
 
 
 def _sha256(value: str) -> str:

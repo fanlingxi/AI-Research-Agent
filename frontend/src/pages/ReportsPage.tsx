@@ -346,7 +346,7 @@ export function ReportsPage() {
             </div>
             <FileText className="text-brand" size={20} />
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="max-h-[34rem] space-y-3 overflow-y-auto overscroll-contain pr-2" data-testid="report-history-list">
             {reports.data?.map((report) => (
               <button
                 className={`w-full rounded-lg border p-4 text-left transition ${

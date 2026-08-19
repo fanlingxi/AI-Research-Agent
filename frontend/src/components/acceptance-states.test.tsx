@@ -11,14 +11,18 @@ import {
   type AgentRun,
   type AgentTrace,
   type KnowledgeHealth,
+  type KnowledgeIngestion,
   type MemoryProposal,
   type Project,
   type ResearchReport,
 } from "../lib/api";
 import { AgentRunPage } from "../pages/AgentRunPage";
 import { DashboardPage } from "../pages/DashboardPage";
+import { KnowledgePage } from "../pages/KnowledgePage";
+import { ProjectWorkspacePage } from "../pages/ProjectWorkspacePage";
 import { ReportsPage } from "../pages/ReportsPage";
 import { ReviewPage } from "../pages/ReviewPage";
+import { RuntimePage } from "../pages/RuntimePage";
 import { ErrorBlock } from "./AsyncState";
 import { CandidateReviewPanel } from "./CandidateReviewPanel";
 
@@ -74,6 +78,25 @@ const healthyKnowledge: KnowledgeHealth = {
   },
 };
 
+const failedIngestion: KnowledgeIngestion = {
+  id: "ingestion-failed",
+  topic: "论文",
+  topic_slug: "papers",
+  collection: "论文",
+  collection_slug: "papers",
+  sources: ["paper.pdf"],
+  pdf_max_pages: 150,
+  status: "failed",
+  document_count: 0,
+  candidate_count: 0,
+  published_count: 0,
+  queue_position: null,
+  job_attempts: 1,
+  error: "解析未完成",
+  created_at: "2026-01-01T00:00:00+00:00",
+  updated_at: "2026-01-01T00:00:00+00:00",
+};
+
 const emptyDashboard = {
   active_projects: [],
   recent_workspace_tasks: [],
@@ -119,9 +142,10 @@ describe("browser acceptance states", () => {
 
     renderWithQuery(<MemoryRouter initialEntries={["/agent-runs/run-1"]}><Routes><Route path="/agent-runs/:runId" element={<AgentRunPage />} /></Routes></MemoryRouter>);
 
-    expect(await screen.findByText("此 Run 未完成，因此没有可展示的输出。")).toBeInTheDocument();
+    expect(await screen.findByText("此运行未完成，因此没有可展示的输出。")).toBeInTheDocument();
     expect(screen.queryByText("读取输出摘要…")).not.toBeInTheDocument();
     expect(screen.queryByText(/invalid TaskAnalysis JSON/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("agent-trace-grid")).toHaveClass("min-w-0");
   });
 
   it("starts one queued report directly from the report page", async () => {
@@ -248,5 +272,110 @@ describe("browser acceptance states", () => {
     expect(button).toBeDisabled();
     await user.click(button);
     expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("collapses an empty MemoryProposal queue so candidate review uses the workspace", async () => {
+    vi.spyOn(api, "projects").mockResolvedValue([project]);
+    vi.spyOn(api, "proposals").mockResolvedValue([]);
+    vi.spyOn(api, "ingestions").mockResolvedValue([]);
+
+    renderWithQuery(<MemoryRouter><ReviewPage /></MemoryRouter>);
+
+    expect(await screen.findByTestId("memory-proposal-empty-banner")).toHaveTextContent("当前没有待审核的记忆提案");
+    expect(screen.getByRole("heading", { name: "知识候选审核" })).toBeInTheDocument();
+    expect(screen.queryByTestId("review-split-layout")).not.toBeInTheDocument();
+  });
+
+  it("uses a bounded proposal rail when proposals need review", async () => {
+    vi.spyOn(api, "projects").mockResolvedValue([project]);
+    vi.spyOn(api, "proposals").mockResolvedValue([{ ...committedProposal, status: "proposed", revision: 1 }]);
+    vi.spyOn(api, "ingestions").mockResolvedValue([]);
+
+    renderWithQuery(<MemoryRouter><ReviewPage /></MemoryRouter>);
+
+    expect(await screen.findByTestId("review-split-layout")).toHaveClass("xl:grid-cols-[320px_minmax(0,1fr)]");
+  });
+
+  it("hides system collections from Project knowledge scopes", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "project").mockResolvedValue(project);
+    vi.spyOn(api, "tasks").mockResolvedValue([]);
+    vi.spyOn(api, "decisions").mockResolvedValue([]);
+    vi.spyOn(api, "artifacts").mockResolvedValue([]);
+    vi.spyOn(api, "scopes").mockResolvedValue([{ project_id: project.id, collection_slug: "inbox", created_at: project.created_at }]);
+    vi.spyOn(api, "projectRuns").mockResolvedValue({ items: [], next_cursor: null });
+    vi.spyOn(api, "proposals").mockResolvedValue([]);
+    vi.spyOn(api, "collections").mockResolvedValue([
+      { slug: "inbox", name: "收件箱", is_system: true, ingestion_count: 0, updated_at: null },
+      { slug: "papers", name: "论文库", is_system: false, ingestion_count: 2, updated_at: null },
+    ]);
+    const replace = vi.spyOn(api, "replaceScopes").mockResolvedValue([
+      { project_id: project.id, collection_slug: "papers", created_at: project.created_at },
+    ]);
+
+    renderWithQuery(<MemoryRouter initialEntries={["/projects/project-1/overview"]}><Routes><Route path="/projects/:projectId/:section" element={<ProjectWorkspacePage />} /></Routes></MemoryRouter>);
+
+    await user.click(await screen.findByRole("button", { name: "管理知识范围" }));
+    expect(await screen.findByRole("checkbox", { name: /论文库/ })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /收件箱/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: /论文库/ }));
+    await user.click(screen.getByRole("button", { name: "保存范围" }));
+    expect(replace).toHaveBeenCalledWith(project.id, project.revision, ["papers"]);
+  });
+
+  it("bounds long Knowledge, report, and Runtime lists inside their cards", async () => {
+    vi.spyOn(api, "ingestions").mockResolvedValue([]);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
+    vi.spyOn(api, "reports").mockResolvedValue([]);
+
+    const knowledge = renderWithQuery(<KnowledgePage />);
+    expect(await screen.findByTestId("ingestion-history-list")).toHaveClass("overflow-y-auto");
+    knowledge.unmount();
+
+    const reports = renderWithQuery(<MemoryRouter><ReportsPage /></MemoryRouter>);
+    expect(await screen.findByTestId("report-history-list")).toHaveClass("overflow-y-auto");
+    reports.unmount();
+
+    renderWithQuery(<MemoryRouter><RuntimePage /></MemoryRouter>);
+    expect(await screen.findByTestId("runtime-work-list")).toHaveClass("overflow-y-auto");
+  });
+
+  it("submits and starts a knowledge ingestion in one action", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "ingestions").mockResolvedValue([]);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
+    const submit = vi.spyOn(api, "submitAndExecuteIngestion").mockResolvedValue({
+      ...failedIngestion,
+      status: "queued",
+      error: null,
+    });
+
+    renderWithQuery(<KnowledgePage />);
+
+    await user.type(await screen.findByRole("textbox", { name: /PDF 路径或 URL/ }), "paper.pdf");
+    await user.click(screen.getByRole("button", { name: "提交并开始入库" }));
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({
+      sources: ["paper.pdf"],
+      pdf_max_pages: 20,
+    }));
+  });
+
+  it("retries a failed knowledge ingestion in place", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "ingestions").mockResolvedValue([failedIngestion]);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
+    const retry = vi.spyOn(api, "retryIngestion").mockResolvedValue({
+      ...failedIngestion,
+      status: "queued",
+      error: null,
+    });
+
+    renderWithQuery(<KnowledgePage />);
+
+    await user.click(await screen.findByRole("button", { name: "重新执行" }));
+    expect(retry).toHaveBeenCalledWith(failedIngestion.id);
   });
 });
