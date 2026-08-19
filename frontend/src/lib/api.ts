@@ -402,18 +402,30 @@ function detailMessage(detail: unknown) {
   return "请求未能完成。";
 }
 
+async function readErrorDetail(response: Response): Promise<unknown> {
+  // A Response body is a one-shot stream. Read it once, then decide whether it
+  // is JSON; this also preserves useful Vite proxy and network error messages.
+  const body = await response.text();
+  if (!body) return undefined;
+
+  try {
+    const payload: unknown = JSON.parse(body);
+    if (payload && typeof payload === "object" && "detail" in payload) {
+      return payload.detail;
+    }
+    return payload;
+  } catch {
+    return body;
+  }
+}
+
 async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(url, {
     ...init,
     headers: { "Content-Type": "application/json", ...init.headers },
   });
   if (!response.ok) {
-    let detail: unknown;
-    try {
-      detail = (await response.json()).detail;
-    } catch {
-      detail = await response.text();
-    }
+    const detail = await readErrorDetail(response);
     throw new ApiError(detailMessage(detail), response.status, detail);
   }
   return (await response.json()) as T;

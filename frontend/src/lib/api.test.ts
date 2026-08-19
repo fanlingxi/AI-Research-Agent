@@ -70,4 +70,30 @@ describe("workspace API client", () => {
       expect.any(Object),
     );
   });
+
+  it("keeps a non-JSON proxy failure readable", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("connect ECONNREFUSED 127.0.0.1:8010", { status: 502 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(api.projects()).rejects.toMatchObject({
+      name: "ApiError",
+      status: 502,
+      message: "connect ECONNREFUSED 127.0.0.1:8010",
+    });
+  });
+
+  it("extracts a JSON API error after reading its body once", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ detail: "后端暂时不可用" }), { status: 503 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(api.projects()).rejects.toMatchObject({
+      name: "ApiError",
+      status: 503,
+      message: "后端暂时不可用",
+    });
+  });
 });
