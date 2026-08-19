@@ -214,6 +214,67 @@ class _GraphSearch:
         return []
 
 
+class _EvidenceChunkSearch:
+    def search(self, query, *, allowed_paper_ids, top_k):
+        return [
+            ReportEvidence(
+                id="E-reference",
+                paper_id="paper:formal",
+                chunk_id="reference",
+                title="Formal Evidence Paper",
+                text="References [1] Agent systems and related work.",
+                page_start=20,
+                page_end=20,
+                score=0.99,
+            ),
+            ReportEvidence(
+                id="E-main",
+                paper_id="paper:formal",
+                chunk_id="main",
+                title="Formal Evidence Paper",
+                text="An agent uses verified evidence to plan a research task.",
+                page_start=2,
+                page_end=2,
+                score=0.32,
+            ),
+            ReportEvidence(
+                id="E-second",
+                paper_id="paper:formal",
+                chunk_id="second",
+                title="Formal Evidence Paper",
+                text="The agent checks evidence coverage before publication.",
+                page_start=3,
+                page_end=3,
+                score=0.28,
+            ),
+            ReportEvidence(
+                id="E-third",
+                paper_id="paper:formal",
+                chunk_id="third",
+                title="Formal Evidence Paper",
+                text="Agent runs retain a reviewable execution trace.",
+                page_start=4,
+                page_end=4,
+                score=0.27,
+            ),
+            ReportEvidence(
+                id="E-other",
+                paper_id="paper:other",
+                chunk_id="other",
+                title="Other Paper",
+                text="Another agent evaluates source-grounded answers.",
+                page_start=1,
+                page_end=1,
+                score=0.3,
+            ),
+        ]
+
+
+class _UnavailableGraphSearch:
+    def search(self, query, *, topic_slugs, limit=20):
+        raise RuntimeError("neo4j is unavailable")
+
+
 def test_query_service_filters_chunks_by_sqlite_published_paper_ids(tmp_path) -> None:
     repository, ingestion = _repository_with_paper(tmp_path)
     chunks = _ChunkSearch()
@@ -226,6 +287,26 @@ def test_query_service_filters_chunks_by_sqlite_published_paper_ids(tmp_path) ->
     query.search("grounded", topic_slugs=[ingestion.topic_slug], top_k=5)
 
     assert chunks.allowed == {"paper:formal"}
+
+
+def test_query_service_filters_bibliography_diversifies_results_and_degrades_graph(
+    tmp_path,
+) -> None:
+    repository, ingestion = _repository_with_paper(tmp_path)
+    query = KnowledgeQueryService(
+        repository,
+        chunk_search=_EvidenceChunkSearch(),
+        graph_search=_UnavailableGraphSearch(),
+    )
+
+    result = query.search("agent", topic_slugs=[ingestion.topic_slug], top_k=3)
+
+    assert len(result["evidence"]) == 3
+    assert all(item["chunk_id"] != "reference" for item in result["evidence"])
+    assert sum(item["paper_id"] == "paper:formal" for item in result["evidence"]) == 2
+    assert any(item["paper_id"] == "paper:other" for item in result["evidence"])
+    assert result["graph"] == []
+    assert result["warnings"] == ["图关系服务暂时不可用，当前仅展示已定位的原文证据。"]
 
 
 def test_hash_query_keeps_bilingual_technical_anchors() -> None:

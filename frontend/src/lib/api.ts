@@ -378,6 +378,7 @@ export interface KnowledgeHealth {
 export interface KnowledgeSearchResult {
   query: string;
   topic_slugs: string[];
+  warnings?: string[];
   evidence: Array<{
     id: string;
     paper_id: string;
