@@ -16,6 +16,7 @@ from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import KnowledgeJob, ProjectionEvent
 from app.knowledge.service import KnowledgeIngestionService
+from app.research_commands.service import ResearchCommandService
 
 
 class KnowledgeWorker:
@@ -28,6 +29,7 @@ class KnowledgeWorker:
         ingestion_service: KnowledgeIngestionService,
         report_service: KnowledgeReportService,
         agent_runtime: AgentRuntime | None = None,
+        research_command_service: ResearchCommandService | None = None,
         lease_seconds: int = 180,
         worker_id: str | None = None,
         version: str = "unified-worker-v1",
@@ -36,6 +38,7 @@ class KnowledgeWorker:
         self.ingestion_service = ingestion_service
         self.report_service = report_service
         self.agent_runtime = agent_runtime
+        self.research_command_service = research_command_service
         self.lease_seconds = lease_seconds
         self.worker_id = worker_id or (
             f"worker-{socket.gethostname()}-{os.getpid()}-{uuid4().hex[:8]}"
@@ -98,6 +101,10 @@ class KnowledgeWorker:
                     "stale_context",
                 }:
                     raise RuntimeError(result.error_message or "AgentRun did not complete")
+            elif job.kind == "research_command":
+                if self.research_command_service is None:
+                    raise RuntimeError("ResearchCommand orchestration is not configured")
+                self.research_command_service.execute_claimed(job)
             else:
                 self.ingestion_service.sync_collections(
                     list(job.payload.get("collection_slugs", []))
@@ -134,6 +141,18 @@ class KnowledgeWorker:
                     expected_owner=job.lease_owner,
                 )
         finally:
+            if self.research_command_service is not None and job.kind in {
+                "report",
+                "agent_run",
+            }:
+                try:
+                    self.research_command_service.refresh_for_target(
+                        job.kind,
+                        job.resource_id,
+                    )
+                except Exception:
+                    # Target completion remains authoritative. GET command is a repair path.
+                    pass
             stopped.set()
             heartbeat.join(timeout=1.0)
             self._heartbeat_executor()
@@ -214,14 +233,24 @@ class KnowledgeWorker:
 def build_worker() -> KnowledgeWorker:
     settings = get_settings()
     repository = KnowledgeRepository(settings.knowledge_db_path)
+    ingestion_service = KnowledgeIngestionService(repository, settings=settings)
+    report_service = KnowledgeReportService(repository, settings=settings)
+    agent_service = AgentRunService(repository, settings=settings)
+    agent_runtime = AgentRuntime(
+        agent_service,
+        checkpoint_factory=AgentCheckpointFactory(settings.agent_checkpoint_path),
+    )
+    research_commands = ResearchCommandService(
+        repository,
+        report_service=report_service,
+        agent_service=agent_service,
+    )
     return KnowledgeWorker(
         repository,
-        ingestion_service=KnowledgeIngestionService(repository, settings=settings),
-        report_service=KnowledgeReportService(repository, settings=settings),
-        agent_runtime=AgentRuntime(
-            AgentRunService(repository, settings=settings),
-            checkpoint_factory=AgentCheckpointFactory(settings.agent_checkpoint_path),
-        ),
+        ingestion_service=ingestion_service,
+        report_service=report_service,
+        agent_runtime=agent_runtime,
+        research_command_service=research_commands,
         lease_seconds=settings.knowledge_worker_lease_seconds,
     )
 

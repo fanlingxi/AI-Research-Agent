@@ -20,7 +20,13 @@ from app.runtime.schemas import (
 )
 
 _ACTIVE_AGENT_STATUSES = {"created", "queued", "preparing", "running", "validating"}
-_RETRYABLE_KINDS = {"ingestion", "report", "agent_run", "projection"}
+_RETRYABLE_KINDS = {
+    "ingestion",
+    "report",
+    "agent_run",
+    "research_command",
+    "projection",
+}
 
 
 class RuntimeObservabilityService:
@@ -217,18 +223,21 @@ WITH unified AS (
             WHEN 'report' THEN COALESCE(rep.query, job.resource_id)
             WHEN 'agent_run' THEN COALESCE(task.title, job.resource_id)
             WHEN 'collection_sync' THEN 'Collection 投影同步'
+            WHEN 'research_command' THEN COALESCE(command.instruction, job.resource_id)
             ELSE job.resource_id
         END AS title,
         CASE job.kind
             WHEN 'ingestion' THEN '/knowledge?ingestion=' || job.resource_id
             WHEN 'report' THEN '/reports?report=' || job.resource_id
             WHEN 'agent_run' THEN '/agent-runs/' || job.resource_id
+            WHEN 'research_command' THEN COALESCE(command.target_route, '/')
             ELSE '/runtime'
         END AS detail_route,
         CASE job.kind
             WHEN 'ingestion' THEN ing.status
             WHEN 'report' THEN rep.status
             WHEN 'agent_run' THEN run.status
+            WHEN 'research_command' THEN command.status
             ELSE job.status
         END AS business_status,
         job.status AS job_status,
@@ -237,6 +246,7 @@ WITH unified AS (
             WHEN 'agent_run' THEN run.current_node
             WHEN 'ingestion' THEN ing.status
             WHEN 'collection_sync' THEN 'collection_sync'
+            WHEN 'research_command' THEN command.orchestration_stage
             ELSE NULL
         END AS current_stage,
         job.attempts AS attempt,
@@ -254,12 +264,16 @@ WITH unified AS (
         job.lease_owner AS executor,
         job.created_at AS created_at,
         job.updated_at AS updated_at,
-        COALESCE(job.last_error, ing.error, rep.error, run.error_message) AS last_error
+        COALESCE(
+            job.last_error, ing.error, rep.error, run.error_message, command.error
+        ) AS last_error
     FROM knowledge_jobs job
     LEFT JOIN ingestions ing ON job.kind = 'ingestion' AND ing.id = job.resource_id
     LEFT JOIN reports rep ON job.kind = 'report' AND rep.id = job.resource_id
     LEFT JOIN agent_runs run ON job.kind = 'agent_run' AND run.id = job.resource_id
     LEFT JOIN workspace_tasks task ON run.task_id = task.id
+    LEFT JOIN research_commands command
+        ON job.kind = 'research_command' AND command.id = job.resource_id
 
     UNION ALL
 

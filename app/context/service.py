@@ -281,7 +281,7 @@ class ContextBuilderService:
                 "collection_scopes": constraints.collection_scopes,
             }
         )
-        snapshot_id = f"context-snapshot-{uuid4().hex}"
+        snapshot_id = request.snapshot_id or f"context-snapshot-{uuid4().hex}"
         created_at = _now()
         dropped_for_budget = 0
         dropped_memory = 0

@@ -50,6 +50,7 @@ class KnowledgeReportService:
         top_k: int = 8,
         report_depth: str = "standard",
         auto_execute: bool = False,
+        report_id: str | None = None,
     ) -> ResearchReport:
         if self.require_live_llm and self._is_mock_llm():
             raise LiveLLMRequiredError("研究报告需要配置真实 LLM，不会回退到 mock。")
@@ -66,7 +67,12 @@ class KnowledgeReportService:
             report_depth=report_depth,
             run_metadata=run_metadata,
             auto_execute=auto_execute,
+            report_id=report_id,
         )
+
+    def ensure_execution_available(self) -> None:
+        if self.require_live_llm and self._is_mock_llm():
+            raise LiveLLMRequiredError("研究报告需要配置真实 LLM，不会回退到 mock。")
 
     def run(
         self,

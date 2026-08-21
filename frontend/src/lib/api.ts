@@ -434,6 +434,44 @@ export interface RuntimeWorkPage {
   next_cursor: string | null;
 }
 
+export type ResearchCommandInput =
+  | {
+      mode: "quick_report";
+      instruction: string;
+      collection_slugs: string[];
+      report_depth: "brief" | "standard" | "deep";
+      top_k: number;
+    }
+  | {
+      mode: "project_run";
+      instruction: string;
+      project_id: string;
+      task:
+        | { kind: "existing"; task_id: string }
+        | { kind: "new"; title?: string; priority: "low" | "normal" | "high" | "urgent" };
+      create_memory_proposal: boolean;
+      max_steps: number;
+      max_tool_calls: number;
+      token_budget: number;
+    };
+
+export interface ResearchCommand {
+  id: string;
+  mode: "quick_report" | "project_run";
+  status: "accepted" | "preparing" | "target_created" | "queued" | "completed" | "failed";
+  instruction: string;
+  orchestration_stage: string;
+  project_id: string | null;
+  task_id: string | null;
+  snapshot_id: string | null;
+  target_resource_type: string | null;
+  target_resource_id: string | null;
+  target_route: string | null;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface KnowledgeSearchResult {
   query: string;
   topic_slugs: string[];
@@ -622,6 +660,18 @@ export const api = {
     })}`),
   retryProjection: (eventId: string) =>
     request<RuntimeWorkItem>(`/api/v1/runtime/projections/${path(eventId)}/retry`, {
+      method: "POST",
+    }),
+  submitResearchCommand: (input: ResearchCommandInput, idempotencyKey: string) =>
+    request<ResearchCommand>("/api/v1/research-commands", {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(input),
+    }),
+  researchCommand: (commandId: string) =>
+    request<ResearchCommand>(`/api/v1/research-commands/${path(commandId)}`),
+  retryResearchCommand: (commandId: string) =>
+    request<ResearchCommand>(`/api/v1/research-commands/${path(commandId)}/retry`, {
       method: "POST",
     }),
   reports: () => request<ResearchReport[]>("/api/reports"),

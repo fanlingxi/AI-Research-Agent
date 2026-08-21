@@ -119,8 +119,8 @@ def test_health_is_knowledge_only_and_v1_routes_are_absent(tmp_path) -> None:
 
     assert health.status_code == 200
     assert proxied_health.status_code == 200
-    assert proxied_health.json()["knowledge"]["schema_version"] == 16
-    assert health.json()["knowledge"]["schema_version"] == 16
+    assert proxied_health.json()["knowledge"]["schema_version"] == 17
+    assert health.json()["knowledge"]["schema_version"] == 17
     assert health.json()["services"]["worker"]["available"] is True
     assert old_research.status_code == 404
     assert old_task.status_code == 404

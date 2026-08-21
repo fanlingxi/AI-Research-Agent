@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +14,7 @@ import {
   type KnowledgeIngestion,
   type MemoryProposal,
   type Project,
+  type ResearchCommand,
   type ResearchReport,
   type RuntimeOverview,
   type RuntimeWorkItem,
@@ -72,7 +73,7 @@ const healthyKnowledge: KnowledgeHealth = {
   status: "ok",
   services: { worker: { available: true, detail: "在线" } },
   knowledge: {
-    schema_version: 16,
+    schema_version: 17,
     live_llm_configured: true,
     llm_provider: "fixture",
     jobs: {},
@@ -141,7 +142,27 @@ const emptyDashboard = {
   recent_artifacts: [],
 };
 
-afterEach(() => vi.restoreAllMocks());
+const acceptedCommand: ResearchCommand = {
+  id: "research-command-1",
+  mode: "quick_report",
+  status: "accepted",
+  instruction: "研究可靠性",
+  orchestration_stage: "accepted",
+  project_id: null,
+  task_id: null,
+  snapshot_id: null,
+  target_resource_type: null,
+  target_resource_id: null,
+  target_route: null,
+  error: null,
+  created_at: "2026-01-01T00:00:00+00:00",
+  updated_at: "2026-01-01T00:00:00+00:00",
+};
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  window.localStorage.clear();
+});
 
 describe("browser acceptance states", () => {
   it("redacts unavailable-service implementation details", () => {
@@ -276,38 +297,109 @@ describe("browser acceptance states", () => {
     vi.spyOn(api, "collections").mockResolvedValue([
       { slug: "papers", name: "论文", is_system: false, ingestion_count: 1, updated_at: null },
     ]);
-    const submit = vi.spyOn(api, "submitAndExecuteReport").mockResolvedValue(queuedReport);
+    const submit = vi.spyOn(api, "submitResearchCommand").mockResolvedValue(acceptedCommand);
+    vi.spyOn(api, "researchCommand").mockResolvedValue(acceptedCommand);
 
     renderWithQuery(<MemoryRouter><DashboardPage /></MemoryRouter>);
 
     const input = await screen.findByRole("textbox", { name: "研究指令" });
-    const scope = screen.getByRole("combobox", { name: /证据范围/ });
-    const button = screen.getByRole("button", { name: "开始研究" });
+    const scope = await screen.findByRole("checkbox", { name: /论文/ });
+    const button = screen.getByRole("button", { name: "提交并开始研究" });
     expect(input.compareDocumentPosition(scope) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(scope.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await user.type(input, "研究可靠性");
-    await user.selectOptions(scope, "papers");
+    await user.click(scope);
     await user.click(button);
 
-    expect(submit).toHaveBeenCalledWith(expect.objectContaining({
-      query: "研究可靠性",
-      collection_slugs: ["papers"],
-    }));
+    expect(submit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "quick_report",
+        instruction: "研究可靠性",
+        collection_slugs: ["papers"],
+      }),
+      expect.any(String),
+    );
   });
 
   it("blocks quick research when collection scope cannot be loaded", async () => {
     const user = userEvent.setup();
     vi.spyOn(api, "dashboard").mockResolvedValue(emptyDashboard);
     vi.spyOn(api, "collections").mockRejectedValue(new Error("集合读取失败"));
-    const submit = vi.spyOn(api, "submitAndExecuteReport");
+    const submit = vi.spyOn(api, "submitResearchCommand");
 
     renderWithQuery(<MemoryRouter><DashboardPage /></MemoryRouter>);
 
     await screen.findByText("集合读取失败");
-    const button = screen.getByRole("button", { name: "开始研究" });
+    const button = screen.getByRole("button", { name: "提交并开始研究" });
     expect(button).toBeDisabled();
     await user.click(button);
     expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("requires an explicit Project before submitting project research", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "dashboard").mockResolvedValue(emptyDashboard);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "projects").mockResolvedValue([project]);
+    vi.spyOn(api, "tasks").mockResolvedValue([]);
+    const submit = vi.spyOn(api, "submitResearchCommand").mockResolvedValue({
+      ...acceptedCommand,
+      mode: "project_run",
+      project_id: project.id,
+      instruction: "研究项目运行",
+    });
+    vi.spyOn(api, "researchCommand").mockResolvedValue(acceptedCommand);
+
+    renderWithQuery(<MemoryRouter><DashboardPage /></MemoryRouter>);
+
+    await user.click(await screen.findByRole("button", { name: "项目研究" }));
+    const instruction = screen.getByRole("textbox", { name: "研究指令" });
+    const projectSelect = await screen.findByRole("combobox", { name: /Project/ });
+    const submitButton = screen.getByRole("button", { name: "提交并开始研究" });
+    await user.type(instruction, "研究项目运行");
+    expect(submitButton).toBeDisabled();
+    await user.selectOptions(projectSelect, project.id);
+    await waitFor(() => expect(submitButton).toBeEnabled());
+    await user.click(submitButton);
+
+    await waitFor(() => {
+      expect(submit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: "project_run",
+          project_id: project.id,
+          task: expect.objectContaining({ kind: "new" }),
+        }),
+        expect.any(String),
+      );
+    });
+  });
+
+  it("restores a persisted failed command and retries from the Dashboard", async () => {
+    const user = userEvent.setup();
+    const failedCommand: ResearchCommand = {
+      ...acceptedCommand,
+      status: "failed",
+      orchestration_stage: "snapshot_ready",
+      error: "Agent 执行器暂时不可用",
+    };
+    window.localStorage.setItem("research-workspace.pending-command", JSON.stringify({
+      fingerprint: "saved",
+      key: "saved-command-key",
+      commandId: failedCommand.id,
+    }));
+    vi.spyOn(api, "dashboard").mockResolvedValue(emptyDashboard);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "researchCommand").mockResolvedValue(failedCommand);
+    const retry = vi.spyOn(api, "retryResearchCommand").mockResolvedValue({
+      ...failedCommand,
+      status: "accepted",
+      error: null,
+    });
+
+    renderWithQuery(<MemoryRouter><DashboardPage /></MemoryRouter>);
+
+    await user.click(await screen.findByRole("button", { name: "从失败阶段恢复" }));
+    expect(retry).toHaveBeenCalledWith(failedCommand.id);
   });
 
   it("collapses an empty MemoryProposal queue so candidate review uses the workspace", async () => {

@@ -19,6 +19,7 @@ class ContextBuildRequest(BaseModel):
 
     task_id: str = Field(min_length=1)
     project_id: str | None = Field(default=None, min_length=1)
+    snapshot_id: str | None = Field(default=None, min_length=1)
     max_tokens: int = Field(default=6000, ge=256, le=16000)
     enable_vector_candidates: bool = False
     enable_graph_candidates: bool = False

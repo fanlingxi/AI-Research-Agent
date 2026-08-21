@@ -25,7 +25,7 @@ Phases 1–6 are complete. The documented engineering verification is:
 - Phase 6 full deterministic evaluation candidate: 13 passed, 0 failed/error/skipped, 4/4 isolation attestations true;
 - Phase 6 demo candidate: 3 passed, 0 failed/error/skipped, isolation passed.
 
-There is no human-approved Phase 6 baseline. Public material must say **candidate** and must not imply a baseline comparison or regression comparison. The current application schema contract is v16; historical candidate outputs retain their original fixture version and the evaluation runner never opens the operational database.
+There is no human-approved Phase 6 baseline. Public material must say **candidate** and must not imply a baseline comparison or regression comparison. The current application schema contract is v17; historical candidate outputs retain their original fixture version and the evaluation runner never opens the operational database.
 
 ## Engineering and migration background
 

@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, model_validator
 
@@ -55,6 +55,11 @@ from app.memory.schemas import (
     WorkspaceTaskUpdateRequest,
 )
 from app.memory.service import MemoryService
+from app.research_commands.models import (
+    ResearchCommandConflictError,
+    ResearchCommandSubmission,
+)
+from app.research_commands.service import ResearchCommandService
 from app.runtime.service import RuntimeObservabilityService
 from app.workspace.schemas import ContextProjectionRequest
 from app.workspace.service import WorkspaceProjectionConflictError, WorkspaceProjectionService
@@ -113,6 +118,7 @@ def create_app(
     game_knowledge_authoring_service: GameKnowledgeAuthoringService | None = None,
     workspace_projection_service: WorkspaceProjectionService | None = None,
     runtime_observability_service: RuntimeObservabilityService | None = None,
+    research_command_service: ResearchCommandService | None = None,
 ) -> FastAPI:
     settings = get_settings()
     repository = knowledge_repository or KnowledgeRepository(settings.knowledge_db_path)
@@ -135,6 +141,11 @@ def create_app(
         llm_provider=getattr(service.llm, "provider_name", settings.llm_provider),
         live_llm_configured=not service._is_mock_llm(),
     )
+    research_commands = research_command_service or ResearchCommandService(
+        repository,
+        report_service=reports,
+        agent_service=agents,
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -147,6 +158,7 @@ def create_app(
         app.state.game_knowledge_authoring_service = game_knowledge
         app.state.workspace_projection_service = workspace
         app.state.runtime_observability_service = runtime_observability
+        app.state.research_command_service = research_commands
         yield
 
     app = FastAPI(
@@ -228,6 +240,38 @@ def create_app(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Projection event not found.") from exc
         except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/research-commands", status_code=202)
+    def create_research_command(
+        payload: ResearchCommandSubmission,
+        idempotency_key: Annotated[
+            str,
+            Header(alias="Idempotency-Key", min_length=8, max_length=200),
+        ],
+    ) -> dict[str, Any]:
+        try:
+            return research_commands.submit(
+                payload,
+                idempotency_key=idempotency_key,
+            ).model_dump()
+        except ResearchCommandConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.get("/api/v1/research-commands/{command_id}")
+    def get_research_command(command_id: str) -> dict[str, Any]:
+        try:
+            return research_commands.get(command_id).model_dump()
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Research command not found.") from exc
+
+    @app.post("/api/v1/research-commands/{command_id}/retry", status_code=202)
+    def retry_research_command(command_id: str) -> dict[str, Any]:
+        try:
+            return research_commands.retry(command_id).model_dump()
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Research command not found.") from exc
+        except (ValueError, LiveLLMRequiredError, AgentRunConflictError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.post("/api/knowledge/ingestions", status_code=202)

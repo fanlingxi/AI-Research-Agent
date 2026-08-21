@@ -76,7 +76,12 @@ class AgentRunService:
             self._current_execution.reset(token)
 
     def create_run(
-        self, project_id: str, task_id: str, request: AgentRunCreateRequest
+        self,
+        project_id: str,
+        task_id: str,
+        request: AgentRunCreateRequest,
+        *,
+        run_id: str | None = None,
     ) -> AgentRun:
         task = self.knowledge_repository.memory_repository.get_workspace_task(task_id)
         if task.project_id != project_id:
@@ -130,6 +135,7 @@ class AgentRunService:
                 max_steps=request.max_steps,
                 max_tool_calls=request.max_tool_calls,
                 token_budget=request.token_budget,
+                run_id=run_id,
             )
             queued = self.repository.queue_run_tx(connection, run.id)
             self.knowledge_repository._enqueue_job_tx(

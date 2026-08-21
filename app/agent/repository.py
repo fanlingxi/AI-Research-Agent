@@ -51,6 +51,7 @@ class AgentRunRepository:
         max_steps: int,
         max_tool_calls: int,
         token_budget: int,
+        run_id: str | None = None,
     ) -> AgentRun:
         self._require_context_snapshot_tx(
             connection,
@@ -59,7 +60,7 @@ class AgentRunRepository:
             task_id=task_id,
             context_sha256=context_sha256,
         )
-        run_id = f"agent-run-{uuid4().hex}"
+        resolved_run_id = run_id or f"agent-run-{uuid4().hex}"
         now = _now()
         try:
             connection.execute(
@@ -77,7 +78,7 @@ class AgentRunRepository:
                           NULL, NULL, NULL, NULL, NULL, ?, ?, 1)
                 """,
                 (
-                    run_id,
+                    resolved_run_id,
                     project_id,
                     task_id,
                     context_snapshot_id,
@@ -106,13 +107,13 @@ class AgentRunRepository:
             raise
         self._append_event_tx(
             connection,
-            run_id=run_id,
+            run_id=resolved_run_id,
             event_type="run_created",
             node_name=None,
             status="created",
             output_summary={"context_snapshot_id": context_snapshot_id},
         )
-        return self._run_from_row(self._require_run_tx(connection, run_id))
+        return self._run_from_row(self._require_run_tx(connection, resolved_run_id))
 
     def queue_run_tx(self, connection: sqlite3.Connection, run_id: str) -> AgentRun:
         row = self._require_run_tx(connection, run_id)

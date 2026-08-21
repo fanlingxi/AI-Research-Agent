@@ -267,7 +267,9 @@ class ConfidenceAutoApprovalResult(BulkCandidateDecisionResult):
 
 class KnowledgeJob(BaseModel):
     id: str
-    kind: Literal["ingestion", "report", "collection_sync", "agent_run"]
+    kind: Literal[
+        "ingestion", "report", "collection_sync", "agent_run", "research_command"
+    ]
     resource_id: str
     status: JobStatus
     payload: dict[str, Any] = Field(default_factory=dict)

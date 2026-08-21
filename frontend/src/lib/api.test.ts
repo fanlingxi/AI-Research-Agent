@@ -148,6 +148,29 @@ describe("workspace API client", () => {
     );
   });
 
+  it("submits an idempotent research command through the unified endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "command one", status: "accepted" }), { status: 202 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.submitResearchCommand({
+      mode: "quick_report",
+      instruction: "agent reliability",
+      collection_slugs: ["papers"],
+      top_k: 12,
+      report_depth: "standard",
+    }, "stable-command-key");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/research-commands",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "Idempotency-Key": "stable-command-key" }),
+      }),
+    );
+  });
+
   it("creates and immediately executes a knowledge ingestion from the workbench", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: "ingestion one", status: "queued" }), { status: 202 }),

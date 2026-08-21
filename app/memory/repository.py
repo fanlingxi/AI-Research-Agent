@@ -164,14 +164,15 @@ class MemoryRepository:
         goal: str,
         priority: str,
         metadata: dict[str, Any],
+        task_id: str | None = None,
     ) -> WorkspaceTask:
         now = _now()
-        task_id = f"workspace-task-{uuid4().hex}"
+        resolved_task_id = task_id or f"workspace-task-{uuid4().hex}"
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             return self._create_workspace_task_tx(
                 connection,
-                task_id=task_id,
+                task_id=resolved_task_id,
                 project_id=project_id,
                 title=title,
                 goal=goal,

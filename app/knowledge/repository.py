@@ -100,6 +100,7 @@ class KnowledgeRepository:
         self._apply_structural_migration(14)
         self._apply_structural_migration(15)
         self._apply_structural_migration(16)
+        self._apply_structural_migration(17)
         self._backfill_legacy_relation_collections()
         self._backfill_semantic_records()
 
@@ -614,7 +615,7 @@ class KnowledgeRepository:
     def enqueue_job(
         self,
         *,
-        kind: Literal["ingestion", "report", "agent_run"],
+        kind: Literal["ingestion", "report", "agent_run", "research_command"],
         resource_id: str,
         payload: dict[str, Any] | None = None,
         priority: int = 0,
@@ -682,7 +683,7 @@ class KnowledgeRepository:
 
     def get_resource_job(
         self,
-        kind: Literal["ingestion", "report", "agent_run"],
+        kind: Literal["ingestion", "report", "agent_run", "research_command"],
         resource_id: str,
     ) -> KnowledgeJob:
         with self._connect() as connection:
@@ -737,7 +738,7 @@ class KnowledgeRepository:
 
     def claim_resource_job(
         self,
-        kind: Literal["ingestion", "report", "agent_run"],
+        kind: Literal["ingestion", "report", "agent_run", "research_command"],
         resource_id: str,
         lease_seconds: int = 120,
         *,
@@ -2657,8 +2658,9 @@ class KnowledgeRepository:
         report_depth: str,
         run_metadata: dict[str, Any] | None = None,
         auto_execute: bool = False,
+        report_id: str | None = None,
     ) -> ResearchReport:
-        report_id = f"report-{uuid4().hex}"
+        resolved_report_id = report_id or f"report-{uuid4().hex}"
         now = _now()
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -2671,7 +2673,7 @@ class KnowledgeRepository:
                 ) VALUES (?, ?, ?, ?, ?, 'queued', '', '[]', NULL, ?, NULL, ?, ?)
                 """,
                 (
-                    report_id,
+                    resolved_report_id,
                     query.strip(),
                     _dump(topic_slugs),
                     top_k,
@@ -2684,11 +2686,11 @@ class KnowledgeRepository:
             self._enqueue_job_tx(
                 connection,
                 kind="report",
-                resource_id=report_id,
+                resource_id=resolved_report_id,
                 payload={"auto_execute": True} if auto_execute else {},
                 priority=100 if auto_execute else 0,
             )
-        return self.get_report(report_id)
+        return self.get_report(resolved_report_id)
 
     def list_reports(self, limit: int = 100) -> list[ResearchReport]:
         with self._connect() as connection:

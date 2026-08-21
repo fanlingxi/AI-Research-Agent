@@ -34,6 +34,7 @@ const KIND_LABELS: Record<string, string> = {
   ingestion: "PDF 入库",
   report: "研究报告",
   agent_run: "项目 AgentRun",
+  research_command: "研究指令",
   collection_sync: "Collection 同步",
   projection: "外部投影",
 };
@@ -93,6 +94,7 @@ export function RuntimePage() {
       if (item.kind === "ingestion") return api.retryIngestion(item.resource_id);
       if (item.kind === "report") return api.retryReport(item.resource_id);
       if (item.kind === "agent_run") return api.resumeRun(item.resource_id);
+      if (item.kind === "research_command") return api.retryResearchCommand(item.resource_id);
       throw new Error("该任务必须通过资源详情页恢复。");
     },
     onSuccess: refreshWork,

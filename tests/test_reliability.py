@@ -148,7 +148,7 @@ def test_schema_migrations_and_sequential_replay_are_idempotent(tmp_path) -> Non
     first = service.decide("candidate-idempotent", CandidateDecision(decision="approve"))
     replay = service.decide("candidate-idempotent", CandidateDecision(decision="approve"))
 
-    assert repository.schema_version() == 16
+    assert repository.schema_version() == 17
     assert first.applied and not first.replayed
     assert replay.replayed and not replay.applied
     with pytest.raises(ValueError, match="不同"):

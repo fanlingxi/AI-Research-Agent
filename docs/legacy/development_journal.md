@@ -12,6 +12,31 @@
 - 已知风险和后续动作
 - 可复用的项目成果表述
 
+## 2026-08-21：阶段四——统一研究指令入口
+
+### 问题与架构决策
+
+- 旧 Dashboard 的“开始研究”只创建快速报告；项目研究仍要求用户手工完成 Project、Task、ContextSnapshot、AgentRun 多步操作，且浏览器的两次请求可能在断网后留下重复或孤立资源。
+- 新增 schema v17 `research_commands`：存储请求哈希、模式、编排阶段、已创建资源 ID、目标路由与错误。`Idempotency-Key` 只以 SHA-256 保存；相同 key+请求返回原 Command，不同请求复用 key 返回冲突。
+- 两种模式共用一个入口但保持产物边界明确：`quick_report` 默认创建证据报告；`project_run` 必须显式选择 Project，并显式复用 Task 或创建 Task，随后由 Worker 创建不可变 ContextSnapshot 和 AgentRun。
+- 编排由统一 Worker 执行。Task、Snapshot、Report、AgentRun 使用 Command 派生的稳定 ID；失败保留已创建资源并从失败阶段恢复，不因双击、断网重放或 Worker 重启复制目标。
+
+### 修改范围与验证
+
+- 新增 ResearchCommand model/repository/service、迁移 17、三个 v1 API、Worker job kind 和 Runtime 投影；Context、Task、Report、AgentRun 创建路径增加可选确定性 ID，但不改变既有调用者的随机 ID 默认行为。
+- React Dashboard 替换旧快速报告卡：支持快速报告/项目研究切换、可搜索多 Collection、显式 Project、已有/新建 Task、报告与 Agent 高级参数、持久命令轮询和原位失败恢复。旧 AgentPanel 继续作为高级手工路径。
+- 定向后端测试覆盖同 key 重放/冲突、12 路并发双击仅一条 Command/job、快速报告唯一目标、项目新建与已有 Task、部分资源保留恢复，以及目标完成后 Command 终态同步。前端测试覆盖双模式、Collection 范围、显式 Project 门禁、本地恢复和幂等请求头。
+- 阶段收口时后端全量回归为 170 passed、3 skipped；前端为 35 passed，production build 通过。Ruff check、Compose 配置与 Git diff 检查通过。
+
+### 已知边界与下一步
+
+- Command 负责可恢复编排，不复制报告或 AgentRun 内容；目标资源及 durable job 仍是执行事实，Runtime 只做统一投影。
+- 当前报告检索仍需在阶段五完成“向量只返回候选 ID、SQLite 正式 Core 重水化”切换；阶段六再补 stale_context 和 needs_review 的完整 PC 生命周期。
+
+### 可复用的项目成果表述
+
+- 将快速报告与治理型项目研究收敛为一个持久、幂等、可恢复的双模式研究指令入口，以稳定资源 ID 和阶段状态机消除双击、断网重试及中断恢复造成的重复 Task、Snapshot、Run 或报告。
+
 ## 2026-08-21：阶段三——统一运行可观测性
 
 ### 问题与架构决策
