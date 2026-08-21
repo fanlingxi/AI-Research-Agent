@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any
 from uuid import uuid4
 
@@ -24,6 +27,7 @@ from app.domain_plugins.errors import DomainPluginConflictError
 from app.domain_plugins.ports import DomainRuntimePort
 from app.domain_plugins.registry import DomainPluginRegistry, create_builtin_plugin_registry
 from app.domain_plugins.research.ports import ResearchRuntimePort
+from app.execution import ExecutionFence
 from app.knowledge.repository import KnowledgeRepository
 from app.llms.provider import LLMClient, MockLLMClient, get_llm_client
 from app.memory.models import MemoryProposal
@@ -58,6 +62,18 @@ class AgentRunService:
         self.settings = settings or get_settings()
         self.llm = llm or get_llm_client(self.settings)
         self.plugin_registry = plugin_registry or create_builtin_plugin_registry()
+        self._current_execution: ContextVar[ExecutionFence | None] = ContextVar(
+            f"agent_execution_fence_{id(self)}",
+            default=None,
+        )
+
+    @contextmanager
+    def execution_scope(self, fence: ExecutionFence | None) -> Iterator[None]:
+        token = self._current_execution.set(fence)
+        try:
+            yield
+        finally:
+            self._current_execution.reset(token)
 
     def create_run(
         self, project_id: str, task_id: str, request: AgentRunCreateRequest
@@ -124,6 +140,7 @@ class AgentRunService:
                     "workflow_name": run.workflow_name,
                     "plugin": run.plugin.model_dump(mode="json"),
                 },
+                priority=100,
             )
             return queued
 
@@ -143,6 +160,7 @@ class AgentRunService:
                 kind="agent_run",
                 resource_id=run_id,
                 payload={"workflow_name": resumed.workflow_name},
+                priority=100,
                 force_requeue=True,
             )
             return resumed
@@ -170,13 +188,20 @@ class AgentRunService:
         raise AgentRunConflictError(f"Unknown Domain Runtime port kind: {port_kind}")
 
     def recover_interrupted_run(self, run_id: str) -> AgentRun:
-        return self.repository.recover_interrupted_run(run_id)
+        return self.repository.recover_interrupted_run(
+            run_id,
+            execution_fence=self._current_execution.get(),
+        )
 
     def mark_node(
         self, run_id: str, *, status: str, node_name: str, input_summary: dict[str, Any]
     ) -> AgentRun:
         return self.repository.mark_node(
-            run_id, status=status, node_name=node_name, input_summary=input_summary
+            run_id,
+            status=status,
+            node_name=node_name,
+            input_summary=input_summary,
+            execution_fence=self._current_execution.get(),
         )
 
     def record_node_completed(
@@ -194,6 +219,7 @@ class AgentRunService:
             output_summary=output_summary,
             token_usage=token_usage,
             latency_ms=latency_ms,
+            execution_fence=self._current_execution.get(),
         )
 
     def record_tool_call(
@@ -223,6 +249,7 @@ class AgentRunService:
             result_summary=result_summary,
             idempotency_key=idempotency_key,
             node_name=node_name,
+            execution_fence=self._current_execution.get(),
         )
 
     def complete_foundation_output(
@@ -241,16 +268,21 @@ class AgentRunService:
                 "Phase 3A runtime foundation completed; no research content was generated."
             ),
             validation={"status": "not_applicable", "phase": "3a"},
+            execution_fence=self._current_execution.get(),
         )
 
     def begin_repair(self, run_id: str) -> AgentRun:
-        return self.repository.begin_repair(run_id)
+        return self.repository.begin_repair(
+            run_id,
+            execution_fence=self._current_execution.get(),
+        )
 
     def mark_needs_review(self, run_id: str, *, error_message: str) -> AgentRun:
         return self.repository.mark_needs_review(
             run_id,
             error_code="citation_validation_failed",
             error_message=error_message,
+            execution_fence=self._current_execution.get(),
         )
 
     def load_context_snapshot(self, run_id: str) -> ContextPackage:
@@ -272,6 +304,16 @@ class AgentRunService:
 
         with self.knowledge_repository._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            fence = self._current_execution.get()
+            if fence is not None:
+                self.knowledge_repository.assert_job_ownership_tx(
+                    connection,
+                    job_id=fence.job_id,
+                    kind="agent_run",
+                    resource_id=run_id,
+                    expected_attempt=fence.attempt,
+                    expected_owner=fence.owner_id,
+                )
             run = self.repository.get_run_tx(connection, run_id)
             if command.plugin != run.plugin:
                 raise AgentRunConflictError(
@@ -340,6 +382,7 @@ class AgentRunService:
                     "artifact_id": artifact.id,
                     "memory_proposal_id": proposal.id if proposal else None,
                 },
+                execution_fence=fence,
             )
             return DomainFinalization(
                 output=output,
@@ -376,7 +419,10 @@ class AgentRunService:
 
     def fail_run(self, run_id: str, *, error_code: str, error_message: str) -> AgentRun:
         return self.repository.fail_run(
-            run_id, error_code=error_code, error_message=error_message
+            run_id,
+            error_code=error_code,
+            error_message=error_message,
+            execution_fence=self._current_execution.get(),
         )
 
     def _resolve_context(

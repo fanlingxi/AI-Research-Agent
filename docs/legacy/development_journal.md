@@ -12,6 +12,31 @@
 - 已知风险和后续动作
 - 可复用的项目成果表述
 
+## 2026-08-21：阶段二——统一任务执行平面
+
+### 问题与架构决策
+
+- 旧实现同时存在 FastAPI 内置入库/报告 Dispatcher 与独立 Worker，长任务可能被两个执行器竞争领取；Collection 同步和 AgentRun 又只由 Worker 处理，形成两套恢复语义。
+- FastAPI 现只持久化业务资源与队列意图，不在进程内执行长任务。独立 Worker 统一消费 ingestion、report、agent_run、collection_sync 和 projection outbox，默认并发度为 1。
+- schema v16 以向前兼容迁移增加任务优先级、`lease_owner`、投影所有者与执行器心跳。交互式提交/显式启动使用高优先级，同优先级保持创建顺序。
+- 每类任务按 lease/3 续租；`job_id + attempt + lease_owner` 成为执行 fencing token。入库候选/终态、报告阶段/终态、AgentRun 事件/工具/输出/Platform Finalizer，以及投影完成/失败都在业务写事务内验证所有权。
+- Worker 周期性恢复过期租约；API 重启不再改变队列或执行状态。投影 outbox 的终态与 ingestion 聚合状态在同一事务内刷新。
+
+### 修改范围与验证
+
+- 修改 queue repository、ingestion/report service、Agent Runtime/Repository、Platform Finalizer、统一 Worker、API lifespan、健康投影与对应测试；未读取、迁移或改写保留的 operational 数据和 `data/real_world_test/`。
+- 后端全量回归为 161 passed、3 skipped；新增短租约慢投影、双 owner、交互优先级和 AgentRun stale owner 回归。Ruff check、前端 28 项 Vitest、production build、Compose 配置和 Git diff 检查通过。
+- 短租约测试确认投影执行期间第二 Worker 无法重复领取；旧 AgentRun/投影 owner 无法在新 attempt 后写阶段或提交终态。API 测试确认创建后保持 queued，直到独立 Worker 消费。
+
+### 已知边界与下一步
+
+- 当前健康接口仅给出统一 Worker 的粗粒度在线状态；队列位置、当前任务、AgentRun、投影 backlog 和失败恢复将在阶段三的 Runtime v1 接口中补齐。
+- schema v16 是当前代码契约；任何用户数据库只有在正常启动 Repository 时才执行迁移。本阶段测试仅在临时数据库验证迁移完整性和 `integrity_check`，未直接迁移用户数据。
+
+### 可复用的项目成果表述
+
+- 将 API 内置调度与通用 Worker 的双执行面收敛为单一持久 Worker，通过优先级队列、执行器心跳、lease/3 续租和三元 fencing token，统一保障 PDF 入库、报告、AgentRun、集合同步与外部投影的崩溃恢复和旧执行隔离。
+
 ## 2026-08-21：阶段一——统一 PC 部署与入口
 
 ### 决策与实现

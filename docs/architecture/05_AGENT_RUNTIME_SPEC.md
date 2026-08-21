@@ -35,6 +35,8 @@ completed | needs_review | failed | cancelled | stale_context
 
 Each plugin workflow has a reviewed minimum step/tool budget and checkpoint namespace. LangGraph checkpoints are opened only for the selected workflow. If a worker resumes an interrupted run, it restores the business lifecycle before scheduling the next durable graph node rather than deliberately replaying completed work.
 
+FastAPI only creates durable queue intent. The independent unified Worker is the sole AgentRun executor. Every lifecycle/event/tool/output write and Platform Finalizer transaction validates the active `job_id + attempt + lease_owner` fence. A reclaimed attempt therefore prevents the former executor from advancing a node or committing output, even if the old process returns late. All job kinds renew at one third of their configured lease and expired work is recovered by the Worker rather than API startup.
+
 ## Tool and output governance
 
 Tool calls are executed through a registry with declared permissions and are written with sequence and idempotency information. The Platform Finalizer validates the plugin pin and owns atomic output, Artifact, and optional MemoryProposal persistence.

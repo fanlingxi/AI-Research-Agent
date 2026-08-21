@@ -20,8 +20,8 @@ def test_phase6_curated_contract_suite_is_offline_and_passing() -> None:
     assert len(manifest.cases) == 13
     assert run.summary == {"passed": 13, "failed": 0, "skipped": 0, "error": 0}
     assert run.isolation.passed
-    assert run.environment.schema_version == 15
-    assert run.environment.operational_schema_baseline == 14
+    assert run.environment.schema_version == 16
+    assert run.environment.operational_schema_baseline == 16
     assert run.environment.llm_mode == "scripted_fixture"
 
 

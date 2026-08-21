@@ -129,6 +129,7 @@ class KnowledgeIngestionService:
         *,
         expected_job_id: str | None = None,
         expected_job_attempt: int | None = None,
+        expected_job_owner: str | None = None,
     ) -> KnowledgeIngestion:
         if (expected_job_id is None) != (expected_job_attempt is None):
             raise ValueError("A claimed ingestion requires both its job id and attempt.")
@@ -143,6 +144,7 @@ class KnowledgeIngestionService:
                     expected_attempt=expected_job_attempt,
                     status="failed",
                     error=str(exc),
+                    expected_owner=expected_job_owner,
                 )
             raise
         if expected_job_id is not None and expected_job_attempt is not None:
@@ -150,6 +152,7 @@ class KnowledgeIngestionService:
                 ingestion_id,
                 expected_job_id,
                 expected_attempt=expected_job_attempt,
+                expected_owner=expected_job_owner,
             )
         else:
             ingestion = self.repository.update_ingestion(ingestion_id, status="running")
@@ -163,12 +166,14 @@ class KnowledgeIngestionService:
                         ingestion_id,
                         expected_job_id=expected_job_id,
                         expected_job_attempt=expected_job_attempt,
+                        expected_job_owner=expected_job_owner,
                     )
                     parsed = self.parser(source=source, max_pages=ingestion.pdf_max_pages)
                     self._assert_claim(
                         ingestion_id,
                         expected_job_id=expected_job_id,
                         expected_job_attempt=expected_job_attempt,
+                        expected_job_owner=expected_job_owner,
                     )
                     paper = self._paper_from_document(parsed, source)
                     chunks = [
@@ -220,6 +225,7 @@ class KnowledgeIngestionService:
                 ingestion_id,
                 expected_job_id=expected_job_id,
                 expected_job_attempt=expected_job_attempt,
+                expected_job_owner=expected_job_owner,
             )
             self.indexer.index(indexed_chunks)
             for paper, chunks in documents:
@@ -230,6 +236,7 @@ class KnowledgeIngestionService:
                     candidates,
                     expected_job_id=expected_job_id,
                     expected_job_attempt=expected_job_attempt,
+                    expected_job_owner=expected_job_owner,
                 )
             warning = "；".join(errors) if errors else None
             if expected_job_id is not None and expected_job_attempt is not None:
@@ -239,6 +246,7 @@ class KnowledgeIngestionService:
                     expected_attempt=expected_job_attempt,
                     status="needs_review",
                     error=warning,
+                    expected_owner=expected_job_owner,
                 )
             result = self.repository.update_ingestion(
                 ingestion_id, status="needs_review", error=warning
@@ -255,6 +263,7 @@ class KnowledgeIngestionService:
                     expected_attempt=expected_job_attempt,
                     status="failed",
                     error=str(exc),
+                    expected_owner=expected_job_owner,
                 )
             return self.repository.update_ingestion(ingestion_id, status="failed", error=str(exc))
 
@@ -279,6 +288,7 @@ class KnowledgeIngestionService:
                 job.resource_id,
                 expected_job_id=job.id,
                 expected_job_attempt=job.attempts,
+                expected_job_owner=job.lease_owner,
             )
         except StaleIngestionExecution:
             return self.repository.get_ingestion(job.resource_id)
@@ -291,6 +301,7 @@ class KnowledgeIngestionService:
             expected_attempt=job.attempts,
             status="failed",
             error=error,
+            expected_owner=job.lease_owner,
         )
 
     def execute_claimed_with_heartbeat(
@@ -327,6 +338,7 @@ class KnowledgeIngestionService:
                     job.id,
                     expected_attempt=job.attempts,
                     lease_seconds=lease_seconds,
+                    expected_owner=job.lease_owner,
                 )
             except Exception:
                 logger.exception("Failed to renew ingestion lease for %s", job.resource_id)
@@ -340,6 +352,7 @@ class KnowledgeIngestionService:
         *,
         expected_job_id: str | None,
         expected_job_attempt: int | None,
+        expected_job_owner: str | None,
     ) -> None:
         if expected_job_id is None or expected_job_attempt is None:
             return
@@ -347,6 +360,7 @@ class KnowledgeIngestionService:
             ingestion_id,
             expected_job_id,
             expected_attempt=expected_job_attempt,
+            expected_owner=expected_job_owner,
         )
 
     def decide(self, candidate_id: str, decision: CandidateDecision) -> DecisionResult:
@@ -591,9 +605,18 @@ class KnowledgeIngestionService:
                 )
             self._render_topics([event.topic_slug])
         except Exception as exc:
-            self.repository.fail_projection(event.id, str(exc))
+            self.repository.fail_projection(
+                event.id,
+                str(exc),
+                expected_attempt=event.attempts,
+                expected_owner=event.lease_owner,
+            )
             raise
-        return self.repository.complete_projection(event.id)
+        return self.repository.complete_projection(
+            event.id,
+            expected_attempt=event.attempts,
+            expected_owner=event.lease_owner,
+        )
 
     def drain_projections(self, limit: int = 1000) -> int:
         processed = 0

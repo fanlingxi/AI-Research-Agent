@@ -21,7 +21,7 @@ def _memory(tmp_path) -> tuple[KnowledgeRepository, MemoryRepository]:
 def test_v0011_creates_memory_core_tables_and_replays_idempotently(tmp_path) -> None:
     knowledge, _ = _memory(tmp_path)
 
-    assert knowledge.schema_version() == 15
+    assert knowledge.schema_version() == 16
     with knowledge._connect() as connection:
         tables = {
             row["name"]
@@ -49,7 +49,7 @@ def test_v0011_creates_memory_core_tables_and_replays_idempotently(tmp_path) -> 
     assert {"proposal_type", "payload_json", "committed_record_id", "revision"}.issubset(columns)
 
     reopened = KnowledgeRepository(knowledge.path)
-    assert reopened.schema_version() == 15
+    assert reopened.schema_version() == 16
 
 
 def test_v11_fixture_upgrades_to_v12_without_changing_memory_business_data(tmp_path) -> None:
@@ -111,6 +111,11 @@ def test_v11_fixture_upgrades_to_v12_without_changing_memory_business_data(tmp_p
             for table in memory_tables
         }
         connection.execute("BEGIN IMMEDIATE")
+        connection.execute("DROP TABLE executor_heartbeats")
+        connection.execute("DROP INDEX knowledge_jobs_claim_idx")
+        connection.execute("ALTER TABLE knowledge_jobs DROP COLUMN priority")
+        connection.execute("ALTER TABLE knowledge_jobs DROP COLUMN lease_owner")
+        connection.execute("ALTER TABLE projection_outbox DROP COLUMN lease_owner")
         connection.execute("DROP TABLE agent_run_outputs")
         connection.execute("DROP TABLE agent_tool_calls")
         connection.execute("DROP TABLE agent_run_events")
@@ -120,14 +125,14 @@ def test_v11_fixture_upgrades_to_v12_without_changing_memory_business_data(tmp_p
         connection.execute("DROP TABLE project_domain_plugins")
         connection.execute("DROP INDEX workspace_tasks_plugin_idx")
         connection.execute("ALTER TABLE workspace_tasks DROP COLUMN domain_plugin_key")
-        connection.execute("DELETE FROM schema_migrations WHERE version = 15")
+        connection.execute("DELETE FROM schema_migrations WHERE version IN (15, 16)")
         connection.execute("DELETE FROM schema_migrations WHERE version = 14")
         connection.execute("DELETE FROM schema_migrations WHERE version = 13")
         connection.execute("DELETE FROM schema_migrations WHERE version = 12")
         assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 11
 
     upgraded = KnowledgeRepository(knowledge.path)
-    assert upgraded.schema_version() == 15
+    assert upgraded.schema_version() == 16
     with upgraded._connect() as connection:
         after = {
             table: [dict(row) for row in connection.execute(f"SELECT * FROM {table} ORDER BY 1")]
@@ -141,7 +146,7 @@ def test_v11_fixture_upgrades_to_v12_without_changing_memory_business_data(tmp_p
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
 
     reopened = KnowledgeRepository(knowledge.path)
-    assert reopened.schema_version() == 15
+    assert reopened.schema_version() == 16
     with reopened._connect() as connection:
         assert {
             table: [dict(row) for row in connection.execute(f"SELECT * FROM {table} ORDER BY 1")]

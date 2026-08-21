@@ -8,6 +8,7 @@ import pytest
 from app.config.settings import Settings
 from app.knowledge.extractor import ExtractionResult
 from app.knowledge.obsidian import KnowledgeVaultExporter
+from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository, StaleIngestionExecution
 from app.knowledge.schemas import (
     CandidateDecision,
@@ -25,6 +26,7 @@ from app.knowledge.service import (
 )
 from app.llms.provider import MockLLMClient
 from app.schemas.documents import ParsedDocument
+from app.worker import KnowledgeWorker
 from tests.core_fixtures import persist_evidence_chunk
 
 
@@ -146,7 +148,7 @@ def test_schema_migrations_and_sequential_replay_are_idempotent(tmp_path) -> Non
     first = service.decide("candidate-idempotent", CandidateDecision(decision="approve"))
     replay = service.decide("candidate-idempotent", CandidateDecision(decision="approve"))
 
-    assert repository.schema_version() == 15
+    assert repository.schema_version() == 16
     assert first.applied and not first.replayed
     assert replay.replayed and not replay.applied
     with pytest.raises(ValueError, match="不同"):
@@ -211,6 +213,61 @@ def test_recovery_does_not_steal_an_active_worker_lease(tmp_path) -> None:
 
     assert active is not None
     assert repository.get_job(active.id).status == "running"
+
+
+def test_unified_worker_claims_interactive_priority_before_older_batch_work(tmp_path) -> None:
+    repository, _ = _service(tmp_path)
+    background = repository.create_ingestion(
+        topic="后台批处理", sources=["older.pdf"], pdf_max_pages=3, enqueue=True
+    )
+    interactive = repository.create_ingestion(
+        topic="交互式任务",
+        sources=["newer.pdf"],
+        pdf_max_pages=3,
+        auto_execute=True,
+    )
+
+    claimed = repository.claim_job(lease_seconds=30, owner_id="worker-priority")
+
+    assert claimed is not None
+    assert claimed.resource_id == interactive.id
+    assert claimed.priority > repository.get_resource_job("ingestion", background.id).priority
+    assert repository.get_resource_job("ingestion", background.id).status == "queued"
+
+
+def test_job_fencing_requires_attempt_and_lease_owner(tmp_path) -> None:
+    repository, _ = _service(tmp_path)
+    ingestion = repository.create_ingestion(
+        topic="所有者隔离", sources=["paper.pdf"], pdf_max_pages=3, enqueue=True
+    )
+    claimed = repository.claim_resource_job(
+        "ingestion", ingestion.id, lease_seconds=30, owner_id="worker-alpha"
+    )
+    assert claimed is not None
+
+    assert not repository.renew_job_lease(
+        claimed.id,
+        expected_attempt=claimed.attempts,
+        expected_owner="worker-beta",
+        lease_seconds=30,
+    )
+    assert not repository.complete_job(
+        claimed.id,
+        expected_attempt=claimed.attempts,
+        expected_owner="worker-beta",
+    )
+    assert not repository.fail_job(
+        claimed.id,
+        "stale executor",
+        expected_attempt=claimed.attempts,
+        expected_owner="worker-beta",
+    )
+    assert repository.get_job(claimed.id).status == "running"
+    assert repository.complete_job(
+        claimed.id,
+        expected_attempt=claimed.attempts,
+        expected_owner="worker-alpha",
+    )
 
 
 def test_ingestion_heartbeat_prevents_duplicate_long_execution(tmp_path) -> None:
@@ -351,6 +408,20 @@ class _FailingProjector:
         raise RuntimeError("neo4j unavailable")
 
 
+class _SlowProjector:
+    def __init__(self, delay: float) -> None:
+        self.delay = delay
+        self.calls = 0
+
+    def upsert_entities(self, entities) -> None:
+        self.calls += 1
+        time.sleep(self.delay)
+
+    def upsert_relations(self, relations) -> None:
+        self.calls += 1
+        time.sleep(self.delay)
+
+
 def test_projection_failure_preserves_sqlite_fact_and_can_be_requeued(tmp_path) -> None:
     repository, service = _service(tmp_path, projector=_FailingProjector())
     ingestion = repository.create_ingestion(
@@ -377,6 +448,75 @@ def test_projection_failure_preserves_sqlite_fact_and_can_be_requeued(tmp_path) 
 
     assert retried.status == "publishing"
     assert repository.projection_summary()["queued"] == 1
+
+
+def test_projection_heartbeat_prevents_duplicate_short_lease_execution(tmp_path) -> None:
+    projector = _SlowProjector(delay=1.4)
+    repository, service = _service(tmp_path, projector=projector)
+    ingestion = repository.create_ingestion(
+        topic="投影续租", sources=["paper.pdf"], pdf_max_pages=3, enqueue=False
+    )
+    repository.update_ingestion(ingestion.id, status="needs_review")
+    persist_evidence_chunk(repository, ingestion_id=ingestion.id, evidence=_evidence())
+    repository.add_candidate_entity(_entity(ingestion, "candidate-slow", "慢投影事实"))
+    service.decide("candidate-slow", CandidateDecision(decision="approve"))
+    worker = KnowledgeWorker(
+        repository,
+        ingestion_service=service,
+        report_service=KnowledgeReportService(repository, require_live_llm=False),
+        lease_seconds=1,
+        worker_id="projection-worker",
+    )
+
+    thread = threading.Thread(target=worker.run_once)
+    thread.start()
+    time.sleep(1.1)
+    duplicate = repository.claim_projection(lease_seconds=1, owner_id="other-worker")
+    thread.join(timeout=3)
+
+    assert not thread.is_alive()
+    assert duplicate is None
+    assert projector.calls == 1
+    assert repository.projection_summary()["completed"] == 1
+    heartbeat = repository.list_executor_heartbeats("worker")[0]
+    assert heartbeat.id == "projection-worker"
+    assert heartbeat.current_job_id is None
+
+
+def test_stale_projection_attempt_cannot_complete_or_fail_new_owner(tmp_path) -> None:
+    repository, service = _service(tmp_path)
+    ingestion = repository.create_ingestion(
+        topic="投影代隔离", sources=["paper.pdf"], pdf_max_pages=3, enqueue=False
+    )
+    repository.update_ingestion(ingestion.id, status="needs_review")
+    persist_evidence_chunk(repository, ingestion_id=ingestion.id, evidence=_evidence())
+    repository.add_candidate_entity(_entity(ingestion, "candidate-fence", "投影代隔离"))
+    service.decide("candidate-fence", CandidateDecision(decision="approve"))
+    stale = repository.claim_projection(lease_seconds=-1, owner_id="old-worker")
+    current = repository.claim_projection(lease_seconds=30, owner_id="new-worker")
+    assert stale is not None and current is not None
+    assert stale.id == current.id and current.attempts == 2
+
+    with pytest.raises(RuntimeError, match="no longer owned"):
+        repository.complete_projection(
+            stale.id,
+            expected_attempt=stale.attempts,
+            expected_owner=stale.lease_owner,
+        )
+    with pytest.raises(RuntimeError, match="no longer owned"):
+        repository.fail_projection(
+            stale.id,
+            "late failure",
+            expected_attempt=stale.attempts,
+            expected_owner=stale.lease_owner,
+        )
+
+    repository.complete_projection(
+        current.id,
+        expected_attempt=current.attempts,
+        expected_owner=current.lease_owner,
+    )
+    assert repository.projection_summary()["completed"] == 1
 
 
 def test_347_candidate_batch_reports_exact_conflicts_and_blocked_relations(tmp_path) -> None:

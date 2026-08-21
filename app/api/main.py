@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import socket
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 from urllib.parse import urlparse
 
@@ -32,10 +33,10 @@ from app.domain_plugins.models import (
 )
 from app.domain_plugins.service import DomainPluginService
 from app.knowledge.extractor import LiveLLMRequiredError
-from app.knowledge.reports import KnowledgeReportDispatcher, KnowledgeReportService
+from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import BulkCandidateDecision, CandidateDecision, CandidateStatus
-from app.knowledge.service import KnowledgeIngestionDispatcher, KnowledgeIngestionService
+from app.knowledge.service import KnowledgeIngestionService
 from app.memory.schemas import (
     ArtifactCreateRequest,
     ArtifactNextVersionRequest,
@@ -114,19 +115,7 @@ def create_app(
     settings = get_settings()
     repository = knowledge_repository or KnowledgeRepository(settings.knowledge_db_path)
     service = knowledge_service or KnowledgeIngestionService(repository, settings=settings)
-    ingestion_dispatcher = KnowledgeIngestionDispatcher(
-        repository,
-        service,
-        lease_seconds=settings.knowledge_worker_lease_seconds,
-        poll_seconds=min(settings.knowledge_worker_poll_seconds, 0.5),
-    )
     reports = report_service or KnowledgeReportService(repository, settings=settings)
-    report_dispatcher = KnowledgeReportDispatcher(
-        repository,
-        reports,
-        lease_seconds=settings.knowledge_worker_lease_seconds,
-        poll_seconds=min(settings.knowledge_worker_poll_seconds, 0.5),
-    )
     memory = memory_service or MemoryService(repository.memory_repository)
     agents = agent_run_service or AgentRunService(repository)
     domain_plugins = domain_plugin_service or DomainPluginService(
@@ -143,22 +132,13 @@ def create_app(
     async def lifespan(app: FastAPI):
         app.state.knowledge_repository = repository
         app.state.knowledge_service = service
-        app.state.ingestion_dispatcher = ingestion_dispatcher
         app.state.report_service = reports
-        app.state.report_dispatcher = report_dispatcher
         app.state.memory_service = memory
         app.state.agent_run_service = agents
         app.state.domain_plugin_service = domain_plugins
         app.state.game_knowledge_authoring_service = game_knowledge
         app.state.workspace_projection_service = workspace
-        repository.recover_running_work()
-        ingestion_dispatcher.start()
-        report_dispatcher.start()
-        try:
-            yield
-        finally:
-            report_dispatcher.stop()
-            ingestion_dispatcher.stop()
+        yield
 
     app = FastAPI(
         title="AI Research Knowledge Core API",
@@ -168,25 +148,25 @@ def create_app(
     )
 
     def health_payload() -> dict[str, Any]:
+        worker_heartbeats = repository.list_executor_heartbeats("worker")
+        worker = worker_heartbeats[0] if worker_heartbeats else None
+        worker_available = False
+        if worker is not None:
+            last_seen = datetime.fromisoformat(worker.last_heartbeat_at)
+            worker_available = (
+                datetime.now(tz=UTC) - last_seen
+            ).total_seconds() <= max(5.0, settings.knowledge_worker_poll_seconds * 3)
         return {
             "status": "ok",
             "services": {
                 "qdrant": _service_status(settings.qdrant_url),
                 "neo4j": _service_status(settings.neo4j_uri),
-                "report_dispatcher": {
-                    "available": report_dispatcher.is_alive,
+                "worker": {
+                    "available": worker_available,
                     "detail": (
-                        "内置报告执行器在线"
-                        if report_dispatcher.is_alive
-                        else "内置报告执行器未启动"
-                    ),
-                },
-                "ingestion_dispatcher": {
-                    "available": ingestion_dispatcher.is_alive,
-                    "detail": (
-                        "内置入库与知识投影执行器在线"
-                        if ingestion_dispatcher.is_alive
-                        else "内置入库与知识投影执行器未启动"
+                        f"统一任务执行器在线 · {worker.id}"
+                        if worker_available and worker is not None
+                        else "统一任务执行器离线；请启动 python -m app.worker"
                     ),
                 },
             },
@@ -226,9 +206,6 @@ def create_app(
     ) -> dict[str, Any]:
         try:
             ingestion = service.submit(**payload.model_dump(), auto_execute=True)
-            if not ingestion_dispatcher.is_alive:
-                ingestion_dispatcher.start()
-            ingestion_dispatcher.wake()
             return ingestion.model_dump()
         except LiveLLMRequiredError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -260,9 +237,6 @@ def create_app(
         _require_ingestion(repository, ingestion_id)
         try:
             ingestion = service.retry(ingestion_id, auto_execute=True)
-            if not ingestion_dispatcher.is_alive:
-                ingestion_dispatcher.start()
-            ingestion_dispatcher.wake()
             return ingestion.model_dump()
         except LiveLLMRequiredError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -275,9 +249,6 @@ def create_app(
         try:
             service.ensure_execution_available()
             ingestion = repository.mark_ingestion_for_dispatch(ingestion_id)
-            if not ingestion_dispatcher.is_alive:
-                ingestion_dispatcher.start()
-            ingestion_dispatcher.wake()
             return ingestion.model_dump()
         except LiveLLMRequiredError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -456,7 +427,6 @@ def create_app(
                 raise HTTPException(status_code=409, detail="Report job is missing.") from exc
             except ValueError as exc:
                 raise HTTPException(status_code=409, detail=str(exc)) from exc
-            ensure_report_dispatcher()
             return report.model_dump()
         elif report.status not in {"queued", "running"}:
             action = "retry" if report.status == "failed" else "create a new report"
@@ -470,18 +440,11 @@ def create_app(
             raise HTTPException(status_code=409, detail="Report job is missing.") from exc
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
-        ensure_report_dispatcher()
         return report.model_dump()
-
-    def ensure_report_dispatcher() -> None:
-        if not report_dispatcher.is_alive:
-            report_dispatcher.start()
-        report_dispatcher.wake()
 
     @app.post("/api/reports/execute", status_code=202)
     def submit_and_execute_report(payload: ReportCreateRequest) -> dict[str, Any]:
         report = submit_report_request(payload, auto_execute=True)
-        ensure_report_dispatcher()
         return report
 
     @app.post("/api/reports/{report_id}/execute", status_code=202)

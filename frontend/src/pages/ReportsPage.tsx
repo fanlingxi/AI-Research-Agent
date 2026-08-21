@@ -304,7 +304,7 @@ export function ReportsPage() {
   });
   const dispatcherAvailable = health.isPending
     ? undefined
-    : health.data?.services.report_dispatcher?.available === true;
+    : health.data?.services.worker?.available === true;
   const selectedId = params.get("report") ?? "";
   const selected = useMemo(() => {
     const items = reports.data ?? [];

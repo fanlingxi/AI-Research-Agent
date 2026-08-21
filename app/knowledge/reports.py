@@ -74,6 +74,7 @@ class KnowledgeReportService:
         *,
         expected_job_id: str | None = None,
         expected_job_attempt: int | None = None,
+        expected_job_owner: str | None = None,
     ) -> ResearchReport:
         if (expected_job_id is None) != (expected_job_attempt is None):
             raise ValueError("A claimed report requires both its job id and attempt.")
@@ -88,6 +89,7 @@ class KnowledgeReportService:
             run_metadata={**report.run_metadata, "current_stage": "retrieving_evidence"},
             error=None,
             expected_job_attempt=expected_job_attempt,
+            expected_job_owner=expected_job_owner,
         )
         try:
             result = self.query_service.search(
@@ -105,6 +107,7 @@ class KnowledgeReportService:
                 run_metadata={**report.run_metadata, "current_stage": "generating_draft"},
                 error=None,
                 expected_job_attempt=expected_job_attempt,
+                expected_job_owner=expected_job_owner,
             )
             prompt = self._prompt(report, evidence, result.get("graph", []))
             content = self.llm.invoke(prompt, system_prompt=_REPORT_SYSTEM_PROMPT).strip()
@@ -119,6 +122,7 @@ class KnowledgeReportService:
                 run_metadata={**report.run_metadata, "current_stage": "validating_citations"},
                 error=None,
                 expected_job_attempt=expected_job_attempt,
+                expected_job_owner=expected_job_owner,
             )
             evaluation = _evaluate(
                 content,
@@ -134,6 +138,7 @@ class KnowledgeReportService:
                     run_metadata={**report.run_metadata, "current_stage": "revising_draft"},
                     error=None,
                     expected_job_attempt=expected_job_attempt,
+                    expected_job_owner=expected_job_owner,
                 )
                 content = self.llm.invoke(
                     self._revision_prompt(content, evidence),
@@ -161,6 +166,7 @@ class KnowledgeReportService:
                     report_id,
                     expected_job_id=expected_job_id,
                     expected_job_attempt=expected_job_attempt,
+                    expected_job_owner=expected_job_owner,
                     status="failed",
                     content=content,
                     evidence=evidence,
@@ -172,6 +178,7 @@ class KnowledgeReportService:
                 report_id,
                 expected_job_id=expected_job_id,
                 expected_job_attempt=expected_job_attempt,
+                expected_job_owner=expected_job_owner,
                 status="completed",
                 content=content,
                 evidence=evidence,
@@ -187,6 +194,7 @@ class KnowledgeReportService:
                 report_id,
                 expected_job_id=expected_job_id,
                 expected_job_attempt=expected_job_attempt,
+                expected_job_owner=expected_job_owner,
                 status="failed",
                 run_metadata=self._execution_metadata(
                     report,
@@ -204,6 +212,7 @@ class KnowledgeReportService:
         report_id: str,
         job_id: str,
         expected_attempt: int,
+        expected_owner: str | None = None,
     ) -> ResearchReport:
         """Execute an already claimed report and keep report/job terminal states aligned."""
         try:
@@ -211,12 +220,19 @@ class KnowledgeReportService:
                 report_id,
                 expected_job_id=job_id,
                 expected_job_attempt=expected_attempt,
+                expected_job_owner=expected_owner,
             )
         except StaleReportExecution:
             return self.repository.get_report(report_id)
         except Exception as exc:
             try:
-                return self.fail_claimed(report_id, job_id, expected_attempt, str(exc))
+                return self.fail_claimed(
+                    report_id,
+                    job_id,
+                    expected_attempt,
+                    str(exc),
+                    expected_owner=expected_owner,
+                )
             except StaleReportExecution:
                 return self.repository.get_report(report_id)
 
@@ -236,7 +252,12 @@ class KnowledgeReportService:
         )
         heartbeat.start()
         try:
-            return self.execute_claimed(job.resource_id, job.id, job.attempts)
+            return self.execute_claimed(
+                job.resource_id,
+                job.id,
+                job.attempts,
+                expected_owner=job.lease_owner,
+            )
         finally:
             heartbeat_stop.set()
             heartbeat.join(timeout=1.0)
@@ -254,6 +275,7 @@ class KnowledgeReportService:
                     job.id,
                     expected_attempt=job.attempts,
                     lease_seconds=lease_seconds,
+                    expected_owner=job.lease_owner,
                 )
             except Exception:
                 logger.exception("Failed to renew report lease for %s", job.resource_id)
@@ -267,6 +289,8 @@ class KnowledgeReportService:
         job_id: str,
         expected_attempt: int,
         error: str,
+        *,
+        expected_owner: str | None = None,
     ) -> ResearchReport:
         """Atomically fail a claimed execution if this attempt still owns it."""
         report = self.repository.get_report(report_id)
@@ -277,6 +301,7 @@ class KnowledgeReportService:
             status="failed",
             run_metadata={**report.run_metadata, "current_stage": "failed"},
             error=error,
+            expected_owner=expected_owner,
         )
 
     def _finalize_run(
@@ -285,6 +310,7 @@ class KnowledgeReportService:
         *,
         expected_job_id: str | None,
         expected_job_attempt: int | None,
+        expected_job_owner: str | None,
         status: Literal["completed", "failed"],
         content: str | None = None,
         evidence: list[ReportEvidence] | None = None,
@@ -303,6 +329,7 @@ class KnowledgeReportService:
                 evaluation=evaluation,
                 run_metadata=run_metadata,
                 error=error,
+                expected_owner=expected_job_owner,
             )
         result = self.repository.update_report(
             report_id,

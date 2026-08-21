@@ -9,6 +9,7 @@ from app.agent.errors import AgentRunCancelledError, AgentRunTerminalError
 from app.agent.models import AgentRun
 from app.agent.service import AgentRunService
 from app.domain_plugins.registry import DomainPluginRegistry
+from app.execution import ExecutionFence
 
 FOUNDATION_CHECKPOINT_NAMESPACE = "agent_runtime_phase3a"
 RESEARCH_CHECKPOINT_NAMESPACE = "agent_runtime_phase3b"
@@ -34,7 +35,16 @@ class AgentRuntime:
         self._workflow_override = workflow or research_workflow
         self.plugin_registry = plugin_registry or service.plugin_registry
 
-    def execute_queued(self, run_id: str) -> AgentRun:
+    def execute_queued(
+        self,
+        run_id: str,
+        *,
+        execution_fence: ExecutionFence | None = None,
+    ) -> AgentRun:
+        with self.service.execution_scope(execution_fence):
+            return self._execute_queued(run_id)
+
+    def _execute_queued(self, run_id: str) -> AgentRun:
         run = self.service.get_run(run_id)
         # Queue records are scheduling facts only.  Reclaiming a lease after a
         # business terminal transition must complete the queue item without

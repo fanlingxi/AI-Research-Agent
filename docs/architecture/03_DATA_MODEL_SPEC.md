@@ -51,4 +51,4 @@ A LangGraph checkpoint is keyed by the AgentRun thread and plugin workflow names
 
 ## Persistence boundary
 
-SQLite is the operational source of business truth. Qdrant, Neo4j, and Obsidian-compatible stores are supporting indexes/projections and must be recoverable from governed source facts. Phase 6 uses fresh temporary schema-v15 databases and does not open the schema-v14 operational SQLite database.
+SQLite is the operational source of business truth. Qdrant, Neo4j, and Obsidian-compatible stores are supporting indexes/projections and must be recoverable from governed source facts. The current operational schema contract is v16. Migration 16 adds queue priority, lease ownership, projection ownership, and executor heartbeats without deleting business rows. Evaluation uses fresh temporary databases and never opens the operational store.

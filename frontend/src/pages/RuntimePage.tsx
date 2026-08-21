@@ -12,8 +12,7 @@ import { formatDate } from "../lib/utils";
 const SERVICE_LABELS: Record<string, string> = {
   neo4j: "图关系数据库",
   qdrant: "向量检索服务",
-  ingestion_dispatcher: "文献入库执行器",
-  report_dispatcher: "报告执行器",
+  worker: "统一任务执行器",
 };
 
 export function RuntimePage() {

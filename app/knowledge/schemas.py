@@ -272,7 +272,9 @@ class KnowledgeJob(BaseModel):
     status: JobStatus
     payload: dict[str, Any] = Field(default_factory=dict)
     attempts: int = 0
+    priority: int = 0
     lease_until: str | None = None
+    lease_owner: str | None = None
     last_error: str | None = None
     created_at: str
     updated_at: str
@@ -288,9 +290,20 @@ class ProjectionEvent(BaseModel):
     status: ProjectionStatus
     attempts: int = 0
     lease_until: str | None = None
+    lease_owner: str | None = None
     last_error: str | None = None
     created_at: str
     updated_at: str
+
+
+class ExecutorHeartbeat(BaseModel):
+    id: str
+    role: str
+    version: str
+    started_at: str
+    last_heartbeat_at: str
+    current_job_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class KnowledgeCollection(BaseModel):

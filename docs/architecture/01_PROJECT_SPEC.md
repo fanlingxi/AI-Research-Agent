@@ -74,7 +74,7 @@ Creative plugins, third-party dynamic plugins, multi-agent orchestration, MCP, w
 
 ## Storage and compatibility
 
-SQLite is the operational fact store. Qdrant, Neo4j, and Obsidian-compatible projections support retrieval or projection and do not replace business truth. The operational SQLite baseline is schema v14. Phase 6 creates only temporary schema-v15 fixtures; it does not apply a production migration, and v0009 remains unexecuted.
+SQLite is the operational fact store. Qdrant, Neo4j, and Obsidian-compatible projections support retrieval or projection and do not replace business truth. The current operational schema contract is v16 and is applied through forward-only, additive migrations. Historical evaluation outputs remain immutable records of the schema version on which they were generated.
 
 ## Public release status
 

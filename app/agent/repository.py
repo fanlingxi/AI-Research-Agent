@@ -17,6 +17,7 @@ from app.agent.errors import (
 )
 from app.agent.models import AgentRun, AgentRunEvent, AgentRunOptions, AgentRunOutput, AgentToolCall
 from app.domain_plugins.contracts import PluginPin
+from app.execution import ExecutionFence
 from app.persistence.sqlite import SQLiteDatabase
 
 _TERMINAL_STATUSES = {"completed", "cancelled", "stale_context"}
@@ -141,6 +142,7 @@ class AgentRunRepository:
         status: str,
         node_name: str,
         input_summary: dict[str, Any] | None = None,
+        execution_fence: ExecutionFence | None = None,
     ) -> AgentRun:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -150,6 +152,7 @@ class AgentRunRepository:
                 status=status,
                 node_name=node_name,
                 input_summary=input_summary,
+                execution_fence=execution_fence,
             )
 
     def mark_node_tx(
@@ -160,7 +163,9 @@ class AgentRunRepository:
         status: str,
         node_name: str,
         input_summary: dict[str, Any] | None = None,
+        execution_fence: ExecutionFence | None = None,
     ) -> AgentRun:
+        self._require_execution_fence_tx(connection, run_id, execution_fence)
         row = self._require_run_tx(connection, run_id)
         allowed_previous = {
             "preparing": {"queued"},
@@ -198,11 +203,13 @@ class AgentRunRepository:
         output_summary: dict[str, Any],
         token_usage: dict[str, Any] | None = None,
         latency_ms: float | None = None,
+        execution_fence: ExecutionFence | None = None,
     ) -> AgentRunEvent:
         """Append bounded node telemetry without retaining prompts or draft bodies."""
 
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            self._require_execution_fence_tx(connection, run_id, execution_fence)
             row = self._require_run_tx(connection, run_id)
             self._require_not_terminal(row)
             usage = token_usage or {}
@@ -248,6 +255,7 @@ class AgentRunRepository:
         result_summary: dict[str, Any],
         idempotency_key: str,
         node_name: str = "inspect_context",
+        execution_fence: ExecutionFence | None = None,
     ) -> AgentToolCall:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -261,6 +269,7 @@ class AgentRunRepository:
                 result_summary=result_summary,
                 idempotency_key=idempotency_key,
                 node_name=node_name,
+                execution_fence=execution_fence,
             )
 
     def record_tool_call_tx(
@@ -275,7 +284,9 @@ class AgentRunRepository:
         result_summary: dict[str, Any],
         idempotency_key: str,
         node_name: str = "inspect_context",
+        execution_fence: ExecutionFence | None = None,
     ) -> AgentToolCall:
+        self._require_execution_fence_tx(connection, run_id, execution_fence)
         existing = connection.execute(
             "SELECT * FROM agent_tool_calls WHERE run_id = ? AND idempotency_key = ?",
             (run_id, idempotency_key),
@@ -343,6 +354,7 @@ class AgentRunRepository:
         validation: dict[str, Any],
         output_id: str | None = None,
         completion_summary: dict[str, Any] | None = None,
+        execution_fence: ExecutionFence | None = None,
     ) -> AgentRunOutput:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -355,6 +367,7 @@ class AgentRunRepository:
                 validation=validation,
                 output_id=output_id,
                 completion_summary=completion_summary,
+                execution_fence=execution_fence,
             )
 
     def complete_with_output_tx(
@@ -368,7 +381,9 @@ class AgentRunRepository:
         validation: dict[str, Any],
         output_id: str | None = None,
         completion_summary: dict[str, Any] | None = None,
+        execution_fence: ExecutionFence | None = None,
     ) -> AgentRunOutput:
+        self._require_execution_fence_tx(connection, run_id, execution_fence)
         run = self._require_run_tx(connection, run_id)
         self._require_status(run, {"validating"})
         existing = connection.execute(
@@ -425,9 +440,17 @@ class AgentRunRepository:
         ).fetchone()
         return self._output_from_row(output_row)
 
-    def fail_run(self, run_id: str, *, error_code: str, error_message: str) -> AgentRun:
+    def fail_run(
+        self,
+        run_id: str,
+        *,
+        error_code: str,
+        error_message: str,
+        execution_fence: ExecutionFence | None = None,
+    ) -> AgentRun:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            self._require_execution_fence_tx(connection, run_id, execution_fence)
             row = self._require_run_tx(connection, run_id)
             if str(row["status"]) in _TERMINAL_STATUSES:
                 return self._run_from_row(row)
@@ -474,11 +497,17 @@ class AgentRunRepository:
             )
             return self._run_from_row(self._require_run_tx(connection, run_id))
 
-    def begin_repair(self, run_id: str) -> AgentRun:
+    def begin_repair(
+        self,
+        run_id: str,
+        *,
+        execution_fence: ExecutionFence | None = None,
+    ) -> AgentRun:
         """Consume the single permitted research-draft repair attempt."""
 
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            self._require_execution_fence_tx(connection, run_id, execution_fence)
             row = self._require_run_tx(connection, run_id)
             self._require_status(row, {"validating"})
             if int(row["repair_count"]) >= 1:
@@ -503,12 +532,18 @@ class AgentRunRepository:
             return self._run_from_row(self._require_run_tx(connection, run_id))
 
     def mark_needs_review(
-        self, run_id: str, *, error_code: str, error_message: str
+        self,
+        run_id: str,
+        *,
+        error_code: str,
+        error_message: str,
+        execution_fence: ExecutionFence | None = None,
     ) -> AgentRun:
         """Stop after the bounded repair path without creating final records."""
 
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            self._require_execution_fence_tx(connection, run_id, execution_fence)
             row = self._require_run_tx(connection, run_id)
             self._require_status(row, {"validating"})
             now = _now()
@@ -531,7 +566,12 @@ class AgentRunRepository:
             )
             return self._run_from_row(self._require_run_tx(connection, run_id))
 
-    def recover_interrupted_run(self, run_id: str) -> AgentRun:
+    def recover_interrupted_run(
+        self,
+        run_id: str,
+        *,
+        execution_fence: ExecutionFence | None = None,
+    ) -> AgentRun:
         """Return a pre-checkpoint-crash run to the only executable state.
 
         This is intentionally distinct from manual failed-run recovery: it is
@@ -540,6 +580,7 @@ class AgentRunRepository:
 
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            self._require_execution_fence_tx(connection, run_id, execution_fence)
             row = self._require_run_tx(connection, run_id)
             self._require_status(row, _RECOVERABLE_INTERRUPTED_STATUSES)
             connection.execute(
@@ -812,6 +853,29 @@ class AgentRunRepository:
         if row is None:
             raise KeyError(f"AgentRun {run_id} not found")
         return row
+
+    @staticmethod
+    def _require_execution_fence_tx(
+        connection: sqlite3.Connection,
+        run_id: str,
+        fence: ExecutionFence | None,
+    ) -> None:
+        if fence is None:
+            return
+        if fence.kind != "agent_run" or fence.resource_id != run_id:
+            raise AgentRunConflictError("AgentRun execution fence does not match the run.")
+        owned = connection.execute(
+            """
+            SELECT 1 FROM knowledge_jobs
+            WHERE id = ? AND kind = 'agent_run' AND resource_id = ?
+              AND status = 'running' AND attempts = ? AND lease_owner = ?
+            """,
+            (fence.job_id, run_id, fence.attempt, fence.owner_id),
+        ).fetchone()
+        if owned is None:
+            raise AgentRunConflictError(
+                f"AgentRun {run_id} is no longer owned by attempt {fence.attempt}."
+            )
 
     @staticmethod
     def _require_not_terminal(row: sqlite3.Row) -> None:

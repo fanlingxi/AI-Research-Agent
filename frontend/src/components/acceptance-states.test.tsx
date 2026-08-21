@@ -68,9 +68,9 @@ const queuedReport: ResearchReport = {
 
 const healthyKnowledge: KnowledgeHealth = {
   status: "ok",
-  services: { report_dispatcher: { available: true, detail: "在线" } },
+  services: { worker: { available: true, detail: "在线" } },
   knowledge: {
-    schema_version: 15,
+    schema_version: 16,
     live_llm_configured: true,
     llm_provider: "fixture",
     jobs: {},
@@ -210,7 +210,7 @@ describe("browser acceptance states", () => {
     expect(submit).toHaveBeenCalledWith(expect.objectContaining({ query: "研究题" }));
   });
 
-  it("offers an in-place recovery action when the report dispatcher is offline", async () => {
+  it("offers an in-place recovery action when the unified worker is offline", async () => {
     const user = userEvent.setup();
     const awaitingReport: ResearchReport = {
       ...queuedReport,
@@ -220,7 +220,7 @@ describe("browser acceptance states", () => {
     vi.spyOn(api, "collections").mockResolvedValue([]);
     vi.spyOn(api, "knowledgeHealth").mockResolvedValue({
       ...healthyKnowledge,
-      services: { report_dispatcher: { available: false, detail: "离线" } },
+      services: { worker: { available: false, detail: "离线" } },
     });
     const execute = vi.spyOn(api, "executeReport").mockResolvedValue({
       ...awaitingReport,

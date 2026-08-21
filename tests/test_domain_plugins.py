@@ -249,7 +249,7 @@ def test_generic_finalization_rejects_a_mismatched_plugin_pin_without_writes(tmp
     assert hasattr(research_port, "mark_needs_review")
 
 
-def test_v14_to_v15_plugin_migration_preserves_existing_memory_rows(tmp_path) -> None:
+def test_v14_to_current_plugin_migrations_preserve_existing_memory_rows(tmp_path) -> None:
     repository = KnowledgeRepository(str(tmp_path / "knowledge.db"))
     memory = repository.memory_repository
     project = memory.create_project(name="v14", goal="preserve", domain="", metadata={})
@@ -271,6 +271,11 @@ def test_v14_to_v15_plugin_migration_preserves_existing_memory_rows(tmp_path) ->
             ).fetchone()
         )
         connection.execute("BEGIN IMMEDIATE")
+        connection.execute("DROP TABLE executor_heartbeats")
+        connection.execute("DROP INDEX knowledge_jobs_claim_idx")
+        connection.execute("ALTER TABLE knowledge_jobs DROP COLUMN priority")
+        connection.execute("ALTER TABLE knowledge_jobs DROP COLUMN lease_owner")
+        connection.execute("ALTER TABLE projection_outbox DROP COLUMN lease_owner")
         connection.execute("DROP INDEX agent_runs_plugin_idx")
         connection.execute("ALTER TABLE agent_runs DROP COLUMN plugin_workflow_key")
         connection.execute("ALTER TABLE agent_runs DROP COLUMN plugin_contract_version")
@@ -279,11 +284,11 @@ def test_v14_to_v15_plugin_migration_preserves_existing_memory_rows(tmp_path) ->
         connection.execute("DROP TABLE project_domain_plugins")
         connection.execute("DROP INDEX workspace_tasks_plugin_idx")
         connection.execute("ALTER TABLE workspace_tasks DROP COLUMN domain_plugin_key")
-        connection.execute("DELETE FROM schema_migrations WHERE version = 15")
+        connection.execute("DELETE FROM schema_migrations WHERE version IN (15, 16)")
         assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 14
 
     upgraded = KnowledgeRepository(repository.path)
-    assert upgraded.schema_version() == 15
+    assert upgraded.schema_version() == 16
     with upgraded._connect() as connection:
         assert dict(
             connection.execute("SELECT * FROM projects WHERE id = ?", (project.id,)).fetchone()
@@ -310,7 +315,7 @@ def test_v14_to_v15_plugin_migration_preserves_existing_memory_rows(tmp_path) ->
         ).fetchone()["domain_plugin_key"] == "research"
         assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
-    assert KnowledgeRepository(repository.path).schema_version() == 15
+    assert KnowledgeRepository(repository.path).schema_version() == 16
 
 
 def test_domain_plugin_api_is_versioned_and_never_exposes_implementation_objects(tmp_path) -> None:

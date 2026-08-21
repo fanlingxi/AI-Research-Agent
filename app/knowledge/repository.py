@@ -16,6 +16,7 @@ from app.knowledge.schemas import (
     CandidateStatus,
     ConceptSense,
     EvidenceSpan,
+    ExecutorHeartbeat,
     KnowledgeCollection,
     KnowledgeIngestion,
     KnowledgeJob,
@@ -98,6 +99,7 @@ class KnowledgeRepository:
         self._apply_structural_migration(13)
         self._apply_structural_migration(14)
         self._apply_structural_migration(15)
+        self._apply_structural_migration(16)
         self._backfill_legacy_relation_collections()
         self._backfill_semantic_records()
 
@@ -242,6 +244,7 @@ class KnowledgeRepository:
                         kind="ingestion",
                         resource_id=ingestion_id,
                         payload={"auto_execute": True} if auto_execute else {},
+                        priority=100 if auto_execute else 0,
                     )
             elif enqueue and auto_execute:
                 job = connection.execute(
@@ -256,7 +259,8 @@ class KnowledgeRepository:
                     payload["auto_execute"] = True
                     connection.execute(
                         """
-                        UPDATE knowledge_jobs SET payload_json = ?, updated_at = ?
+                        UPDATE knowledge_jobs
+                        SET payload_json = ?, priority = MAX(priority, 100), updated_at = ?
                         WHERE id = ? AND status IN ('queued', 'running')
                         """,
                         (_dump(payload), _now(), job["id"]),
@@ -397,6 +401,7 @@ class KnowledgeRepository:
                     kind="ingestion",
                     resource_id=ingestion_id,
                     payload={"auto_execute": True} if auto_execute else {},
+                    priority=100 if auto_execute else 0,
                     force_requeue=True,
                 )
         return self.get_ingestion(ingestion_id)
@@ -519,6 +524,7 @@ class KnowledgeRepository:
                 kind="collection_sync",
                 resource_id=ingestion_id,
                 payload={"collection_slugs": affected_slugs},
+                priority=20,
                 force_requeue=True,
             )
         return self.get_ingestion(ingestion_id)
@@ -569,7 +575,7 @@ class KnowledgeRepository:
             connection.execute(
                 """
                 UPDATE knowledge_jobs
-                SET status = 'queued', lease_until = NULL, updated_at = ?
+                SET status = 'queued', lease_until = NULL, lease_owner = NULL, updated_at = ?
                 WHERE status = 'running' AND (lease_until IS NULL OR lease_until < ?)
                 """,
                 (now, now),
@@ -577,7 +583,7 @@ class KnowledgeRepository:
             connection.execute(
                 """
                 UPDATE projection_outbox
-                SET status = 'queued', lease_until = NULL, updated_at = ?
+                SET status = 'queued', lease_until = NULL, lease_owner = NULL, updated_at = ?
                 WHERE status = 'running' AND (lease_until IS NULL OR lease_until < ?)
                 """,
                 (now, now),
@@ -611,6 +617,7 @@ class KnowledgeRepository:
         kind: Literal["ingestion", "report", "agent_run"],
         resource_id: str,
         payload: dict[str, Any] | None = None,
+        priority: int = 0,
         force_requeue: bool = False,
     ) -> KnowledgeJob:
         with self._connect() as connection:
@@ -620,6 +627,7 @@ class KnowledgeRepository:
                 kind=kind,
                 resource_id=resource_id,
                 payload=payload or {},
+                priority=priority,
                 force_requeue=force_requeue,
             )
         return self.get_job(job_id)
@@ -631,6 +639,7 @@ class KnowledgeRepository:
         kind: str,
         resource_id: str,
         payload: dict[str, Any],
+        priority: int = 0,
         force_requeue: bool = False,
     ) -> str:
         existing = connection.execute(
@@ -642,10 +651,11 @@ class KnowledgeRepository:
                 connection.execute(
                     """
                     UPDATE knowledge_jobs
-                    SET status = 'queued', payload_json = ?, lease_until = NULL,
+                    SET status = 'queued', payload_json = ?, priority = ?,
+                        lease_until = NULL, lease_owner = NULL,
                         last_error = NULL, updated_at = ? WHERE id = ?
                     """,
-                    (_dump(payload), _now(), existing["id"]),
+                    (_dump(payload), priority, _now(), existing["id"]),
                 )
             return str(existing["id"])
         job_id = f"job-{uuid4().hex}"
@@ -654,10 +664,10 @@ class KnowledgeRepository:
             """
             INSERT INTO knowledge_jobs (
                 id, kind, resource_id, status, payload_json, attempts,
-                lease_until, last_error, created_at, updated_at
-            ) VALUES (?, ?, ?, 'queued', ?, 0, NULL, NULL, ?, ?)
+                priority, lease_until, lease_owner, last_error, created_at, updated_at
+            ) VALUES (?, ?, ?, 'queued', ?, 0, ?, NULL, NULL, NULL, ?, ?)
             """,
-            (job_id, kind, resource_id, _dump(payload), now, now),
+            (job_id, kind, resource_id, _dump(payload), priority, now, now),
         )
         return job_id
 
@@ -684,19 +694,29 @@ class KnowledgeRepository:
             raise KeyError(resource_id)
         return self._job_from_row(row)
 
-    def claim_job(self, lease_seconds: int = 120) -> KnowledgeJob | None:
+    def claim_job(
+        self,
+        lease_seconds: int = 120,
+        *,
+        owner_id: str | None = None,
+    ) -> KnowledgeJob | None:
         now = datetime.now(tz=UTC)
+        owner = owner_id or f"executor-{uuid4().hex}"
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             connection.execute(
                 """
-                UPDATE knowledge_jobs SET status = 'queued', lease_until = NULL, updated_at = ?
+                UPDATE knowledge_jobs
+                SET status = 'queued', lease_until = NULL, lease_owner = NULL, updated_at = ?
                 WHERE status = 'running' AND lease_until < ?
                 """,
                 (now.isoformat(), now.isoformat()),
             )
             row = connection.execute(
-                "SELECT * FROM knowledge_jobs WHERE status = 'queued' ORDER BY created_at LIMIT 1"
+                """
+                SELECT * FROM knowledge_jobs WHERE status = 'queued'
+                ORDER BY priority DESC, created_at, id LIMIT 1
+                """
             ).fetchone()
             if row is None:
                 return None
@@ -704,10 +724,11 @@ class KnowledgeRepository:
             connection.execute(
                 """
                 UPDATE knowledge_jobs
-                SET status = 'running', attempts = attempts + 1, lease_until = ?, updated_at = ?
+                SET status = 'running', attempts = attempts + 1,
+                    lease_until = ?, lease_owner = ?, updated_at = ?
                 WHERE id = ? AND status = 'queued'
                 """,
-                (lease_until, now.isoformat(), row["id"]),
+                (lease_until, owner, now.isoformat(), row["id"]),
             )
             claimed = connection.execute(
                 "SELECT * FROM knowledge_jobs WHERE id = ?", (row["id"],)
@@ -719,10 +740,13 @@ class KnowledgeRepository:
         kind: Literal["ingestion", "report", "agent_run"],
         resource_id: str,
         lease_seconds: int = 120,
+        *,
+        owner_id: str | None = None,
     ) -> KnowledgeJob | None:
         """Claim one explicitly selected resource without consuming another queued job."""
         now = datetime.now(tz=UTC)
         now_text = now.isoformat()
+        owner = owner_id or f"executor-{uuid4().hex}"
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
@@ -737,7 +761,8 @@ class KnowledgeRepository:
                 connection.execute(
                     """
                     UPDATE knowledge_jobs
-                    SET status = 'queued', lease_until = NULL, updated_at = ?
+                    SET status = 'queued', lease_until = NULL,
+                        lease_owner = NULL, updated_at = ?
                     WHERE id = ? AND status = 'running'
                     """,
                     (now_text, row["id"]),
@@ -752,10 +777,10 @@ class KnowledgeRepository:
                 """
                 UPDATE knowledge_jobs
                 SET status = 'running', attempts = attempts + 1,
-                    lease_until = ?, updated_at = ?
+                    lease_until = ?, lease_owner = ?, updated_at = ?
                 WHERE id = ? AND status = 'queued'
                 """,
-                (lease_until, now_text, row["id"]),
+                (lease_until, owner, now_text, row["id"]),
             )
             if updated.rowcount != 1:
                 return None
@@ -791,15 +816,25 @@ class KnowledgeRepository:
             payload = json.loads(job["payload_json"] or "{}")
             payload["auto_execute"] = True
             connection.execute(
-                "UPDATE knowledge_jobs SET payload_json = ?, updated_at = ? WHERE id = ?",
+                """
+                UPDATE knowledge_jobs
+                SET payload_json = ?, priority = MAX(priority, 100), updated_at = ?
+                WHERE id = ?
+                """,
                 (_dump(payload), _now(), job["id"]),
             )
         return self.get_ingestion(ingestion_id)
 
-    def claim_dispatched_ingestion_job(self, lease_seconds: int = 120) -> KnowledgeJob | None:
+    def claim_dispatched_ingestion_job(
+        self,
+        lease_seconds: int = 120,
+        *,
+        owner_id: str | None = None,
+    ) -> KnowledgeJob | None:
         """Claim the next ingestion explicitly marked for built-in durable dispatch."""
         now = datetime.now(tz=UTC)
         now_text = now.isoformat()
+        owner = owner_id or f"executor-{uuid4().hex}"
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             rows = connection.execute(
@@ -825,7 +860,8 @@ class KnowledgeRepository:
                     connection.execute(
                         """
                         UPDATE knowledge_jobs
-                        SET status = 'queued', lease_until = NULL, updated_at = ?
+                        SET status = 'queued', lease_until = NULL,
+                            lease_owner = NULL, updated_at = ?
                         WHERE id = ? AND status = 'running'
                         """,
                         (now_text, row["id"]),
@@ -848,10 +884,10 @@ class KnowledgeRepository:
                 """
                 UPDATE knowledge_jobs
                 SET status = 'running', attempts = attempts + 1,
-                    lease_until = ?, updated_at = ?
+                    lease_until = ?, lease_owner = ?, updated_at = ?
                 WHERE id = ? AND status = 'queued'
                 """,
-                (lease_until, now_text, selected["id"]),
+                (lease_until, owner, now_text, selected["id"]),
             )
             if updated.rowcount != 1:
                 return None
@@ -873,6 +909,7 @@ class KnowledgeRepository:
         job_id: str,
         *,
         expected_attempt: int,
+        expected_owner: str | None = None,
     ) -> KnowledgeIngestion:
         """Mark one claimed ingestion running only while this attempt owns its job."""
         with self._connect() as connection:
@@ -882,8 +919,9 @@ class KnowledgeRepository:
                 SELECT 1 FROM knowledge_jobs
                 WHERE id = ? AND kind = 'ingestion' AND resource_id = ?
                   AND status = 'running' AND attempts = ?
+                  AND (? IS NULL OR lease_owner = ?)
                 """,
-                (job_id, ingestion_id, expected_attempt),
+                (job_id, ingestion_id, expected_attempt, expected_owner, expected_owner),
             ).fetchone()
             if owned is None:
                 raise StaleIngestionExecution(
@@ -904,6 +942,7 @@ class KnowledgeRepository:
         job_id: str,
         *,
         expected_attempt: int,
+        expected_owner: str | None = None,
     ) -> None:
         with self._connect() as connection:
             owned = connection.execute(
@@ -911,8 +950,9 @@ class KnowledgeRepository:
                 SELECT 1 FROM knowledge_jobs
                 WHERE id = ? AND kind = 'ingestion' AND resource_id = ?
                   AND status = 'running' AND attempts = ?
+                  AND (? IS NULL OR lease_owner = ?)
                 """,
-                (job_id, ingestion_id, expected_attempt),
+                (job_id, ingestion_id, expected_attempt, expected_owner, expected_owner),
             ).fetchone()
         if owned is None:
             raise StaleIngestionExecution(
@@ -948,6 +988,10 @@ class KnowledgeRepository:
                 """,
                 (_dump(payload), _now(), job["id"]),
             )
+            connection.execute(
+                "UPDATE knowledge_jobs SET priority = MAX(priority, 100) WHERE id = ?",
+                (job["id"],),
+            )
             if report["status"] == "queued":
                 metadata = json.loads(report["run_metadata_json"] or "{}")
                 metadata["current_stage"] = "queued_for_dispatch"
@@ -960,10 +1004,16 @@ class KnowledgeRepository:
                 )
         return self.get_report(report_id)
 
-    def claim_dispatched_report_job(self, lease_seconds: int = 120) -> KnowledgeJob | None:
+    def claim_dispatched_report_job(
+        self,
+        lease_seconds: int = 120,
+        *,
+        owner_id: str | None = None,
+    ) -> KnowledgeJob | None:
         """Claim the next report explicitly marked for built-in durable dispatch."""
         now = datetime.now(tz=UTC)
         now_text = now.isoformat()
+        owner = owner_id or f"executor-{uuid4().hex}"
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             rows = connection.execute(
@@ -989,7 +1039,8 @@ class KnowledgeRepository:
                     connection.execute(
                         """
                         UPDATE knowledge_jobs
-                        SET status = 'queued', lease_until = NULL, updated_at = ?
+                        SET status = 'queued', lease_until = NULL,
+                            lease_owner = NULL, updated_at = ?
                         WHERE id = ? AND status = 'running'
                         """,
                         (now_text, row["id"]),
@@ -1012,10 +1063,10 @@ class KnowledgeRepository:
                 """
                 UPDATE knowledge_jobs
                 SET status = 'running', attempts = attempts + 1,
-                    lease_until = ?, updated_at = ?
+                    lease_until = ?, lease_owner = ?, updated_at = ?
                 WHERE id = ? AND status = 'queued'
                 """,
-                (lease_until, now_text, selected["id"]),
+                (lease_until, owner, now_text, selected["id"]),
             )
             if updated.rowcount != 1:
                 return None
@@ -1038,13 +1089,19 @@ class KnowledgeRepository:
             ).fetchone()
         return self._job_from_row(claimed)
 
-    def complete_job(self, job_id: str, *, expected_attempt: int | None = None) -> bool:
+    def complete_job(
+        self,
+        job_id: str,
+        *,
+        expected_attempt: int | None = None,
+        expected_owner: str | None = None,
+    ) -> bool:
         with self._connect() as connection:
             if expected_attempt is None:
                 updated = connection.execute(
                     """
                     UPDATE knowledge_jobs
-                    SET status = 'completed', lease_until = NULL,
+                    SET status = 'completed', lease_until = NULL, lease_owner = NULL,
                         last_error = NULL, updated_at = ?
                     WHERE id = ?
                     """,
@@ -1054,11 +1111,12 @@ class KnowledgeRepository:
                 updated = connection.execute(
                     """
                     UPDATE knowledge_jobs
-                    SET status = 'completed', lease_until = NULL,
+                    SET status = 'completed', lease_until = NULL, lease_owner = NULL,
                         last_error = NULL, updated_at = ?
                     WHERE id = ? AND status = 'running' AND attempts = ?
+                      AND (? IS NULL OR lease_owner = ?)
                     """,
-                    (_now(), job_id, expected_attempt),
+                    (_now(), job_id, expected_attempt, expected_owner, expected_owner),
                 )
         return updated.rowcount == 1
 
@@ -1067,7 +1125,8 @@ class KnowledgeRepository:
             connection.execute(
                 """
                 UPDATE knowledge_jobs
-                SET status = 'completed', lease_until = NULL, last_error = NULL, updated_at = ?
+                SET status = 'completed', lease_until = NULL, lease_owner = NULL,
+                    last_error = NULL, updated_at = ?
                 WHERE kind = ? AND resource_id = ?
                 """,
                 (_now(), kind, resource_id),
@@ -1079,6 +1138,7 @@ class KnowledgeRepository:
         *,
         expected_attempt: int,
         lease_seconds: int,
+        expected_owner: str | None = None,
     ) -> bool:
         now = datetime.now(tz=UTC)
         lease_until = (now + timedelta(seconds=lease_seconds)).isoformat()
@@ -1087,8 +1147,16 @@ class KnowledgeRepository:
                 """
                 UPDATE knowledge_jobs SET lease_until = ?, updated_at = ?
                 WHERE id = ? AND status = 'running' AND attempts = ?
+                  AND (? IS NULL OR lease_owner = ?)
                 """,
-                (lease_until, now.isoformat(), job_id, expected_attempt),
+                (
+                    lease_until,
+                    now.isoformat(),
+                    job_id,
+                    expected_attempt,
+                    expected_owner,
+                    expected_owner,
+                ),
             )
         return updated.rowcount == 1
 
@@ -1098,13 +1166,14 @@ class KnowledgeRepository:
         error: str,
         *,
         expected_attempt: int | None = None,
+        expected_owner: str | None = None,
     ) -> bool:
         with self._connect() as connection:
             if expected_attempt is None:
                 updated = connection.execute(
                     """
                     UPDATE knowledge_jobs
-                    SET status = 'failed', lease_until = NULL,
+                    SET status = 'failed', lease_until = NULL, lease_owner = NULL,
                         last_error = ?, updated_at = ?
                     WHERE id = ?
                     """,
@@ -1114,13 +1183,120 @@ class KnowledgeRepository:
                 updated = connection.execute(
                     """
                     UPDATE knowledge_jobs
-                    SET status = 'failed', lease_until = NULL,
+                    SET status = 'failed', lease_until = NULL, lease_owner = NULL,
                         last_error = ?, updated_at = ?
                     WHERE id = ? AND status = 'running' AND attempts = ?
+                      AND (? IS NULL OR lease_owner = ?)
                     """,
-                    (error[:4000], _now(), job_id, expected_attempt),
+                    (
+                        error[:4000],
+                        _now(),
+                        job_id,
+                        expected_attempt,
+                        expected_owner,
+                        expected_owner,
+                    ),
                 )
         return updated.rowcount == 1
+
+    def assert_job_ownership(
+        self,
+        *,
+        job_id: str,
+        kind: str,
+        resource_id: str,
+        expected_attempt: int,
+        expected_owner: str,
+    ) -> None:
+        with self._connect() as connection:
+            self.assert_job_ownership_tx(
+                connection,
+                job_id=job_id,
+                kind=kind,
+                resource_id=resource_id,
+                expected_attempt=expected_attempt,
+                expected_owner=expected_owner,
+            )
+
+    @staticmethod
+    def assert_job_ownership_tx(
+        connection: sqlite3.Connection,
+        *,
+        job_id: str,
+        kind: str,
+        resource_id: str,
+        expected_attempt: int,
+        expected_owner: str,
+    ) -> None:
+        owned = connection.execute(
+            """
+            SELECT 1 FROM knowledge_jobs
+            WHERE id = ? AND kind = ? AND resource_id = ?
+              AND status = 'running' AND attempts = ? AND lease_owner = ?
+            """,
+            (job_id, kind, resource_id, expected_attempt, expected_owner),
+        ).fetchone()
+        if owned is None:
+            raise RuntimeError(
+                f"{kind} {resource_id} is no longer owned by "
+                f"{expected_owner} attempt {expected_attempt}."
+            )
+
+    def upsert_executor_heartbeat(
+        self,
+        executor_id: str,
+        *,
+        role: str,
+        version: str,
+        started_at: str,
+        current_job_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> ExecutorHeartbeat:
+        now = _now()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO executor_heartbeats (
+                    id, role, version, started_at, last_heartbeat_at,
+                    current_job_id, metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    role = excluded.role,
+                    version = excluded.version,
+                    last_heartbeat_at = excluded.last_heartbeat_at,
+                    current_job_id = excluded.current_job_id,
+                    metadata_json = excluded.metadata_json
+                """,
+                (
+                    executor_id,
+                    role,
+                    version,
+                    started_at,
+                    now,
+                    current_job_id,
+                    _dump(metadata or {}),
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM executor_heartbeats WHERE id = ?", (executor_id,)
+            ).fetchone()
+        return self._executor_from_row(row)
+
+    def list_executor_heartbeats(self, role: str | None = None) -> list[ExecutorHeartbeat]:
+        with self._connect() as connection:
+            if role is None:
+                rows = connection.execute(
+                    "SELECT * FROM executor_heartbeats ORDER BY last_heartbeat_at DESC"
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """
+                    SELECT * FROM executor_heartbeats
+                    WHERE role = ? ORDER BY last_heartbeat_at DESC
+                    """,
+                    (role,),
+                ).fetchall()
+        return [self._executor_from_row(row) for row in rows]
 
     def job_summary(self) -> dict[str, int]:
         with self._connect() as connection:
@@ -1183,6 +1359,7 @@ class KnowledgeRepository:
         *,
         expected_job_id: str | None = None,
         expected_job_attempt: int | None = None,
+        expected_job_owner: str | None = None,
     ) -> None:
         """Replace one paper's unreviewed extraction as a fenced, atomic batch."""
         if (expected_job_id is None) != (expected_job_attempt is None):
@@ -1196,11 +1373,14 @@ class KnowledgeRepository:
                     SELECT 1 FROM knowledge_jobs
                     WHERE id = ? AND kind = 'ingestion' AND resource_id = ?
                       AND status = 'running' AND attempts = ?
+                      AND (? IS NULL OR lease_owner = ?)
                     """,
                     (
                         expected_job_id,
                         ingestion_id,
                         expected_job_attempt,
+                        expected_job_owner,
+                        expected_job_owner,
                     ),
                 ).fetchone()
                 if owned is None:
@@ -1965,13 +2145,20 @@ class KnowledgeRepository:
             ).fetchone()
         return str(row["status"]) if row else "not_required"
 
-    def claim_projection(self, lease_seconds: int = 120) -> ProjectionEvent | None:
+    def claim_projection(
+        self,
+        lease_seconds: int = 120,
+        *,
+        owner_id: str | None = None,
+    ) -> ProjectionEvent | None:
         now = datetime.now(tz=UTC)
+        owner = owner_id or f"executor-{uuid4().hex}"
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             connection.execute(
                 """
-                UPDATE projection_outbox SET status = 'queued', lease_until = NULL, updated_at = ?
+                UPDATE projection_outbox
+                SET status = 'queued', lease_until = NULL, lease_owner = NULL, updated_at = ?
                 WHERE status = 'running' AND lease_until < ?
                 """,
                 (now.isoformat(), now.isoformat()),
@@ -1988,55 +2175,119 @@ class KnowledgeRepository:
             connection.execute(
                 """
                 UPDATE projection_outbox
-                SET status = 'running', attempts = attempts + 1, lease_until = ?, updated_at = ?
+                SET status = 'running', attempts = attempts + 1,
+                    lease_until = ?, lease_owner = ?, updated_at = ?
                 WHERE id = ? AND status = 'queued'
                 """,
-                (lease_until, now.isoformat(), row["id"]),
+                (lease_until, owner, now.isoformat(), row["id"]),
             )
             claimed = connection.execute(
                 "SELECT * FROM projection_outbox WHERE id = ?", (row["id"],)
             ).fetchone()
         return self._projection_from_row(claimed)
 
-    def complete_projection(self, event_id: str) -> KnowledgeIngestion:
+    def renew_projection_lease(
+        self,
+        event_id: str,
+        *,
+        expected_attempt: int,
+        expected_owner: str,
+        lease_seconds: int,
+    ) -> bool:
+        now = datetime.now(tz=UTC)
+        lease_until = (now + timedelta(seconds=lease_seconds)).isoformat()
         with self._connect() as connection:
-            row = connection.execute(
-                "SELECT ingestion_id FROM projection_outbox WHERE id = ?", (event_id,)
-            ).fetchone()
-            if row is None:
-                raise KeyError(event_id)
-            connection.execute(
+            updated = connection.execute(
                 """
-                UPDATE projection_outbox
-                SET status = 'completed', lease_until = NULL, last_error = NULL, updated_at = ?
-                WHERE id = ?
+                UPDATE projection_outbox SET lease_until = ?, updated_at = ?
+                WHERE id = ? AND status = 'running' AND attempts = ? AND lease_owner = ?
                 """,
-                (_now(), event_id),
+                (
+                    lease_until,
+                    now.isoformat(),
+                    event_id,
+                    expected_attempt,
+                    expected_owner,
+                ),
             )
-            ingestion_id = str(row["ingestion_id"])
-        return self.refresh_ingestion_status(ingestion_id)
+        return updated.rowcount == 1
 
-    def fail_projection(self, event_id: str, error: str) -> KnowledgeIngestion:
+    def complete_projection(
+        self,
+        event_id: str,
+        *,
+        expected_attempt: int | None = None,
+        expected_owner: str | None = None,
+    ) -> KnowledgeIngestion:
         with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT ingestion_id FROM projection_outbox WHERE id = ?", (event_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(event_id)
+            updated = connection.execute(
+                """
+                UPDATE projection_outbox
+                SET status = 'completed', lease_until = NULL, lease_owner = NULL,
+                    last_error = NULL, updated_at = ?
+                WHERE id = ?
+                  AND (? IS NULL OR (status = 'running' AND attempts = ? AND lease_owner = ?))
+                """,
+                (
+                    _now(),
+                    event_id,
+                    expected_attempt,
+                    expected_attempt,
+                    expected_owner,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise RuntimeError(f"Projection {event_id} is no longer owned by this executor.")
+            ingestion_id = str(row["ingestion_id"])
+            self._refresh_ingestion_status_tx(connection, ingestion_id, now=_now())
+        return self.get_ingestion(ingestion_id)
+
+    def fail_projection(
+        self,
+        event_id: str,
+        error: str,
+        *,
+        expected_attempt: int | None = None,
+        expected_owner: str | None = None,
+    ) -> KnowledgeIngestion:
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
                 "SELECT ingestion_id FROM projection_outbox WHERE id = ?", (event_id,)
             ).fetchone()
             if row is None:
                 raise KeyError(event_id)
             ingestion_id = str(row["ingestion_id"])
-            connection.execute(
+            updated = connection.execute(
                 """
                 UPDATE projection_outbox
-                SET status = 'failed', lease_until = NULL, last_error = ?, updated_at = ?
+                SET status = 'failed', lease_until = NULL, lease_owner = NULL,
+                    last_error = ?, updated_at = ?
                 WHERE id = ?
+                  AND (? IS NULL OR (status = 'running' AND attempts = ? AND lease_owner = ?))
                 """,
-                (error[:4000], _now(), event_id),
+                (
+                    error[:4000],
+                    _now(),
+                    event_id,
+                    expected_attempt,
+                    expected_attempt,
+                    expected_owner,
+                ),
             )
-            connection.execute(
-                """
-                UPDATE ingestions SET status = 'failed', error = ?, updated_at = ? WHERE id = ?
-                """,
-                (f"正式投影失败：{error}"[:4000], _now(), ingestion_id),
+            if updated.rowcount != 1:
+                raise RuntimeError(f"Projection {event_id} is no longer owned by this executor.")
+            self._refresh_ingestion_status_tx(
+                connection,
+                ingestion_id,
+                now=_now(),
+                projection_error=f"正式投影失败：{error}"[:4000],
             )
         return self.get_ingestion(ingestion_id)
 
@@ -2299,31 +2550,55 @@ class KnowledgeRepository:
 
     def refresh_ingestion_status(self, ingestion_id: str) -> KnowledgeIngestion:
         with self._connect() as connection:
-            draft_count = connection.execute(
+            connection.execute("BEGIN IMMEDIATE")
+            self._refresh_ingestion_status_tx(connection, ingestion_id, now=_now())
+        return self.get_ingestion(ingestion_id)
+
+    @staticmethod
+    def _refresh_ingestion_status_tx(
+        connection: sqlite3.Connection,
+        ingestion_id: str,
+        *,
+        now: str,
+        projection_error: str | None = None,
+    ) -> None:
+        ingestion = connection.execute(
+            "SELECT status, error FROM ingestions WHERE id = ?", (ingestion_id,)
+        ).fetchone()
+        if ingestion is None:
+            raise KeyError(ingestion_id)
+        if str(ingestion["status"]) in {"queued", "running"}:
+            return
+        draft_count = int(
+            connection.execute(
                 """
                 SELECT COUNT(*) FROM candidates
                 WHERE ingestion_id = ? AND status IN ('draft', 'approved')
                 """,
                 (ingestion_id,),
             ).fetchone()[0]
-            pending = connection.execute(
+        )
+        pending = int(
+            connection.execute(
                 """
                 SELECT COUNT(*) FROM projection_outbox
                 WHERE ingestion_id = ? AND status IN ('queued', 'running')
                 """,
                 (ingestion_id,),
             ).fetchone()[0]
-            failed = connection.execute(
+        )
+        failed = int(
+            connection.execute(
                 """
                 SELECT COUNT(*) FROM projection_outbox
                 WHERE ingestion_id = ? AND status = 'failed'
                 """,
                 (ingestion_id,),
             ).fetchone()[0]
-        ingestion = self.get_ingestion(ingestion_id)
-        if ingestion.status in {"queued", "running"}:
-            return ingestion
-        if draft_count:
+        )
+        if projection_error is not None:
+            status = "failed"
+        elif draft_count:
             status = "needs_review"
         elif failed:
             status = "failed"
@@ -2331,7 +2606,11 @@ class KnowledgeRepository:
             status = "publishing"
         else:
             status = "completed"
-        return self.update_ingestion(ingestion_id, status=status, error=ingestion.error)
+        error = projection_error if projection_error is not None else ingestion["error"]
+        connection.execute(
+            "UPDATE ingestions SET status = ?, error = ?, updated_at = ? WHERE id = ?",
+            (status, error, now, ingestion_id),
+        )
 
     # Reports --------------------------------------------------------------------
 
@@ -2373,6 +2652,7 @@ class KnowledgeRepository:
                 kind="report",
                 resource_id=report_id,
                 payload={"auto_execute": True} if auto_execute else {},
+                priority=100 if auto_execute else 0,
             )
         return self.get_report(report_id)
 
@@ -2439,12 +2719,14 @@ class KnowledgeRepository:
             connection.execute(
                 """
                 UPDATE knowledge_jobs
-                SET status = 'queued', payload_json = ?, lease_until = NULL,
+                SET status = 'queued', payload_json = ?, priority = ?,
+                    lease_until = NULL, lease_owner = NULL,
                     last_error = NULL, updated_at = ?
                 WHERE id = ?
                 """,
                 (
                     _dump({"auto_execute": True}) if auto_execute else "{}",
+                    100 if auto_execute else 0,
                     now,
                     job["id"],
                 ),
@@ -2459,6 +2741,7 @@ class KnowledgeRepository:
         expected_attempt: int,
         status: Literal["needs_review", "failed"],
         error: str | None = None,
+        expected_owner: str | None = None,
     ) -> KnowledgeIngestion:
         """Fence and commit an ingestion plus its durable job as one terminal write."""
         now = _now()
@@ -2469,8 +2752,9 @@ class KnowledgeRepository:
                 SELECT 1 FROM knowledge_jobs
                 WHERE id = ? AND kind = 'ingestion' AND resource_id = ?
                   AND status = 'running' AND attempts = ?
+                  AND (? IS NULL OR lease_owner = ?)
                 """,
-                (job_id, ingestion_id, expected_attempt),
+                (job_id, ingestion_id, expected_attempt, expected_owner, expected_owner),
             ).fetchone()
             if owned is None:
                 raise StaleIngestionExecution(
@@ -2488,10 +2772,20 @@ class KnowledgeRepository:
             updated = connection.execute(
                 """
                 UPDATE knowledge_jobs
-                SET status = ?, lease_until = NULL, last_error = ?, updated_at = ?
+                SET status = ?, lease_until = NULL, lease_owner = NULL,
+                    last_error = ?, updated_at = ?
                 WHERE id = ? AND status = 'running' AND attempts = ?
+                  AND (? IS NULL OR lease_owner = ?)
                 """,
-                (job_status, job_error, now, job_id, expected_attempt),
+                (
+                    job_status,
+                    job_error,
+                    now,
+                    job_id,
+                    expected_attempt,
+                    expected_owner,
+                    expected_owner,
+                ),
             )
             if updated.rowcount != 1:
                 raise StaleIngestionExecution(
@@ -2511,6 +2805,7 @@ class KnowledgeRepository:
         evaluation: ReportEvaluation | None = None,
         run_metadata: dict[str, Any] | None = None,
         error: str | None = None,
+        expected_owner: str | None = None,
     ) -> ResearchReport:
         """Fence and commit a report plus its durable job as one terminal write."""
         report = self.get_report(report_id)
@@ -2522,8 +2817,9 @@ class KnowledgeRepository:
                 SELECT 1 FROM knowledge_jobs
                 WHERE id = ? AND kind = 'report' AND resource_id = ?
                   AND status = 'running' AND attempts = ?
+                  AND (? IS NULL OR lease_owner = ?)
                 """,
-                (job_id, report_id, expected_attempt),
+                (job_id, report_id, expected_attempt, expected_owner, expected_owner),
             ).fetchone()
             if owned is None:
                 raise StaleReportExecution(
@@ -2563,10 +2859,20 @@ class KnowledgeRepository:
             updated = connection.execute(
                 """
                 UPDATE knowledge_jobs
-                SET status = ?, lease_until = NULL, last_error = ?, updated_at = ?
+                SET status = ?, lease_until = NULL, lease_owner = NULL,
+                    last_error = ?, updated_at = ?
                 WHERE id = ? AND status = 'running' AND attempts = ?
+                  AND (? IS NULL OR lease_owner = ?)
                 """,
-                (status, job_error, now, job_id, expected_attempt),
+                (
+                    status,
+                    job_error,
+                    now,
+                    job_id,
+                    expected_attempt,
+                    expected_owner,
+                    expected_owner,
+                ),
             )
             if updated.rowcount != 1:
                 raise StaleReportExecution(
@@ -2585,6 +2891,7 @@ class KnowledgeRepository:
         run_metadata: dict[str, Any] | None = None,
         error: str | None = None,
         expected_job_attempt: int | None = None,
+        expected_job_owner: str | None = None,
     ) -> ResearchReport:
         report = self.get_report(report_id)
         where_clause = "WHERE id = ?"
@@ -2617,9 +2924,12 @@ class KnowledgeRepository:
                     SELECT 1 FROM knowledge_jobs AS job
                     WHERE job.kind = 'report' AND job.resource_id = reports.id
                       AND job.status = 'running' AND job.attempts = ?
+                      AND (? IS NULL OR job.lease_owner = ?)
                 )
             """
-            parameters.append(expected_job_attempt)
+            parameters.extend(
+                (expected_job_attempt, expected_job_owner, expected_job_owner)
+            )
         with self._connect() as connection:
             updated = connection.execute(
                 f"""
@@ -2746,7 +3056,9 @@ class KnowledgeRepository:
             status=row["status"],
             payload=json.loads(row["payload_json"]),
             attempts=row["attempts"],
+            priority=row["priority"],
             lease_until=row["lease_until"],
+            lease_owner=row["lease_owner"],
             last_error=row["last_error"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
@@ -2763,9 +3075,22 @@ class KnowledgeRepository:
             status=row["status"],
             attempts=row["attempts"],
             lease_until=row["lease_until"],
+            lease_owner=row["lease_owner"],
             last_error=row["last_error"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+        )
+
+    @staticmethod
+    def _executor_from_row(row: sqlite3.Row) -> ExecutorHeartbeat:
+        return ExecutorHeartbeat(
+            id=row["id"],
+            role=row["role"],
+            version=row["version"],
+            started_at=row["started_at"],
+            last_heartbeat_at=row["last_heartbeat_at"],
+            current_job_id=row["current_job_id"],
+            metadata=json.loads(row["metadata_json"] or "{}"),
         )
 
     def _report_from_row(self, row: sqlite3.Row) -> ResearchReport:

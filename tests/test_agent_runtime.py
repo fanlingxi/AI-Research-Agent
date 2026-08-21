@@ -17,6 +17,7 @@ from app.api.main import create_app
 from app.config.settings import Settings
 from app.context.models import ContextBuildRequest
 from app.context.service import ContextBuilderService
+from app.execution import ExecutionFence
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.service import KnowledgeIngestionService
@@ -168,6 +169,36 @@ def test_agent_run_reclaims_an_interrupted_active_business_state(tmp_path) -> No
     )
 
 
+def test_stale_agent_worker_cannot_write_after_job_is_reclaimed(tmp_path) -> None:
+    repository, service, runtime, _, project, task, _ = _runtime_stack(tmp_path)
+    run = service.create_run(project.id, task.id, _foundation_request())
+    stale = repository.claim_resource_job(
+        "agent_run", run.id, lease_seconds=-1, owner_id="old-agent-worker"
+    )
+    current = repository.claim_resource_job(
+        "agent_run", run.id, lease_seconds=30, owner_id="new-agent-worker"
+    )
+    assert stale is not None and current is not None
+
+    with service.execution_scope(ExecutionFence.from_job(stale)):
+        with pytest.raises(AgentRunConflictError, match="no longer owned"):
+            service.mark_node(
+                run.id,
+                status="preparing",
+                node_name="load_context",
+                input_summary={"executor": "stale"},
+            )
+
+    completed = runtime.execute_queued(
+        run.id, execution_fence=ExecutionFence.from_job(current)
+    )
+    assert completed.status == "completed"
+    assert all(
+        event.input_summary.get("executor") != "stale"
+        for event in service.repository.list_events(run.id)
+    )
+
+
 def test_agent_run_cancel_prevents_queue_execution_and_checkpoint_creation(tmp_path) -> None:
     _, service, runtime, worker, project, task, checkpoint_path = _runtime_stack(tmp_path)
     run = service.create_run(project.id, task.id, _foundation_request())
@@ -258,7 +289,7 @@ def test_tool_registry_enforces_registered_permissions() -> None:
         registry.execute(name="unknown", permission="context_read", arguments={})
 
 
-def test_v12_to_v15_agent_runtime_migrations_are_additive_and_idempotent(tmp_path) -> None:
+def test_v12_to_v16_agent_runtime_migrations_are_additive_and_idempotent(tmp_path) -> None:
     repository = KnowledgeRepository(str(tmp_path / "knowledge.db"))
     memory = repository.memory_repository
     project = memory.create_project(name="Migration", goal="", domain="", metadata={})
@@ -282,13 +313,19 @@ def test_v12_to_v15_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         connection.execute("DROP TABLE project_domain_plugins")
         connection.execute("DROP INDEX workspace_tasks_plugin_idx")
         connection.execute("ALTER TABLE workspace_tasks DROP COLUMN domain_plugin_key")
+        connection.execute("DROP TABLE executor_heartbeats")
+        connection.execute("DROP INDEX knowledge_jobs_claim_idx")
+        connection.execute("ALTER TABLE knowledge_jobs DROP COLUMN priority")
+        connection.execute("ALTER TABLE knowledge_jobs DROP COLUMN lease_owner")
+        connection.execute("ALTER TABLE projection_outbox DROP COLUMN lease_owner")
+        connection.execute("DELETE FROM schema_migrations WHERE version = 16")
         connection.execute("DELETE FROM schema_migrations WHERE version = 15")
         connection.execute("DELETE FROM schema_migrations WHERE version = 14")
         connection.execute("DELETE FROM schema_migrations WHERE version = 13")
         assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 12
 
     upgraded = KnowledgeRepository(repository.path)
-    assert upgraded.schema_version() == 15
+    assert upgraded.schema_version() == 16
     with upgraded._connect() as connection:
         assert dict(
             connection.execute(
@@ -307,4 +344,4 @@ def test_v12_to_v15_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         }
         assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
-    assert KnowledgeRepository(repository.path).schema_version() == 15
+    assert KnowledgeRepository(repository.path).schema_version() == 16

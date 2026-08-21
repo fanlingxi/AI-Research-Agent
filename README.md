@@ -106,7 +106,7 @@ The current public result is a **deterministic evaluation candidate**. No human-
 
 Manifest SHA-256: `5c1a4878d037c7df0187b8f50daf2a8b96e6fcadc5f3834a307ee0061f1705c2`.
 
-Evaluation fixtures use schema v15 only. The real operational SQLite baseline remains schema v14 and is not opened by the evaluation. `v0009` was not executed. There is no human-approved Phase 6 baseline; do not describe these results as baseline comparison or model-quality evidence.
+The current application schema contract is v16. The historical candidate above was generated from an earlier schema-v15 fixture and did not open the operational database. There is no human-approved Phase 6 baseline; do not describe these results as baseline comparison or model-quality evidence.
 
 Run the full offline suite:
 
@@ -120,7 +120,7 @@ See [docs/demo/BENCHMARK_SUMMARY.md](docs/demo/BENCHMARK_SUMMARY.md) for exact s
 
 ## Project Workspace
 
-The React Workspace is a client over existing projections, not another fact store. Its routes cover the dashboard, project sections, task detail, AgentRun trace, artifact content, proposal review, Knowledge Core, evidence reports, and runtime history. The Knowledge and Reports pages can create and immediately dispatch an explicitly selected ingestion or report, poll visible progress, and retry a failed job in place. Built-in lease-renewing dispatchers recover expired work, while attempt fencing and atomic business/job completion prevent stale executors from overwriting a newer run. The durable SQLite queue remains authoritative, and targeted dispatch never consumes an unrelated queued ingestion, report, or AgentRun. The UI does not expose checkpoint internals or arbitrary raw context payloads.
+The React Workspace is a client over existing projections, not another fact store. Its routes cover the dashboard, project sections, task detail, AgentRun trace, artifact content, proposal review, Knowledge Core, evidence reports, and runtime history. Browser actions persist resources and durable queue intent; FastAPI never executes a long task in-process. One independent Worker owns ingestion, reports, AgentRun, Collection synchronization, and projection outbox work. Interactive work receives a higher queue priority, while attempt-and-owner fencing plus lease heartbeats prevent stale executors from overwriting a reclaimed task. SQLite remains authoritative and the UI does not expose checkpoint internals or arbitrary raw context payloads.
 
 The repository also retains a Streamlit service in `docker-compose.yml` for compatibility with the earlier knowledge workflow. It is not the React Workspace. Public deployment documentation must select and verify the desired UI entry point rather than treating them as interchangeable.
 

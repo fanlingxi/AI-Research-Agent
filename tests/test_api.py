@@ -103,7 +103,8 @@ def _wait_for_ingestion_status(repository, ingestion_id: str, status: str, timeo
 
 
 def test_health_is_knowledge_only_and_v1_routes_are_absent(tmp_path) -> None:
-    repository, service, reports, _ = _stack(tmp_path)
+    repository, service, reports, worker = _stack(tmp_path)
+    assert worker.run_once() is False
     with TestClient(
         create_app(
             knowledge_repository=repository,
@@ -118,9 +119,9 @@ def test_health_is_knowledge_only_and_v1_routes_are_absent(tmp_path) -> None:
 
     assert health.status_code == 200
     assert proxied_health.status_code == 200
-    assert proxied_health.json()["knowledge"]["schema_version"] == 15
-    assert health.json()["knowledge"]["schema_version"] == 15
-    assert health.json()["services"]["report_dispatcher"]["available"] is True
+    assert proxied_health.json()["knowledge"]["schema_version"] == 16
+    assert health.json()["knowledge"]["schema_version"] == 16
+    assert health.json()["services"]["worker"]["available"] is True
     assert old_research.status_code == 404
     assert old_task.status_code == 404
 
@@ -320,15 +321,14 @@ def test_api_queues_ingestion_and_worker_publishes_outbox(tmp_path) -> None:
     assert len(graph.json()["edges"]) == 1
 
 
-def test_api_creates_and_dispatches_ingestion_without_external_worker(tmp_path) -> None:
-    repository, service, reports, _ = _stack(tmp_path)
+def test_api_creates_and_queues_ingestion_for_the_worker(tmp_path) -> None:
+    repository, service, reports, worker = _stack(tmp_path)
     application = create_app(
         knowledge_repository=repository,
         knowledge_service=service,
         report_service=reports,
     )
     with TestClient(application) as client:
-        application.state.ingestion_dispatcher.stop()
         response = client.post(
             "/api/knowledge/ingestions/execute",
             json={
@@ -338,6 +338,8 @@ def test_api_creates_and_dispatches_ingestion_without_external_worker(tmp_path) 
             },
         )
         ingestion_id = response.json()["id"]
+        assert response.json()["status"] == "queued"
+        assert worker.run_once()
         completed = _wait_for_ingestion_status(
             repository, ingestion_id, "needs_review"
         )

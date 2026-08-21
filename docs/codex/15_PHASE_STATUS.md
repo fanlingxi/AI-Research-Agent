@@ -11,7 +11,7 @@ Verified engineering status:
 - Phase 6 deterministic evaluation candidate: 13 passed, 0 failed/error/skipped, 4/4 isolation attestations true;
 - Phase 6 demo candidate: 3 passed, 0 failed/error/skipped, isolation passed.
 
-The current Phase 6 result is not an accepted baseline. Human approval is required before any baseline file is created. The operational SQLite database remains schema v14 and unchanged by evaluation; temporary evaluation fixtures use schema v15. v0009 remains unexecuted.
+The current Phase 6 result is not an accepted baseline. Human approval is required before any baseline file is created. The application now targets operational schema v16; historical evaluation candidates retain their original schema metadata and did not open the operational database.
 
 ## Document status
 

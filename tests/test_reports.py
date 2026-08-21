@@ -694,7 +694,7 @@ def test_report_api_exposes_content_evidence_and_download(tmp_path) -> None:
     assert download.headers["content-type"].startswith("text/markdown")
 
 
-def test_report_api_executes_only_the_selected_report_without_a_worker(tmp_path) -> None:
+def test_report_api_prioritizes_the_selected_report_for_the_worker(tmp_path) -> None:
     repository, ingestion, reports, worker, _ = _report_stack(tmp_path)
     first = reports.submit(
         query="保留在队列中的第一份报告",
@@ -714,6 +714,7 @@ def test_report_api_executes_only_the_selected_report_without_a_worker(tmp_path)
         )
     ) as client:
         executed = client.post(f"/api/reports/{second.id}/execute")
+        assert worker.run_once()
         _wait_for_report_status(repository, second.id, "completed")
         repeated = client.post(f"/api/reports/{second.id}/execute")
 
@@ -725,7 +726,7 @@ def test_report_api_executes_only_the_selected_report_without_a_worker(tmp_path)
     assert repeated.status_code == 409
 
 
-def test_report_api_creates_and_dispatches_in_one_request(tmp_path) -> None:
+def test_report_api_creates_and_queues_in_one_request(tmp_path) -> None:
     repository, ingestion, reports, worker, _ = _report_stack(tmp_path)
     application = create_app(
         knowledge_repository=repository,
@@ -733,8 +734,6 @@ def test_report_api_creates_and_dispatches_in_one_request(tmp_path) -> None:
         report_service=reports,
     )
     with TestClient(application) as client:
-        application.state.report_dispatcher.stop()
-        assert not application.state.report_dispatcher.is_alive
         response = client.post(
             "/api/reports/execute",
             json={
@@ -745,11 +744,11 @@ def test_report_api_creates_and_dispatches_in_one_request(tmp_path) -> None:
             },
         )
         report_id = response.json()["id"]
-        assert application.state.report_dispatcher.is_alive
+        assert response.json()["status"] == "queued"
+        assert worker.run_once()
         completed = _wait_for_report_status(repository, report_id, "completed")
 
     assert response.status_code == 202
-    assert application.state.report_dispatcher.is_alive is False
     assert completed.status == "completed"
     job = repository.get_resource_job("report", report_id)
     assert job.payload["auto_execute"] is True
@@ -777,6 +776,12 @@ def test_report_api_retries_a_failed_report_in_place(tmp_path) -> None:
         projector=NoopKnowledgeProjector(),
         require_live_llm=False,
     )
+    worker = KnowledgeWorker(
+        repository,
+        ingestion_service=ingestion_service,
+        report_service=reports,
+        lease_seconds=30,
+    )
     submitted = reports.submit(
         query="工作台失败报告重试",
         topic_slugs=[ingestion.topic_slug],
@@ -790,9 +795,11 @@ def test_report_api_retries_a_failed_report_in_place(tmp_path) -> None:
         )
     ) as client:
         first = client.post(f"/api/reports/{submitted.id}/execute")
+        assert worker.run_once()
         _wait_for_report_status(repository, submitted.id, "failed")
         reports.llm = _RevisingLLM()
         retried = client.post(f"/api/reports/{submitted.id}/retry")
+        assert worker.run_once()
         _wait_for_report_status(repository, submitted.id, "completed")
 
     assert first.status_code == 202
