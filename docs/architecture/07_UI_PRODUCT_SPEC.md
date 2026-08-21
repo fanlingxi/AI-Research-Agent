@@ -49,9 +49,15 @@ The general Worker remains the batch-execution path and shares the same heartbea
 
 The browser receives bounded projections rather than checkpoint databases, arbitrary internal files, or unbounded raw runtime state. It cannot use a UI action to bypass knowledge review, proposal review, plugin pinning, or runtime validation.
 
-## Development entry points
+## Development and production entry points
 
-The React application is in frontend/ and uses React, TypeScript, Vite, Vitest, and TanStack Query. It is run separately with a Node/pnpm toolchain:
+The React application is in frontend/ and uses React, TypeScript, Vite, Vitest, and TanStack Query. The supported local product stack builds it into an Nginx service and starts every dependency with one command:
+
+~~~bash
+make up
+~~~
+
+The PC workspace is available on port 5173, proxies `/api` to FastAPI on port 8000, and uses an SPA fallback for deep links. Streamlit remains a separately configured operations console on port 8501. Direct Vite development remains available with a Node/pnpm toolchain:
 
 ~~~bash
 cd frontend
@@ -61,6 +67,6 @@ pnpm dev
 
 Run pnpm test and pnpm build in a declared Node environment before release. Browser acceptance targets 1440×900 and 1920×1080 PC viewports; mobile acceptance is not required for this milestone.
 
-## Compose compatibility note
+## Compose deployment
 
-The current docker-compose.yml starts the API, worker, supporting services, and a legacy-compatible Streamlit UI. It does not package the React Workspace. A deployment guide must choose the intended UI rather than presenting the two as the same application.
+The current docker-compose.yml starts the React/Nginx web service, API, worker, Qdrant, Neo4j, and the Streamlit operations console. React is the only daily product entry. Browser-facing URLs are configuration rather than hard-coded component constants.

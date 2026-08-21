@@ -1,4 +1,15 @@
 services:
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_OPERATIONS_URL: ${VITE_OPERATIONS_URL:-http://127.0.0.1:8501}
+    ports:
+      - "${WEB_PORT:-5173}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
   qdrant:
     image: qdrant/qdrant:v1.18.0
     ports:
@@ -41,6 +52,11 @@ services:
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-research-agent}
     ports:
       - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     volumes:
       - ./app:/app/app:ro
       - ./data:/app/data
@@ -73,6 +89,7 @@ services:
     command: streamlit run app/ui/streamlit_app.py --server.address 0.0.0.0 --server.port 8501
     environment:
       AI_RESEARCH_API_URL: http://api:8000
+      AI_RESEARCH_REACT_URL: http://127.0.0.1:${WEB_PORT:-5173}
     volumes:
       - ./app:/app/app:ro
     ports:

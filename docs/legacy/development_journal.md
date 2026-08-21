@@ -12,6 +12,25 @@
 - 已知风险和后续动作
 - 可复用的项目成果表述
 
+## 2026-08-21：阶段一——统一 PC 部署与入口
+
+### 决策与实现
+
+- React 确认为唯一日常产品入口；Streamlit 固定为 8501 端口的运营控制台。
+- 新增 Node 22 构建、Nginx 静态托管、同源 `/api` 反向代理和 SPA 深链回退；Compose 现在声明 React、API、worker、Qdrant、Neo4j 和 Streamlit 的完整本地栈。
+- React 的运营控制台地址改为 `VITE_OPERATIONS_URL` 配置，Vite 开发代理统一使用 API 8000，不再保留 8010/8503 的隐式本地约定。
+- 新增 `make up`/`make dev` 统一启动入口，并保留 `make test` 作为后端、Ruff、前端测试和生产构建的组合检查。
+
+### 验证与边界
+
+- 前端 28 项 Vitest、TypeScript 和 Vite production build 通过，`docker compose config --quiet` 通过，Git diff 格式检查通过。
+- Web 镜像构建定义已进入 Compose；当前机器配置的 Docker registry mirror 对 Node/Nginx 基础镜像返回 401，因此镜像下载型构建需在镜像源恢复后再次执行。这是本机镜像源问题，不是前端编译或 Compose 结构错误。
+- 本阶段未修改任何 operational SQLite、Qdrant、Neo4j、Vault 或 `data/real_world_test/` 内容。
+
+### 可复用的项目成果表述
+
+- 将分离运行的 React 开发服务器收敛为 Nginx 托管的同源 PC 工作台，补齐 API 代理、SPA 深链回退和一键 Compose 启动，同时把 Streamlit 明确降级为独立运维入口。
+
 ## 2026-08-19：15 篇真实文献验证与 React 主工作台
 
 ### 目标与边界

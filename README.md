@@ -157,7 +157,7 @@ git diff --check
 docker compose config --quiet
 ```
 
-`docker compose up --build` starts the legacy-compatible API, worker, Qdrant, Neo4j, and Streamlit services. Treat it as a local development stack: set a non-default Neo4j password, review mounted data paths, and do not point it at an operational database without a backup and an explicit migration review.
+`docker compose up --build`（或 `make up`）启动 React PC 工作台、API、worker、Qdrant、Neo4j 和 Streamlit 运维台。日常入口是 `http://127.0.0.1:5173`，Streamlit 运维入口是 `http://127.0.0.1:8501`。该本地栈使用同源 `/api` 代理和 React SPA 深链回退；使用前仍应设置非默认 Neo4j 密码并审查挂载的数据目录。
 
 ### OpenAI-compatible proxy smoke tests
 
@@ -196,7 +196,7 @@ RUN_LIVE_LLM_INTEGRATION=1 \
 
 ### React Workspace
 
-The React application lives in `frontend/` and is run separately from the Compose Streamlit service. It requires Node.js 22 LTS and uses the Corepack-managed `pnpm@11.21.0` pinned in `frontend/package.json`:
+The React application lives in `frontend/`. Compose builds it into an Nginx web service; direct Vite development requires Node.js 22 LTS and the Corepack-managed `pnpm@11.21.0` pinned in `frontend/package.json`:
 
 ```bash
 cd frontend

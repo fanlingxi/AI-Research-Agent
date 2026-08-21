@@ -73,14 +73,14 @@ describe("workspace API client", () => {
 
   it("keeps a non-JSON proxy failure readable", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response("connect ECONNREFUSED 127.0.0.1:8010", { status: 502 }),
+      new Response("connect ECONNREFUSED 127.0.0.1:8000", { status: 502 }),
     );
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(api.projects()).rejects.toMatchObject({
       name: "ApiError",
       status: 502,
-      message: "connect ECONNREFUSED 127.0.0.1:8010",
+      message: "connect ECONNREFUSED 127.0.0.1:8000",
     });
   });
 
