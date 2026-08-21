@@ -12,6 +12,29 @@
 - 已知风险和后续动作
 - 可复用的项目成果表述
 
+## 2026-08-21：阶段三——统一运行可观测性
+
+### 问题与架构决策
+
+- 旧 Runtime 由 React 分别拉取最多 100 条 ingestion 和 report 后在浏览器拼接，看不到 AgentRun、Collection 同步、projection outbox、Worker 心跳、队列位置或 lease owner，因此无法回答“为什么 queued”“图关系为什么为 0”“报告停在哪一步”。
+- 新增只读 `RuntimeObservabilityService`，直接从权威业务表构建有界投影，不创建第二份任务事实。`/api/v1/runtime/overview` 返回 API、Worker、LLM、Qdrant、Neo4j、Vault、执行器心跳、分类计数和 projection backlog；`/api/v1/runtime/work` 使用 keyset cursor，并支持 kind/status 筛选。
+- `RuntimeWorkItem` 统一呈现业务状态、队列状态、当前阶段、attempt、优先级、队列位置、lease、执行器、最近错误、详情深链和恢复能力。失败投影使用专属定点重试接口；报告、入库和 AgentRun 仍走各自恢复接口。
+
+### 修改范围与验证
+
+- 新增 `app/runtime` 服务与 schema、失败投影原子重排、三个 Runtime v1 API；React 运行台加入服务状态、Worker 最后心跳/当前任务、LLM 配置提示、统一任务筛选与分页、投影 backlog、长错误内部滚动和安全重试。
+- 后端全量回归为 164 passed、3 skipped；前端为 32 passed，production build 通过。Ruff、Compose 配置和 Git diff 检查通过。
+- 定向测试覆盖 overview、三类 durable job 聚合、cursor 翻页、kind/status 筛选、非法 cursor、投影失败与二次重试拒绝；组件测试覆盖 Worker 离线且 AgentRun queued 的可行动提示，以及失败投影原位恢复。
+
+### 已知边界与下一步
+
+- 当前服务探针为本地只读 TCP/目录检查，不代表 Qdrant/Neo4j 数据内容完全一致；projection backlog 和事件错误用于定位一致性缺口，正式重建命令在阶段五实现。
+- 当前 Runtime 操作的是底层资源任务。阶段四将增加持久 ResearchCommand，使快速报告和项目研究共享更符合用户语言的编排进度。
+
+### 可复用的项目成果表述
+
+- 建立覆盖五类长任务的统一 Runtime 可观测投影，以游标分页呈现业务/队列双状态、租约 owner 和投影 backlog，并在 React 中把 Worker 离线、AgentRun 排队和 Neo4j 投影失败转化为可直接执行的诊断与恢复动作。
+
 ## 2026-08-21：阶段二——统一任务执行平面
 
 ### 问题与架构决策

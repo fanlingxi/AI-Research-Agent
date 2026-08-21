@@ -29,7 +29,7 @@ The UI uses the existing Workspace, Memory, Context, and Agent API projections. 
 - Artifact: content plus run/context relation.
 - Review: explicit MemoryProposal approval or rejection flow.
 - Reports: submit-and-execute by default, targeted start for existing queued reports, adaptive polling, visible generation stage, evidence pack, download, and in-place failed retry.
-- Runtime: health and queue summaries plus deep links back to actionable report and ingestion views.
+- Runtime: API/Worker/LLM/Qdrant/Neo4j/Vault health, executor heartbeat, unified work pagination, AgentRun/report/ingestion/Collection/projection state, queue position, lease ownership, targeted recovery, and deep links.
 
 ## Browser dispatch boundary
 
@@ -48,6 +48,12 @@ Every claimed job records an executor identity, attempt, priority, and lease. Th
 ## UI safety model
 
 The browser receives bounded projections rather than checkpoint databases, arbitrary internal files, or unbounded raw runtime state. It cannot use a UI action to bypass knowledge review, proposal review, plugin pinning, or runtime validation.
+
+## Runtime observability contract
+
+`GET /api/v1/runtime/overview` is the bounded health and aggregate projection. It reports configured service state, executor identity/version/last heartbeat/current job, counts by work kind and status, and projection backlog. `GET /api/v1/runtime/work` uses an opaque keyset cursor and supports kind/status filters; it unifies ingestion, report, AgentRun, Collection synchronization, and projection events without copying them into a new table. Each item carries business/job status, stage, queue position, attempt, lease, owner, error, detail route, and permitted recovery actions.
+
+`POST /api/v1/runtime/projections/{event_id}/retry` accepts only a failed event and requeues exactly that event in one SQLite transaction. Report, ingestion, and AgentRun recovery continue through their resource-specific endpoints so Runtime cannot bypass state cleanup or validation. Qdrant and Neo4j checks are read-only connectivity probes; their unavailability never grants them fact-store authority.
 
 ## Development and production entry points
 

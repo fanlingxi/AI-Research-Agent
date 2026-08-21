@@ -15,6 +15,8 @@ import {
   type MemoryProposal,
   type Project,
   type ResearchReport,
+  type RuntimeOverview,
+  type RuntimeWorkItem,
 } from "../lib/api";
 import { AgentRunPage } from "../pages/AgentRunPage";
 import { DashboardPage } from "../pages/DashboardPage";
@@ -76,6 +78,40 @@ const healthyKnowledge: KnowledgeHealth = {
     jobs: {},
     projections: {},
   },
+};
+
+const healthyRuntime: RuntimeOverview = {
+  status: "ok",
+  generated_at: "2026-01-01T00:00:00+00:00",
+  services: {
+    api: { available: true, configured: true, detail: "在线", endpoint: null },
+    worker: { available: true, configured: true, detail: "在线", endpoint: null },
+    llm: { available: true, configured: true, detail: "已配置", endpoint: null },
+  },
+  executors: [],
+  work_counts: {},
+  projection_backlog: { queued: 0, running: 0, failed: 0, completed: 0, oldest_queued_at: null },
+};
+
+const queuedRuntimeAgent: RuntimeWorkItem = {
+  id: "job-agent",
+  kind: "agent_run",
+  resource_id: "run-queued",
+  title: "研究任务",
+  detail_route: "/agent-runs/run-queued",
+  business_status: "queued",
+  job_status: "queued",
+  current_stage: "queued",
+  attempt: 0,
+  priority: 100,
+  queue_position: 2,
+  lease_until: null,
+  executor: null,
+  created_at: "2026-01-01T00:00:00+00:00",
+  updated_at: "2026-01-01T00:00:00+00:00",
+  last_error: null,
+  can_retry: false,
+  can_cancel: true,
 };
 
 const failedIngestion: KnowledgeIngestion = {
@@ -328,6 +364,8 @@ describe("browser acceptance states", () => {
     vi.spyOn(api, "collections").mockResolvedValue([]);
     vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
     vi.spyOn(api, "reports").mockResolvedValue([]);
+    vi.spyOn(api, "runtimeOverview").mockResolvedValue(healthyRuntime);
+    vi.spyOn(api, "runtimeWork").mockResolvedValue({ items: [], next_cursor: null });
 
     const knowledge = renderWithQuery(<KnowledgePage />);
     expect(await screen.findByTestId("ingestion-history-list")).toHaveClass("overflow-y-auto");
@@ -339,6 +377,59 @@ describe("browser acceptance states", () => {
 
     renderWithQuery(<MemoryRouter><RuntimePage /></MemoryRouter>);
     expect(await screen.findByTestId("runtime-work-list")).toHaveClass("overflow-y-auto");
+  });
+
+  it("explains why AgentRun is queued when the unified worker is offline", async () => {
+    vi.spyOn(api, "runtimeOverview").mockResolvedValue({
+      ...healthyRuntime,
+      services: {
+        ...healthyRuntime.services,
+        worker: { available: false, configured: true, detail: "离线", endpoint: null },
+      },
+      work_counts: { agent_run: { queued: 1 } },
+    });
+    vi.spyOn(api, "runtimeWork").mockResolvedValue({ items: [queuedRuntimeAgent], next_cursor: null });
+
+    renderWithQuery(<MemoryRouter><RuntimePage /></MemoryRouter>);
+
+    expect(await screen.findByText(/1 个任务在排队，但 Worker 离线/)).toBeInTheDocument();
+    expect(screen.getByText("python -m app.worker")).toBeInTheDocument();
+    expect(screen.getByText("队列第 2 位")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "研究任务" })).toHaveAttribute("href", "/agent-runs/run-queued");
+  });
+
+  it("retries a failed projection from the Runtime page", async () => {
+    const failedProjection: RuntimeWorkItem = {
+      ...queuedRuntimeAgent,
+      id: "projection-failed",
+      kind: "projection",
+      resource_id: "entity-1",
+      title: "知识实体投影",
+      detail_route: "/runtime?projection=projection-failed",
+      business_status: "failed",
+      job_status: "failed",
+      current_stage: "entity_projection",
+      queue_position: null,
+      last_error: "Neo4j 端点缺失",
+      can_retry: true,
+      can_cancel: false,
+    };
+    vi.spyOn(api, "runtimeOverview").mockResolvedValue({
+      ...healthyRuntime,
+      projection_backlog: { queued: 0, running: 0, failed: 1, completed: 0, oldest_queued_at: null },
+    });
+    vi.spyOn(api, "runtimeWork").mockResolvedValue({ items: [failedProjection], next_cursor: null });
+    const retry = vi.spyOn(api, "retryProjection").mockResolvedValue({
+      ...failedProjection,
+      job_status: "queued",
+      can_retry: false,
+    });
+    const user = userEvent.setup();
+
+    renderWithQuery(<MemoryRouter><RuntimePage /></MemoryRouter>);
+    await user.click(await screen.findByRole("button", { name: "安全重试" }));
+
+    expect(retry).toHaveBeenCalledWith("projection-failed");
   });
 
   it("submits and starts a knowledge ingestion in one action", async () => {

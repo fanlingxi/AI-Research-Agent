@@ -375,6 +375,65 @@ export interface KnowledgeHealth {
   };
 }
 
+export interface RuntimeServiceState {
+  available: boolean;
+  configured: boolean;
+  detail: string;
+  endpoint: string | null;
+}
+
+export interface RuntimeExecutorState {
+  id: string;
+  role: string;
+  version: string;
+  online: boolean;
+  started_at: string;
+  last_heartbeat_at: string;
+  current_job_id: string | null;
+  metadata: JsonObject;
+}
+
+export interface RuntimeOverview {
+  status: string;
+  generated_at: string;
+  services: Record<string, RuntimeServiceState>;
+  executors: RuntimeExecutorState[];
+  work_counts: Record<string, Record<string, number>>;
+  projection_backlog: {
+    queued: number;
+    running: number;
+    failed: number;
+    completed: number;
+    oldest_queued_at: string | null;
+  };
+}
+
+export interface RuntimeWorkItem {
+  id: string;
+  kind: string;
+  resource_id: string;
+  title: string;
+  detail_route: string;
+  business_status: string;
+  job_status: string;
+  current_stage: string | null;
+  attempt: number;
+  priority: number;
+  queue_position: number | null;
+  lease_until: string | null;
+  executor: string | null;
+  created_at: string;
+  updated_at: string;
+  last_error: string | null;
+  can_retry: boolean;
+  can_cancel: boolean;
+}
+
+export interface RuntimeWorkPage {
+  items: RuntimeWorkItem[];
+  next_cursor: string | null;
+}
+
 export interface KnowledgeSearchResult {
   query: string;
   topic_slugs: string[];
@@ -553,6 +612,18 @@ export const api = {
     return request<KnowledgeSearchResult>(`/api/knowledge/search?${params.toString()}`);
   },
   knowledgeHealth: () => request<KnowledgeHealth>("/api/knowledge/health"),
+  runtimeOverview: () => request<RuntimeOverview>("/api/v1/runtime/overview"),
+  runtimeWork: (options: { kind?: string; status?: string; cursor?: string; limit?: number } = {}) =>
+    request<RuntimeWorkPage>(`/api/v1/runtime/work${query({
+      kind: options.kind,
+      status: options.status,
+      cursor: options.cursor,
+      limit: options.limit ?? 30,
+    })}`),
+  retryProjection: (eventId: string) =>
+    request<RuntimeWorkItem>(`/api/v1/runtime/projections/${path(eventId)}/retry`, {
+      method: "POST",
+    }),
   reports: () => request<ResearchReport[]>("/api/reports"),
   report: (reportId: string) => request<ResearchReport>(`/api/reports/${path(reportId)}`),
   submitReport: (input: {

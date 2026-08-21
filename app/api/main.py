@@ -55,6 +55,7 @@ from app.memory.schemas import (
     WorkspaceTaskUpdateRequest,
 )
 from app.memory.service import MemoryService
+from app.runtime.service import RuntimeObservabilityService
 from app.workspace.schemas import ContextProjectionRequest
 from app.workspace.service import WorkspaceProjectionConflictError, WorkspaceProjectionService
 
@@ -111,6 +112,7 @@ def create_app(
     domain_plugin_service: DomainPluginService | None = None,
     game_knowledge_authoring_service: GameKnowledgeAuthoringService | None = None,
     workspace_projection_service: WorkspaceProjectionService | None = None,
+    runtime_observability_service: RuntimeObservabilityService | None = None,
 ) -> FastAPI:
     settings = get_settings()
     repository = knowledge_repository or KnowledgeRepository(settings.knowledge_db_path)
@@ -127,6 +129,12 @@ def create_app(
         context_builder=agents.context_builder,
         agent_run_service=agents,
     )
+    runtime_observability = runtime_observability_service or RuntimeObservabilityService(
+        repository,
+        settings,
+        llm_provider=getattr(service.llm, "provider_name", settings.llm_provider),
+        live_llm_configured=not service._is_mock_llm(),
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -138,6 +146,7 @@ def create_app(
         app.state.domain_plugin_service = domain_plugins
         app.state.game_knowledge_authoring_service = game_knowledge
         app.state.workspace_projection_service = workspace
+        app.state.runtime_observability_service = runtime_observability
         yield
 
     app = FastAPI(
@@ -190,6 +199,36 @@ def create_app(
     def knowledge_health() -> dict[str, Any]:
         """Health endpoint available through the React development proxy."""
         return health_payload()
+
+    @app.get("/api/v1/runtime/overview")
+    def runtime_overview() -> dict[str, Any]:
+        return runtime_observability.overview().model_dump()
+
+    @app.get("/api/v1/runtime/work")
+    def runtime_work(
+        kind: str | None = None,
+        status: str | None = None,
+        cursor: str | None = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 30,
+    ) -> dict[str, Any]:
+        try:
+            return runtime_observability.list_work(
+                kind=kind,
+                status=status,
+                cursor=cursor,
+                limit=limit,
+            ).model_dump()
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/v1/runtime/projections/{event_id}/retry")
+    def retry_runtime_projection(event_id: str) -> dict[str, Any]:
+        try:
+            return runtime_observability.retry_projection(event_id).model_dump()
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Projection event not found.") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.post("/api/knowledge/ingestions", status_code=202)
     def submit_knowledge_ingestion(payload: KnowledgeIngestionRequest) -> dict[str, Any]:

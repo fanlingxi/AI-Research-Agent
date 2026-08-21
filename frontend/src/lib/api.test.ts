@@ -197,4 +197,32 @@ describe("workspace API client", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("reads filtered Runtime work through the cursor API", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [], next_cursor: null }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.runtimeWork({ kind: "projection", status: "failed", cursor: "next page", limit: 20 });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/runtime/work?kind=projection&status=failed&cursor=next+page&limit=20",
+      expect.any(Object),
+    );
+  });
+
+  it("retries one failed projection event", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "event one", job_status: "queued" }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.retryProjection("event one");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/runtime/projections/event%20one/retry",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

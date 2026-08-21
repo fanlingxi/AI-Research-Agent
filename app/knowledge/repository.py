@@ -2291,6 +2291,40 @@ class KnowledgeRepository:
             )
         return self.get_ingestion(ingestion_id)
 
+    def retry_projection(self, event_id: str) -> ProjectionEvent:
+        """Safely requeue one failed outbox event without bypassing its resource state."""
+        now = _now()
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT ingestion_id, status FROM projection_outbox WHERE id = ?", (event_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(event_id)
+            if row["status"] != "failed":
+                raise ValueError("Only a failed projection can be retried.")
+            connection.execute(
+                """
+                UPDATE projection_outbox
+                SET status = 'queued', lease_until = NULL, lease_owner = NULL,
+                    last_error = NULL, updated_at = ?
+                WHERE id = ? AND status = 'failed'
+                """,
+                (now, event_id),
+            )
+            connection.execute(
+                """
+                UPDATE ingestions
+                SET status = 'publishing', error = NULL, updated_at = ?
+                WHERE id = ?
+                """,
+                (now, row["ingestion_id"]),
+            )
+            refreshed = connection.execute(
+                "SELECT * FROM projection_outbox WHERE id = ?", (event_id,)
+            ).fetchone()
+        return self._projection_from_row(refreshed)
+
     # Published knowledge --------------------------------------------------------
 
     def find_merge_suggestions(
