@@ -109,6 +109,7 @@ function TaskRows({ projectId, tasks }: { projectId: string; tasks: WorkspaceTas
 
 export function ProjectWorkspacePage() {
   const { projectId = "", section = "overview" } = useParams();
+  const [selectedTaskId, setSelectedTaskId] = useState("");
   const project = useQuery({ queryKey: ["project", projectId], queryFn: () => api.project(projectId) });
   const [tasks, decisions, artifacts, scopes, runs, proposals] = useQueries({
     queries: [
@@ -123,7 +124,8 @@ export function ProjectWorkspacePage() {
   if (project.isPending) return <div className="p-6"><LoadingBlock /></div>;
   if (project.error instanceof Error) return <div className="p-6"><ErrorBlock error={project.error} onRetry={() => project.refetch()} /></div>;
   if (!project.data) return <div className="p-6"><LoadingBlock label="等待 Project 数据…" /></div>;
-  const currentTask = tasks.data?.find((task) => !["completed", "cancelled"].includes(task.status));
+  const openTasks = (tasks.data ?? []).filter((task) => !["completed", "cancelled"].includes(task.status));
+  const currentTask = openTasks.find((task) => task.id === selectedTaskId);
   const sectionError = [tasks, decisions, artifacts, scopes, runs, proposals].find((query) => query.error instanceof Error)?.error;
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -139,7 +141,12 @@ export function ProjectWorkspacePage() {
           {section === "agent" ? <Card><CardHeader><div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">AgentRun</p><h2 className="mt-1 text-lg font-semibold">Project audit history</h2></div></CardHeader><CardContent className="space-y-3">{runs.data?.items.map((run) => <Link key={run.id} className="flex items-center justify-between gap-4 rounded-lg border bg-white p-4 hover:border-brand/40" to={`/agent-runs/${run.id}`}><div><p className="font-medium">{run.workflow_name}</p><p className="mt-1 text-xs text-muted-ink">{run.current_node ?? "queued"} · {formatDate(run.updated_at)} · repair {run.repair_count}</p></div><StatusBadge status={run.status} /></Link>)}{!runs.data?.items.length ? <EmptyBlock title="没有 AgentRun">选择一个任务，并在右侧 Agent Panel 创建 Snapshot 后运行。</EmptyBlock> : null}</CardContent></Card> : null}
         </section>
       </div>
-      <AgentPanel projectId={projectId} task={currentTask} />
+      <AgentPanel
+        availableTasks={openTasks}
+        projectId={projectId}
+        task={currentTask}
+        onTaskChange={setSelectedTaskId}
+      />
     </div>
   );
 }

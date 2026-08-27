@@ -9,7 +9,7 @@ from app.api.main import create_app
 from app.config.settings import Settings
 from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.query import KnowledgeQueryService, _latin_query_terms, _rank_evidence
-from app.knowledge.reports import KnowledgeReportDispatcher, KnowledgeReportService, _evaluate
+from app.knowledge.reports import KnowledgeReportService, _evaluate
 from app.knowledge.repository import KnowledgeRepository, StaleReportExecution
 from app.knowledge.schemas import CandidateEntity, ChunkSearchHit, EvidenceSpan, ReportEvidence
 from app.knowledge.service import (
@@ -197,10 +197,34 @@ def test_report_worker_revises_once_and_persists_evidence_evaluation(tmp_path) -
     assert completed.evaluation.citation_coverage == 1.0
     assert completed.evaluation.citation_fidelity == 1.0
     assert len(completed.evidence) == 2
-    assert completed.run_metadata["prompt_version"] == "knowledge-report-v2"
+    assert completed.run_metadata["prompt_version"] == "knowledge-report-v3"
     assert completed.run_metadata["generation_calls"] == 2
     assert completed.run_metadata["latency_ms"] >= 0
     assert repository.job_summary()["completed"] == 1
+
+
+def test_report_prompts_include_quality_contract_and_revision_evidence(tmp_path) -> None:
+    repository, ingestion, reports, _, _ = _report_stack(tmp_path)
+    report = reports.submit(
+        query="如何生成有据可查的研究报告？",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+    )
+    evidence = [
+        ReportEvidence.model_validate(item)
+        for item in reports.query_service.search(report.query, top_k=2)["evidence"]
+    ]
+
+    initial = reports._prompt(report, evidence, [])
+    revision = reports._revision_prompt("# 缺少结构的初稿\n\n只有一个结论。[E1]", evidence)
+
+    assert "至少三个以 `##` 开头" in initial
+    assert "每条正式正文证据至少引用一次" in initial
+    assert "至少三个以 `##` 开头" in revision
+    for item in evidence:
+        assert item.title in revision
+        assert item.text in revision
+        assert f"[{item.id}]" in revision
 
 
 def test_targeted_report_claim_does_not_consume_older_queued_work(tmp_path) -> None:
@@ -323,14 +347,14 @@ def test_expired_dispatched_report_is_recovered_after_restart(tmp_path) -> None:
         top_k=2,
         auto_execute=True,
     )
-    abandoned = repository.claim_dispatched_report_job(lease_seconds=1)
+    abandoned = repository.claim_dispatched_report_job(lease_seconds=-1)
 
     assert abandoned is not None
     assert repository.get_report(submitted.id).status == "running"
 
     restarted = KnowledgeRepository(repository.path)
     restarted.recover_running_work()
-    assert restarted.get_resource_job("report", submitted.id).status == "running"
+    assert restarted.get_resource_job("report", submitted.id).status == "queued"
     settings = Settings(
         knowledge_db_path=restarted.path,
         knowledge_vault_path=str(tmp_path / "restarted-vault"),
@@ -342,17 +366,21 @@ def test_expired_dispatched_report_is_recovered_after_restart(tmp_path) -> None:
         settings=settings,
         require_live_llm=True,
     )
-    dispatcher = KnowledgeReportDispatcher(
+    ingestion_service = KnowledgeIngestionService(
         restarted,
-        restarted_service,
-        lease_seconds=30,
-        poll_seconds=0.02,
+        settings=settings,
+        indexer=NoopChunkIndexer(),
+        projector=NoopKnowledgeProjector(),
+        require_live_llm=False,
     )
-    dispatcher.start()
-    try:
-        completed = _wait_for_report_status(restarted, submitted.id, "completed")
-    finally:
-        dispatcher.stop()
+    worker = KnowledgeWorker(
+        restarted,
+        ingestion_service=ingestion_service,
+        report_service=restarted_service,
+        lease_seconds=30,
+    )
+    assert worker.run_once()
+    completed = restarted.get_report(submitted.id)
 
     assert completed.status == "completed"
     recovered_job = restarted.get_resource_job("report", submitted.id)
@@ -380,23 +408,29 @@ def test_report_lease_heartbeat_prevents_duplicate_long_execution(tmp_path) -> N
         top_k=2,
         auto_execute=True,
     )
-    dispatcher = KnowledgeReportDispatcher(
+    ingestion_service = KnowledgeIngestionService(
         repository,
-        service,
-        lease_seconds=1,
-        poll_seconds=0.01,
+        settings=settings,
+        indexer=NoopChunkIndexer(),
+        projector=NoopKnowledgeProjector(),
+        require_live_llm=False,
     )
-    dispatcher.start()
-    try:
-        assert llm.started.wait(timeout=2.0)
-        initial_job = repository.get_resource_job("report", submitted.id)
-        initial_lease = initial_job.lease_until
-        time.sleep(1.05)
-        renewed_job = repository.get_resource_job("report", submitted.id)
-        duplicate = repository.claim_dispatched_report_job(lease_seconds=1)
-        completed = _wait_for_report_status(repository, submitted.id, "completed")
-    finally:
-        dispatcher.stop()
+    worker = KnowledgeWorker(
+        repository,
+        ingestion_service=ingestion_service,
+        report_service=service,
+        lease_seconds=1,
+    )
+    worker_thread = Thread(target=worker.run_once)
+    worker_thread.start()
+    assert llm.started.wait(timeout=2.0)
+    initial_job = repository.get_resource_job("report", submitted.id)
+    initial_lease = initial_job.lease_until
+    time.sleep(1.05)
+    renewed_job = repository.get_resource_job("report", submitted.id)
+    duplicate = repository.claim_dispatched_report_job(lease_seconds=1)
+    worker_thread.join(timeout=3.0)
+    completed = repository.get_report(submitted.id)
 
     assert initial_lease is not None
     assert renewed_job.lease_until is not None
@@ -405,14 +439,15 @@ def test_report_lease_heartbeat_prevents_duplicate_long_execution(tmp_path) -> N
     assert duplicate is None
     assert completed.status == "completed"
     assert llm.calls == 1
+    assert not worker_thread.is_alive()
 
 
-def test_worker_and_dispatcher_share_heartbeat_without_duplicate_llm_calls(tmp_path) -> None:
+def test_two_workers_do_not_duplicate_slow_report_llm_calls(tmp_path) -> None:
     repository, ingestion = _repository_with_paper(tmp_path)
     llm = _SlowGroundedLLM()
     settings = Settings(
         knowledge_db_path=repository.path,
-        knowledge_vault_path=str(tmp_path / "mixed-executors-vault"),
+        knowledge_vault_path=str(tmp_path / "two-workers-vault"),
     )
     service = KnowledgeReportService(
         repository,
@@ -428,34 +463,32 @@ def test_worker_and_dispatcher_share_heartbeat_without_duplicate_llm_calls(tmp_p
         projector=NoopKnowledgeProjector(),
         require_live_llm=False,
     )
-    worker = KnowledgeWorker(
+    first_worker = KnowledgeWorker(
         repository,
         ingestion_service=ingestion_service,
         report_service=service,
         lease_seconds=1,
+        worker_id="worker-alpha",
+    )
+    second_worker = KnowledgeWorker(
+        repository,
+        ingestion_service=ingestion_service,
+        report_service=service,
+        lease_seconds=1,
+        worker_id="worker-beta",
     )
     submitted = service.submit(
-        query="通用执行器和工作台调度器混跑不重复计费",
+        query="双 Worker 不重复执行同一慢报告",
         topic_slugs=[ingestion.topic_slug],
         top_k=2,
         auto_execute=True,
     )
-    worker_thread = Thread(target=worker.run_once)
+    worker_thread = Thread(target=first_worker.run_once)
     worker_thread.start()
     assert llm.started.wait(timeout=2.0)
-
-    dispatcher = KnowledgeReportDispatcher(
-        repository,
-        service,
-        lease_seconds=1,
-        poll_seconds=0.01,
-    )
-    dispatcher.start()
-    try:
-        completed = _wait_for_report_status(repository, submitted.id, "completed")
-    finally:
-        dispatcher.stop()
-        worker_thread.join(timeout=2.0)
+    second_worker.run_once()
+    completed = _wait_for_report_status(repository, submitted.id, "completed")
+    worker_thread.join(timeout=2.0)
 
     job = repository.get_resource_job("report", submitted.id)
     assert completed.status == "completed"

@@ -57,7 +57,7 @@ Key message: the UI projection is derived from governed records, not a second so
 
 ### 5. Close with isolation and scope
 
-Show the report’s isolation result and state the boundary precisely: fixture schema v15, operational schema v14 not opened, network blocked, and sandbox removed. The evidence is a deterministic candidate with no human-approved baseline.
+Show the report’s isolation result and state the boundary precisely: historical fixture schema v15, current operational schema v18 not opened, network blocked, and sandbox removed. The evidence is a deterministic candidate with no human-approved baseline.
 
 ## Optional React Workspace walkthrough
 
@@ -69,7 +69,7 @@ pnpm test
 pnpm build
 ~~~
 
-Node/npm were unavailable in the latest release-audit environment, so these commands were not rerun there. Do not imply browser validation from the offline demo result.
+The current workbench verification ran 38 Vitest checks and a production build. These browser-component results remain separate from the offline evaluation candidate and do not imply real-provider semantic quality.
 
 ## Presenter safety checklist
 

@@ -57,6 +57,12 @@ class AgentRunCreateRequest(BaseModel):
         return self
 
 
+class AgentRunReviewRequest(BaseModel):
+    """The two safe exits from a citation-validation review stop."""
+
+    action: Literal["rerun", "close"]
+
+
 class AgentRun(BaseModel):
     id: str
     project_id: str

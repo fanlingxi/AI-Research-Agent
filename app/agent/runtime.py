@@ -61,6 +61,9 @@ class AgentRuntime:
                 raise
         if run.status != "queued":
             raise AgentRunTerminalError("AgentRun must be queued before it can execute.")
+        run = self.service.mark_stale_context_if_needed(run_id)
+        if run.status == "stale_context":
+            return run
         try:
             workflow, checkpoint_namespace = self._workflow_for(run)
             with self.checkpoint_factory.open(namespace=checkpoint_namespace) as checkpointer:

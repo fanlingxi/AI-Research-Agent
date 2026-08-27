@@ -610,6 +610,11 @@ export const api = {
     request<KnowledgeIngestion>(`/api/knowledge/ingestions/${path(ingestionId)}/retry`, {
       method: "POST",
     }),
+  moveIngestionCollection: (ingestionId: string, collection: string) =>
+    request<KnowledgeIngestion>(`/api/knowledge/ingestions/${path(ingestionId)}/collection`, {
+      method: "PATCH",
+      body: JSON.stringify({ collection }),
+    }),
   candidates: (ingestionId: string, status = "draft") =>
     request<KnowledgeCandidate[]>(
       `/api/knowledge/ingestions/${path(ingestionId)}/candidates${query({ status })}`,
@@ -774,4 +779,9 @@ export const api = {
   output: (runId: string) => request<AgentOutput>(`/api/agent-runs/${path(runId)}/output`),
   cancelRun: (runId: string) => request<AgentRun>(`/api/agent-runs/${path(runId)}/cancel`, { method: "POST" }),
   resumeRun: (runId: string) => request<AgentRun>(`/api/agent-runs/${path(runId)}/resume`, { method: "POST" }),
+  reviewRun: (runId: string, action: "rerun" | "close") =>
+    request<AgentRun>(`/api/agent-runs/${path(runId)}/review`, {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    }),
 };

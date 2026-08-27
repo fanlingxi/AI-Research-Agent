@@ -56,7 +56,17 @@ function SnapshotSummary({ snapshot, label }: { snapshot: ContextSnapshotSummary
   );
 }
 
-export function AgentPanel({ projectId, task }: { projectId: string; task?: WorkspaceTask }) {
+export function AgentPanel({
+  projectId,
+  task,
+  availableTasks,
+  onTaskChange,
+}: {
+  projectId: string;
+  task?: WorkspaceTask;
+  availableTasks?: WorkspaceTask[];
+  onTaskChange?: (taskId: string) => void;
+}) {
   const navigate = useNavigate();
   const client = useQueryClient();
   const [preview, setPreview] = useState<ContextSnapshotSummary>();
@@ -94,6 +104,21 @@ export function AgentPanel({ projectId, task }: { projectId: string; task?: Work
         <span className="grid size-8 place-items-center rounded-lg bg-brand-soft text-brand"><Bot size={18} /></span>
         <div><h2 className="text-sm font-semibold">Research Agent</h2><p className="text-xs text-muted-ink">Project-scoped execution</p></div>
       </div>
+
+      {availableTasks ? (
+        <label className="mb-4 block text-xs font-medium text-slate-600">
+          选择本次运行的 WorkspaceTask
+          <select
+            aria-label="选择本次运行的 WorkspaceTask"
+            className="mt-1.5 w-full rounded-lg border bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+            value={task?.id ?? ""}
+            onChange={(event) => onTaskChange?.(event.target.value)}
+          >
+            <option value="">请选择任务，不会自动使用第一条</option>
+            {availableTasks.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+          </select>
+        </label>
+      ) : null}
 
       {!task ? (
         <Card><CardContent className="py-8 text-center text-sm text-muted-ink">选择一个 WorkspaceTask 后，才能预览 Context 或发起 AgentRun。</CardContent></Card>

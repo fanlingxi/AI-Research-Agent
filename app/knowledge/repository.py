@@ -810,7 +810,7 @@ class KnowledgeRepository:
         return self._job_from_row(claimed)
 
     def mark_ingestion_for_dispatch(self, ingestion_id: str) -> KnowledgeIngestion:
-        """Persist browser intent to run one ingestion through the built-in dispatcher."""
+        """Persist browser intent for the independent durable Worker."""
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             ingestion = connection.execute(
@@ -980,7 +980,7 @@ class KnowledgeRepository:
             )
 
     def mark_report_for_dispatch(self, report_id: str) -> ResearchReport:
-        """Persist the user's intent to execute a report through the built-in dispatcher."""
+        """Persist the user's intent for the independent durable Worker."""
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             report = connection.execute(

@@ -36,7 +36,7 @@ The full candidate passed these isolation attestations:
 - network connection attempts blocked;
 - temporary sandbox removed after execution.
 
-Fixture schema is v15. The operational SQLite baseline is schema v14, is not opened by the evaluation, and has no migration applied by this workflow. Production v0009 was not executed.
+The historical candidate fixture schema is v15. The current operational SQLite contract is v18, is not opened by the evaluation, and has no migration applied by this workflow. Historical fixture metadata remains unchanged and does not describe the current application schema.
 
 ## What the result does not prove
 

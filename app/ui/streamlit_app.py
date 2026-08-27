@@ -55,7 +55,7 @@ st.markdown(
     <section class="ops-hero">
       <p class="ops-hero__eyebrow">Research Knowledge Platform</p>
       <h1>Operations Console</h1>
-      <p>用于队列观测、任务恢复、审核诊断和证据验收。
+      <p>用于统一队列观测、失败恢复、派生投影重建和原始状态检查。
       日常入库、检索与报告工作请在 React 主工作台完成。</p>
     </section>
     """,
@@ -214,8 +214,8 @@ def _render_operations_overview() -> None:
     with right:
         st.markdown("### 运维边界")
         st.info(
-            "审核中的 merge/link、失败重试和投影恢复应在本控制台完成；"
-            "日常候选审核请使用 React 审核中心。"
+            "失败投影重试、全量/Collection 投影重建和原始状态检查在本控制台完成；"
+            "日常入库、检索、候选审核、报告和 Agent 操作请使用 React。"
         )
         st.caption(
             f"LLM：{knowledge.get('llm_provider', 'unknown')} · "
@@ -744,19 +744,162 @@ def _render_task_history() -> None:
             _show_api_error(exc)
 
 
+def _render_runtime_diagnostics() -> None:
+    st.subheader("统一任务诊断")
+    st.caption("这里只读取统一执行平面；日常任务创建、审核和报告操作请返回 React 主工作台。")
+    kind = st.selectbox(
+        "任务类型",
+        [
+            "全部",
+            "ingestion",
+            "report",
+            "agent_run",
+            "collection_sync",
+            "research_command",
+            "projection",
+        ],
+    )
+    status = st.selectbox(
+        "状态",
+        ["全部", "queued", "running", "failed", "completed", "needs_review", "stale_context"],
+    )
+    try:
+        overview = _api("GET", "/api/v1/runtime/overview")
+        params = {"limit": 100}
+        if kind != "全部":
+            params["kind"] = kind
+        if status != "全部":
+            params["status"] = status
+        work = _api("GET", "/api/v1/runtime/work", params=params)
+    except httpx.HTTPError as exc:
+        _show_api_error(exc)
+        return
+    worker = overview.get("services", {}).get("worker", {})
+    columns = st.columns(4)
+    columns[0].metric("Worker", "在线" if worker.get("available") else "离线")
+    columns[1].metric("执行器", len(overview.get("executors", [])))
+    backlog = overview.get("projection_backlog", {})
+    columns[2].metric("待投影", backlog.get("queued", 0))
+    columns[3].metric("失败投影", backlog.get("failed", 0))
+    items = work.get("items", [])
+    if not items:
+        st.info("当前筛选条件下没有任务。")
+        return
+    st.dataframe(
+        [
+            {
+                "类型": item["kind"],
+                "标题": item["title"],
+                "业务状态": item["business_status"],
+                "任务状态": item["job_status"],
+                "阶段": item.get("current_stage") or "—",
+                "attempt": item.get("attempt", 0),
+                "队列位置": item.get("queue_position") or "—",
+                "执行器": item.get("executor") or "—",
+                "更新时间": _format_beijing_time(item.get("updated_at")),
+                "最近错误": item.get("last_error") or "",
+            }
+            for item in items
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+def _render_projection_recovery() -> None:
+    st.subheader("投影恢复与重建")
+    st.warning("Qdrant、Neo4j 和 Vault 都是派生投影；重建始终以 SQLite 正式事实为输入。")
+    try:
+        failed = _api(
+            "GET",
+            "/api/v1/runtime/work",
+            params={"kind": "projection", "status": "failed", "limit": 100},
+        ).get("items", [])
+        collections = _api("GET", "/api/knowledge/collections")
+    except httpx.HTTPError as exc:
+        _show_api_error(exc)
+        return
+    st.markdown("### 失败事件安全重试")
+    if not failed:
+        st.success("没有失败的投影事件。")
+    for item in failed:
+        left, right = st.columns((4, 1))
+        left.write(f"**{item['title']}** · attempt {item.get('attempt', 0)}")
+        left.caption(item.get("last_error") or item["id"])
+        if right.button("安全重试", key=f"retry_projection_{item['id']}"):
+            try:
+                _api("POST", f"/api/v1/runtime/projections/{item['id']}/retry")
+                st.success("失败事件已重新排队。")
+                st.rerun()
+            except httpx.HTTPError as exc:
+                _show_api_error(exc)
+
+    st.markdown("### 从 SQLite 重建派生投影")
+    target = st.selectbox("投影目标", ["qdrant", "neo4j", "obsidian", "all"])
+    collection_options = [""] + [item["slug"] for item in collections]
+    collection_slug = st.selectbox(
+        "Collection 范围",
+        collection_options,
+        format_func=lambda value: "全部 Collection" if not value else value,
+    )
+    confirmed = st.checkbox("我确认重建会替换对应的派生投影，但不会修改 SQLite 业务事实。")
+    if st.button("开始重建", type="primary", disabled=not confirmed):
+        from app.config.settings import get_settings
+        from app.knowledge.obsidian import KnowledgeVaultExporter
+        from app.knowledge.projector import Neo4jKnowledgeProjector, QdrantKnowledgeIndexer
+        from app.knowledge.rebuild import KnowledgeProjectionRebuildService
+        from app.knowledge.repository import KnowledgeRepository
+
+        settings = get_settings()
+        repository = KnowledgeRepository(settings.knowledge_db_path)
+        projector = Neo4jKnowledgeProjector(settings)
+        rebuild = KnowledgeProjectionRebuildService(
+            repository,
+            indexer=QdrantKnowledgeIndexer(settings),
+            projector=projector,
+            vault_exporter=KnowledgeVaultExporter(settings.knowledge_vault_path),
+        )
+        try:
+            with st.spinner("正在从 SQLite 正式事实重建投影…"):
+                result = rebuild.rebuild(
+                    target=target,
+                    collection_slug=collection_slug or None,
+                )
+            st.success("投影重建完成。")
+            st.json(result.model_dump())
+        except Exception as exc:  # noqa: BLE001 - operations console must surface adapter failures
+            st.error(f"投影重建失败：{exc}")
+        finally:
+            projector.close()
+
+
+def _render_raw_state() -> None:
+    st.subheader("原始只读状态")
+    st.caption("用于故障排查和现场记录，不提供日常业务写操作。")
+    try:
+        health = _api("GET", "/health")
+        runtime = _api("GET", "/api/v1/runtime/overview")
+    except httpx.HTTPError as exc:
+        _show_api_error(exc)
+        return
+    health_tab, runtime_tab = st.tabs(["API / Knowledge", "Runtime"])
+    with health_tab:
+        st.json(health)
+    with runtime_tab:
+        st.json(runtime)
+
+
 with st.sidebar:
     st.subheader("运营导航")
-    page = st.radio("控制台页面", ["运营概览", "任务与恢复", "审核诊断", "知识诊断", "报告验收"])
+    page = st.radio("控制台页面", ["运营概览", "统一任务诊断", "投影恢复与重建", "原始只读状态"])
     st.caption("主工作台：React · 诊断控制台：Streamlit")
     st.caption(f"API：{API_BASE_URL}")
 
 if page == "运营概览":
     _render_operations_overview()
-elif page == "任务与恢复":
-    _render_task_history()
-elif page == "审核诊断":
-    _render_review_queue()
-elif page == "知识诊断":
-    _render_knowledge_explorer()
+elif page == "统一任务诊断":
+    _render_runtime_diagnostics()
+elif page == "投影恢复与重建":
+    _render_projection_recovery()
 else:
-    _render_reports()
+    _render_raw_state()

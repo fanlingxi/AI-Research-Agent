@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import logging
 import re
-import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
@@ -39,8 +37,6 @@ from app.knowledge.source_identity import content_sha256, derive_source_identity
 from app.llms.provider import LLMClient, MockLLMClient, get_llm_client
 from app.schemas.documents import DocumentChunk, PaperMetadata, ParsedDocument
 from app.tools.pdf_tools import parse_pdf_source
-
-logger = logging.getLogger(__name__)
 
 
 class KnowledgeExtractor(Protocol):
@@ -303,48 +299,6 @@ class KnowledgeIngestionService:
             error=error,
             expected_owner=job.lease_owner,
         )
-
-    def execute_claimed_with_heartbeat(
-        self,
-        job: KnowledgeJob,
-        *,
-        lease_seconds: int,
-    ) -> KnowledgeIngestion:
-        """Run one claimed ingestion while renewing the same fenced attempt."""
-        heartbeat_stop = threading.Event()
-        heartbeat = threading.Thread(
-            target=self._renew_claimed_lease,
-            args=(job, lease_seconds, heartbeat_stop),
-            daemon=True,
-            name=f"ingestion-lease-{job.id}",
-        )
-        heartbeat.start()
-        try:
-            return self.execute_claimed(job)
-        finally:
-            heartbeat_stop.set()
-            heartbeat.join(timeout=1.0)
-
-    def _renew_claimed_lease(
-        self,
-        job: KnowledgeJob,
-        lease_seconds: int,
-        stopped: threading.Event,
-    ) -> None:
-        interval = max(0.05, min(30.0, max(1, lease_seconds) / 3))
-        while not stopped.wait(interval):
-            try:
-                renewed = self.repository.renew_job_lease(
-                    job.id,
-                    expected_attempt=job.attempts,
-                    lease_seconds=lease_seconds,
-                    expected_owner=job.lease_owner,
-                )
-            except Exception:
-                logger.exception("Failed to renew ingestion lease for %s", job.resource_id)
-                continue
-            if not renewed:
-                return
 
     def _assert_claim(
         self,
@@ -872,91 +826,6 @@ class KnowledgeIngestionService:
             isinstance(self.llm, MockLLMClient)
             or getattr(self.llm, "provider_name", "mock") == "mock"
         )
-
-
-class KnowledgeIngestionDispatcher:
-    """Durably execute browser-started ingestions and queued knowledge projections."""
-
-    def __init__(
-        self,
-        repository: KnowledgeRepository,
-        service: KnowledgeIngestionService,
-        *,
-        lease_seconds: int = 180,
-        poll_seconds: float = 0.5,
-    ) -> None:
-        self.repository = repository
-        self.service = service
-        self.lease_seconds = lease_seconds
-        self.poll_seconds = poll_seconds
-        self._stop = threading.Event()
-        self._wake = threading.Event()
-        self._thread: threading.Thread | None = None
-
-    def start(self) -> None:
-        if self._thread is not None and self._thread.is_alive():
-            return
-        self._stop.clear()
-        self._thread = threading.Thread(
-            target=self._run,
-            daemon=True,
-            name="knowledge-ingestion-dispatcher",
-        )
-        self._thread.start()
-
-    def stop(self, timeout: float = 5.0) -> None:
-        self._stop.set()
-        self._wake.set()
-        if self._thread is not None:
-            self._thread.join(timeout=timeout)
-
-    def wake(self) -> None:
-        self._wake.set()
-
-    @property
-    def is_alive(self) -> bool:
-        return self._thread is not None and self._thread.is_alive()
-
-    def _run(self) -> None:
-        while not self._stop.is_set():
-            try:
-                job = self.repository.claim_dispatched_ingestion_job(self.lease_seconds)
-            except Exception:
-                logger.exception("Failed to claim a dispatched ingestion job")
-                job = None
-            if job is not None:
-                self._execute_ingestion(job)
-                continue
-            try:
-                projection = self.repository.claim_projection(self.lease_seconds)
-            except Exception:
-                logger.exception("Failed to claim a knowledge projection")
-                projection = None
-            if projection is not None:
-                try:
-                    self.service.process_projection(projection)
-                except Exception:
-                    logger.exception(
-                        "Knowledge projection failed for %s", projection.aggregate_id
-                    )
-                continue
-            self._wake.wait(self.poll_seconds)
-            self._wake.clear()
-
-    def _execute_ingestion(self, job: KnowledgeJob) -> None:
-        try:
-            self.service.execute_claimed_with_heartbeat(
-                job,
-                lease_seconds=self.lease_seconds,
-            )
-        except Exception as exc:
-            logger.exception("Ingestion dispatcher failed while executing %s", job.resource_id)
-            try:
-                self.service.fail_claimed(job, str(exc))
-            except StaleIngestionExecution:
-                pass
-            except Exception:
-                logger.exception("Failed to persist ingestion dispatcher failure")
 
 
 def _candidate_id() -> str:

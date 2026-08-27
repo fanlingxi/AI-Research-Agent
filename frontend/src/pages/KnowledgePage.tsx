@@ -45,7 +45,7 @@ function IngestionForm() {
         <FileUp className="text-brand" size={20} />
       </CardHeader>
       <CardContent>
-        <p className="text-sm leading-6 text-muted-ink">提交后会由内置入库执行器直接完成解析、分块、索引与候选抽取；页面会持续更新进度。默认只处理每篇前 20 页，长文档应显式选择策略。</p>
+        <p className="text-sm leading-6 text-muted-ink">提交后会由独立 Worker 依次完成解析、分块、索引与候选抽取；页面会持续更新进度。默认只处理每篇前 20 页，长文档应显式选择策略。</p>
         <form className="mt-5 space-y-4" onSubmit={onSubmit}>
           <label className="block text-sm font-medium">知识集合（可选）
             <input className="mt-1.5 w-full rounded-lg border bg-white px-3 py-2 outline-none focus:border-brand" placeholder="例如：LLM Agent 的工具使用" value={collection} onChange={(event) => setCollection(event.target.value)} />
@@ -65,6 +65,51 @@ function IngestionForm() {
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+function MoveInboxIngestion({
+  ingestion,
+  collections,
+}: {
+  ingestion: Awaited<ReturnType<typeof api.ingestions>>[number];
+  collections: Awaited<ReturnType<typeof api.collections>>;
+}) {
+  const client = useQueryClient();
+  const [targetSlug, setTargetSlug] = useState("");
+  const formalCollections = collections.filter((collection) => !collection.is_system);
+  const move = useMutation({
+    mutationFn: () => {
+      const target = formalCollections.find((collection) => collection.slug === targetSlug);
+      if (!target) throw new Error("请选择正式知识集合。");
+      return api.moveIngestionCollection(ingestion.id, target.name);
+    },
+    onSuccess: () => {
+      setTargetSlug("");
+      void client.invalidateQueries({ queryKey: ["knowledge-ingestions"] });
+      void client.invalidateQueries({ queryKey: ["knowledge-collections"] });
+      void client.invalidateQueries({ queryKey: ["knowledge-health"] });
+    },
+  });
+  if (ingestion.collection_slug !== "inbox" || ["queued", "running", "publishing"].includes(ingestion.status)) return null;
+  return (
+    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+      <p className="text-xs font-medium text-amber-950">此文献仍在系统收件箱，不会进入 Project 正式研究范围。</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <select
+          aria-label={`移动 ${ingestion.collection} 到正式知识集合`}
+          className="min-w-0 flex-1 rounded-lg border bg-white px-3 py-2 text-xs"
+          value={targetSlug}
+          onChange={(event) => setTargetSlug(event.target.value)}
+        >
+          <option value="">选择正式知识集合</option>
+          {formalCollections.map((collection) => <option key={collection.slug} value={collection.slug}>{collection.name}</option>)}
+        </select>
+        <Button disabled={!targetSlug || move.isPending} size="sm" variant="outline" onClick={() => move.mutate()}>{move.isPending ? "移动中…" : "移动"}</Button>
+      </div>
+      {!formalCollections.length ? <p className="mt-2 text-xs text-amber-900">请先以正式集合名称提交一次入库，创建可选目标集合。</p> : null}
+      {move.error instanceof Error ? <div className="mt-2"><ErrorBlock error={move.error} /></div> : null}
+    </div>
   );
 }
 
@@ -101,7 +146,7 @@ export function KnowledgePage() {
         <Card><CardContent><p className="text-xs text-muted-ink">已提交入库</p><p className="mt-1 text-2xl font-semibold">{items.length}</p></CardContent></Card>
         <Card><CardContent><p className="text-xs text-muted-ink">待人工审核</p><p className="mt-1 text-2xl font-semibold">{waitingReview}</p></CardContent></Card>
       </section>
-      <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"><IngestionForm /><Card><CardHeader><div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">最近任务</p><h2 className="mt-1 text-lg font-semibold">入库任务</h2></div><Layers3 className="text-brand" size={20} /></CardHeader><CardContent className="max-h-[34rem] space-y-3 overflow-y-auto overscroll-contain pr-2" data-testid="ingestion-history-list">{items.map((item) => <article className="rounded-lg border bg-white p-4" key={item.id}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">{item.collection}</p><p className="mt-1 text-xs text-muted-ink">{item.document_count} / {item.sources.length} 篇 PDF · 每篇最多 {item.pdf_max_pages} 页</p></div><StatusBadge status={item.status} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-ink"><span>{item.candidate_count} 个候选</span><span>{item.published_count} 条已发布</span><span>{formatDate(item.updated_at)}</span>{item.queue_position ? <span>队列第 {item.queue_position} 位</span> : null}</div>{item.error ? <p className="mt-3 rounded bg-danger-soft p-2 text-xs text-red-900">{item.error}</p> : null}{item.status === "failed" ? <div className="mt-3"><Button disabled={retry.isPending && retry.variables === item.id} size="sm" variant="outline" onClick={() => retry.mutate(item.id)}><RotateCcw size={14} />{retry.isPending && retry.variables === item.id ? "正在重新启动…" : "重新执行"}</Button>{retry.error instanceof Error && retry.variables === item.id ? <div className="mt-3"><ErrorBlock error={retry.error} /></div> : null}</div> : null}</article>)}{!items.length ? <EmptyBlock title="还没有入库任务">从左侧提交本地或远程 PDF；提交后会显示可追溯的处理状态。</EmptyBlock> : null}</CardContent></Card></section>
+      <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"><IngestionForm /><Card><CardHeader><div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">最近任务</p><h2 className="mt-1 text-lg font-semibold">入库任务</h2></div><Layers3 className="text-brand" size={20} /></CardHeader><CardContent className="max-h-[34rem] space-y-3 overflow-y-auto overscroll-contain pr-2" data-testid="ingestion-history-list">{items.map((item) => <article className="rounded-lg border bg-white p-4" key={item.id}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">{item.collection}</p><p className="mt-1 text-xs text-muted-ink">{item.document_count} / {item.sources.length} 篇 PDF · 每篇最多 {item.pdf_max_pages} 页</p></div><StatusBadge status={item.status} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-ink"><span>{item.candidate_count} 个候选</span><span>{item.published_count} 条已发布</span><span>{formatDate(item.updated_at)}</span>{item.queue_position ? <span>队列第 {item.queue_position} 位</span> : null}</div>{item.error ? <p className="mt-3 rounded bg-danger-soft p-2 text-xs text-red-900">{item.error}</p> : null}{item.status === "failed" ? <div className="mt-3"><Button disabled={retry.isPending && retry.variables === item.id} size="sm" variant="outline" onClick={() => retry.mutate(item.id)}><RotateCcw size={14} />{retry.isPending && retry.variables === item.id ? "正在重新启动…" : "重新执行"}</Button>{retry.error instanceof Error && retry.variables === item.id ? <div className="mt-3"><ErrorBlock error={retry.error} /></div> : null}</div> : null}<MoveInboxIngestion collections={collections.data ?? []} ingestion={item} /></article>)}{!items.length ? <EmptyBlock title="还没有入库任务">从左侧提交本地或远程 PDF；提交后会显示可追溯的处理状态。</EmptyBlock> : null}</CardContent></Card></section>
       <section className="mt-6"><KnowledgeExplorer collectionSlugs={collectionSlugs} /></section>
       <div className="mt-4 flex items-center gap-2 text-xs text-muted-ink"><BookOpenCheck size={14} /><span>检索只返回已审核、已发布的正文证据；候选内容请到审核中心处理。</span><SearchCheck size={14} /></div>
     </div>

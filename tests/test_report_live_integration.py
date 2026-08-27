@@ -111,7 +111,7 @@ def test_live_report_is_grounded_and_versioned_without_local_user_data(tmp_path)
     assert completed.evaluation.evidence_grounding == 1.0
     assert completed.evaluation.citation_coverage >= 0.9
     assert completed.evaluation.citation_fidelity == 1.0
-    assert completed.run_metadata["prompt_version"] == "knowledge-report-v2"
+    assert completed.run_metadata["prompt_version"] == "knowledge-report-v3"
     assert completed.run_metadata["llm_provider"] == configured.llm_provider
     assert completed.run_metadata["generation_calls"] in {1, 2}
     assert completed.run_metadata["input_tokens"] > 0

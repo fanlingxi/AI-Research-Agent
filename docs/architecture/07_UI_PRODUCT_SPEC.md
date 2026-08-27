@@ -23,12 +23,13 @@ The UI uses the existing Workspace, Memory, Context, and Agent API projections. 
 ## Workspace surfaces
 
 - Dashboard: one explicit dual-mode research command launcher, active projects, recent tasks, runs, artifacts, and pending proposals.
-- Project workspace: project status, tasks, scoped knowledge, memory, artifacts, and enabled plugins.
+- Project workspace: project status, tasks, scoped knowledge, memory, artifacts, enabled plugins, and an explicit Agent Task selector that never silently chooses the first open Task.
 - Task detail: ContextSnapshot preview/creation, selected plugin, AgentRun status, and trace.
-- AgentRun: lifecycle, tool-call audit, validation, and output provenance.
+- AgentRun: lifecycle, tool-call audit, validation, output provenance, stale-Snapshot guidance, and the two safe `needs_review` actions (fresh-Snapshot rerun or close).
 - Artifact: content plus run/context relation.
 - Review: explicit MemoryProposal approval or rejection flow.
 - Reports: submit-and-execute by default, targeted start for existing queued reports, adaptive polling, visible generation stage, evidence pack, download, and in-place failed retry.
+- Knowledge: completed system-inbox ingestions can be moved into an explicit formal Collection before Project use.
 - Runtime: API/Worker/LLM/Qdrant/Neo4j/Vault health, executor heartbeat, unified work pagination, AgentRun/report/ingestion/Collection/projection state, queue position, lease ownership, targeted recovery, and deep links.
 
 ## Browser dispatch boundary
@@ -45,12 +46,11 @@ Every claimed job records an executor identity, attempt, priority, and lease. Th
 
 The command row is an orchestration record, not a replacement for report, Task, ContextSnapshot, AgentRun, or durable job truth. Deterministic target IDs plus SQLite transactions make recovery repeatable, and the Worker synchronizes target terminal state back to the command. The existing Task-level Agent panel remains the advanced manual flow.
 
-## Next optimization priorities
+## Operations console and next optimization priorities
 
-1. Implement AgentRun stale-context revision checks and explicit needs-review recovery actions.
-2. Add explicit Project Task selection and inbox-to-Collection movement in React.
-3. Restrict Streamlit to diagnostics, recovery, and deterministic projection rebuild operations.
-4. Finish Chinese terminology normalization and dense-layout acceptance across Project, Task, AgentRun, Artifact, Review, and Runtime at the supported 1440×900 and 1920×1080 PC viewports. Mobile navigation and responsive adaptation are outside the current product scope.
+Streamlit no longer exposes daily ingestion, search, candidate-review, or report creation in its navigation. Its supported surfaces are unified task diagnostics, failed projection retry, deterministic full/per-Collection Qdrant/Neo4j/Vault rebuild, and raw read-only health state. React remains the only daily product entry.
+
+Further UI work is limited to terminology normalization and dense-layout acceptance across Project, Task, AgentRun, Artifact, Review, and Runtime at the supported 1440×900 and 1920×1080 PC viewports. Mobile navigation and responsive adaptation are outside the current product scope.
 
 ## UI safety model
 
@@ -82,4 +82,4 @@ Run pnpm test and pnpm build in a declared Node environment before release. Brow
 
 ## Compose deployment
 
-The current docker-compose.yml starts the React/Nginx web service, API, worker, Qdrant, Neo4j, and the Streamlit operations console. React is the only daily product entry. Browser-facing URLs are configuration rather than hard-coded component constants.
+The current docker-compose.yml starts the React/Nginx web service, API, worker, Qdrant, Neo4j, and the Streamlit operations console. React is the only daily product entry. Browser-facing URLs are configuration rather than hard-coded component constants. FastAPI is a small composition root over knowledge, reports, projects, agent, and runtime `APIRouter` modules; it remains one modular-monolith process and does not own a background dispatcher.

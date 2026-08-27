@@ -20,7 +20,7 @@ from app.domain_plugins.contracts import PluginPin
 from app.execution import ExecutionFence
 from app.persistence.sqlite import SQLiteDatabase
 
-_TERMINAL_STATUSES = {"completed", "cancelled", "stale_context"}
+_TERMINAL_STATUSES = {"completed", "cancelled", "needs_review", "stale_context"}
 _RECOVERABLE_INTERRUPTED_STATUSES = {"preparing", "running", "validating"}
 
 
@@ -495,6 +495,101 @@ class AgentRunRepository:
                 event_type="run_cancelled",
                 node_name=str(row["current_node"] or "runtime"),
                 status="cancelled",
+            )
+            return self._run_from_row(self._require_run_tx(connection, run_id))
+
+    def close_needs_review(self, run_id: str) -> AgentRun:
+        """Close an invalid reviewed run without accepting its draft."""
+
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = self._require_run_tx(connection, run_id)
+            self._require_status(row, {"needs_review"})
+            now = _now()
+            connection.execute(
+                """
+                UPDATE agent_runs
+                SET status = 'cancelled', completed_at = ?, updated_at = ?,
+                    revision = revision + 1
+                WHERE id = ?
+                """,
+                (now, now, run_id),
+            )
+            self._append_event_tx(
+                connection,
+                run_id=run_id,
+                event_type="review_closed",
+                node_name="citation_validation",
+                status="cancelled",
+            )
+            return self._run_from_row(self._require_run_tx(connection, run_id))
+
+    def mark_stale_context_if_needed(
+        self,
+        run_id: str,
+        *,
+        execution_fence: ExecutionFence | None = None,
+    ) -> AgentRun:
+        """Atomically compare snapshot revisions and stop stale queued work."""
+
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            self._require_execution_fence_tx(connection, run_id, execution_fence)
+            row = self._require_run_tx(connection, run_id)
+            self._require_status(row, {"queued"})
+            revisions = connection.execute(
+                """
+                SELECT cs.project_revision AS snapshot_project_revision,
+                       cs.task_revision AS snapshot_task_revision,
+                       p.revision AS current_project_revision,
+                       t.revision AS current_task_revision
+                FROM context_snapshots cs
+                JOIN projects p ON p.id = cs.project_id
+                JOIN workspace_tasks t ON t.id = cs.task_id
+                WHERE cs.id = ? AND cs.project_id = ? AND cs.task_id = ?
+                """,
+                (row["context_snapshot_id"], row["project_id"], row["task_id"]),
+            ).fetchone()
+            if revisions is None:
+                raise AgentRunConflictError(
+                    "AgentRun ContextSnapshot no longer matches its Project and Task."
+                )
+            snapshot_project = int(revisions["snapshot_project_revision"])
+            snapshot_task = int(revisions["snapshot_task_revision"])
+            current_project = int(revisions["current_project_revision"])
+            current_task = int(revisions["current_task_revision"])
+            if snapshot_project == current_project and snapshot_task == current_task:
+                return self._run_from_row(row)
+
+            now = _now()
+            message = (
+                "ContextSnapshot revisions are stale: "
+                f"Project {snapshot_project}->{current_project}, "
+                f"Task {snapshot_task}->{current_task}. Create a new snapshot and AgentRun."
+            )
+            connection.execute(
+                """
+                UPDATE agent_runs
+                SET status = 'stale_context', current_node = 'context_revision_check',
+                    error_code = 'stale_context', error_message = ?, completed_at = ?,
+                    updated_at = ?, revision = revision + 1
+                WHERE id = ?
+                """,
+                (message, now, now, run_id),
+            )
+            self._append_event_tx(
+                connection,
+                run_id=run_id,
+                event_type="run_stale_context",
+                node_name="context_revision_check",
+                status="stale_context",
+                output_summary={
+                    "snapshot_project_revision": snapshot_project,
+                    "current_project_revision": current_project,
+                    "snapshot_task_revision": snapshot_task,
+                    "current_task_revision": current_task,
+                },
+                error={"code": "stale_context", "message": message},
             )
             return self._run_from_row(self._require_run_tx(connection, run_id))
 

@@ -20,12 +20,15 @@ The product title used in public material is **Evidence-Grounded Personal Knowle
 
 Phases 1–6 are complete. The documented engineering verification is:
 
-- backend pytest: 112 passed, 3 skipped;
+- backend pytest: 181 passed, 3 skipped;
+- React Vitest: 38 passed; production build passed;
 - Ruff, pip check, git diff --check, and docker compose config --quiet: passed;
+- browser acceptance passed at 1440×900 and 1920×1080 without horizontal overflow, including SPA deep-link refresh;
+- isolated 15-PDF verification covered 15 Sources, 15 Documents, 707 Chunks, and 687 pages; one real-provider report passed all quality gates with 8 evidence spans from 5 papers;
 - Phase 6 full deterministic evaluation candidate: 13 passed, 0 failed/error/skipped, 4/4 isolation attestations true;
 - Phase 6 demo candidate: 3 passed, 0 failed/error/skipped, isolation passed.
 
-There is no human-approved Phase 6 baseline. Public material must say **candidate** and must not imply a baseline comparison or regression comparison. The current application schema contract is v17; historical candidate outputs retain their original fixture version and the evaluation runner never opens the operational database.
+There is no human-approved Phase 6 baseline. Public material must say **candidate** and must not imply a baseline comparison or regression comparison. The current application schema contract is v18; historical candidate outputs retain their original schema-v15 fixture metadata and the evaluation runner never opens the operational database.
 
 ## Engineering and migration background
 

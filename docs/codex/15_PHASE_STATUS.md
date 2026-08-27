@@ -6,8 +6,11 @@ Phases 1–6 are implemented. The current public packaging title is **Evidence-G
 
 Verified engineering status:
 
-- backend pytest: 177 passed, 3 skipped;
+- backend pytest: 181 passed, 3 skipped;
+- React Vitest: 38 passed; production build passed;
 - Ruff, pip check, git diff --check, and Docker Compose configuration: passed;
+- React browser acceptance passed at 1440×900 and 1920×1080 with SPA deep-link refresh and no horizontal overflow;
+- the isolated 15-PDF corpus retained 15 Sources, 15 Documents, 707 Chunks, and 687 pages after migration; a bounded real-provider report used 8 evidence spans from 5 papers and passed the report quality gate;
 - Phase 6 deterministic evaluation candidate: 13 passed, 0 failed/error/skipped, 4/4 isolation attestations true;
 - Phase 6 demo candidate: 3 passed, 0 failed/error/skipped, isolation passed.
 

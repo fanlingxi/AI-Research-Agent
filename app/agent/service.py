@@ -171,6 +171,28 @@ class AgentRunService:
             )
             return resumed
 
+    def review_run(self, run_id: str, *, action: str) -> AgentRun:
+        """Close an invalid run or start a new run from a fresh ContextSnapshot."""
+
+        reviewed = self.repository.get_run(run_id)
+        if reviewed.status != "needs_review":
+            raise AgentRunConflictError("Only needs_review AgentRuns have review actions.")
+        if action == "close":
+            return self.repository.close_needs_review(run_id)
+        if action != "rerun":
+            raise AgentRunConflictError(f"Unsupported review action: {action}")
+        return self.create_run(
+            reviewed.project_id,
+            reviewed.task_id,
+            AgentRunCreateRequest(
+                workflow=reviewed.options.workflow,
+                create_memory_proposal=reviewed.options.create_memory_proposal,
+                max_steps=reviewed.max_steps,
+                max_tool_calls=reviewed.max_tool_calls,
+                token_budget=reviewed.token_budget,
+            ),
+        )
+
     def get_run(self, run_id: str) -> AgentRun:
         return self.repository.get_run(run_id)
 
@@ -195,6 +217,12 @@ class AgentRunService:
 
     def recover_interrupted_run(self, run_id: str) -> AgentRun:
         return self.repository.recover_interrupted_run(
+            run_id,
+            execution_fence=self._current_execution.get(),
+        )
+
+    def mark_stale_context_if_needed(self, run_id: str) -> AgentRun:
+        return self.repository.mark_stale_context_if_needed(
             run_id,
             execution_fence=self._current_execution.get(),
         )

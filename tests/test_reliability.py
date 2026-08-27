@@ -273,15 +273,23 @@ def test_job_fencing_requires_attempt_and_lease_owner(tmp_path) -> None:
 def test_ingestion_heartbeat_prevents_duplicate_long_execution(tmp_path) -> None:
     extractor = _SlowExtractor(delay=1.4)
     repository, service, ingestion = _claimed_ingestion_service(tmp_path, extractor)
-    claimed = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=1)
-    assert claimed is not None
-
-    thread = threading.Thread(
-        target=service.execute_claimed_with_heartbeat,
-        args=(claimed,),
-        kwargs={"lease_seconds": 1},
+    report_service = KnowledgeReportService(
+        repository,
+        settings=service.settings,
+        require_live_llm=False,
     )
+    worker = KnowledgeWorker(
+        repository,
+        ingestion_service=service,
+        report_service=report_service,
+        lease_seconds=1,
+    )
+    thread = threading.Thread(target=worker.run_once)
     thread.start()
+    deadline = time.monotonic() + 1.0
+    while extractor.calls == 0 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert extractor.calls == 1
     time.sleep(1.1)
     duplicate = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=1)
     thread.join(timeout=3)

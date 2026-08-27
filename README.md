@@ -122,7 +122,7 @@ See [docs/demo/BENCHMARK_SUMMARY.md](docs/demo/BENCHMARK_SUMMARY.md) for exact s
 
 The React Workspace is a client over existing projections, not another fact store. Its routes cover the dashboard, project sections, task detail, AgentRun trace, artifact content, proposal review, Knowledge Core, evidence reports, and runtime history. The Dashboard has one explicit dual-mode command entry: `quick_report` creates a scoped evidence report, while `project_run` requires a selected Project and creates or reuses a Task before building an immutable ContextSnapshot and AgentRun. `Idempotency-Key` binds retries to one persisted `ResearchCommand`, so a double click or reconnect does not create duplicate targets. Browser actions persist resources and durable queue intent; FastAPI never executes a long task in-process. One independent Worker owns command orchestration, ingestion, reports, AgentRun, Collection synchronization, and projection outbox work. Interactive work receives a higher queue priority, while attempt-and-owner fencing plus lease heartbeats prevent stale executors from overwriting a reclaimed task. Runtime v1 exposes bounded service health, Worker heartbeats, all work kinds, queue position, lease ownership, projection backlog, cursor pagination, and targeted failed-projection retry. SQLite remains authoritative and the UI does not expose checkpoint internals or arbitrary raw context payloads.
 
-The repository also retains a Streamlit service in `docker-compose.yml` for compatibility with the earlier knowledge workflow. It is not the React Workspace. Public deployment documentation must select and verify the desired UI entry point rather than treating them as interchangeable.
+The repository also retains a Streamlit operations service in `docker-compose.yml`. It exposes unified task diagnostics, failed projection recovery/rebuild, and raw read-only state; daily ingestion, search, review, reporting, and Agent work remain in React. The two interfaces are intentionally not interchangeable.
 
 ## Demo
 
@@ -237,22 +237,26 @@ The repository package name remains `research-knowledge-core` for compatibility.
 
 Latest release audit verification:
 
-- Backend pytest: **177 passed, 3 skipped**.
+- Backend pytest: **181 passed, 3 skipped**.
 - Ruff: **passed**.
 - `pip check`: **passed**.
 - `git diff --check`: **passed**.
 - `docker compose config --quiet`: **passed**.
-- React unit tests / production build: **35 passed / passed**.
+- React unit tests / production build: **38 passed / passed**.
+- React browser acceptance: **1440×900 and 1920×1080 passed without horizontal overflow**; `/knowledge`, `/runtime`, `/reports`, and project deep-link refreshes remained inside the SPA.
+- Isolated 15-PDF acceptance: **15 Sources, 15 Documents, 707 Chunks, 687 pages**, with all first/last page ranges present and the pre/post-migration Document+Chunk hash unchanged.
+- Isolated real-provider report acceptance: **8 evidence spans from 5 papers, all report quality scores 1.0**, using prompt v3 and the unified Worker. This is one local semantic acceptance run, not a production benchmark.
 - Phase 6 full candidate: **13 passed, 0 failed, 0 error, 0 skipped; 4/4 isolation attestations true** (`phase6-20260817T164725Z-1cb4eed1d6`).
 - Phase 6 demo candidate: **3 passed, 0 failed; isolation passed**.
 
-These facts establish deterministic local contract coverage. They do not replace a human-approved benchmark baseline, browser build verification, a real-provider evaluation, or public-release security review.
+These facts establish deterministic local contract coverage plus bounded browser, real-PDF, and real-provider acceptance. They do not replace a human-approved benchmark baseline, sustained production measurements, or public-release security review.
 
 ## Limitations
 
 - The curated Phase 6 suite measures governance and deterministic service-path contracts, not open-domain retrieval quality or real-LLM quality.
 - No Phase 6 baseline has been accepted by a human reviewer.
-- Real-provider semantics and projection rebuilds against user-owned external stores still require explicit, isolated acceptance runs.
+- The isolated real-provider acceptance is a single controlled run over public-paper evidence; it does not establish open-domain quality or production latency/cost.
+- Projection rebuilds against user-owned external stores still require explicit, isolated approval.
 - This repository is local-first and does not claim multi-agent, MCP, web-search, temporal-memory, or production-monitoring capabilities.
 
 ## Roadmap

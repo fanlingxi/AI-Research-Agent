@@ -1,6 +1,6 @@
 import httpx
 
-from app.tools.pdf_tools import _download_pdf
+from app.tools.pdf_tools import _download_pdf, _infer_title
 from app.tools.text_safety import sanitize_json_value, sanitize_utf8_text
 
 
@@ -39,3 +39,16 @@ def test_text_sanitization_replaces_lone_surrogates_recursively() -> None:
         "metadata": {"symbols": ["x�y"]},
     }
     assert sanitize_utf8_text("before\x00after\nnext\tcell") == "beforeafter\nnext\tcell"
+
+
+def test_title_inference_skips_attribution_boilerplate_and_stops_before_authors() -> None:
+    first_page = """Provided proper attribution is provided, Google hereby grants permission to
+reproduce the tables and figures in this paper solely for use in journalistic or
+scholarly works.
+Attention Is All You Need
+Ashish Vaswani∗
+Google Brain
+avaswani@google.com
+"""
+
+    assert _infer_title([first_page]) == "Attention Is All You Need"

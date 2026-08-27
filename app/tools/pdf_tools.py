@@ -110,6 +110,9 @@ def _infer_title(page_texts: list[str]) -> str | None:
         "preprint",
         "submitted",
         "copyright",
+        "provided proper attribution",
+        "reproduce the tables",
+        "scholarly works",
         "published as",
         "proceedings of",
         "conference on",
@@ -136,7 +139,7 @@ def _title_continuation(lines: list[str]) -> str:
         candidate = re.sub(r"\s+", " ", line).strip()
         if not candidate or len(candidate) > 140:
             break
-        if any(marker in candidate for marker in ("@", "†", "‡")):
+        if any(marker in candidate for marker in ("@", "∗", "*", "†", "‡")):
             break
         if re.search(r"\d", candidate):
             break

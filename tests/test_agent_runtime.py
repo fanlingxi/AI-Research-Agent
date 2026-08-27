@@ -211,6 +211,64 @@ def test_agent_run_cancel_prevents_queue_execution_and_checkpoint_creation(tmp_p
     assert not checkpoint_path.exists()
 
 
+def test_agent_run_stops_before_workflow_when_snapshot_revisions_are_stale(tmp_path) -> None:
+    repository, service, _, worker, project, task, checkpoint_path = _runtime_stack(tmp_path)
+    run = service.create_run(project.id, task.id, _foundation_request())
+
+    repository.memory_repository.update_workspace_task(
+        task.id,
+        expected_revision=task.revision,
+        goal="The task changed after its immutable snapshot was created.",
+    )
+
+    assert worker.run_once()
+    stale = service.get_run(run.id)
+    assert stale.status == "stale_context"
+    assert stale.error_code == "stale_context"
+    assert stale.current_node == "context_revision_check"
+    assert not checkpoint_path.exists()
+    events = service.repository.list_events(run.id)
+    assert events[-1].event_type == "run_stale_context"
+    assert events[-1].output_summary["snapshot_task_revision"] == task.revision
+    assert events[-1].output_summary["current_task_revision"] == task.revision + 1
+    with repository._connect() as connection:
+        status = connection.execute(
+            "SELECT status FROM knowledge_jobs WHERE kind = 'agent_run' AND resource_id = ?",
+            (run.id,),
+        ).fetchone()["status"]
+    assert status == "completed"
+
+
+def test_needs_review_can_only_close_or_create_a_fresh_run(tmp_path) -> None:
+    _, service, _, _, project, task, _ = _runtime_stack(tmp_path)
+    reviewed = service.create_run(project.id, task.id, _foundation_request())
+    service.repository.mark_node(
+        reviewed.id, status="preparing", node_name="load_context", input_summary={}
+    )
+    service.repository.mark_node(
+        reviewed.id, status="running", node_name="draft", input_summary={}
+    )
+    service.repository.mark_node(
+        reviewed.id, status="validating", node_name="citation_validation", input_summary={}
+    )
+    service.repository.mark_needs_review(
+        reviewed.id,
+        error_code="citation_validation_failed",
+        error_message="invalid evidence reference",
+    )
+
+    replacement = service.review_run(reviewed.id, action="rerun")
+    assert replacement.id != reviewed.id
+    assert replacement.context_snapshot_id != reviewed.context_snapshot_id
+    assert replacement.status == "queued"
+    assert service.get_run(reviewed.id).status == "needs_review"
+
+    service.cancel_run(replacement.id)
+    closed = service.review_run(reviewed.id, action="close")
+    assert closed.status == "cancelled"
+    assert service.repository.list_events(reviewed.id)[-1].event_type == "review_closed"
+
+
 def test_agent_run_honours_a_zero_tool_call_budget(tmp_path) -> None:
     _, service, _, worker, project, task, _ = _runtime_stack(tmp_path)
     run = service.create_run(

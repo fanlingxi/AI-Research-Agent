@@ -18,6 +18,7 @@ import {
   type ResearchReport,
   type RuntimeOverview,
   type RuntimeWorkItem,
+  type WorkspaceTask,
 } from "../lib/api";
 import { AgentRunPage } from "../pages/AgentRunPage";
 import { DashboardPage } from "../pages/DashboardPage";
@@ -73,7 +74,7 @@ const healthyKnowledge: KnowledgeHealth = {
   status: "ok",
   services: { worker: { available: true, detail: "在线" } },
   knowledge: {
-    schema_version: 17,
+    schema_version: 18,
     live_llm_configured: true,
     llm_provider: "fixture",
     jobs: {},
@@ -133,6 +134,19 @@ const failedIngestion: KnowledgeIngestion = {
   created_at: "2026-01-01T00:00:00+00:00",
   updated_at: "2026-01-01T00:00:00+00:00",
 };
+
+const workspaceTasks: WorkspaceTask[] = [
+  {
+    id: "task-1", project_id: project.id, title: "First task", goal: "First goal",
+    status: "ready", priority: "normal", metadata: {}, revision: 1,
+    created_at: project.created_at, updated_at: project.updated_at,
+  },
+  {
+    id: "task-2", project_id: project.id, title: "Second task", goal: "Second goal",
+    status: "ready", priority: "high", metadata: {}, revision: 1,
+    created_at: project.created_at, updated_at: project.updated_at,
+  },
+];
 
 const emptyDashboard = {
   active_projects: [],
@@ -203,6 +217,30 @@ describe("browser acceptance states", () => {
     expect(screen.queryByText("读取输出摘要…")).not.toBeInTheDocument();
     expect(screen.queryByText(/invalid TaskAnalysis JSON/)).not.toBeInTheDocument();
     expect(screen.getByTestId("agent-trace-grid")).toHaveClass("min-w-0");
+  });
+
+  it("offers only safe actions for a needs_review AgentRun", async () => {
+    const user = userEvent.setup();
+    const needsReview = {
+      ...failedRun,
+      status: "needs_review",
+      error_code: "citation_validation_failed",
+      error_message: "evidence-7 does not support claim-2",
+    };
+    vi.spyOn(api, "run").mockResolvedValue(needsReview);
+    vi.spyOn(api, "trace").mockResolvedValue({ ...failedTrace, run: needsReview });
+    const review = vi.spyOn(api, "reviewRun").mockResolvedValue({
+      ...needsReview,
+      id: "run-replacement",
+      status: "queued",
+    });
+
+    renderWithQuery(<MemoryRouter initialEntries={["/agent-runs/run-1"]}><Routes><Route path="/agent-runs/:runId" element={<AgentRunPage />} /></Routes></MemoryRouter>);
+
+    expect(await screen.findByText("evidence-7 does not support claim-2")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "新建 Snapshot 并重跑" }));
+    expect(review).toHaveBeenCalledWith("run-1", "rerun");
+    expect(screen.queryByRole("button", { name: /绕过|接受无效/ })).not.toBeInTheDocument();
   });
 
   it("starts one queued report directly from the report page", async () => {
@@ -451,6 +489,27 @@ describe("browser acceptance states", () => {
     expect(replace).toHaveBeenCalledWith(project.id, project.revision, ["papers"]);
   });
 
+  it("requires an explicit Task selection on the Project Agent panel", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "project").mockResolvedValue(project);
+    vi.spyOn(api, "tasks").mockResolvedValue(workspaceTasks);
+    vi.spyOn(api, "decisions").mockResolvedValue([]);
+    vi.spyOn(api, "artifacts").mockResolvedValue([]);
+    vi.spyOn(api, "scopes").mockResolvedValue([]);
+    vi.spyOn(api, "projectRuns").mockResolvedValue({ items: [], next_cursor: null });
+    vi.spyOn(api, "proposals").mockResolvedValue([]);
+    const taskRuns = vi.spyOn(api, "taskRuns").mockResolvedValue({ items: [], next_cursor: null });
+
+    renderWithQuery(<MemoryRouter initialEntries={["/projects/project-1/overview"]}><Routes><Route path="/projects/:projectId/:section" element={<ProjectWorkspacePage />} /></Routes></MemoryRouter>);
+
+    const selector = await screen.findByRole("combobox", { name: "选择本次运行的 WorkspaceTask" });
+    expect(selector).toHaveValue("");
+    expect(screen.getByText("选择一个 WorkspaceTask 后，才能预览 Context 或发起 AgentRun。")).toBeInTheDocument();
+    await user.selectOptions(selector, "task-2");
+    expect(await screen.findByText("Current task")).toBeInTheDocument();
+    expect(taskRuns).toHaveBeenCalledWith(project.id, "task-2");
+  });
+
   it("bounds long Knowledge, report, and Runtime lists inside their cards", async () => {
     vi.spyOn(api, "ingestions").mockResolvedValue([]);
     vi.spyOn(api, "collections").mockResolvedValue([]);
@@ -560,5 +619,41 @@ describe("browser acceptance states", () => {
 
     await user.click(await screen.findByRole("button", { name: "重新执行" }));
     expect(retry).toHaveBeenCalledWith(failedIngestion.id);
+  });
+
+  it("moves a completed inbox ingestion into a formal Collection", async () => {
+    const user = userEvent.setup();
+    const inbox = {
+      ...failedIngestion,
+      id: "ingestion-inbox",
+      topic: "收件箱",
+      topic_slug: "inbox",
+      collection: "收件箱",
+      collection_slug: "inbox",
+      status: "completed",
+      error: null,
+    };
+    vi.spyOn(api, "ingestions").mockResolvedValue([inbox]);
+    vi.spyOn(api, "collections").mockResolvedValue([
+      { slug: "inbox", name: "收件箱", is_system: true, ingestion_count: 1, updated_at: null },
+      { slug: "papers", name: "论文库", is_system: false, ingestion_count: 1, updated_at: null },
+    ]);
+    vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
+    const move = vi.spyOn(api, "moveIngestionCollection").mockResolvedValue({
+      ...inbox,
+      topic: "论文库",
+      topic_slug: "papers",
+      collection: "论文库",
+      collection_slug: "papers",
+    });
+
+    renderWithQuery(<KnowledgePage />);
+
+    await user.selectOptions(
+      await screen.findByRole("combobox", { name: "移动 收件箱 到正式知识集合" }),
+      "papers",
+    );
+    await user.click(screen.getByRole("button", { name: "移动" }));
+    expect(move).toHaveBeenCalledWith("ingestion-inbox", "论文库");
   });
 });

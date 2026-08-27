@@ -12,6 +12,36 @@
 - 已知风险和后续动作
 - 可复用的项目成果表述
 
+## 2026-08-27：阶段六——Agent 生命周期与 PC 工作台收口
+
+### 问题与架构决策
+
+- 旧 AgentRun 即使 Project 或 Task 在 Snapshot 创建后发生修订，仍可能进入工作流。现在 Worker 在打开 checkpoint 或调用模型前，在 fencing token 保护下原子比较 Snapshot 与当前 Project/Task revision；差异写入 `stale_context` 事件并要求新建 Snapshot/Run。
+- `needs_review` 不再只有不可恢复的终态提示。PC 页面展示引用验证问题，并只允许“用当前配置和新 Snapshot 新建 Run”或“关闭当前 Run”；不存在绕过引用校验生成正常 Artifact/MemoryProposal 的入口。
+- Project 侧栏以前默认取第一条未关闭 Task，容易执行错误边界。现在必须通过可见选择器显式选择 Task。React 知识库也可把已完成的系统收件箱入库移动到正式 Collection。
+- Streamlit 导航收敛为统一任务诊断、失败投影安全重试、SQLite 驱动的 Qdrant/Neo4j/Vault 重建和原始只读状态。日常入库、检索、审核、报告与 Agent 操作只在 React。
+- 将 FastAPI 大入口拆为 knowledge、reports、projects、agent、runtime 五组 APIRouter；组合根只初始化共享服务、健康检查和路由，保持模块化单体与既有 URL。
+
+### 修改范围与验证
+
+- 新增 stale revision 原子检查、审查关闭/重跑服务与 API、React AgentRun 恢复 UI、Project Task selector、收件箱 Collection 移动、Streamlit 运维重建入口和 API Router 模块。
+- 后端专项状态机和 Router/API 回归通过；阶段收口时后端全量为 181 passed、3 skipped，React 为 38 passed，production build 通过。Ruff、pip check、Compose 配置与 Git diff 检查通过。
+- React 在 1440×900、1920×1080 下均无横向溢出；`/knowledge`、`/runtime`、`/reports` 和不存在项目详情等深链刷新均由 SPA 正常承接，浏览器控制台没有 warning/error。Streamlit 实际导航仅保留四个运维页面。
+- 在 `data/real_world_test/` 的 SQLite 备份副本上迁移至 schema v18：`integrity_check=ok`，15 Sources、15 Documents、707 Chunks、687 页，15/15 文档均覆盖第一页和末页，迁移前后 Document+Chunk ID/哈希流 SHA-256 同为 `939655a5f4de70b4e714153a4cbcbd2ea3119d2ec32dd4dc7e6c54c5d4ab9997`。原目录和业务数据未被打开写入。
+- 额外公开论文 `Attention Is All You Need` 的 15 页 PDF 暴露了标题提取把归属声明误识别为标题的问题；增加归属页眉过滤和作者标记终止规则后，15/15 页解析完整、标题正确且无 NUL 字符，并加入确定性回归。
+- 首次真实 LLM 验收如实失败：结构分为 0、检索相关性为 0，二次修订提示只给合法证据 ID、没有证据正文，模型拒绝无依据补写。修复后提示升级为 `knowledge-report-v3`，初稿和修订均明确三小节质量契约且修订重新携带可信证据。隔离复测由统一 Worker 一次生成完成：8 条证据覆盖 5 篇论文，grounding、coverage、fidelity、structure、retrieval relevance、source diversity 均为 1.0，耗时 45.3 秒，输入 7,895 / 输出 2,211 tokens。它只是一轮本地语义验收，不作为线上质量、成本或延迟指标。
+- 文档统一确认当前 operational schema 为 v18；历史离线评测仍保留其 schema-v15 fixture 元数据，评测没有打开或迁移业务数据库。
+
+### 已知边界与下一步
+
+- PC 验收范围仍为 1440×900 与 1920×1080，不开发手机端；完整浏览器验收、隔离 15 篇真实 PDF 回归和单次真实 LLM 语义验收已经完成。真实 LLM 结果不外推为生产指标，未来仍需扩大查询集并由人工评审报告内容。
+- Streamlit 的全量投影重建是显式运维操作，可能随数据量增长而耗时；失败事件的普通恢复仍优先使用 durable outbox 安全重试。
+- 本机 Docker 基础镜像镜像站对 Node/Nginx/Python 返回 401，因而本轮容器镜像构建未完成；`docker compose config --quiet` 和本地等价全栈均通过。这是发布环境镜像源凭证问题，不以绕过方式修改项目镜像来源。
+
+### 可复用的项目成果表述
+
+- 将本地研究 Agent 收敛为 React 单入口、FastAPI 模块化编排、统一 Worker 执行和 SQLite 单一事实源，并以 Snapshot revision 检查、租约 fencing 与引用审查动作形成可恢复且不可绕过的运行闭环。
+
 ## 2026-08-27：阶段五——统一证据、来源身份与投影重建
 
 ### 问题与架构决策

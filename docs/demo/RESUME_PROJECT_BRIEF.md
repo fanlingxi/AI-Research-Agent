@@ -10,7 +10,8 @@
 - 构建本地优先的证据约束知识 Agent 工作台，贯通知识、记忆、上下文、任务与工作区闭环。
 - 设计 ContextSnapshot 与引用校验机制，约束 Agent 输出并让 Artifact、MemoryProposal 全程可追溯。
 - 实现 Research 与 Game Modeling 双领域插件，支持确定性公式计算、版本校验和失效保护。
-- 将 React 报告工作流收敛为“指令提交—指定任务领取—可见进度—失败原位重试”，避免通用队列误消费其他任务。
+- 将 React 工作流收敛为幂等双模式研究指令、显式 Task 选择、可见运行阶段与原位恢复，避免重复资源和错误 Task 执行。
+- 以统一 Worker、租约续期与 attempt/owner fencing 执行所有长任务，并在 Snapshot revision 失效或引用验证失败时安全停止。
 - 搭建隔离离线评测平面，13 个版本化契约用例全通过，覆盖恢复、幂等、范围与插件边界。
 
 ## Expanded interview version
@@ -25,9 +26,12 @@ Phase 6 adds an independent evaluation plane. Versioned cases build fresh local 
 
 | Source | Metric | Baseline status | Experiment |
 | --- | --- | --- | --- |
-| Backend verification | 142 passed, 3 skipped | Not applicable | 2026-08-19 workbench regression |
-| React verification | 20 passed; production build passed | Not applicable | 2026-08-19 workbench regression |
-| Isolated browser acceptance | Dashboard executed report B while older report A stayed queued; B completed with evidence and 4/4 quality metrics; Runtime showed the built-in executor online; 0 console errors/warnings | Not applicable | 2026-08-19 mock-LLM browser fixture |
+| Backend verification | 181 passed, 3 skipped | Not applicable | 2026-08-27 staged workbench regression |
+| React verification | 38 passed; production build passed | Not applicable | 2026-08-27 staged workbench regression |
+| PC browser acceptance | 1440×900 and 1920×1080; no horizontal overflow; SPA deep-link refresh passed | Not applicable | 2026-08-27 local isolated services |
+| 15-PDF acceptance | 15 Sources, 15 Documents, 707 Chunks, 687 pages; migration hash unchanged | Not applicable | 2026-08-27 isolated database copy |
+| Real-provider semantic acceptance | 8 evidence spans across 5 papers; all report quality scores 1.0 | Single controlled run, not a production benchmark | 2026-08-27 unified Worker and prompt v3 |
+| Browser-component acceptance | Explicit Task selection, `needs_review` safe actions, inbox-to-Collection move, bounded long lists, command idempotency and Runtime diagnostics | Not applicable | 2026-08-27 mock/scripted fixtures |
 | Phase 6 full suite | 13 passed, 0 failed/error/skipped; 4/4 isolation true | Candidate only | phase6-20260807T101302Z-7b90a436e6 |
 | Phase 6 demo subset | 3 passed, 0 failed/error/skipped; isolation passed | Candidate only | phase6-20260807T101505Z-534b3819bd |
 
@@ -51,7 +55,7 @@ Knowledge review and MemoryProposal review are deliberate gates. The runtime may
 
 ### 4. How the runtime stays bounded and recoverable
 
-Every AgentRun carries an immutable plugin pin and finite step/tool budgets. LangGraph checkpoints support continuation after interruption, while tool-call idempotency data and terminal lifecycle checks prevent retries from intentionally replaying completed business transitions.
+Every AgentRun carries an immutable plugin pin and finite step/tool budgets. One independent Worker owns all long tasks and renews leases; `job_id + attempt + lease_owner` fencing blocks stale attempts from committing. Before opening a checkpoint, the runtime compares Snapshot Project/Task revisions and stops as `stale_context` when governed inputs changed. LangGraph checkpoints then support continuation after interruption without intentionally replaying completed business transitions.
 
 ### 5. How plugin extensibility stays safe
 
