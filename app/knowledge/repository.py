@@ -5,6 +5,7 @@ import re
 import sqlite3
 from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
+from hashlib import sha256
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -32,6 +33,7 @@ from app.knowledge.schemas import (
 from app.memory.repository import MemoryRepository
 from app.persistence.migrations import apply_structural_migration, sql_migration
 from app.persistence.sqlite import SQLiteDatabase
+from app.schemas.documents import DocumentChunk
 
 CandidateKind = Literal["entity", "relation"]
 INBOX_COLLECTION_NAME = "收件箱"
@@ -101,6 +103,7 @@ class KnowledgeRepository:
         self._apply_structural_migration(15)
         self._apply_structural_migration(16)
         self._apply_structural_migration(17)
+        self._apply_structural_migration(18)
         self._backfill_legacy_relation_collections()
         self._backfill_semantic_records()
 
@@ -301,9 +304,10 @@ class KnowledgeRepository:
             row = connection.execute(
                 """
                 SELECT 1
-                FROM documents AS d
+                FROM ingestion_documents AS membership
+                JOIN documents AS d ON d.id = membership.document_id
                 JOIN chunks AS c ON c.document_id = d.id
-                WHERE d.ingestion_id = ? AND d.id = ? AND c.id = ?
+                WHERE membership.ingestion_id = ? AND d.id = ? AND c.id = ?
                 """,
                 (ingestion_id, evidence.paper_id, evidence.chunk_id),
             ).fetchone()
@@ -371,12 +375,20 @@ class KnowledgeRepository:
                     (ingestion_id,),
                 )
                 connection.execute("DELETE FROM candidates WHERE ingestion_id = ?", (ingestion_id,))
+                linked_document_ids = [
+                    str(row["document_id"])
+                    for row in connection.execute(
+                        "SELECT document_id FROM ingestion_documents WHERE ingestion_id = ?",
+                        (ingestion_id,),
+                    ).fetchall()
+                ]
                 evidence_count = connection.execute(
                     """
                     SELECT COUNT(*) FROM evidences evidence
                     JOIN chunks chunk ON chunk.id = evidence.chunk_id
-                    JOIN documents document ON document.id = chunk.document_id
-                    WHERE document.ingestion_id = ?
+                    JOIN ingestion_documents membership
+                      ON membership.document_id = chunk.document_id
+                    WHERE membership.ingestion_id = ?
                     """,
                     (ingestion_id,),
                 ).fetchone()[0]
@@ -385,11 +397,18 @@ class KnowledgeRepository:
                         "cannot reset an ingestion whose chunks support published Core evidence"
                     )
                 connection.execute(
-                    "DELETE FROM chunks WHERE document_id IN "
-                    "(SELECT id FROM documents WHERE ingestion_id = ?)",
+                    "DELETE FROM ingestion_documents WHERE ingestion_id = ?",
                     (ingestion_id,),
                 )
-                connection.execute("DELETE FROM documents WHERE ingestion_id = ?", (ingestion_id,))
+                for document_id in linked_document_ids:
+                    still_linked = connection.execute(
+                        "SELECT 1 FROM ingestion_documents WHERE document_id = ? LIMIT 1",
+                        (document_id,),
+                    ).fetchone()
+                    if still_linked is not None:
+                        continue
+                    connection.execute("DELETE FROM chunks WHERE document_id = ?", (document_id,))
+                    connection.execute("DELETE FROM documents WHERE id = ?", (document_id,))
                 connection.execute(
                     """
                     UPDATE ingestions SET status = 'queued', error = NULL, updated_at = ?
@@ -1328,11 +1347,19 @@ class KnowledgeRepository:
         metadata: dict[str, Any],
     ) -> None:
         with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             connection.execute(
                 """
-                INSERT OR REPLACE INTO documents (
+                INSERT INTO documents (
                     id, ingestion_id, title, source, source_url, local_path, pages, metadata_json
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title,
+                    source = excluded.source,
+                    source_url = COALESCE(excluded.source_url, documents.source_url),
+                    local_path = COALESCE(NULLIF(excluded.local_path, ''), documents.local_path),
+                    pages = excluded.pages,
+                    metadata_json = excluded.metadata_json
                 """,
                 (
                     document_id,
@@ -1344,6 +1371,14 @@ class KnowledgeRepository:
                     pages,
                     _dump(metadata),
                 ),
+            )
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO ingestion_documents (
+                    ingestion_id, document_id, created_at
+                ) VALUES (?, ?, ?)
+                """,
+                (ingestion_id, document_id, _now()),
             )
 
     def add_candidate_entity(self, candidate: CandidateEntity) -> None:
@@ -2557,31 +2592,104 @@ class KnowledgeRepository:
                     )
 
     def published_paper_ids(self, topic_slugs: list[str] | None = None) -> set[str]:
-        if self.core_repository.is_v0009_backfill_ready():
-            core_paper_ids = self.core_repository.published_paper_ids()
-            if not topic_slugs:
-                return core_paper_ids
-            membership_paper_ids = {
-                evidence.paper_id
-                for topic_slug in topic_slugs
-                for entity in self.list_published_entities(topic_slug)
-                if entity.type == "Paper"
-                for evidence in entity.evidence
-                if evidence.paper_id
-            }
-            return core_paper_ids.intersection(membership_paper_ids)
+        shadow = self.knowledge_core_shadow_read(topic_slugs)
+        if shadow["cutover_ready"]:
+            return set(shadow["authorized_core_paper_ids"])
+        return set(shadow["legacy_paper_ids"])
+
+    def knowledge_core_shadow_read(
+        self, topic_slugs: list[str] | None = None
+    ) -> dict[str, Any]:
+        """Compare compatibility and formal Core authorization without changing either."""
+
         entities: list[PublishedEntity] = []
         if topic_slugs:
             for slug in topic_slugs:
                 entities.extend(self.list_published_entities(slug))
         else:
             entities = self.list_published_entities()
-        return {
+        legacy_paper_ids = {
             evidence.paper_id
             for entity in entities
+            if entity.type == "Paper"
             for evidence in entity.evidence
             if evidence.paper_id
         }
+        core_paper_ids = self.core_repository.published_paper_ids()
+        authorized_core = (
+            core_paper_ids.intersection(legacy_paper_ids) if topic_slugs else core_paper_ids
+        )
+        compared_core = authorized_core if topic_slugs else core_paper_ids
+        legacy_only = legacy_paper_ids - compared_core
+        core_only = compared_core - legacy_paper_ids
+        backfill_ready = self.core_repository.is_v0009_backfill_ready()
+        return {
+            "backfill_ready": backfill_ready,
+            "cutover_ready": backfill_ready and not legacy_only and not core_only,
+            "legacy_paper_ids": sorted(legacy_paper_ids),
+            "core_paper_ids": sorted(core_paper_ids),
+            "authorized_core_paper_ids": sorted(authorized_core),
+            "legacy_only": sorted(legacy_only),
+            "core_only": sorted(core_only),
+        }
+
+    def list_projection_chunks(
+        self, collection_slug: str | None = None
+    ) -> list[DocumentChunk]:
+        """Read only formal-paper chunks for rebuilding the vector projection."""
+
+        allowed = self.published_paper_ids([collection_slug] if collection_slug else None)
+        if not allowed:
+            return []
+        placeholders = ", ".join("?" for _ in allowed)
+        with self._connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT chunk.*, document.title
+                FROM chunks chunk
+                JOIN documents document ON document.id = chunk.document_id
+                WHERE chunk.document_id IN ({placeholders})
+                  AND document.content_status IN ('available', 'qdrant_backfilled')
+                ORDER BY chunk.document_id, chunk.chunk_index, chunk.id
+                """,
+                tuple(sorted(allowed)),
+            ).fetchall()
+        paper_scopes: dict[str, set[str]] = {}
+        for entity in self.list_published_entities():
+            if entity.type != "Paper":
+                continue
+            scopes = set(entity.collection_slugs or entity.topic_slugs)
+            for evidence in entity.evidence:
+                paper_scopes.setdefault(evidence.paper_id, set()).update(scopes)
+        chunks: list[DocumentChunk] = []
+        for row in rows:
+            content = str(row["content"] or "")
+            if (
+                not content.strip()
+                or sha256(content.encode("utf-8")).hexdigest()
+                != str(row["content_sha256"])
+            ):
+                continue
+            metadata = json.loads(row["metadata_json"] or "{}")
+            scopes = sorted(paper_scopes.get(str(row["document_id"]), set()))
+            chunks.append(
+                DocumentChunk(
+                    id=str(row["id"]),
+                    paper_id=str(row["document_id"]),
+                    title=str(row["title"] or "未命名论文").strip() or "未命名论文",
+                    text=content,
+                    chunk_index=int(row["chunk_index"]),
+                    token_count=max(1, len(content.split())),
+                    source_tier=metadata.get("source_tier", "primary_fulltext"),
+                    metadata={
+                        **metadata,
+                        "page_start": int(row["page_start"]),
+                        "page_end": int(row["page_end"]),
+                        "collection_slugs": scopes,
+                    },
+                )
+            )
+        return chunks
 
     def refresh_ingestion_status(self, ingestion_id: str) -> KnowledgeIngestion:
         with self._connect() as connection:
@@ -2994,7 +3102,8 @@ class KnowledgeRepository:
                 (row["id"],),
             ).fetchone()
             document_count = connection.execute(
-                "SELECT COUNT(*) FROM documents WHERE ingestion_id = ?", (row["id"],)
+                "SELECT COUNT(*) FROM ingestion_documents WHERE ingestion_id = ?",
+                (row["id"],),
             ).fetchone()[0]
             candidate_count = connection.execute(
                 "SELECT COUNT(*) FROM candidates WHERE ingestion_id = ?", (row["id"],)

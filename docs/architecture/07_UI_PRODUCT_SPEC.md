@@ -47,11 +47,10 @@ The command row is an orchestration record, not a replacement for report, Task, 
 
 ## Next optimization priorities
 
-1. Rehydrate report evidence from authorized SQLite Core records rather than trusting vector payload content, then complete formal Core shadow-read comparison and cutover.
-2. Add deterministic full/Collection rebuild commands for Qdrant, Neo4j, and Vault, with source identity normalization and projection consistency diagnostics.
-3. Add relevance and source-diversity report gates, while retaining the PDF page limit as configuration rather than a frozen 150-page contract.
-4. Implement AgentRun stale-context revision checks, needs-review recovery actions, explicit Project Task selection, and inbox-to-Collection movement in React.
-5. Finish Chinese terminology normalization and dense-layout acceptance across Project, Task, AgentRun, Artifact, Review, and Runtime at the supported 1440×900 and 1920×1080 PC viewports. Mobile navigation and responsive adaptation are outside the current product scope.
+1. Implement AgentRun stale-context revision checks and explicit needs-review recovery actions.
+2. Add explicit Project Task selection and inbox-to-Collection movement in React.
+3. Restrict Streamlit to diagnostics, recovery, and deterministic projection rebuild operations.
+4. Finish Chinese terminology normalization and dense-layout acceptance across Project, Task, AgentRun, Artifact, Review, and Runtime at the supported 1440×900 and 1920×1080 PC viewports. Mobile navigation and responsive adaptation are outside the current product scope.
 
 ## UI safety model
 

@@ -306,6 +306,7 @@ def test_v12_to_v17_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
             ).fetchone()
         )
         connection.execute("BEGIN IMMEDIATE")
+        connection.execute("DROP TABLE ingestion_documents")
         connection.execute("DROP TABLE research_commands")
         connection.execute("DROP TABLE agent_run_outputs")
         connection.execute("DROP TABLE agent_tool_calls")
@@ -319,6 +320,7 @@ def test_v12_to_v17_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         connection.execute("ALTER TABLE knowledge_jobs DROP COLUMN priority")
         connection.execute("ALTER TABLE knowledge_jobs DROP COLUMN lease_owner")
         connection.execute("ALTER TABLE projection_outbox DROP COLUMN lease_owner")
+        connection.execute("DELETE FROM schema_migrations WHERE version = 18")
         connection.execute("DELETE FROM schema_migrations WHERE version = 17")
         connection.execute("DELETE FROM schema_migrations WHERE version = 16")
         connection.execute("DELETE FROM schema_migrations WHERE version = 15")
@@ -327,7 +329,7 @@ def test_v12_to_v17_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 12
 
     upgraded = KnowledgeRepository(repository.path)
-    assert upgraded.schema_version() == 17
+    assert upgraded.schema_version() == 18
     with upgraded._connect() as connection:
         assert dict(
             connection.execute(
@@ -346,4 +348,4 @@ def test_v12_to_v17_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         }
         assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
-    assert KnowledgeRepository(repository.path).schema_version() == 17
+    assert KnowledgeRepository(repository.path).schema_version() == 18

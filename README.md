@@ -106,7 +106,7 @@ The current public result is a **deterministic evaluation candidate**. No human-
 
 Manifest SHA-256: `5c1a4878d037c7df0187b8f50daf2a8b96e6fcadc5f3834a307ee0061f1705c2`.
 
-The current application schema contract is v17. The historical candidate above was generated from an earlier schema-v15 fixture and did not open the operational database. There is no human-approved Phase 6 baseline; do not describe these results as baseline comparison or model-quality evidence.
+The current application schema contract is v18. Migration 18 adds an additive ingestion-to-document membership table so one canonical source version can safely belong to more than one Collection ingestion. The historical candidate above was generated from an earlier schema-v15 fixture and did not open the operational database. There is no human-approved Phase 6 baseline; do not describe these results as baseline comparison or model-quality evidence.
 
 Run the full offline suite:
 
@@ -158,6 +158,13 @@ docker compose config --quiet
 ```
 
 `docker compose up --build`（或 `make up`）启动 React PC 工作台、API、worker、Qdrant、Neo4j 和 Streamlit 运维台。日常入口是 `http://127.0.0.1:5173`，Streamlit 运维入口是 `http://127.0.0.1:8501`。该本地栈使用同源 `/api` 代理和 React SPA 深链回退；使用前仍应设置非默认 Neo4j 密码并审查挂载的数据目录。
+
+Qdrant、Neo4j 和 Vault 都是 SQLite 正式事实的派生投影。需要修复漂移时，可以全量或按 Collection 重建；命令会从 SQLite 读取已发布事实，不读取未审核候选：
+
+```bash
+./.venv/bin/python -m app.knowledge.rebuild --target all
+./.venv/bin/python -m app.knowledge.rebuild --target qdrant --collection <collection-slug>
+```
 
 ### OpenAI-compatible proxy smoke tests
 
@@ -230,12 +237,12 @@ The repository package name remains `research-knowledge-core` for compatibility.
 
 Latest release audit verification:
 
-- Backend pytest: **124 passed, 3 skipped**.
+- Backend pytest: **177 passed, 3 skipped**.
 - Ruff: **passed**.
 - `pip check`: **passed**.
 - `git diff --check`: **passed**.
 - `docker compose config --quiet`: **passed**.
-- React unit tests / production build: **8 passed / passed**.
+- React unit tests / production build: **35 passed / passed**.
 - Phase 6 full candidate: **13 passed, 0 failed, 0 error, 0 skipped; 4/4 isolation attestations true** (`phase6-20260817T164725Z-1cb4eed1d6`).
 - Phase 6 demo candidate: **3 passed, 0 failed; isolation passed**.
 
@@ -245,8 +252,7 @@ These facts establish deterministic local contract coverage. They do not replace
 
 - The curated Phase 6 suite measures governance and deterministic service-path contracts, not open-domain retrieval quality or real-LLM quality.
 - No Phase 6 baseline has been accepted by a human reviewer.
-- Frontend test/build was not rerun in the release-audit environment because Node/npm was unavailable.
-- The Compose Streamlit compatibility UI and React Workspace require a deliberate deployment decision.
+- Real-provider semantics and projection rebuilds against user-owned external stores still require explicit, isolated acceptance runs.
 - This repository is local-first and does not claim multi-agent, MCP, web-search, temporal-memory, or production-monitoring capabilities.
 
 ## Roadmap

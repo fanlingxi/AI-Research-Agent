@@ -148,7 +148,7 @@ def test_schema_migrations_and_sequential_replay_are_idempotent(tmp_path) -> Non
     first = service.decide("candidate-idempotent", CandidateDecision(decision="approve"))
     replay = service.decide("candidate-idempotent", CandidateDecision(decision="approve"))
 
-    assert repository.schema_version() == 17
+    assert repository.schema_version() == 18
     assert first.applied and not first.replayed
     assert replay.replayed and not replay.applied
     with pytest.raises(ValueError, match="不同"):
@@ -299,13 +299,15 @@ def test_recovered_ingestion_replaces_partial_draft_candidates(tmp_path) -> None
     repository, service, ingestion = _claimed_ingestion_service(tmp_path, extractor)
     first = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=-1)
     assert first is not None
+    parsed = _slow_parser(source="slow.pdf", max_pages=150)
+    paper = service._paper_from_document(parsed, "slow.pdf")
     partial = _entity(
         ingestion,
         "candidate-partial",
         "崩溃前半成品",
         evidence=EvidenceSpan(
-            paper_id="paper:c3967d170ddd2213",
-            chunk_id="paper:c3967d170ddd2213:page:1:chunk:0",
+            paper_id=paper.id,
+            chunk_id=f"{paper.id}:page:1:chunk:0",
             page_start=1,
             page_end=1,
             quote="A durable ingestion lease prevents duplicate extraction work.",

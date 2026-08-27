@@ -362,11 +362,22 @@ class ReportEvidence(BaseModel):
     score: float = 0.0
 
 
+class ChunkSearchHit(BaseModel):
+    """Untrusted vector candidate; SQLite must rehydrate every display field."""
+
+    chunk_id: str
+    score: float = 0.0
+
+
 class ReportEvaluation(BaseModel):
     evidence_grounding: float = Field(ge=0.0, le=1.0)
     citation_coverage: float = Field(ge=0.0, le=1.0)
     citation_fidelity: float = Field(default=0.0, ge=0.0, le=1.0)
     structure_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    retrieval_relevance: float = Field(default=1.0, ge=0.0, le=1.0)
+    source_diversity: float = Field(default=1.0, ge=0.0, le=1.0)
+    selected_source_count: int = 0
+    available_relevant_source_count: int = 0
     cited_evidence: list[str] = Field(default_factory=list)
     invalid_citations: list[str] = Field(default_factory=list)
     revision_applied: bool = False

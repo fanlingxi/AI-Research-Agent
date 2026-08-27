@@ -6,12 +6,12 @@ Phases 1–6 are implemented. The current public packaging title is **Evidence-G
 
 Verified engineering status:
 
-- backend pytest: 112 passed, 3 skipped;
+- backend pytest: 177 passed, 3 skipped;
 - Ruff, pip check, git diff --check, and Docker Compose configuration: passed;
 - Phase 6 deterministic evaluation candidate: 13 passed, 0 failed/error/skipped, 4/4 isolation attestations true;
 - Phase 6 demo candidate: 3 passed, 0 failed/error/skipped, isolation passed.
 
-The current Phase 6 result is not an accepted baseline. Human approval is required before any baseline file is created. The application now targets operational schema v17; historical evaluation candidates retain their original schema metadata and did not open the operational database.
+The current Phase 6 result is not an accepted baseline. Human approval is required before any baseline file is created. The application now targets operational schema v18; historical evaluation candidates retain their original schema metadata and did not open the operational database.
 
 ## Document status
 

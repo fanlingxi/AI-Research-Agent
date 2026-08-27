@@ -15,7 +15,13 @@ from app.knowledge.core_models import (
     CoreEntity,
     CoreEntityClaimOverride,
 )
-from app.knowledge.schemas import EvidenceSpan, PublishedEntity, PublishedRelation
+from app.knowledge.schemas import (
+    ChunkSearchHit,
+    EvidenceSpan,
+    PublishedEntity,
+    PublishedRelation,
+    ReportEvidence,
+)
 from app.knowledge.source_identity import derive_source_identity
 from app.persistence.sqlite import SQLiteDatabase
 from app.schemas.documents import DocumentChunk
@@ -428,6 +434,84 @@ class KnowledgeCoreRepository:
             if paper_id:
                 paper_ids.add(paper_id)
         return paper_ids
+
+    def rehydrate_report_evidence(
+        self,
+        candidates: list[ChunkSearchHit],
+        *,
+        allowed_paper_ids: set[str],
+    ) -> list[ReportEvidence]:
+        """Turn untrusted vector IDs into validated SQLite evidence rows."""
+
+        unique_ids = list(dict.fromkeys(item.chunk_id for item in candidates if item.chunk_id))
+        if not unique_ids or not allowed_paper_ids:
+            return []
+        placeholders = ", ".join("?" for _ in unique_ids)
+        with self._connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT chunk.id AS chunk_id, chunk.document_id, chunk.content,
+                       chunk.content_sha256 AS chunk_sha256,
+                       chunk.page_start, chunk.page_end,
+                       document.title, document.pages, document.content AS document_content,
+                       document.content_sha256 AS document_sha256,
+                       document.content_status, document.source_id,
+                       source.canonical_uri, source.version,
+                       source.content_sha256 AS source_sha256
+                FROM chunks chunk
+                JOIN documents document ON document.id = chunk.document_id
+                JOIN sources source ON source.id = document.source_id
+                WHERE chunk.id IN ({placeholders})
+                """,
+                tuple(unique_ids),
+            ).fetchall()
+        by_id = {str(row["chunk_id"]): row for row in rows}
+        evidence: list[ReportEvidence] = []
+        seen: set[str] = set()
+        for candidate in candidates:
+            if candidate.chunk_id in seen:
+                continue
+            row = by_id.get(candidate.chunk_id)
+            if row is None or not self._valid_report_chunk(row, allowed_paper_ids):
+                continue
+            seen.add(candidate.chunk_id)
+            evidence.append(
+                ReportEvidence(
+                    id=f"E{len(evidence) + 1}",
+                    paper_id=str(row["document_id"]),
+                    chunk_id=candidate.chunk_id,
+                    title=str(row["title"] or "未命名论文").strip() or "未命名论文",
+                    text=str(row["content"]),
+                    page_start=int(row["page_start"]),
+                    page_end=int(row["page_end"]),
+                    score=float(candidate.score),
+                )
+            )
+        return evidence
+
+    @staticmethod
+    def _valid_report_chunk(row: sqlite3.Row, allowed_paper_ids: set[str]) -> bool:
+        content = str(row["content"] or "")
+        document_content = str(row["document_content"] or "")
+        try:
+            page_start = int(row["page_start"])
+            page_end = int(row["page_end"])
+            pages = int(row["pages"])
+        except (TypeError, ValueError):
+            return False
+        return bool(
+            str(row["document_id"]) in allowed_paper_ids
+            and str(row["content_status"]) in {"available", "qdrant_backfilled"}
+            and content.strip()
+            and document_content.strip()
+            and _sha256(content) == str(row["chunk_sha256"])
+            and _sha256(document_content) == str(row["document_sha256"])
+            and str(row["document_sha256"]) == str(row["source_sha256"])
+            and str(row["source_id"] or "")
+            and str(row["canonical_uri"] or "")
+            and str(row["version"] or "")
+            and 1 <= page_start <= page_end <= pages
+        )
 
     def synchronize_published_relation_tx(
         self, connection: sqlite3.Connection, relation: PublishedRelation

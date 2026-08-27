@@ -97,7 +97,7 @@ def _legacy_records(repository: KnowledgeRepository):
 def test_v8_is_structural_and_does_not_run_data_backfill_at_repository_startup(tmp_path) -> None:
     repository = KnowledgeRepository(str(tmp_path / "knowledge.db"))
 
-    assert repository.schema_version() == 17
+    assert repository.schema_version() == 18
     with repository._connect() as connection:
         tables = {
             row["name"]

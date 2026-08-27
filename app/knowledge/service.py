@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import logging
 import re
 import threading
@@ -36,6 +35,7 @@ from app.knowledge.schemas import (
     KnowledgeJob,
     ProjectionEvent,
 )
+from app.knowledge.source_identity import content_sha256, derive_source_identity, source_document_id
 from app.llms.provider import LLMClient, MockLLMClient, get_llm_client
 from app.schemas.documents import DocumentChunk, PaperMetadata, ParsedDocument
 from app.tools.pdf_tools import parse_pdf_source
@@ -780,11 +780,22 @@ class KnowledgeIngestionService:
         return candidates
 
     def _paper_from_document(self, parsed: ParsedDocument, source: str) -> PaperMetadata:
-        source_id = hashlib.sha1(source.encode("utf-8")).hexdigest()[:16]
+        checksum = content_sha256(parsed.text)
+        source_metadata = dict(parsed.metadata)
+        identity = derive_source_identity(
+            uri=source,
+            content_sha256=checksum,
+            metadata=source_metadata,
+        )
+        paper_id = source_document_id(
+            uri=source,
+            content_sha256=checksum,
+            metadata=source_metadata,
+        )
         is_url = source.startswith(("http://", "https://"))
         return PaperMetadata(
-            id=f"paper:{source_id}",
-            title=parsed.title or "未命名论文",
+            id=paper_id,
+            title=(parsed.title or "未命名论文").strip(),
             abstract=parsed.text,
             source="pdf",
             url=source if is_url else None,
@@ -795,6 +806,9 @@ class KnowledgeIngestionService:
                 "local_path": parsed.source,
                 "page_count": parsed.pages,
                 "original_source": source,
+                "canonical_uri": identity.canonical_uri,
+                "source_version": identity.version,
+                "content_sha256": checksum,
             },
         )
 

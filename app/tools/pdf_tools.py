@@ -105,7 +105,15 @@ def _infer_title(page_texts: list[str]) -> str | None:
     if not page_texts:
         return None
 
-    blocked_prefixes = ("arxiv:", "preprint", "submitted", "copyright")
+    blocked_prefixes = (
+        "arxiv:",
+        "preprint",
+        "submitted",
+        "copyright",
+        "published as",
+        "proceedings of",
+        "conference on",
+    )
     lines = page_texts[0].splitlines()[:24]
     for index, line in enumerate(lines):
         candidate = re.sub(r"\s+", " ", line).strip()

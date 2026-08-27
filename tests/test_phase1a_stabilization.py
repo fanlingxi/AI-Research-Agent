@@ -3,7 +3,11 @@ import pytest
 from app.knowledge.core_repository import ClaimEvidenceValidationError, KnowledgeCoreRepository
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import CandidateEntity, EvidenceSpan, PublishedEntity
-from app.knowledge.source_identity import canonicalize_source_uri, derive_source_identity
+from app.knowledge.source_identity import (
+    canonicalize_source_uri,
+    derive_source_identity,
+    source_document_id,
+)
 from app.schemas.documents import DocumentChunk
 from tests.core_fixtures import persist_evidence_chunk
 
@@ -251,3 +255,70 @@ def test_source_canonicalization_and_content_version_are_stable() -> None:
         metadata={"source_version": "publisher-v2"},
     )
     assert explicit.version == "publisher-v2"
+    assert source_document_id(
+        uri="https://example.com/paper.pdf#download",
+        content_sha256="a" * 64,
+        metadata={},
+    ) == source_document_id(
+        uri=" HTTPS://EXAMPLE.COM:443/paper.pdf ",
+        content_sha256="a" * 64,
+        metadata={},
+    )
+    assert source_document_id(
+        uri="https://example.com/paper.pdf",
+        content_sha256="a" * 64,
+        metadata={},
+    ) != source_document_id(
+        uri="https://example.com/paper.pdf",
+        content_sha256="b" * 64,
+        metadata={},
+    )
+
+
+def test_same_document_version_can_belong_to_multiple_ingestions(tmp_path) -> None:
+    repository = KnowledgeRepository(str(tmp_path / "knowledge.db"))
+    first = repository.create_ingestion(
+        collection="Collection A",
+        sources=["paper.pdf"],
+        pdf_max_pages=2,
+        enqueue=False,
+    )
+    second = repository.create_ingestion(
+        collection="Collection B",
+        sources=["paper.pdf"],
+        pdf_max_pages=2,
+        enqueue=False,
+    )
+    document_id = source_document_id(
+        uri="paper.pdf",
+        content_sha256="a" * 64,
+        metadata={},
+    )
+    for ingestion in (first, second):
+        repository.add_document(
+            ingestion_id=ingestion.id,
+            document_id=document_id,
+            title="Shared paper",
+            source="pdf",
+            source_url=None,
+            local_path="paper.pdf",
+            pages=2,
+            metadata={"original_source": "paper.pdf"},
+        )
+
+    with repository._connect() as connection:
+        owner = connection.execute(
+            "SELECT ingestion_id FROM documents WHERE id = ?", (document_id,)
+        ).fetchone()["ingestion_id"]
+        memberships = {
+            row["ingestion_id"]
+            for row in connection.execute(
+                "SELECT ingestion_id FROM ingestion_documents WHERE document_id = ?",
+                (document_id,),
+            )
+        }
+
+    assert owner == first.id
+    assert memberships == {first.id, second.id}
+    assert repository.get_ingestion(first.id).document_count == 1
+    assert repository.get_ingestion(second.id).document_count == 1

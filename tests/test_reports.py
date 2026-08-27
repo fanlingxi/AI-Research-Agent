@@ -8,10 +8,10 @@ from fastapi.testclient import TestClient
 from app.api.main import create_app
 from app.config.settings import Settings
 from app.knowledge.extractor import LiveLLMRequiredError
-from app.knowledge.query import KnowledgeQueryService, _latin_query_terms
-from app.knowledge.reports import KnowledgeReportDispatcher, KnowledgeReportService
+from app.knowledge.query import KnowledgeQueryService, _latin_query_terms, _rank_evidence
+from app.knowledge.reports import KnowledgeReportDispatcher, KnowledgeReportService, _evaluate
 from app.knowledge.repository import KnowledgeRepository, StaleReportExecution
-from app.knowledge.schemas import CandidateEntity, EvidenceSpan, ReportEvidence
+from app.knowledge.schemas import CandidateEntity, ChunkSearchHit, EvidenceSpan, ReportEvidence
 from app.knowledge.service import (
     KnowledgeIngestionService,
     NoopChunkIndexer,
@@ -197,7 +197,7 @@ def test_report_worker_revises_once_and_persists_evidence_evaluation(tmp_path) -
     assert completed.evaluation.citation_coverage == 1.0
     assert completed.evaluation.citation_fidelity == 1.0
     assert len(completed.evidence) == 2
-    assert completed.run_metadata["prompt_version"] == "knowledge-report-v1"
+    assert completed.run_metadata["prompt_version"] == "knowledge-report-v2"
     assert completed.run_metadata["generation_calls"] == 2
     assert completed.run_metadata["latency_ms"] >= 0
     assert repository.job_summary()["completed"] == 1
@@ -529,6 +529,34 @@ def test_reports_never_fall_back_to_mock_or_unpublished_evidence(tmp_path) -> No
         service.submit(query="test")
 
 
+def test_claimed_report_rechecks_live_llm_before_query_or_generation(tmp_path) -> None:
+    repository, ingestion, service, _, _ = _report_stack(tmp_path)
+    submitted = service.submit(
+        query="恢复任务仍需真实模型",
+        topic_slugs=[ingestion.topic_slug],
+        top_k=2,
+    )
+    job = repository.claim_resource_job(
+        "report",
+        submitted.id,
+        lease_seconds=30,
+        owner_id="worker-live-gate",
+    )
+    assert job is not None
+    service.llm = MockLLMClient()
+
+    failed = service.execute_claimed(
+        submitted.id,
+        job.id,
+        job.attempts,
+        expected_owner=job.lease_owner,
+    )
+
+    assert failed.status == "failed"
+    assert "真实 LLM" in (failed.error or "")
+    assert repository.get_resource_job("report", submitted.id).status == "failed"
+
+
 def test_report_fails_after_the_single_revision_budget_is_exhausted(tmp_path) -> None:
     repository, _ = _repository_with_paper(tmp_path)
     service = KnowledgeReportService(
@@ -546,6 +574,38 @@ def test_report_fails_after_the_single_revision_budget_is_exhausted(tmp_path) ->
     assert failed.evaluation.revision_applied
     assert not failed.evaluation.passed
     assert "一次修订" in (failed.error or "")
+
+
+def test_report_quality_gate_requires_three_sources_when_three_are_relevant() -> None:
+    evidence = [
+        ReportEvidence(
+            id=f"E{index}",
+            paper_id=f"paper:{index}",
+            chunk_id=f"chunk:{index}",
+            title=f"Paper {index}",
+            text="Relevant grounded evidence for a research report.",
+            page_start=1,
+            page_end=1,
+            score=0.9,
+        )
+        for index in (1, 2)
+    ]
+    evaluation = _evaluate(
+        "# 报告\n\n## 背景\n证据。[E1]\n\n## 分析\n证据。[E2]\n\n## 结论\n[E1][E2]",
+        evidence,
+        retrieval_diagnostics={
+            "relevant_paper_count": 3,
+            "required_source_count": 3,
+            "retrieval_relevance": 1.0,
+        },
+        revision_applied=False,
+    )
+
+    assert evaluation.retrieval_relevance == 1.0
+    assert evaluation.source_diversity == pytest.approx(0.6667)
+    assert evaluation.selected_source_count == 2
+    assert evaluation.available_relevant_source_count == 3
+    assert not evaluation.passed
 
 
 class _ChunkSearch:
@@ -618,6 +678,17 @@ class _EvidenceChunkSearch:
         ]
 
 
+class _SQLiteCandidateSearch:
+    def search(self, query, *, allowed_paper_ids, top_k):
+        return [
+            ChunkSearchHit(
+                chunk_id="paper:formal:page:2:chunk:0",
+                score=0.8,
+            ),
+            ChunkSearchHit(chunk_id="untrusted-or-missing-chunk", score=1.0),
+        ]
+
+
 class _UnavailableGraphSearch:
     def search(self, query, *, topic_slugs, limit=20):
         raise RuntimeError("neo4j is unavailable")
@@ -637,22 +708,46 @@ def test_query_service_filters_chunks_by_sqlite_published_paper_ids(tmp_path) ->
     assert chunks.allowed == {"paper:formal"}
 
 
-def test_query_service_filters_bibliography_diversifies_results_and_degrades_graph(
+def test_query_service_rehydrates_vector_ids_from_sqlite_and_rejects_unknown_ids(
     tmp_path,
 ) -> None:
     repository, ingestion = _repository_with_paper(tmp_path)
     query = KnowledgeQueryService(
         repository,
-        chunk_search=_EvidenceChunkSearch(),
-        graph_search=_UnavailableGraphSearch(),
+        chunk_search=_SQLiteCandidateSearch(),
+        graph_search=_GraphSearch(),
     )
 
+    result = query.search("grounded", topic_slugs=[ingestion.topic_slug], top_k=3)
+
+    assert len(result["evidence"]) == 1
+    assert result["evidence"][0]["chunk_id"] == "paper:formal:page:2:chunk:0"
+    assert result["evidence"][0]["text"] == (
+        "The approved method improves evidence-grounded research synthesis."
+    )
+    assert result["evidence"][0]["title"] == "Core Evidence Fixture"
+
+
+def test_ranking_filters_bibliography_diversifies_and_graph_degrades(tmp_path) -> None:
+    ranked = _rank_evidence(
+        "agent",
+        _EvidenceChunkSearch().search("agent", allowed_paper_ids=set(), top_k=3),
+        top_k=3,
+    )
+    assert len(ranked) == 3
+    assert all(item.chunk_id != "reference" for item in ranked)
+    assert sum(item.paper_id == "paper:formal" for item in ranked) == 2
+    assert any(item.paper_id == "paper:other" for item in ranked)
+
+    repository, ingestion = _repository_with_paper(tmp_path)
+    query = KnowledgeQueryService(
+        repository,
+        chunk_search=_ChunkSearch(),
+        graph_search=_UnavailableGraphSearch(),
+    )
     result = query.search("agent", topic_slugs=[ingestion.topic_slug], top_k=3)
 
-    assert len(result["evidence"]) == 3
-    assert all(item["chunk_id"] != "reference" for item in result["evidence"])
-    assert sum(item["paper_id"] == "paper:formal" for item in result["evidence"]) == 2
-    assert any(item["paper_id"] == "paper:other" for item in result["evidence"])
+    assert result["evidence"] == []
     assert result["graph"] == []
     assert result["warnings"] == ["图关系服务暂时不可用，当前仅展示已定位的原文证据。"]
 

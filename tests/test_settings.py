@@ -37,3 +37,5 @@ def test_knowledge_core_defaults_preserve_current_physical_storage_names(monkeyp
     assert settings.knowledge_qdrant_collection == "knowledge_chunks_v2"
     assert settings.knowledge_worker_lease_seconds > 0
     assert settings.report_min_citation_coverage == 0.9
+    assert settings.report_min_retrieval_relevance == 0.6
+    assert settings.report_min_source_diversity == 3

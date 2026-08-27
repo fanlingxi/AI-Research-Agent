@@ -127,6 +127,19 @@ class Neo4jKnowledgeProjector:
                         f"source={relation.source_entity_id}, target={relation.target_entity_id}"
                     )
 
+    def replace_all(
+        self,
+        entities: list[PublishedEntity],
+        relations: list[PublishedRelation],
+    ) -> None:
+        """Explicitly rebuild the managed Neo4j labels from SQLite facts."""
+
+        with self.driver.session() as session:
+            session.run("MATCH (node:KnowledgeEntityV2) DETACH DELETE node")
+            session.run("MATCH (topic:KnowledgeTopicV2) DETACH DELETE topic")
+        self.upsert_entities(entities)
+        self.upsert_relations(relations)
+
 
 class QdrantKnowledgeIndexer:
     """Index source chunks in the configured Qdrant store without a memory fallback."""
@@ -168,6 +181,38 @@ class QdrantKnowledgeIndexer:
                 for chunk, embedding in zip(safe_chunks, embeddings, strict=True)
             ],
         )
+
+    def replace(
+        self,
+        chunks: list[DocumentChunk],
+        *,
+        collection_slug: str | None = None,
+    ) -> None:
+        """Explicitly replace all or one Collection's managed vector points."""
+
+        from qdrant_client import QdrantClient, models
+
+        client = QdrantClient(url=self.settings.qdrant_url)
+        exists = client.collection_exists(self.settings.knowledge_qdrant_collection)
+        if collection_slug is None:
+            if exists:
+                client.delete_collection(self.settings.knowledge_qdrant_collection)
+        elif exists:
+            client.delete(
+                collection_name=self.settings.knowledge_qdrant_collection,
+                points_selector=models.FilterSelector(
+                    filter=models.Filter(
+                        must=[
+                            models.FieldCondition(
+                                key="metadata.collection_slugs",
+                                match=models.MatchValue(value=collection_slug),
+                            )
+                        ]
+                    )
+                ),
+                wait=True,
+            )
+        self.index(chunks)
 
 
 def _dump(value: object) -> str:

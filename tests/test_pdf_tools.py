@@ -38,3 +38,4 @@ def test_text_sanitization_replaces_lone_surrogates_recursively() -> None:
         "title": "数学符号 �",
         "metadata": {"symbols": ["x�y"]},
     }
+    assert sanitize_utf8_text("before\x00after\nnext\tcell") == "beforeafter\nnext\tcell"

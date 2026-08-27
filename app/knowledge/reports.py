@@ -88,6 +88,7 @@ class KnowledgeReportService:
         generation_calls = 0
         input_tokens = 0
         output_tokens = 0
+        retrieval_diagnostics: dict[str, Any] = {}
         report = self.repository.get_report(report_id)
         report = self.repository.update_report(
             report_id,
@@ -106,11 +107,23 @@ class KnowledgeReportService:
             evidence = [ReportEvidence.model_validate(item) for item in result["evidence"]]
             if not evidence:
                 raise ValueError("正式知识中没有检索到足以生成报告的正文证据。")
+            retrieval_diagnostics = dict(result.get("retrieval_diagnostics") or {})
+            required_sources = int(retrieval_diagnostics.get("required_source_count") or 0)
+            selected_sources = len({item.paper_id for item in evidence})
+            if required_sources and selected_sources < required_sources:
+                raise ValueError(
+                    f"范围内至少有 {required_sources} 篇相关论文，但当前证据参数只选中 "
+                    f"{selected_sources} 篇；请提高最多引用证据片段后重试。"
+                )
             self.repository.update_report(
                 report_id,
                 status="running",
                 evidence=evidence,
-                run_metadata={**report.run_metadata, "current_stage": "generating_draft"},
+                run_metadata={
+                    **report.run_metadata,
+                    "current_stage": "generating_draft",
+                    "retrieval_diagnostics": retrieval_diagnostics,
+                },
                 error=None,
                 expected_job_attempt=expected_job_attempt,
                 expected_job_owner=expected_job_owner,
@@ -125,7 +138,11 @@ class KnowledgeReportService:
                 report_id,
                 status="running",
                 evidence=evidence,
-                run_metadata={**report.run_metadata, "current_stage": "validating_citations"},
+                run_metadata={
+                    **report.run_metadata,
+                    "current_stage": "validating_citations",
+                    "retrieval_diagnostics": retrieval_diagnostics,
+                },
                 error=None,
                 expected_job_attempt=expected_job_attempt,
                 expected_job_owner=expected_job_owner,
@@ -134,6 +151,8 @@ class KnowledgeReportService:
                 content,
                 evidence,
                 minimum_coverage=self.settings.report_min_citation_coverage,
+                minimum_relevance=self.settings.report_min_retrieval_relevance,
+                retrieval_diagnostics=retrieval_diagnostics,
                 revision_applied=False,
             )
             if not evaluation.passed:
@@ -141,7 +160,11 @@ class KnowledgeReportService:
                     report_id,
                     status="running",
                     evidence=evidence,
-                    run_metadata={**report.run_metadata, "current_stage": "revising_draft"},
+                    run_metadata={
+                        **report.run_metadata,
+                        "current_stage": "revising_draft",
+                        "retrieval_diagnostics": retrieval_diagnostics,
+                    },
                     error=None,
                     expected_job_attempt=expected_job_attempt,
                     expected_job_owner=expected_job_owner,
@@ -158,6 +181,8 @@ class KnowledgeReportService:
                     content,
                     evidence,
                     minimum_coverage=self.settings.report_min_citation_coverage,
+                    minimum_relevance=self.settings.report_min_retrieval_relevance,
+                    retrieval_diagnostics=retrieval_diagnostics,
                     revision_applied=True,
                 )
             run_metadata = self._execution_metadata(
@@ -166,7 +191,7 @@ class KnowledgeReportService:
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 started=started,
-            )
+            ) | {"retrieval_diagnostics": retrieval_diagnostics}
             if not evaluation.passed:
                 return self._finalize_run(
                     report_id,
@@ -178,7 +203,10 @@ class KnowledgeReportService:
                     evidence=evidence,
                     evaluation=evaluation,
                     run_metadata={**run_metadata, "current_stage": "failed"},
-                    error="报告在一次修订后仍未通过结构、证据覆盖或引用忠实度检查。",
+                    error=(
+                        "报告在一次修订后仍未通过检索相关性、来源多样性、结构、"
+                        "证据覆盖或引用忠实度检查。"
+                    ),
                 )
             completed = self._finalize_run(
                 report_id,
@@ -209,7 +237,10 @@ class KnowledgeReportService:
                     output_tokens=output_tokens,
                     started=started,
                 )
-                | {"current_stage": "failed"},
+                | {
+                    "current_stage": "failed",
+                    "retrieval_diagnostics": retrieval_diagnostics,
+                },
                 error=str(exc),
             )
 
@@ -222,6 +253,7 @@ class KnowledgeReportService:
     ) -> ResearchReport:
         """Execute an already claimed report and keep report/job terminal states aligned."""
         try:
+            self.ensure_execution_available()
             return self.run(
                 report_id,
                 expected_job_id=job_id,
@@ -523,6 +555,8 @@ def _evaluate(
     evidence: list[ReportEvidence],
     *,
     minimum_coverage: float = 0.9,
+    minimum_relevance: float = 0.6,
+    retrieval_diagnostics: dict[str, Any] | None = None,
     revision_applied: bool,
 ) -> ReportEvaluation:
     valid_ids = {item.id for item in evidence}
@@ -542,11 +576,25 @@ def _evaluate(
     )
     headings = re.findall(r"^##?\s+\S+", content, flags=re.MULTILINE)
     structure_score = min(1.0, len(headings) / 3)
+    diagnostics = retrieval_diagnostics or {}
+    selected_source_count = len({item.paper_id for item in evidence})
+    available_relevant_source_count = int(diagnostics.get("relevant_paper_count") or 0)
+    required_source_count = int(diagnostics.get("required_source_count") or 0)
+    retrieval_relevance = float(diagnostics.get("retrieval_relevance", 1.0))
+    source_diversity = (
+        min(1.0, selected_source_count / required_source_count)
+        if required_source_count
+        else 1.0
+    )
     return ReportEvaluation(
         evidence_grounding=round(grounding, 4),
         citation_coverage=round(coverage, 4),
         citation_fidelity=round(fidelity, 4),
         structure_score=round(structure_score, 4),
+        retrieval_relevance=round(retrieval_relevance, 4),
+        source_diversity=round(source_diversity, 4),
+        selected_source_count=selected_source_count,
+        available_relevant_source_count=available_relevant_source_count,
         cited_evidence=sorted(cited),
         invalid_citations=invalid,
         revision_applied=revision_applied,
@@ -555,11 +603,13 @@ def _evaluate(
             and coverage >= minimum_coverage
             and fidelity == 1.0
             and structure_score >= 0.8
+            and retrieval_relevance >= minimum_relevance
+            and source_diversity == 1.0
         ),
     )
 
 
-REPORT_PROMPT_VERSION = "knowledge-report-v1"
+REPORT_PROMPT_VERSION = "knowledge-report-v2"
 
 
 _REPORT_SYSTEM_PROMPT = """你是严谨的中文科研报告作者。只能使用用户提供的已审核证据，

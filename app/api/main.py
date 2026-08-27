@@ -194,6 +194,7 @@ def create_app(
             "knowledge": {
                 "database": settings.knowledge_db_path,
                 "schema_version": repository.schema_version(),
+                "core_shadow": repository.knowledge_core_shadow_read(),
                 "vault": settings.knowledge_vault_path,
                 "llm_provider": getattr(service.llm, "provider_name", "mock"),
                 "live_llm_configured": not service._is_mock_llm(),

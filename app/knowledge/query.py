@@ -5,13 +5,13 @@ from typing import Any, Protocol
 
 from app.config.settings import Settings, get_settings
 from app.knowledge.repository import KnowledgeRepository
-from app.knowledge.schemas import ReportEvidence
+from app.knowledge.schemas import ChunkSearchHit, ReportEvidence
 
 
 class ChunkSearch(Protocol):
     def search(
         self, query: str, *, allowed_paper_ids: set[str], top_k: int
-    ) -> list[ReportEvidence]: ...
+    ) -> list[ChunkSearchHit]: ...
 
 
 class GraphSearch(Protocol):
@@ -26,7 +26,7 @@ class QdrantKnowledgeSearch:
 
     def search(
         self, query: str, *, allowed_paper_ids: set[str], top_k: int
-    ) -> list[ReportEvidence]:
+    ) -> list[ChunkSearchHit]:
         if not allowed_paper_ids:
             return []
         from qdrant_client import QdrantClient, models
@@ -54,33 +54,19 @@ class QdrantKnowledgeSearch:
             # is filtered and diversified below, so a reference section or a
             # single long survey cannot consume the entire user-visible page.
             limit=min(max(top_k * 6, top_k), 100),
-            with_payload=True,
+            # The filter and returned ID are candidate-generation hints only.
+            # Text, title, paper identity, pages, and authorization are re-read
+            # from SQLite below; vector payload content never becomes evidence.
+            with_payload=["id"],
         )
-        evidence: list[ReportEvidence] = []
+        hits: list[ChunkSearchHit] = []
         for point in response.points:
             payload = point.payload or {}
-            paper_id = str(payload.get("paper_id", ""))
-            if paper_id not in allowed_paper_ids:
+            chunk_id = str(payload.get("id") or "").strip()
+            if not chunk_id:
                 continue
-            metadata = payload.get("metadata") or {}
-            text = str(payload.get("text", "")).strip()
-            if not text:
-                continue
-            page_start = int(metadata.get("page_start", 1) or 1)
-            page_end = int(metadata.get("page_end", page_start) or page_start)
-            evidence.append(
-                ReportEvidence(
-                    id=f"E{len(evidence) + 1}",
-                    paper_id=paper_id,
-                    chunk_id=str(payload.get("id", point.id)),
-                    title=str(payload.get("title", "未命名论文")),
-                    text=text,
-                    page_start=page_start,
-                    page_end=page_end,
-                    score=float(point.score),
-                )
-            )
-        return evidence
+            hits.append(ChunkSearchHit(chunk_id=chunk_id, score=float(point.score)))
+        return hits
 
 
 class Neo4jKnowledgeSearch:
@@ -141,10 +127,33 @@ class KnowledgeQueryService:
     ) -> dict[str, Any]:
         selected_topics = list(dict.fromkeys(topic_slugs or []))
         allowed = self.repository.published_paper_ids(selected_topics)
-        evidence = _rank_evidence(
-            query,
-            self.chunk_search.search(query, allowed_paper_ids=allowed, top_k=top_k),
-            top_k=top_k,
+        hits = self.chunk_search.search(query, allowed_paper_ids=allowed, top_k=top_k)
+        hydrated = self.repository.core_repository.rehydrate_report_evidence(
+            hits,
+            allowed_paper_ids=allowed,
+        )
+        evidence = [
+            item.model_copy(update={"id": f"E{index}"})
+            for index, item in enumerate(
+                _rank_evidence(query, hydrated, top_k=top_k),
+                start=1,
+            )
+        ]
+        relevant_papers = {
+            item.paper_id
+            for item in hydrated
+            if not _is_reference_section(item.text)
+            and _evidence_relevance(query, item) >= self.settings.report_min_retrieval_relevance
+        }
+        selected_relevant = [
+            item
+            for item in evidence
+            if _evidence_relevance(query, item) >= self.settings.report_min_retrieval_relevance
+        ]
+        required_sources = (
+            self.settings.report_min_source_diversity
+            if len(relevant_papers) >= self.settings.report_min_source_diversity
+            else 0
         )
         graph: list[dict] = []
         warnings: list[str] = []
@@ -162,6 +171,17 @@ class KnowledgeQueryService:
             "evidence": [item.model_dump() for item in evidence],
             "graph": graph,
             "warnings": warnings,
+            "retrieval_diagnostics": {
+                "candidate_count": len(hits),
+                "rehydrated_count": len(hydrated),
+                "selected_count": len(evidence),
+                "relevant_paper_count": len(relevant_papers),
+                "selected_paper_count": len({item.paper_id for item in evidence}),
+                "required_source_count": required_sources,
+                "retrieval_relevance": (
+                    len(selected_relevant) / len(evidence) if evidence else 0.0
+                ),
+            },
         }
 
 
@@ -187,9 +207,7 @@ def _rank_evidence(
     for item in evidence:
         if _is_reference_section(item.text):
             continue
-        normalized = item.text.casefold()
-        coverage = sum(term in normalized for term in terms) / len(terms) if terms else 0.0
-        score = min(1.0, max(0.0, float(item.score)) + 0.25 * coverage)
+        score = _evidence_relevance(query, item, terms=terms)
         ranked.append((score, item.model_copy(update={"score": round(score, 6)})))
 
     ranked.sort(key=lambda item: (-item[0], item[1].paper_id, item[1].chunk_id))
@@ -207,3 +225,15 @@ def _rank_evidence(
 
 def _is_reference_section(text: str) -> bool:
     return bool(re.match(r"^\s*(?:references|bibliography|参考文献)\b", text, flags=re.IGNORECASE))
+
+
+def _evidence_relevance(
+    query: str,
+    item: ReportEvidence,
+    *,
+    terms: list[str] | None = None,
+) -> float:
+    terms = _query_terms(query) if terms is None else terms
+    normalized = item.text.casefold()
+    coverage = sum(term in normalized for term in terms) / len(terms) if terms else 0.0
+    return round(min(1.0, max(0.0, float(item.score)) + 0.25 * coverage), 6)

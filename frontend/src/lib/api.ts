@@ -352,6 +352,10 @@ export interface ResearchReport {
     citation_coverage: number;
     citation_fidelity: number;
     structure_score: number;
+    retrieval_relevance?: number;
+    source_diversity?: number;
+    selected_source_count?: number;
+    available_relevant_source_count?: number;
     cited_evidence: string[];
     invalid_citations: string[];
     revision_applied: boolean;
@@ -368,6 +372,15 @@ export interface KnowledgeHealth {
   services: Record<string, { available?: boolean; detail?: string }>;
   knowledge: {
     schema_version: number;
+    core_shadow?: {
+      backfill_ready: boolean;
+      cutover_ready: boolean;
+      legacy_paper_ids: string[];
+      core_paper_ids: string[];
+      authorized_core_paper_ids: string[];
+      legacy_only: string[];
+      core_only: string[];
+    };
     live_llm_configured: boolean;
     llm_provider: string;
     jobs: Record<string, number>;

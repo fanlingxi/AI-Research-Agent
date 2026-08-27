@@ -129,7 +129,7 @@ class EvaluationEnvironment(BaseModel):
     machine: str
     schema_version: int
     llm_mode: Literal["scripted_fixture", "not_used"]
-    operational_schema_baseline: int = 17
+    operational_schema_baseline: int = 18
 
 
 class EvaluationRun(BaseModel):

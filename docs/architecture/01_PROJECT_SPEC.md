@@ -74,7 +74,7 @@ Creative plugins, third-party dynamic plugins, multi-agent orchestration, MCP, w
 
 ## Storage and compatibility
 
-SQLite is the operational fact store. Qdrant, Neo4j, and Obsidian-compatible projections support retrieval or projection and do not replace business truth. The current operational schema contract is v17 and is applied through forward-only, additive migrations. Historical evaluation outputs remain immutable records of the schema version on which they were generated.
+SQLite is the operational fact store. Qdrant, Neo4j, and Obsidian-compatible projections support retrieval or projection and do not replace business truth. Vector and graph stores nominate candidates only; report and Agent evidence is rehydrated and validated from SQLite before use. The current operational schema contract is v18 and is applied through forward-only, additive migrations. Migration 18 adds many-to-many ingestion/document membership without deleting or rewriting existing document rows. Historical evaluation outputs remain immutable records of the schema version on which they were generated.
 
 ## Public release status
 

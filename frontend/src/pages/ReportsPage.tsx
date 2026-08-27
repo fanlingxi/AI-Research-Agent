@@ -50,9 +50,11 @@ function ReportQuality({ report }: { report: ResearchReport }) {
     ["引用覆盖", evaluation.citation_coverage],
     ["引用忠实", evaluation.citation_fidelity],
     ["结构完整", evaluation.structure_score],
+    ["检索相关性", evaluation.retrieval_relevance ?? 1],
+    ["来源多样性", evaluation.source_diversity ?? 1],
   ];
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
       {metrics.map(([label, value]) => (
         <div className="rounded-lg border bg-white p-3" key={String(label)}>
           <p className="text-xs text-muted-ink">{label}</p>

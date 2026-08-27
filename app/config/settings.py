@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     knowledge_worker_lease_seconds: int = 180
     knowledge_worker_poll_seconds: float = 1.0
     report_min_citation_coverage: float = 0.9
+    report_min_retrieval_relevance: float = Field(default=0.6, ge=0.0, le=1.0)
+    report_min_source_diversity: int = Field(default=3, ge=1, le=10)
 
     qdrant_url: str = "http://localhost:6333"
     neo4j_uri: str = "bolt://localhost:7687"

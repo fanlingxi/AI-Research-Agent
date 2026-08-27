@@ -12,6 +12,33 @@
 - 已知风险和后续动作
 - 可复用的项目成果表述
 
+## 2026-08-27：阶段五——统一证据、来源身份与投影重建
+
+### 问题与架构决策
+
+- 旧报告检索把 SQLite 生成的 Paper 白名单交给 Qdrant 后，仍直接使用向量 payload 中的标题、正文和页码；payload 漂移理论上可能进入报告。现在 Qdrant 只返回 Chunk 候选 ID 和分数，SQLite 重新加载 Source、Document、Chunk 并验证授权、内容哈希、Source 版本和页码后才形成 `ReportEvidence`。
+- 新增 Knowledge Core shadow read，显式呈现 backfill 状态、兼容发布层/Core Paper 差异和授权后的 Core Paper；只有 backfill ready 且两侧无差异时才使用 Core 授权，差异时安全回退兼容层。
+- 新增 schema v18 `ingestion_documents`，将 Document 从单一 `ingestion_id` 归属扩展为向前兼容的多对多成员关系。同一规范化 URI 和内容版本可进入多个 Collection，内容变化则得到新的 Document ID，既有 Document 行不被 `REPLACE`。
+- Qdrant、Neo4j、Vault 获得从 SQLite 正式事实重建的统一服务和 CLI；Neo4j 按完整受管图重建，避免局部 Collection 修复误删跨范围端点。
+- 报告质量门新增检索相关性和来源多样性；当候选池存在至少三篇相关论文时，最终证据必须覆盖至少三篇。150 页继续由配置控制，不固化成不可调整的边界契约。
+
+### 修改范围与验证
+
+- 增加 SQLite 证据重水化、Core shadow diagnostics、来源 URI/版本化 Document ID、受控字符清洗、PDF 标题页眉过滤、三类投影重建和报告 v2 质量指标；React 报告页展示相关性与来源多样性。
+- 报告 Worker 在领取历史或恢复任务后重新检查真实 LLM 配置，在任何检索或生成前 fail closed；report/job 终态保持一致。
+- 定向回归覆盖未知/篡改 Chunk 拒绝、三来源质量门、跨 Collection 同版本 Document、来源内容版本变化、全量/局部投影重建和重建范围保护。
+- 阶段收口时后端全量回归为 177 passed、3 skipped；前端为 35 passed，production build 通过。Ruff、pip check、Compose 配置与 Git diff 检查通过。
+
+### 已知边界与下一步
+
+- `published_*` 兼容表继续双写，本阶段没有物理删表；正式删除必须等待 shadow read 在真实数据上持续无差异。
+- Vault 重建覆盖正式受管笔记并保留“人工笔记”区，不主动删除无法确认所有权的历史文件。
+- 下一阶段补齐 AgentRun `stale_context`、`needs_review` 处置、明确 Task 选择、React Collection 移动和 Streamlit 运维收口。
+
+### 可复用的项目成果表述
+
+- 将报告检索从“信任向量 payload”升级为“向量只召回、SQLite 证据重水化”，并以来源版本化、多 Collection 文档成员关系和可重建投影形成统一的本地证据信任链。
+
 ## 2026-08-21：阶段四——统一研究指令入口
 
 ### 问题与架构决策

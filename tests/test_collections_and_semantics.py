@@ -152,11 +152,18 @@ def test_move_collection_authorizes_new_retrieval_scope_after_v9_backfill(tmp_pa
 
     assert repository.core_repository.is_v0009_backfill_ready()
     assert repository.published_paper_ids([ingestion.collection_slug]) == {paper.evidence.paper_id}
+    before_shadow = repository.knowledge_core_shadow_read([ingestion.collection_slug])
+    assert before_shadow["cutover_ready"]
+    assert before_shadow["legacy_only"] == before_shadow["core_only"] == []
 
     moved = repository.move_ingestion_collection(ingestion.id, "新检索集合")
 
     assert repository.published_paper_ids([ingestion.collection_slug]) == set()
     assert repository.published_paper_ids([moved.collection_slug]) == {paper.evidence.paper_id}
+    old_shadow = repository.knowledge_core_shadow_read([ingestion.collection_slug])
+    new_shadow = repository.knowledge_core_shadow_read([moved.collection_slug])
+    assert old_shadow["authorized_core_paper_ids"] == []
+    assert new_shadow["authorized_core_paper_ids"] == [paper.evidence.paper_id]
 
 
 def test_defer_keeps_source_mention_out_of_formal_graph(tmp_path) -> None:

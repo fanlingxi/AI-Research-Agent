@@ -72,6 +72,20 @@ def content_sha256(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
+def source_document_id(
+    *, uri: str, content_sha256: str, metadata: dict[str, object]
+) -> str:
+    """Return one stable document ID for a canonical source version."""
+
+    identity = derive_source_identity(
+        uri=uri,
+        content_sha256=content_sha256,
+        metadata=metadata,
+    )
+    fingerprint = f"{identity.canonical_uri}\0{identity.version}"
+    return f"paper:{hashlib.sha256(fingerprint.encode()).hexdigest()[:20]}"
+
+
 def _normalize_url_path(path: str) -> str:
     normalized = posixpath.normpath(path or "/")
     if path.endswith("/") and normalized != "/":

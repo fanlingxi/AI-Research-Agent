@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 _LONE_SURROGATE = re.compile(r"[\ud800-\udfff]")
+_UNSAFE_CONTROLS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 def sanitize_utf8_text(value: str) -> str:
@@ -14,7 +15,7 @@ def sanitize_utf8_text(value: str) -> str:
     the value safe for embedding APIs and vector-store payloads.
     """
 
-    return _LONE_SURROGATE.sub("�", value)
+    return _UNSAFE_CONTROLS.sub("", _LONE_SURROGATE.sub("�", value))
 
 
 def sanitize_json_value(value: Any) -> Any:
