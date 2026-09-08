@@ -1,5 +1,7 @@
 .DS_Store
 .env
+.env.*
+!.env.example
 .venv/
 __pycache__/
 *.py[cod]
@@ -11,6 +13,20 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+# Local SQLite stores, checkpoints, and their sidecar files.
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
 
 frontend/node_modules/
 node_modules/
@@ -26,6 +42,7 @@ data/obsidian_vault/*
 data/knowledge/*
 data/obsidian_vault_v2/*
 data/manual_test/
+data/real_world_test/
 !data/raw_papers/.gitkeep
 !data/processed/.gitkeep
 !data/reports/.gitkeep
