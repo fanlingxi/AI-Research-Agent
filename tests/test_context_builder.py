@@ -319,17 +319,21 @@ def test_context_builder_uses_one_connection_for_memory_and_knowledge_reads(
 
     def knowledge_bundles(connection, scopes):
         captured["knowledge"] = id(connection)
-        repository.core_repository.synchronize_published_entity(
-            PublishedEntity(
-                id="core-late-context",
-                name="Late Context Builder",
-                type="Method",
-                summary="Context Builder creates a late but valid Context Package claim.",
-                evidence=[late_evidence],
-                topic_slugs=[collection.slug],
-                collection_slugs=[collection.slug],
+        # Inject the late writer once, during preparation. The final recheck
+        # intentionally holds a write lock and must not spawn a second writer.
+        if not captured.get("late_write"):
+            captured["late_write"] = 1
+            repository.core_repository.synchronize_published_entity(
+                PublishedEntity(
+                    id="core-late-context",
+                    name="Late Context Builder",
+                    type="Method",
+                    summary="Context Builder creates a late but valid Context Package claim.",
+                    evidence=[late_evidence],
+                    topic_slugs=[collection.slug],
+                    collection_slugs=[collection.slug],
+                )
             )
-        )
         return original_knowledge(connection, scopes)
 
     monkeypatch.setattr(repository.memory_repository, "snapshot_tx", memory_snapshot)

@@ -9,12 +9,12 @@ from app.api.main import create_app
 from app.config.settings import Settings
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
-from app.knowledge.schemas import CandidateEntity, EvidenceSpan, ReportEvidence
+from app.knowledge.schemas import CandidateEntity, EvidenceSpan
 from app.knowledge.service import KnowledgeIngestionService
 from app.research_commands.models import ResearchCommandSubmission
 from app.research_commands.service import ResearchCommandService
 from app.worker import KnowledgeWorker
-from tests.core_fixtures import persist_evidence_chunk
+from tests.core_fixtures import SQLiteReportQuery, persist_evidence_chunk
 
 
 class _LiveFixtureLLM:
@@ -27,25 +27,7 @@ class _LiveFixtureLLM:
         )
 
 
-class _Query:
-    def search(self, query, *, topic_slugs=None, top_k=8):
-        return {
-            "query": query,
-            "topic_slugs": topic_slugs or [],
-            "graph": [],
-            "evidence": [
-                ReportEvidence(
-                    id="E1",
-                    paper_id="paper:command",
-                    chunk_id="paper:command:page:1:chunk:0",
-                    title="Research Command Paper",
-                    text="A durable idempotency key maps one instruction to one target.",
-                    page_start=1,
-                    page_end=1,
-                    score=0.98,
-                ).model_dump()
-            ],
-        }
+_Query = SQLiteReportQuery
 
 
 def _stack(tmp_path, *, agent_llm=None):
@@ -84,7 +66,7 @@ def _stack(tmp_path, *, agent_llm=None):
     reports = KnowledgeReportService(
         repository,
         settings=settings,
-        query_service=_Query(),
+        query_service=_Query(repository),
         llm=_LiveFixtureLLM(),
         require_live_llm=True,
     )

@@ -1,0 +1,21 @@
+{
+  "budget_id": "s0-deepseek-flash-20260913",
+  "currency": "CNY",
+  "limit_micro_cny": 20000000,
+  "max_calls": 180,
+  "input_cny_per_million": 2,
+  "output_cny_per_million": 8,
+  "max_input_tokens": 65536,
+  "max_output_tokens": 4096,
+  "request_timeout_seconds": 90,
+  "task_deadline_seconds": 400,
+  "session_deadline_seconds": 7200,
+  "sdk_retries": 0,
+  "max_calls_per_task": 4,
+  "request_model": "deepseek-v4-flash",
+  "documented_serving_model": "DeepSeek-V4.1-Flash",
+  "verified_at": "2026-09-13T00:00:00+00:00",
+  "price_url": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/",
+  "cost_basis": "peak cache-miss upper bound; actual invoice unknown",
+  "thinking": "disabled"
+}

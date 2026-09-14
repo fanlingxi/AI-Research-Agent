@@ -11,6 +11,7 @@ from typing import Any, Protocol
 from app.config.settings import get_settings
 from app.knowledge.query import KnowledgeQueryService
 from app.knowledge.repository import KnowledgeRepository
+from app.retrieval.neural_embeddings import MODELS, collection_name, model_identity
 
 
 class BenchmarkQuery(Protocol):
@@ -88,9 +89,12 @@ def main() -> None:
     result["executed_at"] = datetime.now(tz=UTC).isoformat()
     result["runtime_configuration"] = {
         "embedding_provider": settings.embedding_provider,
-        "embedding_model": settings.embedding_model,
+        "embedding_model": MODELS.get(settings.embedding_provider,
+                                      (settings.embedding_model, None))[0],
         "embedding_dimension": settings.embedding_dimension,
-        "qdrant_collection": settings.knowledge_qdrant_collection,
+        "qdrant_collection": collection_name(settings),
+        **({"embedding_identity": model_identity(settings.embedding_provider)}
+           if settings.embedding_provider in MODELS else {}),
         "estimated_embedding_cost_usd": (0.0 if settings.embedding_provider == "hash" else None),
     }
     serialized = json.dumps(result, ensure_ascii=False, indent=2) + "\n"

@@ -1,0 +1,1127 @@
+{
+  "version": "a01-corpus-v1",
+  "sources": [
+    {
+      "id": "atlas-spec",
+      "family_id": "atlas",
+      "version": "v1",
+      "title": "岩雀缓存离线部署·spec",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：岩雀缓存离线部署 / spec / 文本版本 v1\n\n岩雀 AX-17 的本地缓存容量为 640 MiB。\n\n断链续读指断开上游连接后继续读取最近一次完整缓存；不支持断链写入。\n\n只有状态标记为 ready 且校验和一致的缓存可用于断链续读。",
+      "text_sha256": "5aae5075d65e5e6eb452ef89e6357801147f6f73653373a93ee17677dae51331"
+    },
+    {
+      "id": "atlas-ops",
+      "family_id": "atlas",
+      "version": "v1",
+      "title": "岩雀缓存离线部署·ops",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：岩雀缓存离线部署 / ops / 文本版本 v1\n\n岩雀 AX-17 在每次完整同步后计算校验和，失败时将状态改为 invalid。\n\n恢复上游连接后须完成全量同步，随后才能将状态改回 ready。",
+      "text_sha256": "c0510a723754212cc234093c79f7b6d01668f2cf72b383bc34d0e7a247f4865c"
+    },
+    {
+      "id": "atlas-alternative",
+      "family_id": "atlas",
+      "version": "v1",
+      "title": "岩雀缓存离线部署·alternative",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：岩雀缓存离线部署 / alternative / 文本版本 v1\n\n岚石 B4 的本地缓存容量为 256 MiB。\n\n岚石 B4 断开上游连接后停止提供读取。",
+      "text_sha256": "0308fdc12e0ea884dd4982e0c3a05a0d68173bdae3f2e7555d28ce3d290e028f"
+    },
+    {
+      "id": "atlas-memo",
+      "family_id": "atlas",
+      "version": "v1",
+      "title": "岩雀缓存离线部署·memo",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：岩雀缓存离线部署 / memo / 文本版本 v1\n\n岩雀 AX-17 的本地缓存容量为 768 MiB。\n\n此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。",
+      "text_sha256": "0d73bfa94a7d575a6f357a6cae43e792076897df6b96885047f74e347ddc55ac"
+    },
+    {
+      "id": "atlas-restricted",
+      "family_id": "atlas",
+      "version": "v1",
+      "title": "岩雀缓存离线部署·restricted",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：岩雀缓存离线部署 / restricted / 文本版本 v1\n\n岩雀 AX-17 的未公开维护窗口是每周二 03:00。",
+      "text_sha256": "b7ad575059f46376a9da79d02231a8278be44217c8273e9255c2dafb39de4cc5"
+    },
+    {
+      "id": "boreal-spec",
+      "family_id": "boreal",
+      "version": "v1",
+      "title": "松鸦批处理恢复·spec",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：松鸦批处理恢复 / spec / 文本版本 v1\n\n松鸦 BJ-6 的单批上限为 96 条记录。\n\n断点续投指失败后从最后一个已确认批次之后重新提交；已确认批次不再重放。\n\n断点续投要求批次序号连续，并保留服务端确认凭据。",
+      "text_sha256": "e7293d365fdd4bcaace8d2b644176b6b30c5950b824f0b2d7ebb43613b3660ed"
+    },
+    {
+      "id": "boreal-ops",
+      "family_id": "boreal",
+      "version": "v1",
+      "title": "松鸦批处理恢复·ops",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：松鸦批处理恢复 / ops / 文本版本 v1\n\n松鸦 BJ-6 遇到确认凭据丢失时暂停续投，不以客户端发送成功代替确认。\n\n恢复前须向服务端核对最后已确认批次，再补齐确认凭据。",
+      "text_sha256": "32d1aa3499b3594d7d7ca8fda6f9405ce28fbfbb3b6f86619f9fd9cea41fe33a"
+    },
+    {
+      "id": "boreal-alternative",
+      "family_id": "boreal",
+      "version": "v1",
+      "title": "松鸦批处理恢复·alternative",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：松鸦批处理恢复 / alternative / 文本版本 v1\n\n杉鹭 M2 的单批上限为 120 条记录。\n\n杉鹭 M2 失败后从任务第一批重新提交。",
+      "text_sha256": "8187a6b3f6648a60c4b7f1b9acd682e6b0a99faa0d4262b55efe7662b982f50d"
+    },
+    {
+      "id": "boreal-memo",
+      "family_id": "boreal",
+      "version": "v1",
+      "title": "松鸦批处理恢复·memo",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：松鸦批处理恢复 / memo / 文本版本 v1\n\n松鸦 BJ-6 的单批上限为 80 条记录。\n\n此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。",
+      "text_sha256": "85c8b907760dfddf0ea24e96c8b2805004a3543d3ca107ad9cb77d33885b73af"
+    },
+    {
+      "id": "boreal-restricted",
+      "family_id": "boreal",
+      "version": "v1",
+      "title": "松鸦批处理恢复·restricted",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：松鸦批处理恢复 / restricted / 文本版本 v1\n\n松鸦 BJ-6 的预发布试验吞吐为每分钟 720 条。",
+      "text_sha256": "0a4e982453fb072776ad27121cb97f42125e3515498909a879d32ba0b450e7e8"
+    },
+    {
+      "id": "cinder-spec",
+      "family_id": "cinder",
+      "version": "v1",
+      "title": "烛芯传感采样·spec",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：烛芯传感采样 / spec / 文本版本 v1\n\n烛芯 CK-9 的采样间隔为 40 ms。\n\n补时记录指重连后按设备时钟补传断网期间留存的样本；不会补造未采集样本。\n\n补时记录只适用于时钟偏差不超过 5 ms 且缓存未溢出的时段。",
+      "text_sha256": "432b04dd3dc7c968293746f8fe07bbcd16e2a21254319a5756c702312eb08bef"
+    },
+    {
+      "id": "cinder-ops",
+      "family_id": "cinder",
+      "version": "v1",
+      "title": "烛芯传感采样·ops",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：烛芯传感采样 / ops / 文本版本 v1\n\n烛芯 CK-9 发现时钟偏差超过 5 ms 时将该时段标为待校时。\n\n校时完成后保留原始时间戳并附偏差说明，禁止改写历史样本。",
+      "text_sha256": "07519c9b261c79403a272f9c33acdc433be7dd332d75c5a40b42dd7345f6c6ff"
+    },
+    {
+      "id": "cinder-alternative",
+      "family_id": "cinder",
+      "version": "v1",
+      "title": "烛芯传感采样·alternative",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：烛芯传感采样 / alternative / 文本版本 v1\n\n炭尾 S3 的采样间隔为 25 ms。\n\n炭尾 S3 不保存断网期间的样本。",
+      "text_sha256": "c8ef4a2cf9fa7c61a9d242dfa737aaee3dbfc54d8cc6a5ca54d91760ff671be3"
+    },
+    {
+      "id": "cinder-memo",
+      "family_id": "cinder",
+      "version": "v1",
+      "title": "烛芯传感采样·memo",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：烛芯传感采样 / memo / 文本版本 v1\n\n烛芯 CK-9 的采样间隔为 50 ms。\n\n此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。",
+      "text_sha256": "eefd524bb601c14cb96213f8cedc6527d01bbe54367a76abc44ff5b4796447ac"
+    },
+    {
+      "id": "cinder-restricted",
+      "family_id": "cinder",
+      "version": "v1",
+      "title": "烛芯传感采样·restricted",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：烛芯传感采样 / restricted / 文本版本 v1\n\n烛芯 CK-9 的维护窗口为周五 01:30 至 02:00。",
+      "text_sha256": "7b85bf86d43880184c0973347b92ee3e505052f42c5b8e50da115f3c5449f890"
+    },
+    {
+      "id": "delta-spec",
+      "family_id": "delta",
+      "version": "v1",
+      "title": "汀舟队列保留·spec",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：汀舟队列保留 / spec / 文本版本 v1\n\n汀舟 DQ-2 的消息保留期为 18 小时。\n\n延后重取指消费者恢复后再次获取尚未确认且未过保留期的消息。\n\n延后重取需要原消费者组身份；已经确认的消息不在重取范围。",
+      "text_sha256": "d7dc2473074559fa7a7907bfa5a3a55bf4b63cf35ad4855ce9e8cbfb4ea76e7e"
+    },
+    {
+      "id": "delta-ops",
+      "family_id": "delta",
+      "version": "v1",
+      "title": "汀舟队列保留·ops",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：汀舟队列保留 / ops / 文本版本 v1\n\n汀舟 DQ-2 在消费者组身份丢失时拒绝按其他组身份恢复进度。\n\n恢复流程要求核对原组身份和最后确认位置，超过保留期的数据须另行补源。",
+      "text_sha256": "1cb95a8f2d7764aac06e7ad8c727635d6bc759f3f3083f057685cdcc75fe6bb9"
+    },
+    {
+      "id": "delta-alternative",
+      "family_id": "delta",
+      "version": "v1",
+      "title": "汀舟队列保留·alternative",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：汀舟队列保留 / alternative / 文本版本 v1\n\n浅沙 Q8 的消息保留期为 6 小时。\n\n浅沙 Q8 仅支持新消息消费，不支持延后重取。",
+      "text_sha256": "2f19bb89399b2de8ee1ca8cd6545ec1575c0c310abf5046c5763d2638d993186"
+    },
+    {
+      "id": "delta-memo",
+      "family_id": "delta",
+      "version": "v1",
+      "title": "汀舟队列保留·memo",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：汀舟队列保留 / memo / 文本版本 v1\n\n汀舟 DQ-2 的消息保留期为 24 小时。\n\n此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。",
+      "text_sha256": "704af1703b69cb50a2b4868d6c437b0aa72d815025adabbad4e690b968124876"
+    },
+    {
+      "id": "delta-restricted",
+      "family_id": "delta",
+      "version": "v1",
+      "title": "汀舟队列保留·restricted",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：汀舟队列保留 / restricted / 文本版本 v1\n\n汀舟 DQ-2 内部容量演练使用 12 个消费者组。",
+      "text_sha256": "9b9484d7aea491dd135e50044e593b602e32f33d3ccebc115f6aa7ec51bff1c1"
+    },
+    {
+      "id": "ember-spec",
+      "family_id": "ember",
+      "version": "v1",
+      "title": "萤桥日志归档·spec",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：萤桥日志归档 / spec / 文本版本 v1\n\n萤桥 EL-5 的归档周期为 12 分钟。\n\n封卷读取指读取已封存归档卷；正在写入的活动卷不可作为完整归档读取。\n\n归档卷必须同时具有完成标记和索引摘要，才能对外提供封卷读取。",
+      "text_sha256": "8caef5e3a8acccf8ed7421be043528354b3b67902ad19152aa1038ff198dc46f"
+    },
+    {
+      "id": "ember-ops",
+      "family_id": "ember",
+      "version": "v1",
+      "title": "萤桥日志归档·ops",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：萤桥日志归档 / ops / 文本版本 v1\n\n萤桥 EL-5 发现索引摘要缺失时隔离该卷并保留原文件。\n\n补建索引后须核对卷校验和，验证通过才能恢复读取。",
+      "text_sha256": "84f5546f29b46667e3dad83e88d0083ba747684daac5d8e20d859934c4465844"
+    },
+    {
+      "id": "ember-alternative",
+      "family_id": "ember",
+      "version": "v1",
+      "title": "萤桥日志归档·alternative",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：萤桥日志归档 / alternative / 文本版本 v1\n\n绯叶 L1 的归档周期为 5 分钟。\n\n绯叶 L1 不区分活动卷和封存卷，读取可能包含未完成卷。",
+      "text_sha256": "8eb7cea63c4f0e6e0fd7bc299771595313b13ffea00ef282f6f83fa62311c9fe"
+    },
+    {
+      "id": "ember-memo",
+      "family_id": "ember",
+      "version": "v1",
+      "title": "萤桥日志归档·memo",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：萤桥日志归档 / memo / 文本版本 v1\n\n萤桥 EL-5 的归档周期为 15 分钟。\n\n此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。",
+      "text_sha256": "1116525fd50ac24a51e7148e84bc3e1b8c24f197a573cb4d17b5a19e3e52f55c"
+    },
+    {
+      "id": "ember-restricted",
+      "family_id": "ember",
+      "version": "v1",
+      "title": "萤桥日志归档·restricted",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：萤桥日志归档 / restricted / 文本版本 v1\n\n萤桥 EL-5 的内部压缩率试验值为 0.42。",
+      "text_sha256": "1ca44792c74a1eff88b82e83420d6cd6b05094824255815efd561712d3fd1949"
+    },
+    {
+      "id": "fjord-spec",
+      "family_id": "fjord",
+      "version": "v1",
+      "title": "霜隼镜像切换·spec",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：霜隼镜像切换 / spec / 文本版本 v1\n\n霜隼 FM-3 的镜像校验周期为 7 分钟。\n\n静默切换指在主镜像不可读时转向已经验证的备用镜像；不代表两镜像内容实时一致。\n\n静默切换仅允许使用校验通过且版本序号与任务锁定版本一致的备用镜像。",
+      "text_sha256": "6f21ee2f03022dea7e51909e6d191a07e32b23862311cef5e5b4f556e6a2ac62"
+    },
+    {
+      "id": "fjord-ops",
+      "family_id": "fjord",
+      "version": "v1",
+      "title": "霜隼镜像切换·ops",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：霜隼镜像切换 / ops / 文本版本 v1\n\n霜隼 FM-3 发现备用镜像版本不同于锁定版本时暂停切换。\n\n恢复时须取得锁定版本镜像并重新校验，旧任务版本不得就地更新。",
+      "text_sha256": "6307915c8bfaf6508f78b20f7faf2147369edc01c869326a754f3ca74f4750a3"
+    },
+    {
+      "id": "fjord-alternative",
+      "family_id": "fjord",
+      "version": "v1",
+      "title": "霜隼镜像切换·alternative",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：霜隼镜像切换 / alternative / 文本版本 v1\n\n冰苇 R7 的镜像校验周期为 3 分钟。\n\n冰苇 R7 在主镜像不可读时中止请求，不执行备用切换。",
+      "text_sha256": "24c91a71e78f77cf765a867739d88cd7c0d9b604ea4ffa8858224fa1c99432ad"
+    },
+    {
+      "id": "fjord-memo",
+      "family_id": "fjord",
+      "version": "v1",
+      "title": "霜隼镜像切换·memo",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：霜隼镜像切换 / memo / 文本版本 v1\n\n霜隼 FM-3 的镜像校验周期为 9 分钟。\n\n此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。",
+      "text_sha256": "f0df290165899edb006e04a39e32997c42ec0dfed3bdce78d2cfd07ff9668134"
+    },
+    {
+      "id": "fjord-restricted",
+      "family_id": "fjord",
+      "version": "v1",
+      "title": "霜隼镜像切换·restricted",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：霜隼镜像切换 / restricted / 文本版本 v1\n\n霜隼 FM-3 的试验站点编号是 F-29。",
+      "text_sha256": "1b48e9b49da9afcd8dcfe518766ecdbc90bb34b408293adfe9a24c58cd23c7ff"
+    },
+    {
+      "id": "grove-spec",
+      "family_id": "grove",
+      "version": "v1",
+      "title": "榛羽分发确认·spec",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：榛羽分发确认 / spec / 文本版本 v1\n\n榛羽 GP-8 的每组分发上限为 48 个目标。\n\n回执补齐指重发尚未收到签名回执的目标；已经收到有效回执的目标不重发。\n\n回执补齐要求目标身份固定，且每条回执与本次分发版本绑定。",
+      "text_sha256": "7447f95c7bee35f5edbbceac83054e196b8293a4143b290871c335c38a3c1eef"
+    },
+    {
+      "id": "grove-ops",
+      "family_id": "grove",
+      "version": "v1",
+      "title": "榛羽分发确认·ops",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：榛羽分发确认 / ops / 文本版本 v1\n\n榛羽 GP-8 发现回执属于旧分发版本时不计入本次完成数。\n\n恢复前须核对目标身份并重新获取本版本签名回执，保留旧回执供审计。",
+      "text_sha256": "517d6765a5d3680229c1f383b2651f88a96de61c462f8040d7e91ca051786b65"
+    },
+    {
+      "id": "grove-alternative",
+      "family_id": "grove",
+      "version": "v1",
+      "title": "榛羽分发确认·alternative",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：榛羽分发确认 / alternative / 文本版本 v1\n\n林鸫 P6 的每组分发上限为 64 个目标。\n\n林鸫 P6 恢复时向所有目标重发，不按回执筛选。",
+      "text_sha256": "5f45694aae9349958f7a285182d29515ae1237d3a3aff617c381e528e9035a71"
+    },
+    {
+      "id": "grove-memo",
+      "family_id": "grove",
+      "version": "v1",
+      "title": "榛羽分发确认·memo",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：榛羽分发确认 / memo / 文本版本 v1\n\n榛羽 GP-8 的每组分发上限为 56 个目标。\n\n此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。",
+      "text_sha256": "20f70f9a5a6c1ab7823da1db2c73c02fe5eb2d16f2c819e50c9f27e0d0a5dabc"
+    },
+    {
+      "id": "grove-restricted",
+      "family_id": "grove",
+      "version": "v1",
+      "title": "榛羽分发确认·restricted",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：榛羽分发确认 / restricted / 文本版本 v1\n\n榛羽 GP-8 的内部测试平均往返为 70 ms。",
+      "text_sha256": "6dbae5f99fc16a1700ab462219d445b50d2d67db47f34eb936eaef9c4bff1d69"
+    },
+    {
+      "id": "harbor-spec",
+      "family_id": "harbor",
+      "version": "v1",
+      "title": "港燕图块回退·spec",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：港燕图块回退 / spec / 文本版本 v1\n\n港燕 HT-4 的图块边长为 384 像素。\n\n旧版回显指新图块损坏时显示已验证的上一版本图块，同时展示旧版标识。\n\n旧版回显只在坐标系和缩放级别与当前请求一致时允许使用。",
+      "text_sha256": "b47ed54a22b2c488b929b750f60981cdc1fdd34cef65a630dbd106f7cedb40cf"
+    },
+    {
+      "id": "harbor-ops",
+      "family_id": "harbor",
+      "version": "v1",
+      "title": "港燕图块回退·ops",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：港燕图块回退 / ops / 文本版本 v1\n\n港燕 HT-4 发现旧图块坐标系不匹配时显示缺图标记，不尝试隐式坐标转换。\n\n修复后须重新验证新图块，再移除旧版标识；历史图块仍保留。",
+      "text_sha256": "aa2c75b06b502d037432051e4985a10cbfa93fdb6594f9d7a2e8858623aa361a"
+    },
+    {
+      "id": "harbor-alternative",
+      "family_id": "harbor",
+      "version": "v1",
+      "title": "港燕图块回退·alternative",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：港燕图块回退 / alternative / 文本版本 v1\n\n湾鸥 T9 的图块边长为 512 像素。\n\n湾鸥 T9 在新图块损坏时显示缺图标记，不回退旧版。",
+      "text_sha256": "ac89ff09ea6df0e9e8a7d040e800407d1d46935058dce07eb228414f82b4d6ce"
+    },
+    {
+      "id": "harbor-memo",
+      "family_id": "harbor",
+      "version": "v1",
+      "title": "港燕图块回退·memo",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：港燕图块回退 / memo / 文本版本 v1\n\n港燕 HT-4 的图块边长为 320 像素。\n\n此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。",
+      "text_sha256": "a783acdd2e67b9e79f775948284eb526549773512d674b81fdcd783e4beb2e1f"
+    },
+    {
+      "id": "harbor-restricted",
+      "family_id": "harbor",
+      "version": "v1",
+      "title": "港燕图块回退·restricted",
+      "origin": "repository_authored_synthetic",
+      "usage": "project_evaluation_only",
+      "provenance": "2026-09-13 由 Codex 为本仓库 A01a 自编；虚构产品、参数及记录；无第三方摘录。",
+      "review_state": "fixture_candidate",
+      "text": "合成资料：港燕图块回退 / restricted / 文本版本 v1\n\n港燕 HT-4 的维护窗口为每月首日 04:10 至 04:40。",
+      "text_sha256": "1e5dc3b6b9593f8d5598ddb88f751bf8f8988c890f02270f6a65de8435338590"
+    }
+  ],
+  "spans": [
+    {
+      "id": "atlas-spec-p1",
+      "source_id": "atlas-spec",
+      "source_version": "v1",
+      "start": 32,
+      "end": 58,
+      "quote": "岩雀 AX-17 的本地缓存容量为 640 MiB。"
+    },
+    {
+      "id": "atlas-spec-p2",
+      "source_id": "atlas-spec",
+      "source_version": "v1",
+      "start": 60,
+      "end": 93,
+      "quote": "断链续读指断开上游连接后继续读取最近一次完整缓存；不支持断链写入。"
+    },
+    {
+      "id": "atlas-spec-p3",
+      "source_id": "atlas-spec",
+      "source_version": "v1",
+      "start": 95,
+      "end": 126,
+      "quote": "只有状态标记为 ready 且校验和一致的缓存可用于断链续读。"
+    },
+    {
+      "id": "atlas-ops-p1",
+      "source_id": "atlas-ops",
+      "source_version": "v1",
+      "start": 31,
+      "end": 71,
+      "quote": "岩雀 AX-17 在每次完整同步后计算校验和，失败时将状态改为 invalid。"
+    },
+    {
+      "id": "atlas-ops-p2",
+      "source_id": "atlas-ops",
+      "source_version": "v1",
+      "start": 73,
+      "end": 104,
+      "quote": "恢复上游连接后须完成全量同步，随后才能将状态改回 ready。"
+    },
+    {
+      "id": "atlas-alternative-p1",
+      "source_id": "atlas-alternative",
+      "source_version": "v1",
+      "start": 39,
+      "end": 62,
+      "quote": "岚石 B4 的本地缓存容量为 256 MiB。"
+    },
+    {
+      "id": "atlas-alternative-p2",
+      "source_id": "atlas-alternative",
+      "source_version": "v1",
+      "start": 64,
+      "end": 84,
+      "quote": "岚石 B4 断开上游连接后停止提供读取。"
+    },
+    {
+      "id": "atlas-memo-p1",
+      "source_id": "atlas-memo",
+      "source_version": "v1",
+      "start": 32,
+      "end": 58,
+      "quote": "岩雀 AX-17 的本地缓存容量为 768 MiB。"
+    },
+    {
+      "id": "atlas-memo-p2",
+      "source_id": "atlas-memo",
+      "source_version": "v1",
+      "start": 60,
+      "end": 90,
+      "quote": "此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。"
+    },
+    {
+      "id": "atlas-restricted-p1",
+      "source_id": "atlas-restricted",
+      "source_version": "v1",
+      "start": 38,
+      "end": 66,
+      "quote": "岩雀 AX-17 的未公开维护窗口是每周二 03:00。"
+    },
+    {
+      "id": "boreal-spec-p1",
+      "source_id": "boreal-spec",
+      "source_version": "v1",
+      "start": 31,
+      "end": 53,
+      "quote": "松鸦 BJ-6 的单批上限为 96 条记录。"
+    },
+    {
+      "id": "boreal-spec-p2",
+      "source_id": "boreal-spec",
+      "source_version": "v1",
+      "start": 55,
+      "end": 90,
+      "quote": "断点续投指失败后从最后一个已确认批次之后重新提交；已确认批次不再重放。"
+    },
+    {
+      "id": "boreal-spec-p3",
+      "source_id": "boreal-spec",
+      "source_version": "v1",
+      "start": 92,
+      "end": 116,
+      "quote": "断点续投要求批次序号连续，并保留服务端确认凭据。"
+    },
+    {
+      "id": "boreal-ops-p1",
+      "source_id": "boreal-ops",
+      "source_version": "v1",
+      "start": 30,
+      "end": 66,
+      "quote": "松鸦 BJ-6 遇到确认凭据丢失时暂停续投，不以客户端发送成功代替确认。"
+    },
+    {
+      "id": "boreal-ops-p2",
+      "source_id": "boreal-ops",
+      "source_version": "v1",
+      "start": 68,
+      "end": 94,
+      "quote": "恢复前须向服务端核对最后已确认批次，再补齐确认凭据。"
+    },
+    {
+      "id": "boreal-alternative-p1",
+      "source_id": "boreal-alternative",
+      "source_version": "v1",
+      "start": 38,
+      "end": 59,
+      "quote": "杉鹭 M2 的单批上限为 120 条记录。"
+    },
+    {
+      "id": "boreal-alternative-p2",
+      "source_id": "boreal-alternative",
+      "source_version": "v1",
+      "start": 61,
+      "end": 81,
+      "quote": "杉鹭 M2 失败后从任务第一批重新提交。"
+    },
+    {
+      "id": "boreal-memo-p1",
+      "source_id": "boreal-memo",
+      "source_version": "v1",
+      "start": 31,
+      "end": 53,
+      "quote": "松鸦 BJ-6 的单批上限为 80 条记录。"
+    },
+    {
+      "id": "boreal-memo-p2",
+      "source_id": "boreal-memo",
+      "source_version": "v1",
+      "start": 55,
+      "end": 85,
+      "quote": "此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。"
+    },
+    {
+      "id": "boreal-restricted-p1",
+      "source_id": "boreal-restricted",
+      "source_version": "v1",
+      "start": 37,
+      "end": 64,
+      "quote": "松鸦 BJ-6 的预发布试验吞吐为每分钟 720 条。"
+    },
+    {
+      "id": "cinder-spec-p1",
+      "source_id": "cinder-spec",
+      "source_version": "v1",
+      "start": 30,
+      "end": 51,
+      "quote": "烛芯 CK-9 的采样间隔为 40 ms。"
+    },
+    {
+      "id": "cinder-spec-p2",
+      "source_id": "cinder-spec",
+      "source_version": "v1",
+      "start": 53,
+      "end": 88,
+      "quote": "补时记录指重连后按设备时钟补传断网期间留存的样本；不会补造未采集样本。"
+    },
+    {
+      "id": "cinder-spec-p3",
+      "source_id": "cinder-spec",
+      "source_version": "v1",
+      "start": 90,
+      "end": 121,
+      "quote": "补时记录只适用于时钟偏差不超过 5 ms 且缓存未溢出的时段。"
+    },
+    {
+      "id": "cinder-ops-p1",
+      "source_id": "cinder-ops",
+      "source_version": "v1",
+      "start": 29,
+      "end": 62,
+      "quote": "烛芯 CK-9 发现时钟偏差超过 5 ms 时将该时段标为待校时。"
+    },
+    {
+      "id": "cinder-ops-p2",
+      "source_id": "cinder-ops",
+      "source_version": "v1",
+      "start": 64,
+      "end": 92,
+      "quote": "校时完成后保留原始时间戳并附偏差说明，禁止改写历史样本。"
+    },
+    {
+      "id": "cinder-alternative-p1",
+      "source_id": "cinder-alternative",
+      "source_version": "v1",
+      "start": 37,
+      "end": 56,
+      "quote": "炭尾 S3 的采样间隔为 25 ms。"
+    },
+    {
+      "id": "cinder-alternative-p2",
+      "source_id": "cinder-alternative",
+      "source_version": "v1",
+      "start": 58,
+      "end": 75,
+      "quote": "炭尾 S3 不保存断网期间的样本。"
+    },
+    {
+      "id": "cinder-memo-p1",
+      "source_id": "cinder-memo",
+      "source_version": "v1",
+      "start": 30,
+      "end": 51,
+      "quote": "烛芯 CK-9 的采样间隔为 50 ms。"
+    },
+    {
+      "id": "cinder-memo-p2",
+      "source_id": "cinder-memo",
+      "source_version": "v1",
+      "start": 53,
+      "end": 83,
+      "quote": "此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。"
+    },
+    {
+      "id": "cinder-restricted-p1",
+      "source_id": "cinder-restricted",
+      "source_version": "v1",
+      "start": 36,
+      "end": 67,
+      "quote": "烛芯 CK-9 的维护窗口为周五 01:30 至 02:00。"
+    },
+    {
+      "id": "delta-spec-p1",
+      "source_id": "delta-spec",
+      "source_version": "v1",
+      "start": 30,
+      "end": 52,
+      "quote": "汀舟 DQ-2 的消息保留期为 18 小时。"
+    },
+    {
+      "id": "delta-spec-p2",
+      "source_id": "delta-spec",
+      "source_version": "v1",
+      "start": 54,
+      "end": 83,
+      "quote": "延后重取指消费者恢复后再次获取尚未确认且未过保留期的消息。"
+    },
+    {
+      "id": "delta-spec-p3",
+      "source_id": "delta-spec",
+      "source_version": "v1",
+      "start": 85,
+      "end": 113,
+      "quote": "延后重取需要原消费者组身份；已经确认的消息不在重取范围。"
+    },
+    {
+      "id": "delta-ops-p1",
+      "source_id": "delta-ops",
+      "source_version": "v1",
+      "start": 29,
+      "end": 60,
+      "quote": "汀舟 DQ-2 在消费者组身份丢失时拒绝按其他组身份恢复进度。"
+    },
+    {
+      "id": "delta-ops-p2",
+      "source_id": "delta-ops",
+      "source_version": "v1",
+      "start": 62,
+      "end": 96,
+      "quote": "恢复流程要求核对原组身份和最后确认位置，超过保留期的数据须另行补源。"
+    },
+    {
+      "id": "delta-alternative-p1",
+      "source_id": "delta-alternative",
+      "source_version": "v1",
+      "start": 37,
+      "end": 56,
+      "quote": "浅沙 Q8 的消息保留期为 6 小时。"
+    },
+    {
+      "id": "delta-alternative-p2",
+      "source_id": "delta-alternative",
+      "source_version": "v1",
+      "start": 58,
+      "end": 81,
+      "quote": "浅沙 Q8 仅支持新消息消费，不支持延后重取。"
+    },
+    {
+      "id": "delta-memo-p1",
+      "source_id": "delta-memo",
+      "source_version": "v1",
+      "start": 30,
+      "end": 52,
+      "quote": "汀舟 DQ-2 的消息保留期为 24 小时。"
+    },
+    {
+      "id": "delta-memo-p2",
+      "source_id": "delta-memo",
+      "source_version": "v1",
+      "start": 54,
+      "end": 84,
+      "quote": "此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。"
+    },
+    {
+      "id": "delta-restricted-p1",
+      "source_id": "delta-restricted",
+      "source_version": "v1",
+      "start": 36,
+      "end": 62,
+      "quote": "汀舟 DQ-2 内部容量演练使用 12 个消费者组。"
+    },
+    {
+      "id": "ember-spec-p1",
+      "source_id": "ember-spec",
+      "source_version": "v1",
+      "start": 30,
+      "end": 51,
+      "quote": "萤桥 EL-5 的归档周期为 12 分钟。"
+    },
+    {
+      "id": "ember-spec-p2",
+      "source_id": "ember-spec",
+      "source_version": "v1",
+      "start": 53,
+      "end": 86,
+      "quote": "封卷读取指读取已封存归档卷；正在写入的活动卷不可作为完整归档读取。"
+    },
+    {
+      "id": "ember-spec-p3",
+      "source_id": "ember-spec",
+      "source_version": "v1",
+      "start": 88,
+      "end": 118,
+      "quote": "归档卷必须同时具有完成标记和索引摘要，才能对外提供封卷读取。"
+    },
+    {
+      "id": "ember-ops-p1",
+      "source_id": "ember-ops",
+      "source_version": "v1",
+      "start": 29,
+      "end": 57,
+      "quote": "萤桥 EL-5 发现索引摘要缺失时隔离该卷并保留原文件。"
+    },
+    {
+      "id": "ember-ops-p2",
+      "source_id": "ember-ops",
+      "source_version": "v1",
+      "start": 59,
+      "end": 83,
+      "quote": "补建索引后须核对卷校验和，验证通过才能恢复读取。"
+    },
+    {
+      "id": "ember-alternative-p1",
+      "source_id": "ember-alternative",
+      "source_version": "v1",
+      "start": 37,
+      "end": 55,
+      "quote": "绯叶 L1 的归档周期为 5 分钟。"
+    },
+    {
+      "id": "ember-alternative-p2",
+      "source_id": "ember-alternative",
+      "source_version": "v1",
+      "start": 57,
+      "end": 85,
+      "quote": "绯叶 L1 不区分活动卷和封存卷，读取可能包含未完成卷。"
+    },
+    {
+      "id": "ember-memo-p1",
+      "source_id": "ember-memo",
+      "source_version": "v1",
+      "start": 30,
+      "end": 51,
+      "quote": "萤桥 EL-5 的归档周期为 15 分钟。"
+    },
+    {
+      "id": "ember-memo-p2",
+      "source_id": "ember-memo",
+      "source_version": "v1",
+      "start": 53,
+      "end": 83,
+      "quote": "此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。"
+    },
+    {
+      "id": "ember-restricted-p1",
+      "source_id": "ember-restricted",
+      "source_version": "v1",
+      "start": 36,
+      "end": 60,
+      "quote": "萤桥 EL-5 的内部压缩率试验值为 0.42。"
+    },
+    {
+      "id": "fjord-spec-p1",
+      "source_id": "fjord-spec",
+      "source_version": "v1",
+      "start": 30,
+      "end": 52,
+      "quote": "霜隼 FM-3 的镜像校验周期为 7 分钟。"
+    },
+    {
+      "id": "fjord-spec-p2",
+      "source_id": "fjord-spec",
+      "source_version": "v1",
+      "start": 54,
+      "end": 92,
+      "quote": "静默切换指在主镜像不可读时转向已经验证的备用镜像；不代表两镜像内容实时一致。"
+    },
+    {
+      "id": "fjord-spec-p3",
+      "source_id": "fjord-spec",
+      "source_version": "v1",
+      "start": 94,
+      "end": 127,
+      "quote": "静默切换仅允许使用校验通过且版本序号与任务锁定版本一致的备用镜像。"
+    },
+    {
+      "id": "fjord-ops-p1",
+      "source_id": "fjord-ops",
+      "source_version": "v1",
+      "start": 29,
+      "end": 58,
+      "quote": "霜隼 FM-3 发现备用镜像版本不同于锁定版本时暂停切换。"
+    },
+    {
+      "id": "fjord-ops-p2",
+      "source_id": "fjord-ops",
+      "source_version": "v1",
+      "start": 60,
+      "end": 90,
+      "quote": "恢复时须取得锁定版本镜像并重新校验，旧任务版本不得就地更新。"
+    },
+    {
+      "id": "fjord-alternative-p1",
+      "source_id": "fjord-alternative",
+      "source_version": "v1",
+      "start": 37,
+      "end": 57,
+      "quote": "冰苇 R7 的镜像校验周期为 3 分钟。"
+    },
+    {
+      "id": "fjord-alternative-p2",
+      "source_id": "fjord-alternative",
+      "source_version": "v1",
+      "start": 59,
+      "end": 86,
+      "quote": "冰苇 R7 在主镜像不可读时中止请求，不执行备用切换。"
+    },
+    {
+      "id": "fjord-memo-p1",
+      "source_id": "fjord-memo",
+      "source_version": "v1",
+      "start": 30,
+      "end": 52,
+      "quote": "霜隼 FM-3 的镜像校验周期为 9 分钟。"
+    },
+    {
+      "id": "fjord-memo-p2",
+      "source_id": "fjord-memo",
+      "source_version": "v1",
+      "start": 54,
+      "end": 84,
+      "quote": "此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。"
+    },
+    {
+      "id": "fjord-restricted-p1",
+      "source_id": "fjord-restricted",
+      "source_version": "v1",
+      "start": 36,
+      "end": 58,
+      "quote": "霜隼 FM-3 的试验站点编号是 F-29。"
+    },
+    {
+      "id": "grove-spec-p1",
+      "source_id": "grove-spec",
+      "source_version": "v1",
+      "start": 30,
+      "end": 54,
+      "quote": "榛羽 GP-8 的每组分发上限为 48 个目标。"
+    },
+    {
+      "id": "grove-spec-p2",
+      "source_id": "grove-spec",
+      "source_version": "v1",
+      "start": 56,
+      "end": 90,
+      "quote": "回执补齐指重发尚未收到签名回执的目标；已经收到有效回执的目标不重发。"
+    },
+    {
+      "id": "grove-spec-p3",
+      "source_id": "grove-spec",
+      "source_version": "v1",
+      "start": 92,
+      "end": 120,
+      "quote": "回执补齐要求目标身份固定，且每条回执与本次分发版本绑定。"
+    },
+    {
+      "id": "grove-ops-p1",
+      "source_id": "grove-ops",
+      "source_version": "v1",
+      "start": 29,
+      "end": 58,
+      "quote": "榛羽 GP-8 发现回执属于旧分发版本时不计入本次完成数。"
+    },
+    {
+      "id": "grove-ops-p2",
+      "source_id": "grove-ops",
+      "source_version": "v1",
+      "start": 60,
+      "end": 92,
+      "quote": "恢复前须核对目标身份并重新获取本版本签名回执，保留旧回执供审计。"
+    },
+    {
+      "id": "grove-alternative-p1",
+      "source_id": "grove-alternative",
+      "source_version": "v1",
+      "start": 37,
+      "end": 59,
+      "quote": "林鸫 P6 的每组分发上限为 64 个目标。"
+    },
+    {
+      "id": "grove-alternative-p2",
+      "source_id": "grove-alternative",
+      "source_version": "v1",
+      "start": 61,
+      "end": 85,
+      "quote": "林鸫 P6 恢复时向所有目标重发，不按回执筛选。"
+    },
+    {
+      "id": "grove-memo-p1",
+      "source_id": "grove-memo",
+      "source_version": "v1",
+      "start": 30,
+      "end": 54,
+      "quote": "榛羽 GP-8 的每组分发上限为 56 个目标。"
+    },
+    {
+      "id": "grove-memo-p2",
+      "source_id": "grove-memo",
+      "source_version": "v1",
+      "start": 56,
+      "end": 86,
+      "quote": "此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。"
+    },
+    {
+      "id": "grove-restricted-p1",
+      "source_id": "grove-restricted",
+      "source_version": "v1",
+      "start": 36,
+      "end": 61,
+      "quote": "榛羽 GP-8 的内部测试平均往返为 70 ms。"
+    },
+    {
+      "id": "harbor-spec-p1",
+      "source_id": "harbor-spec",
+      "source_version": "v1",
+      "start": 30,
+      "end": 52,
+      "quote": "港燕 HT-4 的图块边长为 384 像素。"
+    },
+    {
+      "id": "harbor-spec-p2",
+      "source_id": "harbor-spec",
+      "source_version": "v1",
+      "start": 54,
+      "end": 87,
+      "quote": "旧版回显指新图块损坏时显示已验证的上一版本图块，同时展示旧版标识。"
+    },
+    {
+      "id": "harbor-spec-p3",
+      "source_id": "harbor-spec",
+      "source_version": "v1",
+      "start": 89,
+      "end": 116,
+      "quote": "旧版回显只在坐标系和缩放级别与当前请求一致时允许使用。"
+    },
+    {
+      "id": "harbor-ops-p1",
+      "source_id": "harbor-ops",
+      "source_version": "v1",
+      "start": 29,
+      "end": 66,
+      "quote": "港燕 HT-4 发现旧图块坐标系不匹配时显示缺图标记，不尝试隐式坐标转换。"
+    },
+    {
+      "id": "harbor-ops-p2",
+      "source_id": "harbor-ops",
+      "source_version": "v1",
+      "start": 68,
+      "end": 96,
+      "quote": "修复后须重新验证新图块，再移除旧版标识；历史图块仍保留。"
+    },
+    {
+      "id": "harbor-alternative-p1",
+      "source_id": "harbor-alternative",
+      "source_version": "v1",
+      "start": 37,
+      "end": 57,
+      "quote": "湾鸥 T9 的图块边长为 512 像素。"
+    },
+    {
+      "id": "harbor-alternative-p2",
+      "source_id": "harbor-alternative",
+      "source_version": "v1",
+      "start": 59,
+      "end": 85,
+      "quote": "湾鸥 T9 在新图块损坏时显示缺图标记，不回退旧版。"
+    },
+    {
+      "id": "harbor-memo-p1",
+      "source_id": "harbor-memo",
+      "source_version": "v1",
+      "start": 30,
+      "end": 52,
+      "quote": "港燕 HT-4 的图块边长为 320 像素。"
+    },
+    {
+      "id": "harbor-memo-p2",
+      "source_id": "harbor-memo",
+      "source_version": "v1",
+      "start": 54,
+      "end": 84,
+      "quote": "此便笺与规格页同日发布；材料未说明谁覆盖谁，也无审核优先级。"
+    },
+    {
+      "id": "harbor-restricted-p1",
+      "source_id": "harbor-restricted",
+      "source_version": "v1",
+      "start": 36,
+      "end": 69,
+      "quote": "港燕 HT-4 的维护窗口为每月首日 04:10 至 04:40。"
+    }
+  ]
+}

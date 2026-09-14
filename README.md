@@ -2,6 +2,17 @@
 
 **证据约束的本地优先个人知识 Agent 工作台** —— 一个把已审核知识、项目记忆、受控上下文与可追溯 Agent 产物连接起来的本地优先工作空间。它不是把任意文档直接塞进提示词的普通 RAG：每次运行都绑定明确的 Knowledge scope、不可变 `ContextSnapshot`、领域插件 pin、工具审计、引用校验与人工治理边界。
 
+## 简历版本与复现入口
+
+当前重点是基于已审核论文文本的研究闭环：导入与审核 → 按项目范围检索 → 冻结证据快照 → Worker生成带引用报告 → 反馈后新快照/新运行。SQLite保存事实，Qdrant只返回候选；恢复与版本追溯是核心工程能力。
+
+- [本地安装、真实向量服务及备份恢复](docs/GETTING_STARTED.md)
+- [本轮真实服务与新论文对照结果](docs/PROJECT_STATUS.md)
+- [演示顺序与能力边界](docs/GETTING_STARTED.md#演示与验收)
+- [项目状态与待验收项](docs/PROJECT_STATUS.md)
+
+离线测试、真实模型运行完成和语义正确是三个不同指标。当前不承诺图表曲线理解、全部问题正确回答或已测得的生产吞吐；新生成版本保持显式候选。完整图谱投影需要Neo4j，本机该集成尚未验收。复现默认不需要Redis、Kafka或Kubernetes。
+
 ```mermaid
 flowchart LR
     S["Sources"] --> K["Knowledge Core"]
@@ -106,7 +117,7 @@ The current public result is a **deterministic evaluation candidate**. No human-
 
 Manifest SHA-256: `5c1a4878d037c7df0187b8f50daf2a8b96e6fcadc5f3834a307ee0061f1705c2`.
 
-The current application schema contract is v18. Migration 18 adds an additive ingestion-to-document membership table so one canonical source version can safely belong to more than one Collection ingestion. The historical candidate above was generated from an earlier schema-v15 fixture and did not open the operational database. There is no human-approved Phase 6 baseline; do not describe these results as baseline comparison or model-quality evidence.
+The current application schema contract is v20. Migrations 19–20 add feedback and generation-attempt records; migration 18 adds an additive ingestion-to-document membership table so one canonical source version can safely belong to more than one Collection ingestion. The historical candidate above was generated from an earlier schema-v15 fixture and did not open the operational database. There is no human-approved Phase 6 baseline; do not describe these results as baseline comparison or model-quality evidence.
 
 Run the full offline suite:
 
@@ -139,6 +150,10 @@ The deterministic demo is local and offline. It runs three curated service-path 
 The resulting immutable directory contains `run.json`, `report.md`, and `demo-summary.md`. It does not claim real-provider quality, production database validation, browser validation, or an accepted benchmark baseline. Use [docs/demo/DEMO_GUIDE.md](docs/demo/DEMO_GUIDE.md) to present it safely.
 
 ## Quick Start
+
+Windows PowerShell 本地开发（无需先启动 Docker 的界面/离线验证）：见
+[Windows 本地调试指南](docs/GETTING_STARTED.md)。安装依赖后运行
+`powershell -ExecutionPolicy Bypass -File .\scripts\local.ps1 start`。
 
 ### Backend and offline verification
 
@@ -235,7 +250,11 @@ The repository package name remains `research-knowledge-core` for compatibility.
 
 ## Verified Engineering Status
 
-Latest release audit verification:
+Verification records by stage:
+
+Current engineering verification: **581 backend tests passed, 3 skipped; 53 frontend tests passed**, production build and Ruff passed (2026-09-14). See [current progress](docs/PROJECT_STATUS.md) for remaining acceptance items.
+
+The following counts describe the earlier Phase 6 delivery:
 
 - Backend pytest: **181 passed, 3 skipped**.
 - Ruff: **passed**.
@@ -261,15 +280,15 @@ These facts establish deterministic local contract coverage plus bounded browser
 
 ## Roadmap
 
-Release packaging work is intentionally separate from product capability work. Before a public release:
-
-1. review and commit the current worktree as a coherent release candidate;
-2. run React tests and production build in a declared Node environment;
-3. verify no local secrets or generated assets are included in the published archive;
-4. obtain explicit human approval before creating any Phase 6 baseline;
-5. retain offline demo evidence alongside the release notes.
+The engineering closeout is implemented. Next steps are targeted report-semantic and interaction acceptance; new retrieval and generation strategies remain opt-in. See [current progress and known limits](docs/PROJECT_STATUS.md). An approved semantic baseline still requires human review.
 
 ## Documentation
+
+The A08 retrieval and report changes are available as opt-in API controls:
+`workflow=research_v2`, `evidence_reranking=llm-v1`, and
+`reading_format=research-v1|inline-v1`. Existing defaults remain unchanged.
+See the [implementation results and request example](docs/PROJECT_STATUS.md)
+for configuration, recovery behavior, real-run evidence, and pending semantic review.
 
 - [Current architecture](docs/architecture/01_PROJECT_SPEC.md)
 - [Data and governance model](docs/architecture/03_DATA_MODEL_SPEC.md)

@@ -1,0 +1,4 @@
+# Optional local semantic encoders; install CUDA PyTorch separately for your hardware.
+# Verified Windows GPU runtime (RTX 5060): torch==2.8.0 from the official cu128 wheel index.
+sentence-transformers==5.1.0
+transformers==4.56.2

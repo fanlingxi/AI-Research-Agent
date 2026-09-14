@@ -23,6 +23,36 @@ class ResearchDomainPlugin:
         domain="research",
         workflows=[
             DomainWorkflowSpec(
+                key="research_v7", name="research_direct", version="structured-v6",
+                checkpoint_namespace="agent_research_structured_v6", min_steps=9,
+                min_tool_calls=1, requires_live_llm=True,
+            ),
+            DomainWorkflowSpec(
+                key="research_v6", name="research_core_coverage", version="structured-v5",
+                checkpoint_namespace="agent_research_structured_v5", min_steps=9,
+                min_tool_calls=1, requires_live_llm=True,
+            ),
+            DomainWorkflowSpec(
+                key="research_v5", name="research_coverage", version="structured-v4",
+                checkpoint_namespace="agent_research_structured_v4", min_steps=9,
+                min_tool_calls=1, requires_live_llm=True,
+            ),
+            DomainWorkflowSpec(
+                key="research_v4", name="research_focused", version="structured-v3",
+                checkpoint_namespace="agent_research_structured_v3", min_steps=9,
+                min_tool_calls=1, requires_live_llm=True,
+            ),
+            DomainWorkflowSpec(
+                key="research_v3", name="research_evidence_aligned", version="structured-v2",
+                checkpoint_namespace="agent_research_structured_v2", min_steps=9,
+                min_tool_calls=1, requires_live_llm=True,
+            ),
+            DomainWorkflowSpec(
+                key='research_v2', name='research_structured', version='structured-v1',
+                checkpoint_namespace='agent_research_structured_v1', min_steps=9,
+                min_tool_calls=1, requires_live_llm=True,
+            ),
+            DomainWorkflowSpec(
                 key="foundation",
                 name="research_agent_foundation",
                 version="phase3a-v1",
@@ -83,6 +113,29 @@ class ResearchDomainPlugin:
 
     def build_workflow(self, service: Any, pin: PluginPin) -> Any:
         workflow = self.workflow_spec(pin.workflow_key)
+        if workflow.key == "research_v7":
+            from app.agent.structured_research import DirectResearchWorkflow
+
+            return DirectResearchWorkflow(service)
+        if workflow.key == "research_v6":
+            from app.agent.structured_research import CoreCoverageResearchWorkflow
+
+            return CoreCoverageResearchWorkflow(service)
+        if workflow.key == "research_v5":
+            from app.agent.structured_research import CoverageResearchWorkflow
+
+            return CoverageResearchWorkflow(service)
+        if workflow.key == "research_v4":
+            from app.agent.structured_research import FocusedResearchWorkflow
+
+            return FocusedResearchWorkflow(service)
+        if workflow.key == "research_v3":
+            from app.agent.structured_research import EvidenceAlignedResearchWorkflow
+
+            return EvidenceAlignedResearchWorkflow(service)
+        if workflow.key == 'research_v2':
+            from app.agent.structured_research import StructuredResearchWorkflow
+            return StructuredResearchWorkflow(service)
         if workflow.key == "foundation":
             from app.agent.tools import build_foundation_tool_registry
             from app.agent.workflow import DeterministicFoundationWorkflow

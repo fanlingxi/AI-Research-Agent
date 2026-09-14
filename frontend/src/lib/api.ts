@@ -563,7 +563,102 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T;
 }
 
+export interface ExperimentVariant {
+  strategy: string;
+  path: string;
+  status: string;
+  metrics: Record<string, number | null>;
+  span_recall: number | null;
+  latency_ms: number | null;
+  cost_cny: number | null;
+  cost_upper_cny: number | null;
+  model_calls: number | null;
+  model: string;
+  semantic_success: boolean | null;
+  semantic_review: string;
+  error: string;
+  issues: string[];
+  content: string | null;
+  evidence: { rank: number; source_id: string; title: string; version: string; page: number;
+    start: number; end: number; text: string }[];
+}
+
+export interface FeedbackInput {
+  idempotency_key: string;
+  category: "citation" | "unsupported" | "incomplete" | "scope" | "source_version" | "execution" | "other";
+  note: string;
+  reporter: string;
+  finding_index: number | null;
+  evidence_ids: string[];
+}
+export interface ReviewInput { expected_revision: number; decision: "accepted" | "rejected"; reviewer: string; note: string }
+export interface RerunInput { idempotency_key: string; expected_revision: number; resolution_note: string; token_budget?: number; context_max_tokens?: number }
+export interface RecheckInput { decision: "resolved" | "unresolved"; reviewer: string; note: string }
+export interface RunFeedback {
+  id: string; run_id: string; status: "pending" | "accepted" | "rejected" | "resolved";
+  revision: number; request: FeedbackInput; decision: ReviewInput | null;
+  anchor: { snapshot_id: string; snapshot_sha256: string; output_sha256: string | null;
+    artifact_id: string | null; assertion: string | null; run_revision: number; run_status: string;
+    evidence: { evidence_id: string; quote: string; source_version: string; location: JsonObject }[] };
+  created_at: string; updated_at: string;
+}
+export interface RunRecheck {
+  id: string; feedback_id: string; parent_run_id: string; child_run_id: string;
+  child_status: string; child_snapshot_id: string; child_output_id: string | null; child_artifact_id: string | null;
+  request: RerunInput; recheck: RecheckInput | null;
+  recheck_anchor: { run_revision: number; status: string; snapshot_id: string; output_sha256: string | null } | null;
+  created_at: string; checked_at: string | null;
+}
+export interface FeedbackList { feedback: RunFeedback[]; links: RunRecheck[] }
+export interface SemanticObservationData {
+  available: boolean; annotation_mode?: string; publication_gate_enabled?: boolean;
+  summary: { planned_runs: number; total_findings: number; human_labeled: number; unlabeled: number;
+    judge_unavailable_on_labeled: number; agreement_on_labeled: number | null; uncovered_categories: string[] } | null;
+  records: { task_id: string; status: string; run_id: string; snapshot_sha256: string; output_sha256: string;
+    findings: { id: string; assertion: string; verdict: string | null; reason: string; human_label: string | null; human_note: string;
+      citations: { evidence_id: string; source_version: string; title: string; page_start: string; page_end: string; quote: string }[] }[] }[];
+}
+
+export interface ExperimentSummary {
+  id: string;
+  name: string;
+  kind: "retrieval" | "generation";
+  planned: number;
+  recorded: number;
+  task_count: number;
+  status_counts: Record<string, number>;
+  splits: string[];
+  model: string;
+  decision: string;
+  limitations: string[];
+}
+
+export interface ExperimentTask {
+  id: string;
+  question: string;
+  split: string;
+  variants: ExperimentVariant[];
+}
+
+export interface ExperimentDetail {
+  experiment: ExperimentSummary;
+  tasks: ExperimentTask[];
+}
+
+export interface ExperimentTaskDetail {
+  task_id: string;
+  question: string;
+  split: string;
+  path: string;
+  variants: ExperimentVariant[];
+}
+
 export const api = {
+  semanticObservation: () => request<SemanticObservationData>("/api/experiments/semantic-observation"),
+  experiments: () => request<{ experiments: ExperimentSummary[]; unavailable: { id: string; reason: string }[] }>("/api/experiments"),
+  experiment: (id: string) => request<ExperimentDetail>(`/api/experiments/${path(id)}`),
+  experimentTask: (id: string, taskId: string, retrievalPath: string) =>
+    request<ExperimentTaskDetail>(`/api/experiments/${path(id)}/tasks/${path(taskId)}${query({ path: retrievalPath })}`),
   dashboard: () => request<Dashboard>("/api/v1/workspace/dashboard?limit=12"),
   projects: () => request<Project[]>("/api/projects"),
   project: (projectId: string) => request<Project>(`/api/projects/${path(projectId)}`),
@@ -574,6 +669,7 @@ export const api = {
       `/api/projects/${path(projectId)}/workspace-tasks${query({ include_closed: includeClosed })}`,
     ),
   task: (taskId: string) => request<WorkspaceTask>(`/api/workspace-tasks/${path(taskId)}`),
+  updateTaskGoal: (taskId: string, expected_revision: number, goal: string) => request<WorkspaceTask>(`/api/workspace-tasks/${path(taskId)}`, { method: "PATCH", body: JSON.stringify({ expected_revision, goal }) }),
   createTask: (
     projectId: string,
     input: Pick<WorkspaceTask, "title" | "goal" | "priority">,
@@ -777,6 +873,12 @@ export const api = {
   trace: (runId: string, afterSequence = 0) =>
     request<AgentTrace>(`/api/v1/agent-runs/${path(runId)}/trace${query({ after_sequence: afterSequence, limit: 50 })}`),
   output: (runId: string) => request<AgentOutput>(`/api/agent-runs/${path(runId)}/output`),
+  feedback: (runId: string) => request<FeedbackList>(`/api/agent-runs/${path(runId)}/feedback`),
+  createFeedback: (runId: string, input: FeedbackInput) => request<RunFeedback>(`/api/agent-runs/${path(runId)}/feedback`, { method: "POST", body: JSON.stringify(input) }),
+  reviewFeedback: (runId: string, id: string, input: ReviewInput) => request<RunFeedback>(`/api/agent-runs/${path(runId)}/feedback/${path(id)}/review`, { method: "POST", body: JSON.stringify(input) }),
+  rerunFeedback: (runId: string, id: string, input: RerunInput) => request<AgentRun>(`/api/agent-runs/${path(runId)}/feedback/${path(id)}/rerun`, { method: "POST", body: JSON.stringify(input) }),
+  recheckFeedback: (parentId: string, id: string, input: RecheckInput) => request<{ id: string; recheck: RecheckInput }>(`/api/agent-runs/${path(parentId)}/rechecks/${path(id)}`, { method: "POST", body: JSON.stringify(input) }),
+  exportFeedback: (runId: string, id: string, version: string) => request<JsonObject>(`/api/agent-runs/${path(runId)}/feedback/${path(id)}/dev-candidate`, { method: "POST", body: JSON.stringify({ target_dev_version: version }) }),
   cancelRun: (runId: string) => request<AgentRun>(`/api/agent-runs/${path(runId)}/cancel`, { method: "POST" }),
   resumeRun: (runId: string) => request<AgentRun>(`/api/agent-runs/${path(runId)}/resume`, { method: "POST" }),
   reviewRun: (runId: string, action: "rerun" | "close") =>

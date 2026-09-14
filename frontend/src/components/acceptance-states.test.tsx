@@ -208,6 +208,7 @@ describe("browser acceptance states", () => {
   });
 
   it("shows a terminal failed Run without an output loading spinner or raw error", async () => {
+    vi.spyOn(api, "feedback").mockResolvedValue({ feedback: [], links: [] });
     vi.spyOn(api, "run").mockResolvedValue(failedRun);
     vi.spyOn(api, "trace").mockResolvedValue(failedTrace);
 
@@ -220,6 +221,7 @@ describe("browser acceptance states", () => {
   });
 
   it("offers only safe actions for a needs_review AgentRun", async () => {
+    vi.spyOn(api, "feedback").mockResolvedValue({ feedback: [], links: [] });
     const user = userEvent.setup();
     const needsReview = {
       ...failedRun,
@@ -241,6 +243,15 @@ describe("browser acceptance states", () => {
     await user.click(screen.getByRole("button", { name: "新建 Snapshot 并重跑" }));
     expect(review).toHaveBeenCalledWith("run-1", "rerun");
     expect(screen.queryByRole("button", { name: /绕过|接受无效/ })).not.toBeInTheDocument();
+  });
+
+  it("explains exhausted run capacity with a path to a new revision", async () => {
+    const exhausted = { ...failedRun, error_message: "AgentRun has exhausted its token budget." };
+    vi.spyOn(api, "run").mockResolvedValue(exhausted);
+    vi.spyOn(api, "trace").mockResolvedValue({ ...failedTrace, run: exhausted });
+    vi.spyOn(api, "feedback").mockResolvedValue({ feedback: [], links: [] });
+    renderWithQuery(<MemoryRouter initialEntries={["/agent-runs/run-1"]}><Routes><Route path="/agent-runs/:runId" element={<AgentRunPage />} /></Routes></MemoryRouter>);
+    expect(await screen.findByText("本次运行的总 Token 上限已耗尽。可登记反馈，在修订运行时提高生成用量上限。")).toBeInTheDocument();
   });
 
   it("starts one queued report directly from the report page", async () => {

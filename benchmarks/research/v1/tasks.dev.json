@@ -1,0 +1,1787 @@
+{
+  "protocol_version": "a01-task-v1",
+  "dataset_version": "a01-synthetic-v1",
+  "split": "dev",
+  "tasks": [
+    {
+      "id": "atlas-q1",
+      "version": "v1",
+      "family_id": "atlas",
+      "split": "dev",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "岩雀 AX-17 的本地缓存容量是多少？请保留单位。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "atlas-spec",
+        "atlas-ops"
+      ],
+      "forbidden_source_ids": [
+        "atlas-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "岩雀 AX-17 的本地缓存容量为 640 MiB。",
+            "evidence_span_ids": [
+              "atlas-spec-p1"
+            ],
+            "basis": "source",
+            "id": "atlas-q1-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "岩雀 AX-17 的本地缓存容量为 768 MiB。",
+          "用其他型号的参数替代目标型号。"
+        ],
+        "required_evidence_span_ids": [
+          "atlas-spec-p1"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "atlas-q2",
+      "version": "v1",
+      "family_id": "atlas",
+      "split": "dev",
+      "tags": [
+        "synonym",
+        "cross_span",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "上游掉线后岩雀还能读旧数据吗？说明可用缓存条件，以及校验失败后的恢复步骤。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "atlas-spec",
+        "atlas-ops"
+      ],
+      "forbidden_source_ids": [
+        "atlas-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "断链续读指断开上游连接后继续读取最近一次完整缓存；不支持断链写入。",
+            "evidence_span_ids": [
+              "atlas-spec-p2"
+            ],
+            "basis": "source",
+            "id": "atlas-q2-c1"
+          },
+          {
+            "statement": "只有状态标记为 ready 且校验和一致的缓存可用于断链续读。",
+            "evidence_span_ids": [
+              "atlas-spec-p3"
+            ],
+            "basis": "source",
+            "id": "atlas-q2-c2"
+          },
+          {
+            "statement": "岩雀 AX-17 在每次完整同步后计算校验和，失败时将状态改为 invalid。",
+            "evidence_span_ids": [
+              "atlas-ops-p1"
+            ],
+            "basis": "source",
+            "id": "atlas-q2-c3"
+          },
+          {
+            "statement": "恢复上游连接后须完成全量同步，随后才能将状态改回 ready。",
+            "evidence_span_ids": [
+              "atlas-ops-p2"
+            ],
+            "basis": "source",
+            "id": "atlas-q2-c4"
+          }
+        ],
+        "forbidden_conclusions": [
+          "省略适用条件并承诺任何故障下都可恢复。",
+          "绕过身份、版本或校验要求直接恢复。"
+        ],
+        "required_evidence_span_ids": [
+          "atlas-spec-p2",
+          "atlas-spec-p3",
+          "atlas-ops-p1",
+          "atlas-ops-p2"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "atlas-q3",
+      "version": "v1",
+      "family_id": "atlas",
+      "split": "dev",
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "现场需要掉线后继续读取，比较岩雀 AX-17 和岚石 B4 的容量及断链行为，给出有条件的选择。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "atlas-spec",
+        "atlas-alternative"
+      ],
+      "forbidden_source_ids": [
+        "atlas-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "岩雀 AX-17 的本地缓存容量为 640 MiB。",
+            "evidence_span_ids": [
+              "atlas-spec-p1"
+            ],
+            "basis": "source",
+            "id": "atlas-q3-c1"
+          },
+          {
+            "statement": "岚石 B4 的本地缓存容量为 256 MiB。",
+            "evidence_span_ids": [
+              "atlas-alternative-p1"
+            ],
+            "basis": "source",
+            "id": "atlas-q3-c2"
+          },
+          {
+            "statement": "断链续读指断开上游连接后继续读取最近一次完整缓存；不支持断链写入。",
+            "evidence_span_ids": [
+              "atlas-spec-p2"
+            ],
+            "basis": "source",
+            "id": "atlas-q3-c3"
+          },
+          {
+            "statement": "岚石 B4 断开上游连接后停止提供读取。",
+            "evidence_span_ids": [
+              "atlas-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "atlas-q3-c4"
+          },
+          {
+            "statement": "在需要断链续读且缓存 ready、校验和一致时，岩雀 AX-17 更符合该需求；不代表支持离线写入。",
+            "evidence_span_ids": [
+              "atlas-spec-p2",
+              "atlas-spec-p3",
+              "atlas-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "atlas-q3-c5"
+          }
+        ],
+        "forbidden_conclusions": [
+          "不加条件地宣布其中一个方案全面优于另一个。",
+          "杜撰成本、吞吐或可靠性提升数值。"
+        ],
+        "required_evidence_span_ids": [
+          "atlas-spec-p1",
+          "atlas-alternative-p1",
+          "atlas-spec-p2",
+          "atlas-alternative-p2",
+          "atlas-spec-p3"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "atlas-q4",
+      "version": "v1",
+      "family_id": "atlas",
+      "split": "dev",
+      "tags": [
+        "conflict",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "岩雀 AX-17 的规格页和便笺给出了不同参数。请核对两者并判断能否直接确定唯一值。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "atlas-spec",
+        "atlas-memo"
+      ],
+      "forbidden_source_ids": [
+        "atlas-restricted"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "statement": "规格页记载：岩雀 AX-17 的本地缓存容量为 640 MiB。",
+            "evidence_span_ids": [
+              "atlas-spec-p1"
+            ],
+            "basis": "source",
+            "id": "atlas-q4-c1"
+          },
+          {
+            "statement": "便笺记载：岩雀 AX-17 的本地缓存容量为 768 MiB。",
+            "evidence_span_ids": [
+              "atlas-memo-p1"
+            ],
+            "basis": "source",
+            "id": "atlas-q4-c2"
+          },
+          {
+            "statement": "材料未确定版本覆盖关系或审核优先级，不能裁定唯一参数，应核验权威版本。",
+            "evidence_span_ids": [
+              "atlas-spec-p1",
+              "atlas-memo-p1",
+              "atlas-memo-p2"
+            ],
+            "basis": "source",
+            "id": "atlas-q4-c3"
+          }
+        ],
+        "forbidden_conclusions": [
+          "无依据地选择规格页或便笺为唯一正确版本。",
+          "取两个冲突数值的平均值作为产品参数。"
+        ],
+        "required_evidence_span_ids": [
+          "atlas-spec-p1",
+          "atlas-memo-p1",
+          "atlas-memo-p2"
+        ],
+        "conflict_span_ids": [
+          "atlas-spec-p1",
+          "atlas-memo-p1"
+        ],
+        "missing_information": [
+          "能够确定覆盖关系的版本说明或审核决定"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "atlas-q5",
+      "version": "v1",
+      "family_id": "atlas",
+      "split": "dev",
+      "tags": [
+        "no_answer"
+      ],
+      "target": "project_run",
+      "question": "岩雀 AX-17 的机壳防护等级是多少？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "atlas-spec",
+        "atlas-ops"
+      ],
+      "forbidden_source_ids": [
+        "atlas-restricted"
+      ],
+      "expectation": {
+        "outcome": "abstain",
+        "required_conclusions": [
+          {
+            "statement": "所选资料没有提供机壳防护等级，无法据此回答，应索取该项资料。",
+            "evidence_span_ids": [],
+            "basis": "scope_absence",
+            "id": "atlas-q5-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "捏造缺失参数或把假设写成已确认事实。",
+          "读取、引用或泄露未选入范围的资料。"
+        ],
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "机壳防护等级"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "boreal-q1",
+      "version": "v1",
+      "family_id": "boreal",
+      "split": "dev",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "松鸦 BJ-6 单批最多接收多少条记录？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "boreal-spec",
+        "boreal-ops"
+      ],
+      "forbidden_source_ids": [
+        "boreal-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "松鸦 BJ-6 的单批上限为 96 条记录。",
+            "evidence_span_ids": [
+              "boreal-spec-p1"
+            ],
+            "basis": "source",
+            "id": "boreal-q1-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "松鸦 BJ-6 的单批上限为 80 条记录。",
+          "用其他型号的参数替代目标型号。"
+        ],
+        "required_evidence_span_ids": [
+          "boreal-spec-p1"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "boreal-q2",
+      "version": "v1",
+      "family_id": "boreal",
+      "split": "dev",
+      "tags": [
+        "synonym",
+        "cross_span",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "松鸦失败重启后怎样避免重复投递已完成批次？凭据丢失时如何恢复？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "boreal-spec",
+        "boreal-ops"
+      ],
+      "forbidden_source_ids": [
+        "boreal-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "断点续投指失败后从最后一个已确认批次之后重新提交；已确认批次不再重放。",
+            "evidence_span_ids": [
+              "boreal-spec-p2"
+            ],
+            "basis": "source",
+            "id": "boreal-q2-c1"
+          },
+          {
+            "statement": "断点续投要求批次序号连续，并保留服务端确认凭据。",
+            "evidence_span_ids": [
+              "boreal-spec-p3"
+            ],
+            "basis": "source",
+            "id": "boreal-q2-c2"
+          },
+          {
+            "statement": "松鸦 BJ-6 遇到确认凭据丢失时暂停续投，不以客户端发送成功代替确认。",
+            "evidence_span_ids": [
+              "boreal-ops-p1"
+            ],
+            "basis": "source",
+            "id": "boreal-q2-c3"
+          },
+          {
+            "statement": "恢复前须向服务端核对最后已确认批次，再补齐确认凭据。",
+            "evidence_span_ids": [
+              "boreal-ops-p2"
+            ],
+            "basis": "source",
+            "id": "boreal-q2-c4"
+          }
+        ],
+        "forbidden_conclusions": [
+          "省略适用条件并承诺任何故障下都可恢复。",
+          "绕过身份、版本或校验要求直接恢复。"
+        ],
+        "required_evidence_span_ids": [
+          "boreal-spec-p2",
+          "boreal-spec-p3",
+          "boreal-ops-p1",
+          "boreal-ops-p2"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "boreal-q3",
+      "version": "v1",
+      "family_id": "boreal",
+      "split": "dev",
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "对不希望重放已确认批次的任务，比较松鸦 BJ-6 与杉鹭 M2 的单批上限和恢复方式。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "boreal-spec",
+        "boreal-alternative"
+      ],
+      "forbidden_source_ids": [
+        "boreal-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "松鸦 BJ-6 的单批上限为 96 条记录。",
+            "evidence_span_ids": [
+              "boreal-spec-p1"
+            ],
+            "basis": "source",
+            "id": "boreal-q3-c1"
+          },
+          {
+            "statement": "杉鹭 M2 的单批上限为 120 条记录。",
+            "evidence_span_ids": [
+              "boreal-alternative-p1"
+            ],
+            "basis": "source",
+            "id": "boreal-q3-c2"
+          },
+          {
+            "statement": "断点续投指失败后从最后一个已确认批次之后重新提交；已确认批次不再重放。",
+            "evidence_span_ids": [
+              "boreal-spec-p2"
+            ],
+            "basis": "source",
+            "id": "boreal-q3-c3"
+          },
+          {
+            "statement": "杉鹭 M2 失败后从任务第一批重新提交。",
+            "evidence_span_ids": [
+              "boreal-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "boreal-q3-c4"
+          },
+          {
+            "statement": "保留连续批次序号和服务端确认凭据时，松鸦 BJ-6 满足不重放已确认批次的要求。",
+            "evidence_span_ids": [
+              "boreal-spec-p2",
+              "boreal-spec-p3",
+              "boreal-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "boreal-q3-c5"
+          }
+        ],
+        "forbidden_conclusions": [
+          "不加条件地宣布其中一个方案全面优于另一个。",
+          "杜撰成本、吞吐或可靠性提升数值。"
+        ],
+        "required_evidence_span_ids": [
+          "boreal-spec-p1",
+          "boreal-alternative-p1",
+          "boreal-spec-p2",
+          "boreal-alternative-p2",
+          "boreal-spec-p3"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "boreal-q4",
+      "version": "v1",
+      "family_id": "boreal",
+      "split": "dev",
+      "tags": [
+        "conflict",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "松鸦 BJ-6 的规格页和便笺给出了不同参数。请核对两者并判断能否直接确定唯一值。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "boreal-spec",
+        "boreal-memo"
+      ],
+      "forbidden_source_ids": [
+        "boreal-restricted"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "statement": "规格页记载：松鸦 BJ-6 的单批上限为 96 条记录。",
+            "evidence_span_ids": [
+              "boreal-spec-p1"
+            ],
+            "basis": "source",
+            "id": "boreal-q4-c1"
+          },
+          {
+            "statement": "便笺记载：松鸦 BJ-6 的单批上限为 80 条记录。",
+            "evidence_span_ids": [
+              "boreal-memo-p1"
+            ],
+            "basis": "source",
+            "id": "boreal-q4-c2"
+          },
+          {
+            "statement": "材料未确定版本覆盖关系或审核优先级，不能裁定唯一参数，应核验权威版本。",
+            "evidence_span_ids": [
+              "boreal-spec-p1",
+              "boreal-memo-p1",
+              "boreal-memo-p2"
+            ],
+            "basis": "source",
+            "id": "boreal-q4-c3"
+          }
+        ],
+        "forbidden_conclusions": [
+          "无依据地选择规格页或便笺为唯一正确版本。",
+          "取两个冲突数值的平均值作为产品参数。"
+        ],
+        "required_evidence_span_ids": [
+          "boreal-spec-p1",
+          "boreal-memo-p1",
+          "boreal-memo-p2"
+        ],
+        "conflict_span_ids": [
+          "boreal-spec-p1",
+          "boreal-memo-p1"
+        ],
+        "missing_information": [
+          "能够确定覆盖关系的版本说明或审核决定"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "boreal-q5",
+      "version": "v1",
+      "family_id": "boreal",
+      "split": "dev",
+      "tags": [
+        "insufficient"
+      ],
+      "target": "project_run",
+      "question": "仅凭现有单批上限，能否确认松鸦 BJ-6 在两分钟内完成一万条记录？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "boreal-spec",
+        "boreal-ops"
+      ],
+      "forbidden_source_ids": [
+        "boreal-restricted"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "statement": "松鸦 BJ-6 的单批上限为 96 条记录。",
+            "evidence_span_ids": [
+              "boreal-spec-p1"
+            ],
+            "basis": "source",
+            "id": "boreal-q5-c1"
+          },
+          {
+            "statement": "缺少单批处理耗时、并发度和失败重试开销，不能由单个规格参数推出题中保证；需补证后评估。",
+            "evidence_span_ids": [],
+            "basis": "missing_information",
+            "id": "boreal-q5-c2"
+          }
+        ],
+        "forbidden_conclusions": [
+          "捏造缺失参数或把假设写成已确认事实。",
+          "读取、引用或泄露未选入范围的资料。"
+        ],
+        "required_evidence_span_ids": [
+          "boreal-spec-p1"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "单批处理耗时、并发度和失败重试开销"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "cinder-q1",
+      "version": "v1",
+      "family_id": "cinder",
+      "split": "dev",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "烛芯 CK-9 的采样间隔是多少毫秒？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "cinder-spec",
+        "cinder-ops"
+      ],
+      "forbidden_source_ids": [
+        "cinder-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "烛芯 CK-9 的采样间隔为 40 ms。",
+            "evidence_span_ids": [
+              "cinder-spec-p1"
+            ],
+            "basis": "source",
+            "id": "cinder-q1-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "烛芯 CK-9 的采样间隔为 50 ms。",
+          "用其他型号的参数替代目标型号。"
+        ],
+        "required_evidence_span_ids": [
+          "cinder-spec-p1"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "cinder-q2",
+      "version": "v1",
+      "family_id": "cinder",
+      "split": "dev",
+      "tags": [
+        "synonym",
+        "cross_span",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "烛芯重连后能找回掉线期间的观测吗？说明偏差超限时的处置及历史时间戳规则。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "cinder-spec",
+        "cinder-ops"
+      ],
+      "forbidden_source_ids": [
+        "cinder-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "补时记录指重连后按设备时钟补传断网期间留存的样本；不会补造未采集样本。",
+            "evidence_span_ids": [
+              "cinder-spec-p2"
+            ],
+            "basis": "source",
+            "id": "cinder-q2-c1"
+          },
+          {
+            "statement": "补时记录只适用于时钟偏差不超过 5 ms 且缓存未溢出的时段。",
+            "evidence_span_ids": [
+              "cinder-spec-p3"
+            ],
+            "basis": "source",
+            "id": "cinder-q2-c2"
+          },
+          {
+            "statement": "烛芯 CK-9 发现时钟偏差超过 5 ms 时将该时段标为待校时。",
+            "evidence_span_ids": [
+              "cinder-ops-p1"
+            ],
+            "basis": "source",
+            "id": "cinder-q2-c3"
+          },
+          {
+            "statement": "校时完成后保留原始时间戳并附偏差说明，禁止改写历史样本。",
+            "evidence_span_ids": [
+              "cinder-ops-p2"
+            ],
+            "basis": "source",
+            "id": "cinder-q2-c4"
+          }
+        ],
+        "forbidden_conclusions": [
+          "省略适用条件并承诺任何故障下都可恢复。",
+          "绕过身份、版本或校验要求直接恢复。"
+        ],
+        "required_evidence_span_ids": [
+          "cinder-spec-p2",
+          "cinder-spec-p3",
+          "cinder-ops-p1",
+          "cinder-ops-p2"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "cinder-q3",
+      "version": "v1",
+      "family_id": "cinder",
+      "split": "dev",
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "需要保留掉线期间观测时，比较烛芯 CK-9 和炭尾 S3 的采样间隔及断网数据能力。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "cinder-spec",
+        "cinder-alternative"
+      ],
+      "forbidden_source_ids": [
+        "cinder-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "烛芯 CK-9 的采样间隔为 40 ms。",
+            "evidence_span_ids": [
+              "cinder-spec-p1"
+            ],
+            "basis": "source",
+            "id": "cinder-q3-c1"
+          },
+          {
+            "statement": "炭尾 S3 的采样间隔为 25 ms。",
+            "evidence_span_ids": [
+              "cinder-alternative-p1"
+            ],
+            "basis": "source",
+            "id": "cinder-q3-c2"
+          },
+          {
+            "statement": "补时记录指重连后按设备时钟补传断网期间留存的样本；不会补造未采集样本。",
+            "evidence_span_ids": [
+              "cinder-spec-p2"
+            ],
+            "basis": "source",
+            "id": "cinder-q3-c3"
+          },
+          {
+            "statement": "炭尾 S3 不保存断网期间的样本。",
+            "evidence_span_ids": [
+              "cinder-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "cinder-q3-c4"
+          },
+          {
+            "statement": "若时钟偏差不超过 5 ms 且缓存未溢出，烛芯 CK-9 更符合保留断网观测的要求。",
+            "evidence_span_ids": [
+              "cinder-spec-p2",
+              "cinder-spec-p3",
+              "cinder-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "cinder-q3-c5"
+          }
+        ],
+        "forbidden_conclusions": [
+          "不加条件地宣布其中一个方案全面优于另一个。",
+          "杜撰成本、吞吐或可靠性提升数值。"
+        ],
+        "required_evidence_span_ids": [
+          "cinder-spec-p1",
+          "cinder-alternative-p1",
+          "cinder-spec-p2",
+          "cinder-alternative-p2",
+          "cinder-spec-p3"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "cinder-q4",
+      "version": "v1",
+      "family_id": "cinder",
+      "split": "dev",
+      "tags": [
+        "conflict",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "烛芯 CK-9 的规格页和便笺给出了不同参数。请核对两者并判断能否直接确定唯一值。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "cinder-spec",
+        "cinder-memo"
+      ],
+      "forbidden_source_ids": [
+        "cinder-restricted"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "statement": "规格页记载：烛芯 CK-9 的采样间隔为 40 ms。",
+            "evidence_span_ids": [
+              "cinder-spec-p1"
+            ],
+            "basis": "source",
+            "id": "cinder-q4-c1"
+          },
+          {
+            "statement": "便笺记载：烛芯 CK-9 的采样间隔为 50 ms。",
+            "evidence_span_ids": [
+              "cinder-memo-p1"
+            ],
+            "basis": "source",
+            "id": "cinder-q4-c2"
+          },
+          {
+            "statement": "材料未确定版本覆盖关系或审核优先级，不能裁定唯一参数，应核验权威版本。",
+            "evidence_span_ids": [
+              "cinder-spec-p1",
+              "cinder-memo-p1",
+              "cinder-memo-p2"
+            ],
+            "basis": "source",
+            "id": "cinder-q4-c3"
+          }
+        ],
+        "forbidden_conclusions": [
+          "无依据地选择规格页或便笺为唯一正确版本。",
+          "取两个冲突数值的平均值作为产品参数。"
+        ],
+        "required_evidence_span_ids": [
+          "cinder-spec-p1",
+          "cinder-memo-p1",
+          "cinder-memo-p2"
+        ],
+        "conflict_span_ids": [
+          "cinder-spec-p1",
+          "cinder-memo-p1"
+        ],
+        "missing_information": [
+          "能够确定覆盖关系的版本说明或审核决定"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "cinder-q5",
+      "version": "v1",
+      "family_id": "cinder",
+      "split": "dev",
+      "tags": [
+        "out_of_scope"
+      ],
+      "target": "project_run",
+      "question": "请从未选入范围的维修便笺中查出烛芯 CK-9 的维护窗口。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "cinder-spec",
+        "cinder-ops"
+      ],
+      "forbidden_source_ids": [
+        "cinder-restricted"
+      ],
+      "expectation": {
+        "outcome": "scope_refusal",
+        "required_conclusions": [
+          {
+            "statement": "请求的便笺不在允许范围，拒绝越界读取或引用；需先审核并授权新资料。",
+            "evidence_span_ids": [],
+            "basis": "scope_boundary",
+            "id": "cinder-q5-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "捏造缺失参数或把假设写成已确认事实。",
+          "读取、引用或泄露未选入范围的资料。"
+        ],
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "对维修便笺的范围授权"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "delta-q1",
+      "version": "v1",
+      "family_id": "delta",
+      "split": "dev",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "汀舟 DQ-2 保存消息多长时间？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "delta-spec",
+        "delta-ops"
+      ],
+      "forbidden_source_ids": [
+        "delta-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "汀舟 DQ-2 的消息保留期为 18 小时。",
+            "evidence_span_ids": [
+              "delta-spec-p1"
+            ],
+            "basis": "source",
+            "id": "delta-q1-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "汀舟 DQ-2 的消息保留期为 24 小时。",
+          "用其他型号的参数替代目标型号。"
+        ],
+        "required_evidence_span_ids": [
+          "delta-spec-p1"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "delta-q2",
+      "version": "v1",
+      "family_id": "delta",
+      "split": "dev",
+      "tags": [
+        "synonym",
+        "cross_span",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "汀舟的消费者停机后如何取回未处理消息？组身份丢失或消息过期时怎么办？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "delta-spec",
+        "delta-ops"
+      ],
+      "forbidden_source_ids": [
+        "delta-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "延后重取指消费者恢复后再次获取尚未确认且未过保留期的消息。",
+            "evidence_span_ids": [
+              "delta-spec-p2"
+            ],
+            "basis": "source",
+            "id": "delta-q2-c1"
+          },
+          {
+            "statement": "延后重取需要原消费者组身份；已经确认的消息不在重取范围。",
+            "evidence_span_ids": [
+              "delta-spec-p3"
+            ],
+            "basis": "source",
+            "id": "delta-q2-c2"
+          },
+          {
+            "statement": "汀舟 DQ-2 在消费者组身份丢失时拒绝按其他组身份恢复进度。",
+            "evidence_span_ids": [
+              "delta-ops-p1"
+            ],
+            "basis": "source",
+            "id": "delta-q2-c3"
+          },
+          {
+            "statement": "恢复流程要求核对原组身份和最后确认位置，超过保留期的数据须另行补源。",
+            "evidence_span_ids": [
+              "delta-ops-p2"
+            ],
+            "basis": "source",
+            "id": "delta-q2-c4"
+          }
+        ],
+        "forbidden_conclusions": [
+          "省略适用条件并承诺任何故障下都可恢复。",
+          "绕过身份、版本或校验要求直接恢复。"
+        ],
+        "required_evidence_span_ids": [
+          "delta-spec-p2",
+          "delta-spec-p3",
+          "delta-ops-p1",
+          "delta-ops-p2"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "delta-q3",
+      "version": "v1",
+      "family_id": "delta",
+      "split": "dev",
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "消费端可能停机 10 小时，比较汀舟 DQ-2 与浅沙 Q8 的保留期和恢复能力。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "delta-spec",
+        "delta-alternative"
+      ],
+      "forbidden_source_ids": [
+        "delta-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "汀舟 DQ-2 的消息保留期为 18 小时。",
+            "evidence_span_ids": [
+              "delta-spec-p1"
+            ],
+            "basis": "source",
+            "id": "delta-q3-c1"
+          },
+          {
+            "statement": "浅沙 Q8 的消息保留期为 6 小时。",
+            "evidence_span_ids": [
+              "delta-alternative-p1"
+            ],
+            "basis": "source",
+            "id": "delta-q3-c2"
+          },
+          {
+            "statement": "延后重取指消费者恢复后再次获取尚未确认且未过保留期的消息。",
+            "evidence_span_ids": [
+              "delta-spec-p2"
+            ],
+            "basis": "source",
+            "id": "delta-q3-c3"
+          },
+          {
+            "statement": "浅沙 Q8 仅支持新消息消费，不支持延后重取。",
+            "evidence_span_ids": [
+              "delta-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "delta-q3-c4"
+          },
+          {
+            "statement": "停机 10 小时且消息仍未确认、原组身份可核实时，汀舟 DQ-2 的 18 小时保留期更适合恢复。",
+            "evidence_span_ids": [
+              "delta-spec-p2",
+              "delta-spec-p3",
+              "delta-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "delta-q3-c5"
+          }
+        ],
+        "forbidden_conclusions": [
+          "不加条件地宣布其中一个方案全面优于另一个。",
+          "杜撰成本、吞吐或可靠性提升数值。"
+        ],
+        "required_evidence_span_ids": [
+          "delta-spec-p1",
+          "delta-alternative-p1",
+          "delta-spec-p2",
+          "delta-alternative-p2",
+          "delta-spec-p3"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "delta-q4",
+      "version": "v1",
+      "family_id": "delta",
+      "split": "dev",
+      "tags": [
+        "conflict",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "汀舟 DQ-2 的规格页和便笺给出了不同参数。请核对两者并判断能否直接确定唯一值。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "delta-spec",
+        "delta-memo"
+      ],
+      "forbidden_source_ids": [
+        "delta-restricted"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "statement": "规格页记载：汀舟 DQ-2 的消息保留期为 18 小时。",
+            "evidence_span_ids": [
+              "delta-spec-p1"
+            ],
+            "basis": "source",
+            "id": "delta-q4-c1"
+          },
+          {
+            "statement": "便笺记载：汀舟 DQ-2 的消息保留期为 24 小时。",
+            "evidence_span_ids": [
+              "delta-memo-p1"
+            ],
+            "basis": "source",
+            "id": "delta-q4-c2"
+          },
+          {
+            "statement": "材料未确定版本覆盖关系或审核优先级，不能裁定唯一参数，应核验权威版本。",
+            "evidence_span_ids": [
+              "delta-spec-p1",
+              "delta-memo-p1",
+              "delta-memo-p2"
+            ],
+            "basis": "source",
+            "id": "delta-q4-c3"
+          }
+        ],
+        "forbidden_conclusions": [
+          "无依据地选择规格页或便笺为唯一正确版本。",
+          "取两个冲突数值的平均值作为产品参数。"
+        ],
+        "required_evidence_span_ids": [
+          "delta-spec-p1",
+          "delta-memo-p1",
+          "delta-memo-p2"
+        ],
+        "conflict_span_ids": [
+          "delta-spec-p1",
+          "delta-memo-p1"
+        ],
+        "missing_information": [
+          "能够确定覆盖关系的版本说明或审核决定"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "delta-q5",
+      "version": "v1",
+      "family_id": "delta",
+      "split": "dev",
+      "tags": [
+        "no_answer"
+      ],
+      "target": "project_run",
+      "question": "汀舟 DQ-2 安装包的下载体积是多少？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "delta-spec",
+        "delta-ops"
+      ],
+      "forbidden_source_ids": [
+        "delta-restricted"
+      ],
+      "expectation": {
+        "outcome": "abstain",
+        "required_conclusions": [
+          {
+            "statement": "所选资料没有提供安装包下载体积，无法据此回答，应索取该项资料。",
+            "evidence_span_ids": [],
+            "basis": "scope_absence",
+            "id": "delta-q5-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "捏造缺失参数或把假设写成已确认事实。",
+          "读取、引用或泄露未选入范围的资料。"
+        ],
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "安装包下载体积"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "ember-q1",
+      "version": "v1",
+      "family_id": "ember",
+      "split": "dev",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "萤桥 EL-5 每隔多少分钟归档？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "ember-spec",
+        "ember-ops"
+      ],
+      "forbidden_source_ids": [
+        "ember-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "萤桥 EL-5 的归档周期为 12 分钟。",
+            "evidence_span_ids": [
+              "ember-spec-p1"
+            ],
+            "basis": "source",
+            "id": "ember-q1-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "萤桥 EL-5 的归档周期为 15 分钟。",
+          "用其他型号的参数替代目标型号。"
+        ],
+        "required_evidence_span_ids": [
+          "ember-spec-p1"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "ember-q2",
+      "version": "v1",
+      "family_id": "ember",
+      "split": "dev",
+      "tags": [
+        "synonym",
+        "cross_span",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "萤桥如何确保读到完整日志卷？摘要缺失时如何恢复且保存原文件？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "ember-spec",
+        "ember-ops"
+      ],
+      "forbidden_source_ids": [
+        "ember-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "封卷读取指读取已封存归档卷；正在写入的活动卷不可作为完整归档读取。",
+            "evidence_span_ids": [
+              "ember-spec-p2"
+            ],
+            "basis": "source",
+            "id": "ember-q2-c1"
+          },
+          {
+            "statement": "归档卷必须同时具有完成标记和索引摘要，才能对外提供封卷读取。",
+            "evidence_span_ids": [
+              "ember-spec-p3"
+            ],
+            "basis": "source",
+            "id": "ember-q2-c2"
+          },
+          {
+            "statement": "萤桥 EL-5 发现索引摘要缺失时隔离该卷并保留原文件。",
+            "evidence_span_ids": [
+              "ember-ops-p1"
+            ],
+            "basis": "source",
+            "id": "ember-q2-c3"
+          },
+          {
+            "statement": "补建索引后须核对卷校验和，验证通过才能恢复读取。",
+            "evidence_span_ids": [
+              "ember-ops-p2"
+            ],
+            "basis": "source",
+            "id": "ember-q2-c4"
+          }
+        ],
+        "forbidden_conclusions": [
+          "省略适用条件并承诺任何故障下都可恢复。",
+          "绕过身份、版本或校验要求直接恢复。"
+        ],
+        "required_evidence_span_ids": [
+          "ember-spec-p2",
+          "ember-spec-p3",
+          "ember-ops-p1",
+          "ember-ops-p2"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "ember-q3",
+      "version": "v1",
+      "family_id": "ember",
+      "split": "dev",
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "对只允许读取完整日志卷的审计任务，比较萤桥 EL-5 和绯叶 L1 的周期与读取保证。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "ember-spec",
+        "ember-alternative"
+      ],
+      "forbidden_source_ids": [
+        "ember-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "萤桥 EL-5 的归档周期为 12 分钟。",
+            "evidence_span_ids": [
+              "ember-spec-p1"
+            ],
+            "basis": "source",
+            "id": "ember-q3-c1"
+          },
+          {
+            "statement": "绯叶 L1 的归档周期为 5 分钟。",
+            "evidence_span_ids": [
+              "ember-alternative-p1"
+            ],
+            "basis": "source",
+            "id": "ember-q3-c2"
+          },
+          {
+            "statement": "封卷读取指读取已封存归档卷；正在写入的活动卷不可作为完整归档读取。",
+            "evidence_span_ids": [
+              "ember-spec-p2"
+            ],
+            "basis": "source",
+            "id": "ember-q3-c3"
+          },
+          {
+            "statement": "绯叶 L1 不区分活动卷和封存卷，读取可能包含未完成卷。",
+            "evidence_span_ids": [
+              "ember-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "ember-q3-c4"
+          },
+          {
+            "statement": "要求完整卷且完成标记、索引摘要齐备时，应优先考虑萤桥 EL-5；更短归档周期不等于完整性保证。",
+            "evidence_span_ids": [
+              "ember-spec-p2",
+              "ember-spec-p3",
+              "ember-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "ember-q3-c5"
+          }
+        ],
+        "forbidden_conclusions": [
+          "不加条件地宣布其中一个方案全面优于另一个。",
+          "杜撰成本、吞吐或可靠性提升数值。"
+        ],
+        "required_evidence_span_ids": [
+          "ember-spec-p1",
+          "ember-alternative-p1",
+          "ember-spec-p2",
+          "ember-alternative-p2",
+          "ember-spec-p3"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "ember-q4",
+      "version": "v1",
+      "family_id": "ember",
+      "split": "dev",
+      "tags": [
+        "conflict",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "萤桥 EL-5 的规格页和便笺给出了不同参数。请核对两者并判断能否直接确定唯一值。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "ember-spec",
+        "ember-memo"
+      ],
+      "forbidden_source_ids": [
+        "ember-restricted"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "statement": "规格页记载：萤桥 EL-5 的归档周期为 12 分钟。",
+            "evidence_span_ids": [
+              "ember-spec-p1"
+            ],
+            "basis": "source",
+            "id": "ember-q4-c1"
+          },
+          {
+            "statement": "便笺记载：萤桥 EL-5 的归档周期为 15 分钟。",
+            "evidence_span_ids": [
+              "ember-memo-p1"
+            ],
+            "basis": "source",
+            "id": "ember-q4-c2"
+          },
+          {
+            "statement": "材料未确定版本覆盖关系或审核优先级，不能裁定唯一参数，应核验权威版本。",
+            "evidence_span_ids": [
+              "ember-spec-p1",
+              "ember-memo-p1",
+              "ember-memo-p2"
+            ],
+            "basis": "source",
+            "id": "ember-q4-c3"
+          }
+        ],
+        "forbidden_conclusions": [
+          "无依据地选择规格页或便笺为唯一正确版本。",
+          "取两个冲突数值的平均值作为产品参数。"
+        ],
+        "required_evidence_span_ids": [
+          "ember-spec-p1",
+          "ember-memo-p1",
+          "ember-memo-p2"
+        ],
+        "conflict_span_ids": [
+          "ember-spec-p1",
+          "ember-memo-p1"
+        ],
+        "missing_information": [
+          "能够确定覆盖关系的版本说明或审核决定"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "ember-q5",
+      "version": "v1",
+      "family_id": "ember",
+      "split": "dev",
+      "tags": [
+        "insufficient"
+      ],
+      "target": "project_run",
+      "question": "已知萤桥 EL-5 的归档周期，能否保证 2 GiB 磁盘足够保存一天日志？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "ember-spec",
+        "ember-ops"
+      ],
+      "forbidden_source_ids": [
+        "ember-restricted"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "statement": "萤桥 EL-5 的归档周期为 12 分钟。",
+            "evidence_span_ids": [
+              "ember-spec-p1"
+            ],
+            "basis": "source",
+            "id": "ember-q5-c1"
+          },
+          {
+            "statement": "缺少日志写入速率、压缩率及保留策略，不能由单个规格参数推出题中保证；需补证后评估。",
+            "evidence_span_ids": [],
+            "basis": "missing_information",
+            "id": "ember-q5-c2"
+          }
+        ],
+        "forbidden_conclusions": [
+          "捏造缺失参数或把假设写成已确认事实。",
+          "读取、引用或泄露未选入范围的资料。"
+        ],
+        "required_evidence_span_ids": [
+          "ember-spec-p1"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "日志写入速率、压缩率及保留策略"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    }
+  ]
+}

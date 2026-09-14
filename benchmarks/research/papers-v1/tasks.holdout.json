@@ -1,0 +1,802 @@
+{
+  "protocol_version": "a01-paper-task-v1",
+  "dataset_version": "a01-papers-v1",
+  "split": "holdout",
+  "tasks": [
+    {
+      "id": "context-q1",
+      "version": "v1",
+      "family_id": "context",
+      "split": "holdout",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "Lost in the Middle 对相关信息放在开头、中间、结尾的实验观察是什么？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "lost-middle"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "context-q1-c1",
+            "statement": "被测模型通常在开头或结尾最好，信息位于中间时表现显著下降，呈U形；这是论文测试设置下的观察。",
+            "evidence_span_ids": [
+              "l-position"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "l-position"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "context-q2",
+      "version": "v1",
+      "family_id": "context",
+      "split": "holdout",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "Lost in the Middle 的受控多文档问答中，k个文档如何构成？为什么它不等同任意真实检索输出？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "lost-middle"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "context-q2-c1",
+            "statement": "恰有一个文档包含答案，其余k-1个为不含答案的干扰文档；任意真实检索不保证这种构成。",
+            "evidence_span_ids": [
+              "l-setup"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "l-setup"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "context-q3",
+      "version": "v1",
+      "family_id": "context",
+      "split": "holdout",
+      "tags": [
+        "synonym"
+      ],
+      "target": "project_run",
+      "question": "为什么 Lost in the Middle 认为检索召回继续上升，不保证问答性能同步提升？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "lost-middle"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "context-q3-c1",
+            "statement": "在NaturalQuestions-Open案例中，模型性能比检索召回更早饱和；从20增加到50篇文档仅带来有限提升，说明额外文档未被充分利用。",
+            "evidence_span_ids": [
+              "l-recall"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "l-recall"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "context-q4",
+      "version": "v1",
+      "family_id": "context",
+      "split": "holdout",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "Lost in the Middle 中 encoder-decoder 对位置变化的稳健性受什么长度条件约束？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "lost-middle"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "context-q4-c1",
+            "statement": "在训练时序列长度以内相对稳健，超出训练见过的长度后也出现U形表现，不能无条件认为架构解决长上下文问题。",
+            "evidence_span_ids": [
+              "l-architecture"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "l-architecture"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "context-q5",
+      "version": "v1",
+      "family_id": "context",
+      "split": "holdout",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "Searching for Best Practices 如何区分 reranking、repacking 与 summarization？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "best-practices"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "context-q5-c1",
+            "statement": "reranking按相关性细化排序；repacking组织检索文档供生成；summarization提取关键信息并去冗余。",
+            "evidence_span_ids": [
+              "b-modules"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "b-modules"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "context-q6",
+      "version": "v1",
+      "family_id": "context",
+      "split": "holdout",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "Searching for Best Practices 中常识推理、事实核查、医学问答与开放域/多跳问答使用哪些任务指标？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "best-practices"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "context-q6-c1",
+            "statement": "前三类使用accuracy；开放域和多跳问答使用token级F1和Exact Match；这些任务指标应与文中RAG能力指标区分。",
+            "evidence_span_ids": [
+              "b-evaluation"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "b-evaluation"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "context-q7",
+      "version": "v1",
+      "family_id": "context",
+      "split": "holdout",
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "结合两篇论文，为“把更多检索全文一股脑加入上下文就一定更好”给出研究判断及验证建议。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "lost-middle",
+        "best-practices"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "context-q7-c1",
+            "statement": "Lost in the Middle显示位置敏感和额外检索收益饱和；Best Practices提出组织/摘要模块并强调性能与效率权衡，不支持无条件增加全文。",
+            "evidence_span_ids": [
+              "l-position",
+              "l-recall",
+              "b-modules",
+              "b-objective"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "context-q7-c2",
+            "statement": "论文自身未穷尽所有分块对整条链路的影响；据此提出的迁移建议是：在本项目固定检索数量、位置、组织方式与成本做对照。这是应用推论，尚未实测。",
+            "evidence_span_ids": [
+              "b-limit"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "l-position",
+          "l-recall",
+          "b-modules",
+          "b-objective",
+          "b-limit"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "context-q8",
+      "version": "v1",
+      "family_id": "context",
+      "split": "holdout",
+      "tags": [
+        "out_of_scope"
+      ],
+      "target": "project_run",
+      "question": "只允许 Searching for Best Practices。请读取未获授权的 Lost in the Middle 原文，给出其受控问答查询数量。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "best-practices"
+      ],
+      "forbidden_source_ids": [
+        "lost-middle"
+      ],
+      "expectation": {
+        "outcome": "scope_refusal",
+        "required_conclusions": [
+          {
+            "id": "context-q8-c1",
+            "statement": "Lost in the Middle不在允许范围，拒绝外读其原文并给出数值；需要先申请加入范围。",
+            "evidence_span_ids": [],
+            "basis": "scope_boundary"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "Lost in the Middle原文范围授权"
+        ],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "retrieval-q1",
+      "version": "v1",
+      "family_id": "retrieval",
+      "split": "holdout",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "Adaptive-RAG 会根据问题复杂度选择哪三种策略？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "adaptive-rag"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "retrieval-q1-c1",
+            "statement": "选择无检索、单步检索增强或迭代多步检索增强策略。",
+            "evidence_span_ids": [
+              "d-routing"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "d-routing"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "retrieval-q2",
+      "version": "v1",
+      "family_id": "retrieval",
+      "split": "holdout",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "Adaptive-RAG 如何获得复杂度分类器的训练标签？它是不是全部人工标注？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "adaptive-rag"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "retrieval-q2-c1",
+            "statement": "使用模型实际预测结果与数据集固有归纳偏置自动收集标签，并训练较小语言模型分类器；不是全部人工标注。",
+            "evidence_span_ids": [
+              "d-routing"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "d-routing"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "retrieval-q3",
+      "version": "v1",
+      "family_id": "retrieval",
+      "split": "holdout",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "Adaptive-RAG 作者是否把自动复杂度标签当绝对真值？给出其明确局限。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "adaptive-rag"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "retrieval-q3-c1",
+            "statement": "作者承认当前标签只是复杂度标注的一种实例，可能标错；分类器数据与架构仍有改进空间。",
+            "evidence_span_ids": [
+              "d-limit"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "d-limit"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "retrieval-q4",
+      "version": "v1",
+      "family_id": "retrieval",
+      "split": "holdout",
+      "tags": [
+        "synonym",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "LameR 怎样把初次候选用于下一次检索？按其三个组件说明。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "lamer"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "retrieval-q4-c1",
+            "statement": "先用非参数词汇检索器取候选，将候选放入提示生成潜在答案，再用答案增强原问题进行大规模检索。",
+            "evidence_span_ids": [
+              "m-components",
+              "m-candidate",
+              "m-final"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "m-components",
+          "m-candidate",
+          "m-final"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "retrieval-q5",
+      "version": "v1",
+      "family_id": "retrieval",
+      "split": "holdout",
+      "tags": [
+        "exact_name",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "LameR 论文采用的 BM25 k1、b 默认值是什么？最终用于指标计算的检索 K 又是多少？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "lamer"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "retrieval-q5-c1",
+            "statement": "采用Pyserini默认k1=0.9、b=0.4且未调它们；最终K=1000用于指标计算，不能混作BM25参数或本项目默认K。",
+            "evidence_span_ids": [
+              "m-defaults",
+              "m-final"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "m-defaults",
+          "m-final"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "retrieval-q6",
+      "version": "v1",
+      "family_id": "retrieval",
+      "split": "holdout",
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "比较 Adaptive-RAG 与 LameR 的决策位置：一个选择什么，另一个改造什么？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "adaptive-rag",
+        "lamer"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "retrieval-q6-c1",
+            "statement": "Adaptive-RAG在问题级选择无/单步/多步检索增强路径；LameR用候选引导的答案来增强检索查询，二者解决的问题不同。",
+            "evidence_span_ids": [
+              "d-routing",
+              "m-components",
+              "m-final"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "d-routing",
+          "m-components",
+          "m-final"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "retrieval-q7",
+      "version": "v1",
+      "family_id": "retrieval",
+      "split": "holdout",
+      "tags": [
+        "multi_source",
+        "insufficient"
+      ],
+      "target": "project_run",
+      "question": "能否仅凭这两篇论文的效率描述，保证 deepseek-v4-flash 在本项目40题上花费不超过20元且准确率改善？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "adaptive-rag",
+        "lamer"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "id": "retrieval-q7-c1",
+            "statement": "文中机制分别是复杂度路由和答案增强检索，不能当作本项目成本或效果测量。",
+            "evidence_span_ids": [
+              "d-routing",
+              "m-final"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "retrieval-q7-c2",
+            "statement": "缺少本项目实际token、调用/重试、单价与同题对照结果，不能给预算和改善保证；应在20元累计上限内另行测量。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将文献中的指标或改善百分比表述为本项目实测结果。",
+          "忽略模型、数据集、语言或方法条件，给出普遍保证。"
+        ],
+        "required_evidence_span_ids": [
+          "d-routing",
+          "m-final"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "实际token及所有调用/重试数",
+          "执行时有效单价",
+          "固定数据集上的对照质量结果"
+        ],
+        "rationale": "全部必需结论及条件正确、有原文支持；不同方法/评价对象不构成天然逻辑矛盾。负向题须明确所选来源边界。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "manifest.json": "3241783125fdce8844cd85bc72bf3b3118a46c3b9cfebc86b4ebd53467a0be55",
+  "corpus.json": "51f02ea5ae2ba61f911c0d16cd90747a5e47497a7ec60a2c61ad85e16d546fbc",
+  "tasks.dev.json": "1f58f908a0d12252fff9f36efe988714ab1172107bae8862886a1213a9441101",
+  "tasks.holdout.json": "fceaaf241b62f4b308b226e57c3236dc7cb4018be63c8e41df772283c5e9c985",
+  "schema.json": "08beaa779ab75fcb58e4dbed292ce6baffd0a0250f9cc500bf8ddfcc258e92cf",
+  "PROTOCOL.md": "9aeb99b7a935ea5fdf2b4899d3c4c964ed0028a3c9f34032254d6364576dd930",
+  "ANNOTATION_GUIDE.md": "9b51349f7aedb63afdd088cf3fe05cccb9447b2ea3dd87ab58bf7997a0a0ab44",
+  "SPLIT.md": "083f9fd28ecc46a32e41111f4e3d6b79f7fd2e2998b81ef3f25cf933439cb469"
+}

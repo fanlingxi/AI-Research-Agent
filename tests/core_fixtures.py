@@ -1,6 +1,24 @@
+from app.knowledge.query import KnowledgeQueryService
 from app.knowledge.repository import KnowledgeRepository
-from app.knowledge.schemas import EvidenceSpan
+from app.knowledge.schemas import ChunkSearchHit, EvidenceSpan
 from app.schemas.documents import DocumentChunk
+
+
+class SQLiteReportQuery(KnowledgeQueryService):
+    """Replace external projections only; retain production hydration and commit inputs."""
+
+    def __init__(self, repository):
+        class Chunks:
+            def search(self, query, **kwargs):
+                with repository.database.connect() as connection:
+                    rows = connection.execute("SELECT id FROM chunks ORDER BY id").fetchall()
+                return [ChunkSearchHit(chunk_id=row[0], score=0.94) for row in rows]
+
+        class Graph:
+            def search(self, query, **kwargs):
+                return []
+
+        super().__init__(repository, chunk_search=Chunks(), graph_search=Graph())
 
 
 def persist_evidence_chunk(

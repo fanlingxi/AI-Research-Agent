@@ -104,6 +104,8 @@ class KnowledgeRepository:
         self._apply_structural_migration(16)
         self._apply_structural_migration(17)
         self._apply_structural_migration(18)
+        self._apply_structural_migration(19)
+        self._apply_structural_migration(20)
         self._backfill_legacy_relation_collections()
         self._backfill_semantic_records()
 
@@ -2950,12 +2952,19 @@ class KnowledgeRepository:
         run_metadata: dict[str, Any] | None = None,
         error: str | None = None,
         expected_owner: str | None = None,
+        expected_request: dict[str, Any] | None = None,
+        read_guard: dict[str, Any] | None = None,
     ) -> ResearchReport:
         """Fence and commit a report plus its durable job as one terminal write."""
-        report = self.get_report(report_id)
+        if status == "completed" and (expected_request is None or read_guard is None):
+            raise ValueError("Completed reports require their original request and input guard.")
         now = _now()
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
+            if row is None:
+                raise KeyError(report_id)
+            report = self._report_from_row(row)
             owned = connection.execute(
                 """
                 SELECT 1 FROM knowledge_jobs
@@ -2969,6 +2978,34 @@ class KnowledgeRepository:
                 raise StaleReportExecution(
                     f"Report {report_id} is no longer owned by attempt {expected_attempt}."
                 )
+            if report.status not in {"queued", "running"}:
+                raise StaleReportExecution(f"Report {report_id} is already terminal.")
+            if expected_request is not None:
+                from app.knowledge.report_inputs import report_request, validate_read_guard_tx
+
+                rejection = None
+                if report_request(report) != expected_request:
+                    rejection = "report_request_changed"
+                elif read_guard is not None and (
+                    read_guard.get("topic_slugs") != expected_request["topic_slugs"]
+                    or not validate_read_guard_tx(connection, self.core_repository, read_guard)
+                ):
+                    rejection = "report_knowledge_changed"
+                if rejection:
+                    status, content = "failed", ""
+                    if evaluation is not None:
+                        evaluation = evaluation.model_copy(update={"passed": False})
+                    error = f"{rejection}: 报告输入已失效，请重新检索并运行。"
+                run_metadata = {
+                    **(report.run_metadata if run_metadata is None else run_metadata),
+                    "current_stage": status,
+                    "submission_validation": {
+                        "policy": "report-input-v1",
+                        "outcome": rejection or ("verified" if read_guard else "no_input"),
+                        "request": expected_request,
+                        "input_fingerprint": read_guard.get("fingerprint") if read_guard else None,
+                    },
+                }
             connection.execute(
                 """
                 UPDATE reports SET status = ?, content = ?, evidence_json = ?,
@@ -3036,45 +3073,54 @@ class KnowledgeRepository:
         error: str | None = None,
         expected_job_attempt: int | None = None,
         expected_job_owner: str | None = None,
+        expected_job_id: str | None = None,
     ) -> ResearchReport:
-        report = self.get_report(report_id)
-        where_clause = "WHERE id = ?"
-        parameters: list[Any] = [
-            status,
-            report.content if content is None else content,
-            _dump(
-                [
-                    item.model_dump()
-                    for item in (report.evidence if evidence is None else evidence)
-                ]
-            ),
-            (
-                _dump(evaluation.model_dump())
-                if evaluation is not None
-                else (
-                    _dump(report.evaluation.model_dump())
-                    if report.evaluation is not None
-                    else None
-                )
-            ),
-            _dump(report.run_metadata if run_metadata is None else run_metadata),
-            error,
-            _now(),
-            report_id,
-        ]
-        if expected_job_attempt is not None:
-            where_clause += """
-                AND EXISTS (
-                    SELECT 1 FROM knowledge_jobs AS job
-                    WHERE job.kind = 'report' AND job.resource_id = reports.id
-                      AND job.status = 'running' AND job.attempts = ?
-                      AND (? IS NULL OR job.lease_owner = ?)
-                )
-            """
-            parameters.extend(
-                (expected_job_attempt, expected_job_owner, expected_job_owner)
-            )
         with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
+            if row is None:
+                raise KeyError(report_id)
+            report = self._report_from_row(row)
+            if expected_job_attempt is not None and report.status not in {"queued", "running"}:
+                raise StaleReportExecution(f"Report {report_id} is already terminal.")
+            where_clause = "WHERE id = ?"
+            parameters: list[Any] = [
+                status,
+                report.content if content is None else content,
+                _dump(
+                    [
+                        item.model_dump()
+                        for item in (report.evidence if evidence is None else evidence)
+                    ]
+                ),
+                (
+                    _dump(evaluation.model_dump())
+                    if evaluation is not None
+                    else (
+                        _dump(report.evaluation.model_dump())
+                        if report.evaluation is not None
+                        else None
+                    )
+                ),
+                _dump(report.run_metadata if run_metadata is None else run_metadata),
+                error,
+                _now(),
+                report_id,
+            ]
+            if expected_job_attempt is not None:
+                where_clause += """
+                    AND EXISTS (
+                        SELECT 1 FROM knowledge_jobs AS job
+                        WHERE job.kind = 'report' AND job.resource_id = reports.id
+                          AND job.status = 'running' AND job.attempts = ?
+                          AND (? IS NULL OR job.id = ?)
+                          AND (? IS NULL OR job.lease_owner = ?)
+                    )
+                """
+                parameters.extend(
+                    (expected_job_attempt, expected_job_id, expected_job_id,
+                     expected_job_owner, expected_job_owner)
+                )
             updated = connection.execute(
                 f"""
                 UPDATE reports SET status = ?, content = ?, evidence_json = ?,

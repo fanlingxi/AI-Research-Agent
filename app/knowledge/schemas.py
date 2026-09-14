@@ -4,6 +4,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.retrieval.contracts import SourceIdentity
+
 KnowledgeNodeType = Literal[
     "Paper",
     "Topic",
@@ -52,7 +54,9 @@ class EvidenceSpan(BaseModel):
     chunk_id: str
     page_start: int = Field(ge=1)
     page_end: int = Field(ge=1)
-    quote: str = Field(min_length=1, max_length=600)
+    # New reviewed evidence may retain complete passages. Existing persisted
+    # quotes/IDs are never expanded on read; identity still includes quote hash.
+    quote: str = Field(min_length=1, max_length=6000)
 
     @field_validator("page_end")
     @classmethod
@@ -367,6 +371,7 @@ class ChunkSearchHit(BaseModel):
 
     chunk_id: str
     score: float = 0.0
+    source_identity: SourceIdentity | None = None
 
 
 class ReportEvaluation(BaseModel):

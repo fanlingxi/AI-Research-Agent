@@ -1,0 +1,605 @@
+{
+  "Manifest": {
+    "$defs": {
+      "Family": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "split": {
+            "enum": [
+              "dev",
+              "holdout"
+            ],
+            "title": "Split",
+            "type": "string"
+          },
+          "description": {
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "task_count": {
+            "const": 5,
+            "title": "Task Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "split",
+          "description",
+          "task_count"
+        ],
+        "title": "Family",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "protocol_version": {
+        "const": "a01-task-v1",
+        "title": "Protocol Version",
+        "type": "string"
+      },
+      "dataset_version": {
+        "const": "a01-synthetic-v1",
+        "title": "Dataset Version",
+        "type": "string"
+      },
+      "corpus_version": {
+        "const": "a01-corpus-v1",
+        "title": "Corpus Version",
+        "type": "string"
+      },
+      "status": {
+        "const": "frozen_candidate_pending_human",
+        "title": "Status",
+        "type": "string"
+      },
+      "created_at": {
+        "const": "2026-09-13",
+        "title": "Created At",
+        "type": "string"
+      },
+      "families": {
+        "items": {
+          "$ref": "#/$defs/Family"
+        },
+        "maxItems": 8,
+        "minItems": 8,
+        "title": "Families",
+        "type": "array"
+      },
+      "split_counts": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "propertyNames": {
+          "enum": [
+            "dev",
+            "holdout"
+          ]
+        },
+        "title": "Split Counts",
+        "type": "object"
+      },
+      "required_tags": {
+        "items": {
+          "enum": [
+            "exact_name",
+            "synonym",
+            "multi_source",
+            "cross_span",
+            "conflict",
+            "no_answer",
+            "insufficient",
+            "out_of_scope"
+          ],
+          "type": "string"
+        },
+        "title": "Required Tags",
+        "type": "array"
+      },
+      "holdout_policy": {
+        "minLength": 1,
+        "title": "Holdout Policy",
+        "type": "string"
+      },
+      "model_execution": {
+        "const": "not_implemented_not_authorized",
+        "title": "Model Execution",
+        "type": "string"
+      }
+    },
+    "required": [
+      "protocol_version",
+      "dataset_version",
+      "corpus_version",
+      "status",
+      "created_at",
+      "families",
+      "split_counts",
+      "required_tags",
+      "holdout_policy",
+      "model_execution"
+    ],
+    "title": "Manifest",
+    "type": "object"
+  },
+  "Corpus": {
+    "$defs": {
+      "Source": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "family_id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Family Id",
+            "type": "string"
+          },
+          "version": {
+            "const": "v1",
+            "title": "Version",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "origin": {
+            "const": "repository_authored_synthetic",
+            "title": "Origin",
+            "type": "string"
+          },
+          "usage": {
+            "const": "project_evaluation_only",
+            "title": "Usage",
+            "type": "string"
+          },
+          "provenance": {
+            "minLength": 1,
+            "title": "Provenance",
+            "type": "string"
+          },
+          "review_state": {
+            "const": "fixture_candidate",
+            "title": "Review State",
+            "type": "string"
+          },
+          "text": {
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "text_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Text Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "family_id",
+          "version",
+          "title",
+          "origin",
+          "usage",
+          "provenance",
+          "review_state",
+          "text",
+          "text_sha256"
+        ],
+        "title": "Source",
+        "type": "object"
+      },
+      "Span": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "source_id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_version": {
+            "const": "v1",
+            "title": "Source Version",
+            "type": "string"
+          },
+          "start": {
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "end": {
+            "exclusiveMinimum": 0,
+            "title": "End",
+            "type": "integer"
+          },
+          "quote": {
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_id",
+          "source_version",
+          "start",
+          "end",
+          "quote"
+        ],
+        "title": "Span",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "version": {
+        "const": "a01-corpus-v1",
+        "title": "Version",
+        "type": "string"
+      },
+      "sources": {
+        "items": {
+          "$ref": "#/$defs/Source"
+        },
+        "minItems": 1,
+        "title": "Sources",
+        "type": "array"
+      },
+      "spans": {
+        "items": {
+          "$ref": "#/$defs/Span"
+        },
+        "minItems": 1,
+        "title": "Spans",
+        "type": "array"
+      }
+    },
+    "required": [
+      "version",
+      "sources",
+      "spans"
+    ],
+    "title": "Corpus",
+    "type": "object"
+  },
+  "TaskFile": {
+    "$defs": {
+      "Conclusion": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "statement": {
+            "minLength": 1,
+            "title": "Statement",
+            "type": "string"
+          },
+          "evidence_span_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Evidence Span Ids",
+            "type": "array"
+          },
+          "basis": {
+            "enum": [
+              "source",
+              "scope_absence",
+              "missing_information",
+              "scope_boundary"
+            ],
+            "title": "Basis",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "statement",
+          "evidence_span_ids",
+          "basis"
+        ],
+        "title": "Conclusion",
+        "type": "object"
+      },
+      "Expectation": {
+        "additionalProperties": false,
+        "properties": {
+          "outcome": {
+            "enum": [
+              "answer",
+              "qualified_answer",
+              "abstain",
+              "needs_review",
+              "scope_refusal"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "required_conclusions": {
+            "items": {
+              "$ref": "#/$defs/Conclusion"
+            },
+            "minItems": 1,
+            "title": "Required Conclusions",
+            "type": "array"
+          },
+          "forbidden_conclusions": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Forbidden Conclusions",
+            "type": "array"
+          },
+          "required_evidence_span_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Required Evidence Span Ids",
+            "type": "array"
+          },
+          "conflict_span_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Conflict Span Ids",
+            "type": "array"
+          },
+          "missing_information": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Missing Information",
+            "type": "array"
+          },
+          "rationale": {
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "required_conclusions",
+          "forbidden_conclusions",
+          "required_evidence_span_ids",
+          "conflict_span_ids",
+          "missing_information",
+          "rationale"
+        ],
+        "title": "Expectation",
+        "type": "object"
+      },
+      "Review": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "pending_human",
+              "disputed",
+              "human_approved"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "author": {
+            "const": "codex_draft",
+            "title": "Author",
+            "type": "string"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "record_path": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Path"
+          }
+        },
+        "required": [
+          "status",
+          "author",
+          "reviewer",
+          "reviewed_at",
+          "record_path"
+        ],
+        "title": "Review",
+        "type": "object"
+      },
+      "Task": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "version": {
+            "const": "v1",
+            "title": "Version",
+            "type": "string"
+          },
+          "family_id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Family Id",
+            "type": "string"
+          },
+          "split": {
+            "enum": [
+              "dev",
+              "holdout"
+            ],
+            "title": "Split",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "enum": [
+                "exact_name",
+                "synonym",
+                "multi_source",
+                "cross_span",
+                "conflict",
+                "no_answer",
+                "insufficient",
+                "out_of_scope"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Tags",
+            "type": "array"
+          },
+          "target": {
+            "const": "project_run",
+            "title": "Target",
+            "type": "string"
+          },
+          "question": {
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "report_requirements": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Report Requirements",
+            "type": "array"
+          },
+          "allowed_source_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Source Ids",
+            "type": "array"
+          },
+          "forbidden_source_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Forbidden Source Ids",
+            "type": "array"
+          },
+          "expectation": {
+            "$ref": "#/$defs/Expectation"
+          },
+          "annotation": {
+            "$ref": "#/$defs/Review"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "family_id",
+          "split",
+          "tags",
+          "target",
+          "question",
+          "report_requirements",
+          "allowed_source_ids",
+          "forbidden_source_ids",
+          "expectation",
+          "annotation"
+        ],
+        "title": "Task",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "protocol_version": {
+        "const": "a01-task-v1",
+        "title": "Protocol Version",
+        "type": "string"
+      },
+      "dataset_version": {
+        "const": "a01-synthetic-v1",
+        "title": "Dataset Version",
+        "type": "string"
+      },
+      "split": {
+        "enum": [
+          "dev",
+          "holdout"
+        ],
+        "title": "Split",
+        "type": "string"
+      },
+      "tasks": {
+        "items": {
+          "$ref": "#/$defs/Task"
+        },
+        "minItems": 1,
+        "title": "Tasks",
+        "type": "array"
+      }
+    },
+    "required": [
+      "protocol_version",
+      "dataset_version",
+      "split",
+      "tasks"
+    ],
+    "title": "TaskFile",
+    "type": "object"
+  }
+}

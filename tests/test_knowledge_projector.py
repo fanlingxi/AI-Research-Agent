@@ -181,9 +181,13 @@ def test_qdrant_indexer_sanitizes_chunk_before_embedding_and_json_payload(monkey
         def collection_exists(self, collection_name: str) -> bool:
             return True
 
-        def upsert(self, *, collection_name: str, points) -> None:
+        def upsert(self, *, collection_name: str, points, wait) -> None:
+            assert wait is True
             captured["collection"] = collection_name
             captured["payload"] = points[0].payload
+
+        def close(self):
+            captured["closed"] = True
 
     monkeypatch.setattr(
         "app.retrieval.embeddings.get_embedding_provider", lambda settings: _EmbeddingProvider()
@@ -206,6 +210,7 @@ def test_qdrant_indexer_sanitizes_chunk_before_embedding_and_json_payload(monkey
 
     QdrantKnowledgeIndexer(settings).index([chunk])
 
+    assert captured["closed"] is True
     assert captured["embedded_texts"] == ["Evidence �"]
     assert captured["payload"] == {
         "id": "chunk�",

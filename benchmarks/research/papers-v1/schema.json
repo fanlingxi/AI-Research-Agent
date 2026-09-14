@@ -1,0 +1,738 @@
+{
+  "PaperManifest": {
+    "$defs": {
+      "PaperFamily": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "split": {
+            "enum": [
+              "dev",
+              "holdout"
+            ],
+            "title": "Split",
+            "type": "string"
+          },
+          "task_count": {
+            "minimum": 1,
+            "title": "Task Count",
+            "type": "integer"
+          },
+          "source_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Source Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "split",
+          "task_count",
+          "source_ids"
+        ],
+        "title": "PaperFamily",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "protocol_version": {
+        "const": "a01-paper-task-v1",
+        "title": "Protocol Version",
+        "type": "string"
+      },
+      "dataset_version": {
+        "const": "a01-papers-v1",
+        "title": "Dataset Version",
+        "type": "string"
+      },
+      "corpus_version": {
+        "const": "a01-papers-corpus-v1",
+        "title": "Corpus Version",
+        "type": "string"
+      },
+      "status": {
+        "const": "candidate_pending_human",
+        "title": "Status",
+        "type": "string"
+      },
+      "language": {
+        "const": "zh_questions_en_sources",
+        "title": "Language",
+        "type": "string"
+      },
+      "created_at": {
+        "minLength": 1,
+        "title": "Created At",
+        "type": "string"
+      },
+      "families": {
+        "items": {
+          "$ref": "#/$defs/PaperFamily"
+        },
+        "maxItems": 4,
+        "minItems": 4,
+        "title": "Families",
+        "type": "array"
+      },
+      "split_counts": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "propertyNames": {
+          "enum": [
+            "dev",
+            "holdout"
+          ]
+        },
+        "title": "Split Counts",
+        "type": "object"
+      },
+      "budget_id": {
+        "const": "s0-deepseek-flash-20260913",
+        "title": "Budget Id",
+        "type": "string"
+      },
+      "coverage_note": {
+        "minLength": 1,
+        "title": "Coverage Note",
+        "type": "string"
+      },
+      "raw_papers_are_evaluation_input": {
+        "const": true,
+        "title": "Raw Papers Are Evaluation Input",
+        "type": "boolean"
+      },
+      "annotations_are_model_input": {
+        "const": false,
+        "title": "Annotations Are Model Input",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "protocol_version",
+      "dataset_version",
+      "corpus_version",
+      "status",
+      "language",
+      "created_at",
+      "families",
+      "split_counts",
+      "budget_id",
+      "coverage_note",
+      "raw_papers_are_evaluation_input",
+      "annotations_are_model_input"
+    ],
+    "title": "PaperManifest",
+    "type": "object"
+  },
+  "PaperCorpus": {
+    "$defs": {
+      "Page": {
+        "additionalProperties": false,
+        "properties": {
+          "pdf_page": {
+            "minimum": 1,
+            "title": "Pdf Page",
+            "type": "integer"
+          },
+          "start": {
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "end": {
+            "exclusiveMinimum": 0,
+            "title": "End",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pdf_page",
+          "start",
+          "end"
+        ],
+        "title": "Page",
+        "type": "object"
+      },
+      "Paper": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "family_id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Family Id",
+            "type": "string"
+          },
+          "split": {
+            "enum": [
+              "dev",
+              "holdout"
+            ],
+            "title": "Split",
+            "type": "string"
+          },
+          "version": {
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "authors": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Authors",
+            "type": "array"
+          },
+          "landing_url": {
+            "minLength": 1,
+            "title": "Landing Url",
+            "type": "string"
+          },
+          "pdf_url": {
+            "minLength": 1,
+            "title": "Pdf Url",
+            "type": "string"
+          },
+          "doi": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doi"
+          },
+          "fetched_at": {
+            "minLength": 1,
+            "title": "Fetched At",
+            "type": "string"
+          },
+          "pdf_path": {
+            "minLength": 1,
+            "title": "Pdf Path",
+            "type": "string"
+          },
+          "pdf_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Pdf Sha256",
+            "type": "string"
+          },
+          "pdf_pages": {
+            "minimum": 1,
+            "title": "Pdf Pages",
+            "type": "integer"
+          },
+          "license": {
+            "const": "CC-BY-4.0",
+            "title": "License",
+            "type": "string"
+          },
+          "license_url": {
+            "const": "https://creativecommons.org/licenses/by/4.0/",
+            "title": "License Url",
+            "type": "string"
+          },
+          "license_evidence_url": {
+            "minLength": 1,
+            "title": "License Evidence Url",
+            "type": "string"
+          },
+          "license_evidence": {
+            "minLength": 1,
+            "title": "License Evidence",
+            "type": "string"
+          },
+          "attribution": {
+            "minLength": 1,
+            "title": "Attribution",
+            "type": "string"
+          },
+          "transformations": {
+            "minLength": 1,
+            "title": "Transformations",
+            "type": "string"
+          },
+          "extractor": {
+            "minLength": 1,
+            "title": "Extractor",
+            "type": "string"
+          },
+          "text": {
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "text_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Text Sha256",
+            "type": "string"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/$defs/Page"
+            },
+            "minItems": 1,
+            "title": "Pages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "family_id",
+          "split",
+          "version",
+          "title",
+          "authors",
+          "landing_url",
+          "pdf_url",
+          "doi",
+          "fetched_at",
+          "pdf_path",
+          "pdf_sha256",
+          "pdf_pages",
+          "license",
+          "license_url",
+          "license_evidence_url",
+          "license_evidence",
+          "attribution",
+          "transformations",
+          "extractor",
+          "text",
+          "text_sha256",
+          "pages"
+        ],
+        "title": "Paper",
+        "type": "object"
+      },
+      "PaperSpan": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "source_id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_version": {
+            "minLength": 1,
+            "title": "Source Version",
+            "type": "string"
+          },
+          "pdf_page": {
+            "minimum": 1,
+            "title": "Pdf Page",
+            "type": "integer"
+          },
+          "start": {
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "end": {
+            "exclusiveMinimum": 0,
+            "title": "End",
+            "type": "integer"
+          },
+          "quote": {
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_id",
+          "source_version",
+          "pdf_page",
+          "start",
+          "end",
+          "quote"
+        ],
+        "title": "PaperSpan",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "version": {
+        "const": "a01-papers-corpus-v1",
+        "title": "Version",
+        "type": "string"
+      },
+      "sources": {
+        "items": {
+          "$ref": "#/$defs/Paper"
+        },
+        "maxItems": 8,
+        "minItems": 8,
+        "title": "Sources",
+        "type": "array"
+      },
+      "spans": {
+        "items": {
+          "$ref": "#/$defs/PaperSpan"
+        },
+        "minItems": 1,
+        "title": "Spans",
+        "type": "array"
+      }
+    },
+    "required": [
+      "version",
+      "sources",
+      "spans"
+    ],
+    "title": "PaperCorpus",
+    "type": "object"
+  },
+  "PaperTasks": {
+    "$defs": {
+      "Conclusion": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "statement": {
+            "minLength": 1,
+            "title": "Statement",
+            "type": "string"
+          },
+          "evidence_span_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Evidence Span Ids",
+            "type": "array"
+          },
+          "basis": {
+            "enum": [
+              "source",
+              "scope_absence",
+              "missing_information",
+              "scope_boundary"
+            ],
+            "title": "Basis",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "statement",
+          "evidence_span_ids",
+          "basis"
+        ],
+        "title": "Conclusion",
+        "type": "object"
+      },
+      "Expectation": {
+        "additionalProperties": false,
+        "properties": {
+          "outcome": {
+            "enum": [
+              "answer",
+              "qualified_answer",
+              "abstain",
+              "needs_review",
+              "scope_refusal"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "required_conclusions": {
+            "items": {
+              "$ref": "#/$defs/Conclusion"
+            },
+            "minItems": 1,
+            "title": "Required Conclusions",
+            "type": "array"
+          },
+          "forbidden_conclusions": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Forbidden Conclusions",
+            "type": "array"
+          },
+          "required_evidence_span_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Required Evidence Span Ids",
+            "type": "array"
+          },
+          "conflict_span_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Conflict Span Ids",
+            "type": "array"
+          },
+          "missing_information": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Missing Information",
+            "type": "array"
+          },
+          "rationale": {
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "required_conclusions",
+          "forbidden_conclusions",
+          "required_evidence_span_ids",
+          "conflict_span_ids",
+          "missing_information",
+          "rationale"
+        ],
+        "title": "Expectation",
+        "type": "object"
+      },
+      "Review": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "pending_human",
+              "disputed",
+              "human_approved"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "author": {
+            "const": "codex_draft",
+            "title": "Author",
+            "type": "string"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "record_path": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Path"
+          }
+        },
+        "required": [
+          "status",
+          "author",
+          "reviewer",
+          "reviewed_at",
+          "record_path"
+        ],
+        "title": "Review",
+        "type": "object"
+      },
+      "Task": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "version": {
+            "const": "v1",
+            "title": "Version",
+            "type": "string"
+          },
+          "family_id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Family Id",
+            "type": "string"
+          },
+          "split": {
+            "enum": [
+              "dev",
+              "holdout"
+            ],
+            "title": "Split",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "enum": [
+                "exact_name",
+                "synonym",
+                "multi_source",
+                "cross_span",
+                "conflict",
+                "no_answer",
+                "insufficient",
+                "out_of_scope"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Tags",
+            "type": "array"
+          },
+          "target": {
+            "const": "project_run",
+            "title": "Target",
+            "type": "string"
+          },
+          "question": {
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "report_requirements": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Report Requirements",
+            "type": "array"
+          },
+          "allowed_source_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Source Ids",
+            "type": "array"
+          },
+          "forbidden_source_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Forbidden Source Ids",
+            "type": "array"
+          },
+          "expectation": {
+            "$ref": "#/$defs/Expectation"
+          },
+          "annotation": {
+            "$ref": "#/$defs/Review"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "family_id",
+          "split",
+          "tags",
+          "target",
+          "question",
+          "report_requirements",
+          "allowed_source_ids",
+          "forbidden_source_ids",
+          "expectation",
+          "annotation"
+        ],
+        "title": "Task",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "protocol_version": {
+        "const": "a01-paper-task-v1",
+        "title": "Protocol Version",
+        "type": "string"
+      },
+      "dataset_version": {
+        "const": "a01-papers-v1",
+        "title": "Dataset Version",
+        "type": "string"
+      },
+      "split": {
+        "enum": [
+          "dev",
+          "holdout"
+        ],
+        "title": "Split",
+        "type": "string"
+      },
+      "tasks": {
+        "items": {
+          "$ref": "#/$defs/Task"
+        },
+        "minItems": 1,
+        "title": "Tasks",
+        "type": "array"
+      }
+    },
+    "required": [
+      "protocol_version",
+      "dataset_version",
+      "split",
+      "tasks"
+    ],
+    "title": "PaperTasks",
+    "type": "object"
+  }
+}

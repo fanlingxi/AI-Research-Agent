@@ -20,6 +20,17 @@ class Settings(BaseSettings):
     llm_input_cost_per_million: float | None = None
     llm_output_cost_per_million: float | None = None
 
+    @field_validator(
+        "llm_max_tokens",
+        "llm_input_cost_per_million",
+        "llm_output_cost_per_million",
+        "llm_reasoning_effort",
+        mode="before",
+    )
+    @classmethod
+    def blank_optional_setting(cls, value):
+        return None if isinstance(value, str) and not value.strip() else value
+
     openai_api_key: str | None = None
     openai_base_url: str = "https://api.openai.com/v1"
 
@@ -42,9 +53,12 @@ class Settings(BaseSettings):
     chunk_size: int = 900
     chunk_overlap: int = 150
 
-    embedding_provider: Literal["hash", "openai"] = "hash"
+    embedding_provider: Literal["hash", "openai", "qwen3-local", "bge-m3-local"] = "hash"
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = 384
+    embedding_device: Literal["cpu", "cuda"] = "cpu"
+    embedding_cache_dir: str = "data/models/embeddings"
+    embedding_batch_size: int = Field(default=2, ge=1, le=32)
 
     knowledge_db_path: str = "data/knowledge/knowledge.db"
     agent_checkpoint_path: str = "data/runtime/agent_checkpoints.db"
@@ -53,6 +67,7 @@ class Settings(BaseSettings):
     knowledge_worker_lease_seconds: int = 180
     knowledge_worker_poll_seconds: float = 1.0
     report_min_citation_coverage: float = 0.9
+    report_retrieval_strategy: Literal["legacy", "bm25-v1", "hybrid-v1", "dense-v1"] = "legacy"
     report_min_retrieval_relevance: float = Field(default=0.6, ge=0.0, le=1.0)
     report_min_source_diversity: int = Field(default=3, ge=1, le=10)
 

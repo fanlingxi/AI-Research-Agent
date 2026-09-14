@@ -6,8 +6,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.context.neighbors import ContextNeighborMode
+from app.context.reading import ReadingFormat
 from app.domain_plugins.contracts import PluginPin
 from app.memory.models import Artifact, MemoryProposal
+from app.retrieval.query_planning import QueryPlanningMode
 
 AgentRunStatus = Literal[
     "created",
@@ -27,6 +30,7 @@ ToolPermission = Literal["context_read", "runtime_read", "deterministic_compute"
 # Literal. This lets new first-party plugins extend Runtime without editing
 # Agent Core while retaining the current Research aliases.
 AgentWorkflow = str
+MAX_RUN_TOKENS = 1_048_576
 
 
 class AgentRunOptions(BaseModel):
@@ -48,10 +52,27 @@ class AgentRunCreateRequest(BaseModel):
     # cannot represent a valid Phase 3A execution.
     max_steps: int = Field(default=10, ge=3, le=16)
     max_tool_calls: int = Field(default=1, ge=0, le=8)
-    token_budget: int = Field(default=6000, ge=256, le=16000)
+    token_budget: int = Field(default=6000, ge=256, le=MAX_RUN_TOKENS)
+    context_max_tokens: int | None = Field(default=None, ge=256, le=262144)
+    query_planning: QueryPlanningMode = "off"
+    context_neighbors: ContextNeighborMode = "off"
+    evidence_reranking: Literal['off', 'llm-v1', 'coverage-v1', 'coverage-v2'] = 'off'
+    reading_format: ReadingFormat = 'legacy'
 
     @model_validator(mode="after")
     def has_a_bounded_execution_path(self):
+        if self.context_snapshot_id is not None and (
+            self.evidence_reranking != 'off' or self.reading_format != 'legacy'
+        ):
+            raise ValueError('Existing snapshots cannot be reranked or reformatted')
+        if self.context_snapshot_id is not None and self.context_neighbors != "off":
+            raise ValueError("An existing snapshot cannot expand adjacent evidence")
+        if self.context_snapshot_id is not None and self.query_planning != "off":
+            raise ValueError("An existing snapshot cannot be replanned")
+        if self.context_snapshot_id is not None and self.context_max_tokens is not None:
+            raise ValueError("An existing snapshot cannot be resized")
+        if self.context_max_tokens is not None and self.context_max_tokens > self.token_budget:
+            raise ValueError("Context limit cannot exceed the total run token budget")
         # Domain-specific lower bounds are validated only after the Task's
         # authoritative plugin binding has been loaded.
         return self

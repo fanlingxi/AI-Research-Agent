@@ -1,0 +1,4222 @@
+{
+  "description": "Captured from working-tree legacy functions before A03a extraction; deterministic contract data, not a quality benchmark.",
+  "source_sha256": {
+    "app/context/ranking.py": "c6bdef89fbfb1aedd12b336cbbea5a2155b4df85dd1621bf38347b63088c3ef4",
+    "app/context/knowledge_reader.py": "c5833fbdf9177d53d4325e45a25058832eb37be28d8d417c6e23cf1da462c9b6",
+    "app/knowledge/query.py": "d1fb654bdd786a178d9597f1af21599c439319bc0f08e09808d9c7558a89cb04"
+  },
+  "cases": [
+    {
+      "name": "legacy-0",
+      "query": "RAG rag retrieval",
+      "top_k": 1,
+      "terms": [
+        "rag",
+        "retrieval"
+      ],
+      "bundles": [
+        {
+          "claim": {
+            "id": "claim-3",
+            "statement": "Alpha beta gamma",
+            "subject": "Alpha beta gamma",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": null
+          },
+          "entity": {
+            "id": "entity-3",
+            "legacy_id": "legacy-3",
+            "name": "Alpha beta gamma",
+            "normalized_name": "alpha beta gamma",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-4",
+            "statement": "STRASSE",
+            "subject": "STRASSE",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 1.0
+          },
+          "entity": {
+            "id": "entity-4",
+            "legacy_id": "legacy-4",
+            "name": "STRASSE",
+            "normalized_name": "strasse",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-4"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-2",
+            "statement": "irrelevant material",
+            "subject": "irrelevant material",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.9
+          },
+          "entity": {
+            "id": "entity-2",
+            "legacy_id": "legacy-2",
+            "name": "irrelevant material",
+            "normalized_name": "irrelevant material",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-2"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0-tie",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-6",
+            "statement": "graph only",
+            "subject": "graph only",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.6
+          },
+          "entity": null,
+          "relation": {
+            "id": "relation-6",
+            "legacy_id": "legacy-relation-6",
+            "relation_type": "SUPPORTS",
+            "domain": "graph",
+            "source_entity_id": "entity-0",
+            "target_entity_id": "entity-1"
+          },
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-6"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-5",
+            "statement": "zero confidence",
+            "subject": "zero confidence",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-5",
+            "legacy_id": "legacy-5",
+            "name": "zero confidence",
+            "normalized_name": "zero confidence",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-1",
+            "statement": "中文检索 Context Builder",
+            "subject": "中文检索 Context Builder",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.5
+          },
+          "entity": {
+            "id": "entity-1",
+            "legacy_id": "legacy-1",
+            "name": "中文检索 Context Builder",
+            "normalized_name": "中文检索 context builder",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        }
+      ],
+      "references": [],
+      "expected_bundles": [
+        {
+          "claim_id": "claim-0",
+          "rank": 1,
+          "score": 0.6500000000000001,
+          "score_breakdown": {
+            "lexical_relevance": 1.0,
+            "semantic_relevance": 0.0,
+            "task_entity_match": 1.0,
+            "confidence": 0.5,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured"
+          ],
+          "selected_reason": "structured task/project term match"
+        },
+        {
+          "claim_id": "claim-0-tie",
+          "rank": 2,
+          "score": 0.6500000000000001,
+          "score_breakdown": {
+            "lexical_relevance": 1.0,
+            "semantic_relevance": 0.0,
+            "task_entity_match": 1.0,
+            "confidence": 0.5,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured"
+          ],
+          "selected_reason": "structured task/project term match"
+        }
+      ],
+      "report_evidence": [
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-5",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-05",
+          "title": "Title",
+          "text": "STRASSE",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-10",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-10",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-0",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-00",
+          "title": "Title",
+          "text": "References\nRAG retrieval",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-4",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-04",
+          "title": "Title",
+          "text": "bibliography RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-2",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-02",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-6",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-06",
+          "title": "Title",
+          "text": "zero confidence",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-8",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-08",
+          "title": "Title",
+          "text": "参考文献 RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-9",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-09",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        }
+      ],
+      "expected_report": [
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        }
+      ]
+    },
+    {
+      "name": "legacy-1",
+      "query": "中文检索 Context Builder",
+      "top_k": 3,
+      "terms": [
+        "中文检索",
+        "context",
+        "builder"
+      ],
+      "bundles": [
+        {
+          "claim": {
+            "id": "claim-2",
+            "statement": "irrelevant material",
+            "subject": "irrelevant material",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.9
+          },
+          "entity": {
+            "id": "entity-2",
+            "legacy_id": "legacy-2",
+            "name": "irrelevant material",
+            "normalized_name": "irrelevant material",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-2"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-4",
+            "statement": "STRASSE",
+            "subject": "STRASSE",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 1.0
+          },
+          "entity": {
+            "id": "entity-4",
+            "legacy_id": "legacy-4",
+            "name": "STRASSE",
+            "normalized_name": "strasse",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-4"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-6",
+            "statement": "graph only",
+            "subject": "graph only",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.6
+          },
+          "entity": null,
+          "relation": {
+            "id": "relation-6",
+            "legacy_id": "legacy-relation-6",
+            "relation_type": "SUPPORTS",
+            "domain": "graph",
+            "source_entity_id": "entity-0",
+            "target_entity_id": "entity-1"
+          },
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-6"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0-tie",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-3",
+            "statement": "Alpha beta gamma",
+            "subject": "Alpha beta gamma",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": null
+          },
+          "entity": {
+            "id": "entity-3",
+            "legacy_id": "legacy-3",
+            "name": "Alpha beta gamma",
+            "normalized_name": "alpha beta gamma",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-5",
+            "statement": "zero confidence",
+            "subject": "zero confidence",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-5",
+            "legacy_id": "legacy-5",
+            "name": "zero confidence",
+            "normalized_name": "zero confidence",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-1",
+            "statement": "中文检索 Context Builder",
+            "subject": "中文检索 Context Builder",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.5
+          },
+          "entity": {
+            "id": "entity-1",
+            "legacy_id": "legacy-1",
+            "name": "中文检索 Context Builder",
+            "normalized_name": "中文检索 context builder",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        }
+      ],
+      "references": [
+        {
+          "channel": "vector",
+          "target_type": "chunk",
+          "target_id": "chunk-0",
+          "score": 0.2
+        },
+        {
+          "channel": "vector",
+          "target_type": "chunk",
+          "target_id": "chunk-0",
+          "score": 0.8
+        },
+        {
+          "channel": "vector",
+          "target_type": "chunk",
+          "target_id": "missing",
+          "score": 1.0
+        },
+        {
+          "channel": "graph",
+          "target_type": "legacy_relation",
+          "target_id": "legacy-relation-6",
+          "score": 1.2
+        },
+        {
+          "channel": "graph",
+          "target_type": "entity",
+          "target_id": "entity-2",
+          "score": -0.2
+        },
+        {
+          "channel": "graph",
+          "target_type": "legacy_entity",
+          "target_id": "legacy-3",
+          "score": 0.4
+        }
+      ],
+      "expected_bundles": [
+        {
+          "claim_id": "claim-1",
+          "rank": 1,
+          "score": 0.7000000000000001,
+          "score_breakdown": {
+            "lexical_relevance": 1.0,
+            "semantic_relevance": 0.0,
+            "task_entity_match": 1.0,
+            "confidence": 0.5,
+            "evidence_completeness": 1.0
+          },
+          "channels": [
+            "structured"
+          ],
+          "selected_reason": "structured task/project term match"
+        },
+        {
+          "claim_id": "claim-6",
+          "rank": 2,
+          "score": 0.56,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 1.0,
+            "task_entity_match": 1.0,
+            "confidence": 0.6,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured",
+            "graph"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated graph candidate"
+        },
+        {
+          "claim_id": "claim-3",
+          "rank": 3,
+          "score": 0.33000000000000007,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 0.4,
+            "task_entity_match": 0.4,
+            "confidence": 0.5,
+            "evidence_completeness": 1.0
+          },
+          "channels": [
+            "structured",
+            "graph"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated graph candidate"
+        },
+        {
+          "claim_id": "claim-0",
+          "rank": 4,
+          "score": 0.3,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 0.8,
+            "task_entity_match": 0.0,
+            "confidence": 0.5,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured",
+            "vector"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated vector chunk candidate"
+        },
+        {
+          "claim_id": "claim-0-tie",
+          "rank": 5,
+          "score": 0.3,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 0.8,
+            "task_entity_match": 0.0,
+            "confidence": 0.5,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured",
+            "vector"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated vector chunk candidate"
+        }
+      ],
+      "report_evidence": [
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-8",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-08",
+          "title": "Title",
+          "text": "参考文献 RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-5",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-05",
+          "title": "Title",
+          "text": "STRASSE",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-2",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-02",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-0",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-00",
+          "title": "Title",
+          "text": "References\nRAG retrieval",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-4",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-04",
+          "title": "Title",
+          "text": "bibliography RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-6",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-06",
+          "title": "Title",
+          "text": "zero confidence",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-10",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-10",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-9",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-09",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        }
+      ],
+      "expected_report": [
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        }
+      ]
+    },
+    {
+      "name": "legacy-2",
+      "query": "",
+      "top_k": 8,
+      "terms": [],
+      "bundles": [
+        {
+          "claim": {
+            "id": "claim-0-tie",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-5",
+            "statement": "zero confidence",
+            "subject": "zero confidence",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-5",
+            "legacy_id": "legacy-5",
+            "name": "zero confidence",
+            "normalized_name": "zero confidence",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-3",
+            "statement": "Alpha beta gamma",
+            "subject": "Alpha beta gamma",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": null
+          },
+          "entity": {
+            "id": "entity-3",
+            "legacy_id": "legacy-3",
+            "name": "Alpha beta gamma",
+            "normalized_name": "alpha beta gamma",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-2",
+            "statement": "irrelevant material",
+            "subject": "irrelevant material",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.9
+          },
+          "entity": {
+            "id": "entity-2",
+            "legacy_id": "legacy-2",
+            "name": "irrelevant material",
+            "normalized_name": "irrelevant material",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-2"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-1",
+            "statement": "中文检索 Context Builder",
+            "subject": "中文检索 Context Builder",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.5
+          },
+          "entity": {
+            "id": "entity-1",
+            "legacy_id": "legacy-1",
+            "name": "中文检索 Context Builder",
+            "normalized_name": "中文检索 context builder",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-6",
+            "statement": "graph only",
+            "subject": "graph only",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.6
+          },
+          "entity": null,
+          "relation": {
+            "id": "relation-6",
+            "legacy_id": "legacy-relation-6",
+            "relation_type": "SUPPORTS",
+            "domain": "graph",
+            "source_entity_id": "entity-0",
+            "target_entity_id": "entity-1"
+          },
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-6"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-4",
+            "statement": "STRASSE",
+            "subject": "STRASSE",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 1.0
+          },
+          "entity": {
+            "id": "entity-4",
+            "legacy_id": "legacy-4",
+            "name": "STRASSE",
+            "normalized_name": "strasse",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-4"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        }
+      ],
+      "references": [],
+      "expected_bundles": [],
+      "report_evidence": [
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-8",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-08",
+          "title": "Title",
+          "text": "参考文献 RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-10",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-10",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-5",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-05",
+          "title": "Title",
+          "text": "STRASSE",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-6",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-06",
+          "title": "Title",
+          "text": "zero confidence",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-2",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-02",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-9",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-09",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-4",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-04",
+          "title": "Title",
+          "text": "bibliography RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-0",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-00",
+          "title": "Title",
+          "text": "References\nRAG retrieval",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        }
+      ],
+      "expected_report": [
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-5",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-05",
+          "title": "Title",
+          "text": "STRASSE",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-9",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-09",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        }
+      ]
+    },
+    {
+      "name": "legacy-3",
+      "query": "aa x",
+      "top_k": 20,
+      "terms": [],
+      "bundles": [
+        {
+          "claim": {
+            "id": "claim-5",
+            "statement": "zero confidence",
+            "subject": "zero confidence",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-5",
+            "legacy_id": "legacy-5",
+            "name": "zero confidence",
+            "normalized_name": "zero confidence",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-3",
+            "statement": "Alpha beta gamma",
+            "subject": "Alpha beta gamma",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": null
+          },
+          "entity": {
+            "id": "entity-3",
+            "legacy_id": "legacy-3",
+            "name": "Alpha beta gamma",
+            "normalized_name": "alpha beta gamma",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-6",
+            "statement": "graph only",
+            "subject": "graph only",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.6
+          },
+          "entity": null,
+          "relation": {
+            "id": "relation-6",
+            "legacy_id": "legacy-relation-6",
+            "relation_type": "SUPPORTS",
+            "domain": "graph",
+            "source_entity_id": "entity-0",
+            "target_entity_id": "entity-1"
+          },
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-6"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-1",
+            "statement": "中文检索 Context Builder",
+            "subject": "中文检索 Context Builder",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.5
+          },
+          "entity": {
+            "id": "entity-1",
+            "legacy_id": "legacy-1",
+            "name": "中文检索 Context Builder",
+            "normalized_name": "中文检索 context builder",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-4",
+            "statement": "STRASSE",
+            "subject": "STRASSE",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 1.0
+          },
+          "entity": {
+            "id": "entity-4",
+            "legacy_id": "legacy-4",
+            "name": "STRASSE",
+            "normalized_name": "strasse",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-4"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0-tie",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-2",
+            "statement": "irrelevant material",
+            "subject": "irrelevant material",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.9
+          },
+          "entity": {
+            "id": "entity-2",
+            "legacy_id": "legacy-2",
+            "name": "irrelevant material",
+            "normalized_name": "irrelevant material",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-2"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        }
+      ],
+      "references": [
+        {
+          "channel": "vector",
+          "target_type": "chunk",
+          "target_id": "chunk-0",
+          "score": 0.2
+        },
+        {
+          "channel": "vector",
+          "target_type": "chunk",
+          "target_id": "chunk-0",
+          "score": 0.8
+        },
+        {
+          "channel": "vector",
+          "target_type": "chunk",
+          "target_id": "missing",
+          "score": 1.0
+        },
+        {
+          "channel": "graph",
+          "target_type": "legacy_relation",
+          "target_id": "legacy-relation-6",
+          "score": 1.2
+        },
+        {
+          "channel": "graph",
+          "target_type": "entity",
+          "target_id": "entity-2",
+          "score": -0.2
+        },
+        {
+          "channel": "graph",
+          "target_type": "legacy_entity",
+          "target_id": "legacy-3",
+          "score": 0.4
+        }
+      ],
+      "expected_bundles": [
+        {
+          "claim_id": "claim-6",
+          "rank": 1,
+          "score": 0.56,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 1.0,
+            "task_entity_match": 1.0,
+            "confidence": 0.6,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured",
+            "graph"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated graph candidate"
+        },
+        {
+          "claim_id": "claim-3",
+          "rank": 2,
+          "score": 0.33000000000000007,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 0.4,
+            "task_entity_match": 0.4,
+            "confidence": 0.5,
+            "evidence_completeness": 1.0
+          },
+          "channels": [
+            "structured",
+            "graph"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated graph candidate"
+        },
+        {
+          "claim_id": "claim-0",
+          "rank": 3,
+          "score": 0.3,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 0.8,
+            "task_entity_match": 0.0,
+            "confidence": 0.5,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured",
+            "vector"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated vector chunk candidate"
+        },
+        {
+          "claim_id": "claim-0-tie",
+          "rank": 4,
+          "score": 0.3,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 0.8,
+            "task_entity_match": 0.0,
+            "confidence": 0.5,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured",
+            "vector"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated vector chunk candidate"
+        }
+      ],
+      "report_evidence": [
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-8",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-08",
+          "title": "Title",
+          "text": "参考文献 RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-5",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-05",
+          "title": "Title",
+          "text": "STRASSE",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-10",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-10",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-4",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-04",
+          "title": "Title",
+          "text": "bibliography RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-9",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-09",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-0",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-00",
+          "title": "Title",
+          "text": "References\nRAG retrieval",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-6",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-06",
+          "title": "Title",
+          "text": "zero confidence",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-2",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-02",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        }
+      ],
+      "expected_report": [
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-5",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-05",
+          "title": "Title",
+          "text": "STRASSE",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-9",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-09",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        }
+      ]
+    },
+    {
+      "name": "legacy-4",
+      "query": "Alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi",
+      "top_k": 4,
+      "terms": [
+        "alpha",
+        "beta",
+        "gamma",
+        "delta",
+        "epsilon",
+        "zeta",
+        "eta",
+        "theta",
+        "iota",
+        "kappa",
+        "lambda"
+      ],
+      "bundles": [
+        {
+          "claim": {
+            "id": "claim-4",
+            "statement": "STRASSE",
+            "subject": "STRASSE",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 1.0
+          },
+          "entity": {
+            "id": "entity-4",
+            "legacy_id": "legacy-4",
+            "name": "STRASSE",
+            "normalized_name": "strasse",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-4"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-3",
+            "statement": "Alpha beta gamma",
+            "subject": "Alpha beta gamma",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": null
+          },
+          "entity": {
+            "id": "entity-3",
+            "legacy_id": "legacy-3",
+            "name": "Alpha beta gamma",
+            "normalized_name": "alpha beta gamma",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-5",
+            "statement": "zero confidence",
+            "subject": "zero confidence",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-5",
+            "legacy_id": "legacy-5",
+            "name": "zero confidence",
+            "normalized_name": "zero confidence",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-1",
+            "statement": "中文检索 Context Builder",
+            "subject": "中文检索 Context Builder",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.5
+          },
+          "entity": {
+            "id": "entity-1",
+            "legacy_id": "legacy-1",
+            "name": "中文检索 Context Builder",
+            "normalized_name": "中文检索 context builder",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-2",
+            "statement": "irrelevant material",
+            "subject": "irrelevant material",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.9
+          },
+          "entity": {
+            "id": "entity-2",
+            "legacy_id": "legacy-2",
+            "name": "irrelevant material",
+            "normalized_name": "irrelevant material",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-2"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0-tie",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-6",
+            "statement": "graph only",
+            "subject": "graph only",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.6
+          },
+          "entity": null,
+          "relation": {
+            "id": "relation-6",
+            "legacy_id": "legacy-relation-6",
+            "relation_type": "SUPPORTS",
+            "domain": "graph",
+            "source_entity_id": "entity-0",
+            "target_entity_id": "entity-1"
+          },
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-6"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        }
+      ],
+      "references": [],
+      "expected_bundles": [
+        {
+          "claim_id": "claim-3",
+          "rank": 1,
+          "score": 0.35,
+          "score_breakdown": {
+            "lexical_relevance": 0.36363636363636365,
+            "semantic_relevance": 0.0,
+            "task_entity_match": 0.36363636363636365,
+            "confidence": 0.5,
+            "evidence_completeness": 1.0
+          },
+          "channels": [
+            "structured"
+          ],
+          "selected_reason": "structured task/project term match"
+        }
+      ],
+      "report_evidence": [
+        {
+          "id": "input-6",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-06",
+          "title": "Title",
+          "text": "zero confidence",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-5",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-05",
+          "title": "Title",
+          "text": "STRASSE",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-4",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-04",
+          "title": "Title",
+          "text": "bibliography RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-2",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-02",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-9",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-09",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-8",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-08",
+          "title": "Title",
+          "text": "参考文献 RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-0",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-00",
+          "title": "Title",
+          "text": "References\nRAG retrieval",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-10",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-10",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        }
+      ],
+      "expected_report": [
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        }
+      ]
+    },
+    {
+      "name": "legacy-5",
+      "query": "STRASSE Straße",
+      "top_k": 8,
+      "terms": [
+        "strasse"
+      ],
+      "bundles": [
+        {
+          "claim": {
+            "id": "claim-1",
+            "statement": "中文检索 Context Builder",
+            "subject": "中文检索 Context Builder",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.5
+          },
+          "entity": {
+            "id": "entity-1",
+            "legacy_id": "legacy-1",
+            "name": "中文检索 Context Builder",
+            "normalized_name": "中文检索 context builder",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-4",
+            "statement": "STRASSE",
+            "subject": "STRASSE",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 1.0
+          },
+          "entity": {
+            "id": "entity-4",
+            "legacy_id": "legacy-4",
+            "name": "STRASSE",
+            "normalized_name": "strasse",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-4"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0-tie",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-6",
+            "statement": "graph only",
+            "subject": "graph only",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.6
+          },
+          "entity": null,
+          "relation": {
+            "id": "relation-6",
+            "legacy_id": "legacy-relation-6",
+            "relation_type": "SUPPORTS",
+            "domain": "graph",
+            "source_entity_id": "entity-0",
+            "target_entity_id": "entity-1"
+          },
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-6"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-3",
+            "statement": "Alpha beta gamma",
+            "subject": "Alpha beta gamma",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": null
+          },
+          "entity": {
+            "id": "entity-3",
+            "legacy_id": "legacy-3",
+            "name": "Alpha beta gamma",
+            "normalized_name": "alpha beta gamma",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-5",
+            "statement": "zero confidence",
+            "subject": "zero confidence",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-5",
+            "legacy_id": "legacy-5",
+            "name": "zero confidence",
+            "normalized_name": "zero confidence",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-2",
+            "statement": "irrelevant material",
+            "subject": "irrelevant material",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.9
+          },
+          "entity": {
+            "id": "entity-2",
+            "legacy_id": "legacy-2",
+            "name": "irrelevant material",
+            "normalized_name": "irrelevant material",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-2"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        }
+      ],
+      "references": [
+        {
+          "channel": "vector",
+          "target_type": "chunk",
+          "target_id": "chunk-0",
+          "score": 0.2
+        },
+        {
+          "channel": "vector",
+          "target_type": "chunk",
+          "target_id": "chunk-0",
+          "score": 0.8
+        },
+        {
+          "channel": "vector",
+          "target_type": "chunk",
+          "target_id": "missing",
+          "score": 1.0
+        },
+        {
+          "channel": "graph",
+          "target_type": "legacy_relation",
+          "target_id": "legacy-relation-6",
+          "score": 1.2
+        },
+        {
+          "channel": "graph",
+          "target_type": "entity",
+          "target_id": "entity-2",
+          "score": -0.2
+        },
+        {
+          "channel": "graph",
+          "target_type": "legacy_entity",
+          "target_id": "legacy-3",
+          "score": 0.4
+        }
+      ],
+      "expected_bundles": [
+        {
+          "claim_id": "claim-4",
+          "rank": 1,
+          "score": 0.7000000000000001,
+          "score_breakdown": {
+            "lexical_relevance": 1.0,
+            "semantic_relevance": 0.0,
+            "task_entity_match": 1.0,
+            "confidence": 1.0,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured"
+          ],
+          "selected_reason": "structured task/project term match"
+        },
+        {
+          "claim_id": "claim-6",
+          "rank": 2,
+          "score": 0.56,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 1.0,
+            "task_entity_match": 1.0,
+            "confidence": 0.6,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured",
+            "graph"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated graph candidate"
+        },
+        {
+          "claim_id": "claim-3",
+          "rank": 3,
+          "score": 0.33000000000000007,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 0.4,
+            "task_entity_match": 0.4,
+            "confidence": 0.5,
+            "evidence_completeness": 1.0
+          },
+          "channels": [
+            "structured",
+            "graph"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated graph candidate"
+        },
+        {
+          "claim_id": "claim-0",
+          "rank": 4,
+          "score": 0.3,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 0.8,
+            "task_entity_match": 0.0,
+            "confidence": 0.5,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured",
+            "vector"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated vector chunk candidate"
+        },
+        {
+          "claim_id": "claim-0-tie",
+          "rank": 5,
+          "score": 0.3,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 0.8,
+            "task_entity_match": 0.0,
+            "confidence": 0.5,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured",
+            "vector"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated vector chunk candidate"
+        }
+      ],
+      "report_evidence": [
+        {
+          "id": "input-0",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-00",
+          "title": "Title",
+          "text": "References\nRAG retrieval",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-5",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-05",
+          "title": "Title",
+          "text": "STRASSE",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-10",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-10",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-4",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-04",
+          "title": "Title",
+          "text": "bibliography RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-6",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-06",
+          "title": "Title",
+          "text": "zero confidence",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-8",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-08",
+          "title": "Title",
+          "text": "参考文献 RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-2",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-02",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-9",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-09",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        }
+      ],
+      "expected_report": [
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-5",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-05",
+          "title": "Title",
+          "text": "STRASSE",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.75
+        },
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-9",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-09",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        }
+      ]
+    },
+    {
+      "name": "legacy-6",
+      "query": "zero confidence",
+      "top_k": 3,
+      "terms": [
+        "zero",
+        "confidence"
+      ],
+      "bundles": [
+        {
+          "claim": {
+            "id": "claim-0-tie",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-6",
+            "statement": "graph only",
+            "subject": "graph only",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.6
+          },
+          "entity": null,
+          "relation": {
+            "id": "relation-6",
+            "legacy_id": "legacy-relation-6",
+            "relation_type": "SUPPORTS",
+            "domain": "graph",
+            "source_entity_id": "entity-0",
+            "target_entity_id": "entity-1"
+          },
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-6"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-1",
+            "statement": "中文检索 Context Builder",
+            "subject": "中文检索 Context Builder",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.5
+          },
+          "entity": {
+            "id": "entity-1",
+            "legacy_id": "legacy-1",
+            "name": "中文检索 Context Builder",
+            "normalized_name": "中文检索 context builder",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-2",
+            "statement": "irrelevant material",
+            "subject": "irrelevant material",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.9
+          },
+          "entity": {
+            "id": "entity-2",
+            "legacy_id": "legacy-2",
+            "name": "irrelevant material",
+            "normalized_name": "irrelevant material",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-2"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-3",
+            "statement": "Alpha beta gamma",
+            "subject": "Alpha beta gamma",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": null
+          },
+          "entity": {
+            "id": "entity-3",
+            "legacy_id": "legacy-3",
+            "name": "Alpha beta gamma",
+            "normalized_name": "alpha beta gamma",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-4",
+            "statement": "STRASSE",
+            "subject": "STRASSE",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 1.0
+          },
+          "entity": {
+            "id": "entity-4",
+            "legacy_id": "legacy-4",
+            "name": "STRASSE",
+            "normalized_name": "strasse",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-4"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-5",
+            "statement": "zero confidence",
+            "subject": "zero confidence",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-5",
+            "legacy_id": "legacy-5",
+            "name": "zero confidence",
+            "normalized_name": "zero confidence",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        }
+      ],
+      "references": [],
+      "expected_bundles": [
+        {
+          "claim_id": "claim-5",
+          "rank": 1,
+          "score": 0.7000000000000001,
+          "score_breakdown": {
+            "lexical_relevance": 1.0,
+            "semantic_relevance": 0.0,
+            "task_entity_match": 1.0,
+            "confidence": 0.5,
+            "evidence_completeness": 1.0
+          },
+          "channels": [
+            "structured"
+          ],
+          "selected_reason": "structured task/project term match"
+        }
+      ],
+      "report_evidence": [
+        {
+          "id": "input-9",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-09",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-5",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-05",
+          "title": "Title",
+          "text": "STRASSE",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-2",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-02",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-10",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-10",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-4",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-04",
+          "title": "Title",
+          "text": "bibliography RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-8",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-08",
+          "title": "Title",
+          "text": "参考文献 RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-0",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-00",
+          "title": "Title",
+          "text": "References\nRAG retrieval",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-6",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-06",
+          "title": "Title",
+          "text": "zero confidence",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        }
+      ],
+      "expected_report": [
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        }
+      ]
+    },
+    {
+      "name": "legacy-7",
+      "query": "graph only",
+      "top_k": 8,
+      "terms": [
+        "graph",
+        "only"
+      ],
+      "bundles": [
+        {
+          "claim": {
+            "id": "claim-2",
+            "statement": "irrelevant material",
+            "subject": "irrelevant material",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.9
+          },
+          "entity": {
+            "id": "entity-2",
+            "legacy_id": "legacy-2",
+            "name": "irrelevant material",
+            "normalized_name": "irrelevant material",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-2"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0-tie",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-1",
+            "statement": "中文检索 Context Builder",
+            "subject": "中文检索 Context Builder",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.5
+          },
+          "entity": {
+            "id": "entity-1",
+            "legacy_id": "legacy-1",
+            "name": "中文检索 Context Builder",
+            "normalized_name": "中文检索 context builder",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-1"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-0",
+            "statement": "RAG retrieval with citations",
+            "subject": "RAG retrieval with citations",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-0",
+            "legacy_id": "legacy-0",
+            "name": "RAG retrieval with citations",
+            "normalized_name": "rag retrieval with citations",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-0"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-3",
+            "statement": "Alpha beta gamma",
+            "subject": "Alpha beta gamma",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": null
+          },
+          "entity": {
+            "id": "entity-3",
+            "legacy_id": "legacy-3",
+            "name": "Alpha beta gamma",
+            "normalized_name": "alpha beta gamma",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-3"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-6",
+            "statement": "graph only",
+            "subject": "graph only",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.6
+          },
+          "entity": null,
+          "relation": {
+            "id": "relation-6",
+            "legacy_id": "legacy-relation-6",
+            "relation_type": "SUPPORTS",
+            "domain": "graph",
+            "source_entity_id": "entity-0",
+            "target_entity_id": "entity-1"
+          },
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-6"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-4",
+            "statement": "STRASSE",
+            "subject": "STRASSE",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 1.0
+          },
+          "entity": {
+            "id": "entity-4",
+            "legacy_id": "legacy-4",
+            "name": "STRASSE",
+            "normalized_name": "strasse",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-4"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        },
+        {
+          "claim": {
+            "id": "claim-5",
+            "statement": "zero confidence",
+            "subject": "zero confidence",
+            "predicate": "supports",
+            "object_value": "evidence",
+            "confidence": 0.0
+          },
+          "entity": {
+            "id": "entity-5",
+            "legacy_id": "legacy-5",
+            "name": "zero confidence",
+            "normalized_name": "zero confidence",
+            "entity_type": "Method",
+            "domain": "research"
+          },
+          "relation": null,
+          "collection_scopes": [
+            "allowed"
+          ],
+          "evidence": [
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            },
+            {
+              "evidence": {},
+              "chunk": {
+                "id": "chunk-5"
+              },
+              "document": {},
+              "source": {}
+            }
+          ]
+        }
+      ],
+      "references": [
+        {
+          "channel": "vector",
+          "target_type": "chunk",
+          "target_id": "chunk-0",
+          "score": 0.2
+        },
+        {
+          "channel": "vector",
+          "target_type": "chunk",
+          "target_id": "chunk-0",
+          "score": 0.8
+        },
+        {
+          "channel": "vector",
+          "target_type": "chunk",
+          "target_id": "missing",
+          "score": 1.0
+        },
+        {
+          "channel": "graph",
+          "target_type": "legacy_relation",
+          "target_id": "legacy-relation-6",
+          "score": 1.2
+        },
+        {
+          "channel": "graph",
+          "target_type": "entity",
+          "target_id": "entity-2",
+          "score": -0.2
+        },
+        {
+          "channel": "graph",
+          "target_type": "legacy_entity",
+          "target_id": "legacy-3",
+          "score": 0.4
+        }
+      ],
+      "expected_bundles": [
+        {
+          "claim_id": "claim-6",
+          "rank": 1,
+          "score": 0.9100000000000001,
+          "score_breakdown": {
+            "lexical_relevance": 1.0,
+            "semantic_relevance": 1.0,
+            "task_entity_match": 1.0,
+            "confidence": 0.6,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured",
+            "graph"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated graph candidate"
+        },
+        {
+          "claim_id": "claim-3",
+          "rank": 2,
+          "score": 0.33000000000000007,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 0.4,
+            "task_entity_match": 0.4,
+            "confidence": 0.5,
+            "evidence_completeness": 1.0
+          },
+          "channels": [
+            "structured",
+            "graph"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated graph candidate"
+        },
+        {
+          "claim_id": "claim-0",
+          "rank": 3,
+          "score": 0.3,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 0.8,
+            "task_entity_match": 0.0,
+            "confidence": 0.5,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured",
+            "vector"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated vector chunk candidate"
+        },
+        {
+          "claim_id": "claim-0-tie",
+          "rank": 4,
+          "score": 0.3,
+          "score_breakdown": {
+            "lexical_relevance": 0.0,
+            "semantic_relevance": 0.8,
+            "task_entity_match": 0.0,
+            "confidence": 0.5,
+            "evidence_completeness": 0.5
+          },
+          "channels": [
+            "structured",
+            "vector"
+          ],
+          "selected_reason": "structured task/project term match; SQLite-revalidated vector chunk candidate"
+        }
+      ],
+      "report_evidence": [
+        {
+          "id": "input-8",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-08",
+          "title": "Title",
+          "text": "参考文献 RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-9",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-09",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-0",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-00",
+          "title": "Title",
+          "text": "References\nRAG retrieval",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-6",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-06",
+          "title": "Title",
+          "text": "zero confidence",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.2
+        },
+        {
+          "id": "input-10",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-10",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        },
+        {
+          "id": "input-4",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-04",
+          "title": "Title",
+          "text": "bibliography RAG",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-5",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-05",
+          "title": "Title",
+          "text": "STRASSE",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-2",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-02",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": -0.1
+        }
+      ],
+      "expected_report": [
+        {
+          "id": "input-3",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-03",
+          "title": "Title",
+          "text": "irrelevant material",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-7",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-07",
+          "title": "Title",
+          "text": "graph only",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-11",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-11",
+          "title": "Title",
+          "text": "Alpha beta gamma",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 1.0
+        },
+        {
+          "id": "input-1",
+          "paper_id": "paper-0",
+          "chunk_id": "chunk-01",
+          "title": "Title",
+          "text": "RAG retrieval with citations",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-5",
+          "paper_id": "paper-1",
+          "chunk_id": "chunk-05",
+          "title": "Title",
+          "text": "STRASSE",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        },
+        {
+          "id": "input-9",
+          "paper_id": "paper-2",
+          "chunk_id": "chunk-09",
+          "title": "Title",
+          "text": "中文检索 Context Builder",
+          "page_start": 1,
+          "page_end": 1,
+          "score": 0.5
+        }
+      ]
+    }
+  ]
+}

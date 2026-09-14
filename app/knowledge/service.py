@@ -323,6 +323,11 @@ class KnowledgeIngestionService:
             return self._replayed_decision(stored, decision)
         ingestion = self.repository.get_ingestion(stored["candidate"]["ingestion_id"])
         if ingestion.status != "needs_review":
+            # Another reviewer may have decided the last draft and advanced the
+            # ingestion between our two reads. Preserve verified replay semantics.
+            current = self.repository.get_candidate(candidate_id)
+            if current["candidate"]["status"] != "draft":
+                return self._replayed_decision(current, decision)
             raise ValueError("入库任务完成抽取后才能审核候选。")
         try:
             if decision.decision == "reject":

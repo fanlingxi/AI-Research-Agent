@@ -1,0 +1,9 @@
+{
+  "authorized_by": "synthetic-offline-test",
+  "authorized_at": "2026-09-13",
+  "user_statement": "Synthetic fixture for isolated budget tests; does not authorize live API calls.",
+  "currency": "CNY",
+  "total_limit": 100,
+  "previous_total_limit": 20,
+  "scope": "Synthetic cumulative-ledger amendment used only by offline tests."
+}

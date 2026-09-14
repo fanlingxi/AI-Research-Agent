@@ -27,6 +27,25 @@ def test_llm_reasoning_effort_is_optional() -> None:
     assert Settings(llm_reasoning_effort="none").llm_reasoning_effort == "none"
 
 
+def test_example_environment_can_start_with_blank_optional_settings() -> None:
+    settings = Settings(_env_file=".env.example")
+    assert settings.llm_max_tokens is None
+    assert settings.llm_reasoning_effort is None
+
+
+def test_blank_optional_settings_keep_numeric_validation() -> None:
+    settings = Settings(
+        llm_max_tokens=" ",
+        llm_input_cost_per_million="",
+        llm_output_cost_per_million=" ",
+    )
+    assert settings.llm_max_tokens is None
+    assert settings.llm_input_cost_per_million is None
+    assert settings.llm_output_cost_per_million is None
+    with pytest.raises(ValidationError):
+        Settings(llm_max_tokens="invalid")
+
+
 def test_knowledge_core_defaults_preserve_current_physical_storage_names(monkeypatch) -> None:
     monkeypatch.delenv("KNOWLEDGE_DB_PATH")
     monkeypatch.delenv("KNOWLEDGE_VAULT_PATH")

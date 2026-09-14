@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import os
 import shutil
 import sqlite3
@@ -45,6 +46,20 @@ if not LIVE_LLM_INTEGRATION:
         }
     )
 os.environ.update(_TEST_ENVIRONMENT)
+
+
+@pytest.fixture
+def offline_trial_inputs(monkeypatch):
+    """Supply synthetic authorization files without changing live-call guards."""
+    fixtures = Path(__file__).parent / "fixtures/evaluation-policy"
+
+    def configure(module_name):
+        module = importlib.import_module(f"app.benchmarking.{module_name}")
+        monkeypatch.setattr(module, "APPROVAL", fixtures / "a02/papers-approval.json")
+        if hasattr(module, "POLICY"):
+            monkeypatch.setattr(module, "POLICY", fixtures / "a02-budget-v2/run-policy.json")
+
+    return configure
 
 
 def database_fingerprint(path: Path = REAL_DATABASE) -> dict[str, Any]:

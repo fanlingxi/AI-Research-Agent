@@ -36,12 +36,20 @@ class LangChainChatClient(LLMClient):
     temperature: float = 0.2
     max_tokens: int | None = None
     reasoning_effort: str | None = None
+    max_retries: int | None = None
+    timeout: float | None = None
+    thinking_enabled: bool | None = None
     last_usage: dict[str, int] = field(default_factory=dict, init=False)
+    last_usage_complete: bool = field(default=False, init=False)
+    last_response_model: str | None = field(default=None, init=False)
 
     def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
         from langchain_core.messages import HumanMessage, SystemMessage
         from langchain_openai import ChatOpenAI
 
+        self.last_usage = {}
+        self.last_usage_complete = False
+        self.last_response_model = None
         chat_options: dict[str, object] = {
             "model": self.model,
             "api_key": self.api_key,
@@ -57,6 +65,14 @@ class LangChainChatClient(LLMClient):
             chat_options["extra_body"] = {"max_tokens": self.max_tokens}
         if self.reasoning_effort is not None:
             chat_options["reasoning_effort"] = self.reasoning_effort
+        if self.max_retries is not None:
+            chat_options["max_retries"] = self.max_retries
+        if self.timeout is not None:
+            chat_options["timeout"] = self.timeout
+        if self.thinking_enabled is not None:
+            chat_options.setdefault("extra_body", {})["thinking"] = {
+                "type": "enabled" if self.thinking_enabled else "disabled"
+            }
         chat = ChatOpenAI(**chat_options)
         response = chat.invoke(
             [
@@ -72,6 +88,11 @@ class LangChainChatClient(LLMClient):
             ]
         )
         raw_usage = response.usage_metadata or response.response_metadata.get("token_usage", {})
+        self.last_response_model = response.response_metadata.get("model_name")
+        self.last_usage_complete = (
+            type(raw_usage.get("input_tokens", raw_usage.get("prompt_tokens"))) is int
+            and type(raw_usage.get("output_tokens", raw_usage.get("completion_tokens"))) is int
+        )
         self.last_usage = {
             "input_tokens": int(
                 raw_usage.get("input_tokens", raw_usage.get("prompt_tokens", 0)) or 0

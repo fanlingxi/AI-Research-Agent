@@ -6,7 +6,12 @@ import hashlib
 import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from app.context.neighbors import ContextNeighborMode
+from app.context.reading import ReadingFormat, research_payload
+from app.retrieval.contracts import RetrievalAudit
+from app.retrieval.query_planning import QueryPlanningMode
 
 
 class ContextBuildRequest(BaseModel):
@@ -20,9 +25,20 @@ class ContextBuildRequest(BaseModel):
     task_id: str = Field(min_length=1)
     project_id: str | None = Field(default=None, min_length=1)
     snapshot_id: str | None = Field(default=None, min_length=1)
-    max_tokens: int = Field(default=6000, ge=256, le=16000)
+    max_tokens: int = Field(default=6000, ge=256, le=262144)
     enable_vector_candidates: bool = False
     enable_graph_candidates: bool = False
+    retrieval_strategy: Literal["legacy", "bm25-v1", "hybrid-v1", "dense-v1"] = "legacy"
+    query_planning: QueryPlanningMode = "off"
+    context_neighbors: ContextNeighborMode = "off"
+    evidence_reranking: Literal['off', 'llm-v1', 'coverage-v1', 'coverage-v2'] = 'off'
+    reading_format: ReadingFormat = 'legacy'
+
+    @model_validator(mode="after")
+    def require_dense_channel(self):
+        if self.retrieval_strategy == "dense-v1" and not self.enable_vector_candidates:
+            raise ValueError("dense-v1 requires enable_vector_candidates")
+        return self
 
 
 class SelectionTrace(BaseModel):
@@ -301,7 +317,8 @@ class ContextSnapshotItem(BaseModel):
 
 class ContextPackage(BaseModel):
     snapshot_id: str
-    package_schema_version: Literal["1.0"] = "1.0"
+    package_schema_version: Literal["1.0", "1.1", "1.2"] = "1.0"
+    reading_format: ReadingFormat = 'legacy'
     builder_version: str = "phase2-context-builder-v1"
     created_at: str
     request_fingerprint: str
@@ -315,16 +332,24 @@ class ContextPackage(BaseModel):
     token_usage: TokenUsage
     diagnostics: ContextDiagnostics
     package_sha256: str = ""
+    retrieval_audit: RetrievalAudit | None = None
+
+    @model_validator(mode="after")
+    def validate_audit_version(self) -> ContextPackage:
+        if (self.package_schema_version in {'1.1', '1.2'}) != (self.retrieval_audit is not None):
+            raise ValueError("Context schema 1.1/1.2 requires retrieval audit; 1.0 must omit it.")
+        return self
 
 
 def runtime_context_payload(package: ContextPackage) -> dict[str, Any]:
-    """Return the one normalized representation supplied to a future Runtime.
+    """Estimate legacy packages as before; versioned packages use exact research input.
 
-    Snapshot identifiers, diagnostics, the hash, and token accounting are the
-    audit envelope rather than Runtime prompt content.  Everything returned
-    here, including provenance and selection reasons, is included in the
-    budget calculation.
+    Legacy snapshots predate unified reading accounting and exclude the audit
+    envelope. Versioned research views also include the snapshot ID and hash.
     """
+
+    if package.reading_format != 'legacy':
+        return research_payload(package)
 
     def payload(value: BaseModel) -> dict[str, Any]:
         return value.model_dump(mode="json", exclude_defaults=True, exclude_none=True)
@@ -356,6 +381,11 @@ def canonical_package_sha256(package: ContextPackage) -> str:
     """Return the canonical audit digest, excluding its self-referential value."""
 
     values = package.model_dump(mode="json")
+    if package.package_schema_version != '1.2' and package.reading_format == 'legacy':
+        values.pop('reading_format', None)
+    if package.package_schema_version == "1.0":
+        # Historical 1.0 hashes predate this field. Never backfill old snapshots.
+        values.pop("retrieval_audit", None)
     values["package_sha256"] = ""
     encoded = json.dumps(
         values, ensure_ascii=False, sort_keys=True, separators=(",", ":")

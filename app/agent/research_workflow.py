@@ -461,7 +461,13 @@ class ResearchWorkflow:
 
     def _invoke_model(self, schema: type[BaseModel], *, prompt: str) -> BaseModel:
         started = time.perf_counter()
-        raw = self.llm.invoke(prompt, system_prompt=_RESEARCH_SYSTEM_PROMPT)
+        # The field-name shorthand above does not describe nested findings or
+        # bounded arrays. Supply the same schema we actually validate; this
+        # clarifies the existing contract without relaxing it or repairing JSON.
+        raw = self.llm.invoke(
+            prompt + "\nRequired JSON schema: " + _canonical_json(schema.model_json_schema()),
+            system_prompt=_RESEARCH_SYSTEM_PROMPT,
+        )
         latency_ms = round((time.perf_counter() - started) * 1000, 2)
         try:
             parsed = json.loads(_strip_json_fence(raw))

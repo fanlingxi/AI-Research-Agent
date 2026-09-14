@@ -9,6 +9,7 @@ from app.api.main import create_app
 from app.config.settings import Settings
 from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.query import KnowledgeQueryService, _latin_query_terms, _rank_evidence
+from app.knowledge.report_inputs import report_request
 from app.knowledge.reports import KnowledgeReportService, _evaluate
 from app.knowledge.repository import KnowledgeRepository, StaleReportExecution
 from app.knowledge.schemas import CandidateEntity, ChunkSearchHit, EvidenceSpan, ReportEvidence
@@ -19,7 +20,7 @@ from app.knowledge.service import (
 )
 from app.llms.provider import MockLLMClient
 from app.worker import KnowledgeWorker
-from tests.core_fixtures import persist_evidence_chunk
+from tests.core_fixtures import SQLiteReportQuery, persist_evidence_chunk
 
 
 def _repository_with_paper(tmp_path):
@@ -51,41 +52,21 @@ def _repository_with_paper(tmp_path):
     return repository, ingestion
 
 
-class _Query:
-    def search(self, query, *, topic_slugs=None, top_k=8):
-        return {
-            "query": query,
-            "topic_slugs": topic_slugs or [],
-            "graph": [
-                {
-                    "source_name": "Formal Evidence Paper",
-                    "relation_type": "SUPPORTS",
-                    "target_name": "Grounded Reports",
-                }
-            ],
-            "evidence": [
-                ReportEvidence(
-                    id="E1",
-                    paper_id="paper:formal",
-                    chunk_id="paper:formal:page:2:chunk:0",
-                    title="Formal Evidence Paper",
-                    text="Approved evidence supports grounded report writing.",
-                    page_start=2,
-                    page_end=2,
-                    score=0.94,
-                ).model_dump(),
-                ReportEvidence(
-                    id="E2",
-                    paper_id="paper:formal",
-                    chunk_id="paper:formal:page:3:chunk:0",
-                    title="Formal Evidence Paper",
-                    text="A critic checks citation fidelity before publication.",
-                    page_start=3,
-                    page_end=3,
-                    score=0.9,
-                ).model_dump(),
-            ][:top_k],
-        }
+class _Query(SQLiteReportQuery):
+    def __init__(self, repository):
+        # Both report citations must have real SQLite source/chunk prerequisites.
+        papers = repository.list_published_entities()
+        if papers:
+            ingestion = repository.list_ingestions()[0]
+            persist_evidence_chunk(
+                repository, ingestion_id=ingestion.id,
+                evidence=EvidenceSpan(
+                    paper_id="paper:formal", chunk_id="paper:formal:page:3:chunk:0",
+                    page_start=3, page_end=3,
+                    quote="A critic checks citation fidelity before publication.",
+                ),
+            )
+        super().__init__(repository)
 
 
 class _RevisingLLM:
@@ -139,7 +120,7 @@ def _report_stack(tmp_path):
     llm = _RevisingLLM()
     reports = KnowledgeReportService(
         repository,
-        query_service=_Query(),
+        query_service=_Query(repository),
         llm=llm,
         settings=settings,
         require_live_llm=True,
@@ -301,7 +282,7 @@ def test_failed_report_job_can_be_cleanly_retried_with_the_same_identity(tmp_pat
     repository, ingestion = _repository_with_paper(tmp_path)
     service = KnowledgeReportService(
         repository,
-        query_service=_Query(),
+        query_service=_Query(repository),
         llm=_UngroundedLLM(),
         require_live_llm=True,
     )
@@ -361,7 +342,7 @@ def test_expired_dispatched_report_is_recovered_after_restart(tmp_path) -> None:
     )
     restarted_service = KnowledgeReportService(
         restarted,
-        query_service=_Query(),
+        query_service=_Query(repository),
         llm=_RevisingLLM(),
         settings=settings,
         require_live_llm=True,
@@ -397,7 +378,7 @@ def test_report_lease_heartbeat_prevents_duplicate_long_execution(tmp_path) -> N
     )
     service = KnowledgeReportService(
         repository,
-        query_service=_Query(),
+        query_service=_Query(repository),
         llm=llm,
         settings=settings,
         require_live_llm=True,
@@ -451,7 +432,7 @@ def test_two_workers_do_not_duplicate_slow_report_llm_calls(tmp_path) -> None:
     )
     service = KnowledgeReportService(
         repository,
-        query_service=_Query(),
+        query_service=_Query(repository),
         llm=llm,
         settings=settings,
         require_live_llm=True,
@@ -533,12 +514,15 @@ def test_stale_report_attempt_cannot_overwrite_new_owner(tmp_path) -> None:
     running = repository.get_resource_job("report", submitted.id)
     assert running.status == "running"
     assert running.attempts == new.attempts
+    result = reports.query_service.search(submitted.query, topic_slugs=submitted.topic_slugs)
     completed = repository.finalize_report_execution(
         submitted.id,
         new.id,
         expected_attempt=new.attempts,
         status="completed",
         content="# 新执行结果",
+        expected_request=report_request(submitted),
+        read_guard=result["retrieval_diagnostics"]["report_input"],
         run_metadata={"current_stage": "completed"},
     )
 
@@ -554,7 +538,7 @@ def test_reports_never_fall_back_to_mock_or_unpublished_evidence(tmp_path) -> No
 
     service = KnowledgeReportService(
         empty,
-        query_service=_Query(),
+        query_service=_Query(empty),
         llm=_RevisingLLM(),
         require_live_llm=True,
     )
@@ -594,7 +578,7 @@ def test_report_fails_after_the_single_revision_budget_is_exhausted(tmp_path) ->
     repository, _ = _repository_with_paper(tmp_path)
     service = KnowledgeReportService(
         repository,
-        query_service=_Query(),
+        query_service=_Query(repository),
         llm=_UngroundedLLM(),
         require_live_llm=True,
     )
@@ -892,7 +876,7 @@ def test_report_api_retries_a_failed_report_in_place(tmp_path) -> None:
     )
     reports = KnowledgeReportService(
         repository,
-        query_service=_Query(),
+        query_service=_Query(repository),
         llm=_UngroundedLLM(),
         settings=settings,
         require_live_llm=True,

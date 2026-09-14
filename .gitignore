@@ -37,6 +37,10 @@ data/raw_papers/*
 data/processed/*
 data/reports/*
 data/runtime/*
+data/evaluation/*
+data/models/*
+data/tools/*
+data/backups/*
 data/memory/*.json
 data/obsidian_vault/*
 data/knowledge/*
@@ -50,3 +54,12 @@ data/real_world_test/
 !data/memory/.gitkeep
 !data/knowledge/.gitkeep
 !data/obsidian_vault_v2/.gitkeep
+
+# Private collaboration notes and local experiment archives.
+/AGENTS.md
+/PROGRESS.md
+/DECISIONS.md
+/IMPLEMENTATION_PLAN.md
+/docs/LOCAL_DEVELOPMENT.md
+/docs/changes/
+/docs/improvement/

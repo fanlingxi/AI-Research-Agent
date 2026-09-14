@@ -30,5 +30,11 @@ class ResearchRuntimePort(DomainRuntimePort):
     def begin_repair(self, run_id: str):
         return self.__research_service.begin_repair(run_id)
 
+    def begin_generation_attempt(self, run_id, slot, digest):
+        return self.__research_service.begin_generation_attempt(run_id, slot, digest)
+
+    def finish_generation_attempt(self, run_id, slot, **kwargs):
+        return self.__research_service.finish_generation_attempt(run_id, slot, **kwargs)
+
     def mark_needs_review(self, run_id: str, **kwargs: Any):
         return self.__research_service.mark_needs_review(run_id, **kwargs)

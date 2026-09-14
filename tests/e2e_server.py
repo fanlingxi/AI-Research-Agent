@@ -44,7 +44,6 @@ from app.knowledge.schemas import (
     ExtractedEntity,
     KnowledgeExtraction,
     PaperReading,
-    ReportEvidence,
 )
 from app.knowledge.service import (
     KnowledgeIngestionService,
@@ -53,7 +52,7 @@ from app.knowledge.service import (
 )
 from app.schemas.documents import ParsedDocument
 from app.worker import KnowledgeWorker
-from tests.core_fixtures import persist_evidence_chunk
+from tests.core_fixtures import SQLiteReportQuery, persist_evidence_chunk
 
 
 class _Extractor:
@@ -98,29 +97,7 @@ def _parse(*, source: str, max_pages: int) -> ParsedDocument:
     )
 
 
-class _Query:
-    def __init__(self, repository: KnowledgeRepository) -> None:
-        self.repository = repository
-
-    def search(self, query, *, topic_slugs=None, top_k=8):
-        paper_id = next(iter(self.repository.published_paper_ids(topic_slugs or [])))
-        return {
-            "query": query,
-            "topic_slugs": topic_slugs or [],
-            "graph": [],
-            "evidence": [
-                ReportEvidence(
-                    id="E1",
-                    paper_id=paper_id,
-                    chunk_id=f"{paper_id}:page:1:chunk:0",
-                    title="Browser E2E Paper",
-                    text="Approved evidence supports the full browser workflow.",
-                    page_start=1,
-                    page_end=1,
-                    score=1.0,
-                ).model_dump()
-            ],
-        }
+_Query = SQLiteReportQuery
 
 
 class _LLM:

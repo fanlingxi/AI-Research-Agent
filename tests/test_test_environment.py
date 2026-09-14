@@ -26,6 +26,7 @@ def _assert_isolation_probe(environment_updates: dict[str, str], assertions: str
             "-c",
             (
                 "import conftest; "
+                "from pathlib import Path; "
                 "from app.config.settings import get_settings; "
                 "settings = get_settings(); "
                 + assertions
@@ -70,7 +71,7 @@ def test_live_llm_opt_in_preserves_only_caller_llm_configuration() -> None:
             "assert settings.openai_base_url == 'https://llm-probe.invalid/v1'; "
             "assert settings.qdrant_url == 'http://127.0.0.1:9'; "
             "assert settings.neo4j_uri == 'bolt://127.0.0.1:9'; "
-            "assert settings.knowledge_db_path.startswith(conftest.TEST_RUNTIME_ROOT.as_posix())"
+            "assert Path(settings.knowledge_db_path).is_relative_to(conftest.TEST_RUNTIME_ROOT)"
         ),
     )
 
@@ -92,7 +93,7 @@ def test_live_store_opt_in_preserves_store_configuration_but_not_default_llm() -
             "assert settings.neo4j_uri == 'bolt://neo4j-probe.invalid:7687'; "
             "assert settings.neo4j_username == 'probe-user'; "
             "assert settings.neo4j_password == 'probe-password-not-a-secret'; "
-            "assert settings.knowledge_db_path.startswith(conftest.TEST_RUNTIME_ROOT.as_posix())"
+            "assert Path(settings.knowledge_db_path).is_relative_to(conftest.TEST_RUNTIME_ROOT)"
         ),
     )
 

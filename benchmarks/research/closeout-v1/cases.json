@@ -1,0 +1,33 @@
+{
+  "schema": "resume-closeout-v1",
+  "scope": "New-to-project text papers; one frozen comparison, not blinded human evaluation",
+  "sources": [
+    {"id": "dpr", "title": "Dense Passage Retrieval for Open-Domain Question Answering", "version": "2020.emnlp-main.550", "pdf_url": "https://aclanthology.org/2020.emnlp-main.550.pdf"},
+    {"id": "fid", "title": "Leveraging Passage Retrieval with Generative Models for Open Domain Question Answering", "version": "2021.eacl-main.74", "pdf_url": "https://aclanthology.org/2021.eacl-main.74.pdf"},
+    {"id": "hyde", "title": "Precise Zero-Shot Dense Retrieval without Relevance Labels", "version": "2023.acl-long.99", "pdf_url": "https://aclanthology.org/2023.acl-long.99.pdf"},
+    {"id": "gar", "title": "Generation-Augmented Retrieval for Open-Domain Question Answering", "version": "2021.acl-long.316", "pdf_url": "https://aclanthology.org/2021.acl-long.316.pdf"},
+    {"id": "flare", "title": "Active Retrieval Augmented Generation", "version": "2023.emnlp-main.495", "pdf_url": "https://aclanthology.org/2023.emnlp-main.495.pdf"}
+  ],
+  "cases": [
+    {"id": "dpr-1", "source_ids": ["dpr"], "question": "DPR如何分别编码问题与段落，使用什么相似度函数进行检索？", "kind": "method"},
+    {"id": "dpr-2", "source_ids": ["dpr"], "question": "DPR训练时如何使用正例、负例和批内负例？请区分这些角色。", "kind": "process"},
+    {"id": "dpr-3", "source_ids": ["dpr"], "question": "DPR与BM25各有什么优势和局限？论文是否支持DPR对每一个问题都优于BM25？", "kind": "qualified_comparison"},
+    {"id": "dpr-4", "source_ids": ["dpr"], "question": "仅依据允许的DPR论文，列出Self-RAG的全部反思token及各自作用。", "kind": "out_of_scope"},
+    {"id": "fid-1", "source_ids": ["fid"], "question": "Fusion-in-Decoder如何编码多个检索段落，在哪个阶段融合它们的信息？", "kind": "method"},
+    {"id": "fid-2", "source_ids": ["fid"], "question": "FiD为何能够处理较多检索段落？请说明独立编码与计算成本的关系。", "kind": "mechanism"},
+    {"id": "fid-3", "source_ids": ["fid"], "question": "该论文的阅读器如何生成最终答案，与抽取式阅读器有何区别？", "kind": "comparison"},
+    {"id": "fid-4", "source_ids": ["fid"], "question": "仅依据允许的FiD论文，说明HyDE的假想文档生成与无监督编码步骤。", "kind": "out_of_scope"},
+    {"id": "hyde-1", "source_ids": ["hyde"], "question": "HyDE从用户问题到真实文档检索结果经历哪些步骤？", "kind": "process"},
+    {"id": "hyde-2", "source_ids": ["hyde"], "question": "HyDE如何处理假想文档中的错误细节？该机制是否构成所有错误必然被消除的保证？", "kind": "qualified_mechanism"},
+    {"id": "hyde-3", "source_ids": ["hyde"], "question": "HyDE的zero-shot和无需相关性标签具体指什么，是否意味着完全没有使用预训练模型？", "kind": "definition"},
+    {"id": "hyde-4", "source_ids": ["hyde"], "question": "HyDE的主要处理步骤是什么？它在我们这台RTX 5060电脑上的实测平均延迟是多少毫秒？", "kind": "partial_missing_measurement"},
+    {"id": "gar-1", "source_ids": ["gar"], "question": "GAR为输入问题生成哪三类上下文，如何把它们用于检索？", "kind": "enumeration"},
+    {"id": "gar-2", "source_ids": ["gar"], "question": "GAR生成的上下文必须完全正确才能有助于检索吗？论文如何解释其作用及错误风险？", "kind": "qualified_mechanism"},
+    {"id": "gar-3", "source_ids": ["gar"], "question": "GAR与稀疏检索、稠密检索是什么关系？论文如何利用它们的互补性？", "kind": "comparison"},
+    {"id": "gar-4", "source_ids": ["gar"], "question": "仅依据允许的GAR论文，列出Self-RAG各反思token的完整训练流程。", "kind": "out_of_scope"},
+    {"id": "flare-1", "source_ids": ["flare"], "question": "FLARE如何用接下来要生成的句子触发检索，并在检索后重新生成内容？", "kind": "process"},
+    {"id": "flare-2", "source_ids": ["flare"], "question": "对于长文本生成，FLARE为何认为只在开始时根据输入问题检索一次可能不足？", "kind": "motivation"},
+    {"id": "flare-3", "source_ids": ["flare"], "question": "FLARE的基于指令方法和基于低置信度预测的方法如何决定何时检索？", "kind": "comparison"},
+    {"id": "flare-4", "source_ids": ["flare"], "question": "FLARE如何决定何时检索？采用该方法后，我们这个项目每次运行会节省多少人民币？", "kind": "partial_missing_measurement"}
+  ]
+}

@@ -6,6 +6,8 @@ from typing import Protocol
 
 from app.config.settings import Settings, get_settings
 from app.knowledge.schemas import PublishedEntity, PublishedRelation
+from app.retrieval.neural_embeddings import collection_name
+from app.retrieval.policy import IO_TIMEOUT_SECONDS
 from app.schemas.documents import DocumentChunk
 from app.tools.text_safety import sanitize_json_value
 
@@ -161,26 +163,30 @@ class QdrantKnowledgeIndexer:
         embeddings = get_embedding_provider(self.settings).embed_documents(
             [chunk.text for chunk in safe_chunks]
         )
-        client = QdrantClient(url=self.settings.qdrant_url)
-        if not client.collection_exists(self.settings.knowledge_qdrant_collection):
-            client.create_collection(
-                collection_name=self.settings.knowledge_qdrant_collection,
-                vectors_config=models.VectorParams(
-                    size=self.settings.embedding_dimension,
-                    distance=models.Distance.COSINE,
-                ),
-            )
-        client.upsert(
-            collection_name=self.settings.knowledge_qdrant_collection,
-            points=[
-                models.PointStruct(
-                    id=str(uuid.uuid5(uuid.NAMESPACE_URL, chunk.id)),
-                    vector=embedding,
-                    payload=chunk.model_dump(),
+        client = QdrantClient(url=self.settings.qdrant_url, timeout=IO_TIMEOUT_SECONDS)
+        try:
+            if not client.collection_exists(collection_name(self.settings)):
+                client.create_collection(
+                    collection_name=collection_name(self.settings),
+                    vectors_config=models.VectorParams(
+                        size=self.settings.embedding_dimension,
+                        distance=models.Distance.COSINE,
+                    ),
                 )
-                for chunk, embedding in zip(safe_chunks, embeddings, strict=True)
-            ],
-        )
+            client.upsert(
+                collection_name=collection_name(self.settings),
+                points=[
+                    models.PointStruct(
+                        id=str(uuid.uuid5(uuid.NAMESPACE_URL, chunk.id)),
+                        vector=embedding,
+                        payload=chunk.model_dump(),
+                    )
+                    for chunk, embedding in zip(safe_chunks, embeddings, strict=True)
+                ],
+                wait=True,
+            )
+        finally:
+            client.close()
 
     def replace(
         self,
@@ -192,26 +198,29 @@ class QdrantKnowledgeIndexer:
 
         from qdrant_client import QdrantClient, models
 
-        client = QdrantClient(url=self.settings.qdrant_url)
-        exists = client.collection_exists(self.settings.knowledge_qdrant_collection)
-        if collection_slug is None:
-            if exists:
-                client.delete_collection(self.settings.knowledge_qdrant_collection)
-        elif exists:
-            client.delete(
-                collection_name=self.settings.knowledge_qdrant_collection,
-                points_selector=models.FilterSelector(
-                    filter=models.Filter(
-                        must=[
-                            models.FieldCondition(
-                                key="metadata.collection_slugs",
-                                match=models.MatchValue(value=collection_slug),
-                            )
-                        ]
-                    )
-                ),
-                wait=True,
-            )
+        client = QdrantClient(url=self.settings.qdrant_url, timeout=IO_TIMEOUT_SECONDS)
+        try:
+            exists = client.collection_exists(collection_name(self.settings))
+            if collection_slug is None:
+                if exists:
+                    client.delete_collection(collection_name(self.settings))
+            elif exists:
+                client.delete(
+                    collection_name=collection_name(self.settings),
+                    points_selector=models.FilterSelector(
+                        filter=models.Filter(
+                            must=[
+                                models.FieldCondition(
+                                    key="metadata.collection_slugs",
+                                    match=models.MatchValue(value=collection_slug),
+                                )
+                            ]
+                        )
+                    ),
+                    wait=True,
+                )
+        finally:
+            client.close()
         self.index(chunks)
 
 

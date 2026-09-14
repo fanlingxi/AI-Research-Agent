@@ -4,6 +4,13 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
 
+from app.agent.feedback_models import (
+    FeedbackDecision,
+    FeedbackExportRequest,
+    FeedbackRecheck,
+    FeedbackRequest,
+    FeedbackRerunRequest,
+)
 from app.agent.models import AgentRunCreateRequest, AgentRunReviewRequest
 from app.agent.service import AgentRunService
 from app.api.errors import agent_call, memory_call, workspace_call
@@ -138,5 +145,39 @@ def build_agent_router(
         return agent_call(
             lambda: agents.review_run(run_id, action=payload.action)
         ).model_dump()
+
+    @router.get("/api/agent-runs/{run_id}/feedback")
+    def list_feedback(run_id: str) -> dict[str, Any]:
+        return agent_call(lambda: agents.feedback.list(run_id))
+
+    @router.post("/api/agent-runs/{run_id}/feedback", status_code=201)
+    def create_feedback(run_id: str, payload: FeedbackRequest) -> dict[str, Any]:
+        return agent_call(lambda: agents.feedback.create(run_id, payload))
+
+    @router.post("/api/agent-runs/{run_id}/feedback/{feedback_id}/review")
+    def review_feedback(
+        run_id: str, feedback_id: str, payload: FeedbackDecision
+    ) -> dict[str, Any]:
+        return agent_call(lambda: agents.feedback.decide(run_id, feedback_id, payload))
+
+    @router.post("/api/agent-runs/{run_id}/feedback/{feedback_id}/rerun", status_code=202)
+    def rerun_feedback(
+        run_id: str, feedback_id: str, payload: FeedbackRerunRequest
+    ) -> dict[str, Any]:
+        return agent_call(lambda: agents.feedback.rerun(run_id, feedback_id, payload)).model_dump()
+
+    @router.post("/api/agent-runs/{run_id}/rechecks/{recheck_id}")
+    def recheck_feedback(
+        run_id: str, recheck_id: str, payload: FeedbackRecheck
+    ) -> dict[str, Any]:
+        return agent_call(lambda: agents.feedback.recheck(run_id, recheck_id, payload))
+
+    @router.post("/api/agent-runs/{run_id}/feedback/{feedback_id}/dev-candidate")
+    def export_feedback(
+        run_id: str, feedback_id: str, payload: FeedbackExportRequest
+    ) -> dict[str, Any]:
+        return agent_call(lambda: agents.feedback.export_candidate(
+            run_id, feedback_id, payload.target_dev_version
+        ))
 
     return router

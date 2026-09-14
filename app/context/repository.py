@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hmac
 import json
+import sqlite3
+from collections.abc import Callable
 from typing import Any
 
 from app.context.models import (
@@ -21,10 +23,21 @@ class ContextSnapshotRepository:
         self.path = path
         self.database = database or SQLiteDatabase(path)
 
-    def save(self, package: ContextPackage, items: list[ContextSnapshotItem]) -> None:
-        payload = package.model_dump(mode="json")
+    def save(
+        self, package: ContextPackage, items: list[ContextSnapshotItem], *,
+        validate_state: Callable[[sqlite3.Connection], None] | None = None,
+    ) -> None:
+        payload_json = _dump(package.model_dump(mode="json"))
+        item_rows = [
+            (package.snapshot_id, item.section, item.item_type, item.item_id,
+             item.parent_item_id, item.rank, item.score, item.selected_reason,
+             _dump(item.provenance), item.estimated_tokens)
+            for item in items
+        ]
         with self.database.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            if validate_state is not None:
+                validate_state(connection)
             connection.execute(
                 """
                 INSERT INTO context_snapshots (
@@ -42,7 +55,7 @@ class ContextSnapshotRepository:
                     package.builder_version,
                     package.package_schema_version,
                     package.request_fingerprint,
-                    _dump(payload),
+                    payload_json,
                     package.package_sha256,
                     package.token_usage.budget,
                     package.token_usage.used,
@@ -56,21 +69,7 @@ class ContextSnapshotRepository:
                     score, selected_reason, provenance_json, estimated_tokens
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                [
-                    (
-                        package.snapshot_id,
-                        item.section,
-                        item.item_type,
-                        item.item_id,
-                        item.parent_item_id,
-                        item.rank,
-                        item.score,
-                        item.selected_reason,
-                        _dump(item.provenance),
-                        item.estimated_tokens,
-                    )
-                    for item in items
-                ],
+                item_rows,
             )
 
     def get(self, snapshot_id: str) -> ContextPackage:

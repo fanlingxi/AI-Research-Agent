@@ -6,10 +6,12 @@ from typing import Any, Literal, Protocol
 
 from app.config.settings import Settings, get_settings
 from app.knowledge.extractor import LiveLLMRequiredError
-from app.knowledge.query import KnowledgeQueryService
+from app.knowledge.query import KnowledgeQueryService, KnowledgeRetrievalError
+from app.knowledge.report_inputs import report_request
 from app.knowledge.repository import KnowledgeRepository, StaleReportExecution
 from app.knowledge.schemas import ReportEvaluation, ReportEvidence, ResearchReport
 from app.llms.provider import LLMClient, MockLLMClient, get_llm_client
+from app.retrieval.neural_embeddings import MODELS, collection_name, model_identity
 
 
 class ReportKnowledgeQuery(Protocol):
@@ -80,12 +82,21 @@ class KnowledgeReportService:
     ) -> ResearchReport:
         if (expected_job_id is None) != (expected_job_attempt is None):
             raise ValueError("A claimed report requires both its job id and attempt.")
+        if expected_job_id is None:
+            job = self.repository.claim_resource_job("report", report_id)
+            if job is None:
+                return self.repository.get_report(report_id)
+            expected_job_id, expected_job_attempt, expected_job_owner = (
+                job.id, job.attempts, job.lease_owner,
+            )
         started = time.perf_counter()
         generation_calls = 0
         input_tokens = 0
         output_tokens = 0
         retrieval_diagnostics: dict[str, Any] = {}
+        read_guard: dict[str, Any] | None = None
         report = self.repository.get_report(report_id)
+        request = report_request(report)
         report = self.repository.update_report(
             report_id,
             status="running",
@@ -93,17 +104,22 @@ class KnowledgeReportService:
             error=None,
             expected_job_attempt=expected_job_attempt,
             expected_job_owner=expected_job_owner,
+            expected_job_id=expected_job_id,
         )
         try:
+            self.ensure_execution_available()
             result = self.query_service.search(
                 report.query,
                 topic_slugs=report.topic_slugs,
                 top_k=report.top_k,
             )
+            retrieval_diagnostics = dict(result.get("retrieval_diagnostics") or {})
+            read_guard = retrieval_diagnostics.get("report_input")
+            if not isinstance(read_guard, dict):
+                raise ValueError("检索结果缺少正式知识输入指纹，无法提交报告。")
             evidence = [ReportEvidence.model_validate(item) for item in result["evidence"]]
             if not evidence:
                 raise ValueError("正式知识中没有检索到足以生成报告的正文证据。")
-            retrieval_diagnostics = dict(result.get("retrieval_diagnostics") or {})
             required_sources = int(retrieval_diagnostics.get("required_source_count") or 0)
             selected_sources = len({item.paper_id for item in evidence})
             if required_sources and selected_sources < required_sources:
@@ -123,6 +139,7 @@ class KnowledgeReportService:
                 error=None,
                 expected_job_attempt=expected_job_attempt,
                 expected_job_owner=expected_job_owner,
+                expected_job_id=expected_job_id,
             )
             prompt = self._prompt(report, evidence, result.get("graph", []))
             content = self.llm.invoke(prompt, system_prompt=_REPORT_SYSTEM_PROMPT).strip()
@@ -142,6 +159,7 @@ class KnowledgeReportService:
                 error=None,
                 expected_job_attempt=expected_job_attempt,
                 expected_job_owner=expected_job_owner,
+                expected_job_id=expected_job_id,
             )
             evaluation = _evaluate(
                 content,
@@ -164,6 +182,7 @@ class KnowledgeReportService:
                     error=None,
                     expected_job_attempt=expected_job_attempt,
                     expected_job_owner=expected_job_owner,
+                    expected_job_id=expected_job_id,
                 )
                 content = self.llm.invoke(
                     self._revision_prompt(content, evidence),
@@ -194,6 +213,7 @@ class KnowledgeReportService:
                     expected_job_id=expected_job_id,
                     expected_job_attempt=expected_job_attempt,
                     expected_job_owner=expected_job_owner,
+                    expected_request=request, read_guard=read_guard,
                     status="failed",
                     content=content,
                     evidence=evidence,
@@ -209,6 +229,7 @@ class KnowledgeReportService:
                 expected_job_id=expected_job_id,
                 expected_job_attempt=expected_job_attempt,
                 expected_job_owner=expected_job_owner,
+                expected_request=request, read_guard=read_guard,
                 status="completed",
                 content=content,
                 evidence=evidence,
@@ -220,11 +241,14 @@ class KnowledgeReportService:
         except StaleReportExecution:
             raise
         except Exception as exc:
+            if isinstance(exc, KnowledgeRetrievalError):
+                retrieval_diagnostics["retrieval_attempts"] = exc.attempts
             return self._finalize_run(
                 report_id,
                 expected_job_id=expected_job_id,
                 expected_job_attempt=expected_job_attempt,
                 expected_job_owner=expected_job_owner,
+                expected_request=request, read_guard=read_guard,
                 status="failed",
                 run_metadata=self._execution_metadata(
                     report,
@@ -298,6 +322,8 @@ class KnowledgeReportService:
         expected_job_id: str | None,
         expected_job_attempt: int | None,
         expected_job_owner: str | None,
+        expected_request: dict[str, Any],
+        read_guard: dict[str, Any] | None,
         status: Literal["completed", "failed"],
         content: str | None = None,
         evidence: list[ReportEvidence] | None = None,
@@ -317,22 +343,10 @@ class KnowledgeReportService:
                 run_metadata=run_metadata,
                 error=error,
                 expected_owner=expected_job_owner,
+                expected_request=expected_request,
+                read_guard=read_guard,
             )
-        result = self.repository.update_report(
-            report_id,
-            status=status,
-            content=content,
-            evidence=evidence,
-            evaluation=evaluation,
-            run_metadata=run_metadata,
-            error=error,
-        )
-        job = self.repository.get_resource_job("report", report_id)
-        if status == "failed":
-            self.repository.fail_job(job.id, error or "报告生成失败")
-        else:
-            self.repository.complete_job(job.id)
-        return result
+        raise StaleReportExecution("Report finalization requires a claimed job.")
 
     def _prompt(
         self,
@@ -398,8 +412,11 @@ class KnowledgeReportService:
             "llm_model": model,
             "knowledge_schema_version": self.repository.schema_version(),
             "embedding_provider": self.settings.embedding_provider,
-            "embedding_model": self.settings.embedding_model,
-            "qdrant_collection": self.settings.knowledge_qdrant_collection,
+            "embedding_model": MODELS.get(self.settings.embedding_provider,
+                                           (self.settings.embedding_model, None))[0],
+            "qdrant_collection": collection_name(self.settings),
+            **({"embedding_identity": model_identity(self.settings.embedding_provider)}
+               if self.settings.embedding_provider in MODELS else {}),
         }
 
     def _llm_usage(self) -> dict[str, int]:

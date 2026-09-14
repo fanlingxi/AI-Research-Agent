@@ -74,6 +74,8 @@ class OpenAIEmbeddingProvider:
     model: str = "text-embedding-3-small"
     base_url: str = "https://api.openai.com/v1"
     dimension: int = 1536
+    request_timeout: float | None = None
+    max_retries: int | None = None
 
     def embed_query(self, text: str) -> list[float]:
         return self.embed_documents([text])[0]
@@ -81,11 +83,17 @@ class OpenAIEmbeddingProvider:
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         from langchain_openai import OpenAIEmbeddings
 
+        options = {}
+        if self.request_timeout is not None:
+            options["request_timeout"] = self.request_timeout
+        if self.max_retries is not None:
+            options["max_retries"] = self.max_retries
         embeddings = OpenAIEmbeddings(
             model=self.model,
             api_key=self.api_key,
             base_url=self.base_url,
             dimensions=self.dimension,
+            **options,
         )
         return embeddings.embed_documents(texts)
 
@@ -104,8 +112,20 @@ def cosine_similarity(left: list[float], right: list[float]) -> float:
     return numerator / denominator
 
 
-def get_embedding_provider(settings: Settings | None = None) -> EmbeddingProvider:
+def get_embedding_provider(
+    settings: Settings | None = None, *,
+    request_timeout: float | None = None, max_retries: int | None = None,
+) -> EmbeddingProvider:
     settings = settings or get_settings()
+
+    if settings.embedding_provider in {"qwen3-local", "bge-m3-local"}:
+        from app.retrieval.neural_embeddings import LocalEmbeddingProvider
+
+        return LocalEmbeddingProvider(
+            provider=settings.embedding_provider, dimension=settings.embedding_dimension,
+            device=settings.embedding_device, cache_dir=settings.embedding_cache_dir,
+            batch_size=settings.embedding_batch_size,
+        )
 
     if settings.embedding_provider == "openai" and settings.openai_api_key:
         return OpenAIEmbeddingProvider(
@@ -113,6 +133,8 @@ def get_embedding_provider(settings: Settings | None = None) -> EmbeddingProvide
             model=settings.embedding_model,
             base_url=settings.openai_base_url,
             dimension=settings.embedding_dimension,
+            request_timeout=request_timeout,
+            max_retries=max_retries,
         )
 
     return HashEmbeddingProvider(dimension=settings.embedding_dimension)

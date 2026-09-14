@@ -9,6 +9,8 @@ from typing import Any
 from uuid import uuid4
 
 from app.agent.errors import AgentRunConflictError
+from app.agent.feedback import RunFeedbackService
+from app.agent.feedback_models import FeedbackDecision, FeedbackRequest, FeedbackRerunRequest
 from app.agent.models import (
     AgentRun,
     AgentRunCreateRequest,
@@ -31,6 +33,8 @@ from app.execution import ExecutionFence
 from app.knowledge.repository import KnowledgeRepository
 from app.llms.provider import LLMClient, MockLLMClient, get_llm_client
 from app.memory.models import MemoryProposal
+from app.retrieval.query_planning import QueryPlanner
+from app.retrieval.reranking import EvidenceReranker
 
 FOUNDATION_WORKFLOW_NAME = "research_agent_foundation"
 FOUNDATION_WORKFLOW_VERSION = "phase3a-v1"
@@ -55,13 +59,17 @@ class AgentRunService:
         plugin_registry: DomainPluginRegistry | None = None,
     ) -> None:
         self.knowledge_repository = knowledge_repository
-        self.context_builder = context_builder or ContextBuilderService(knowledge_repository)
         self.repository = repository or AgentRunRepository(
             knowledge_repository.path, knowledge_repository.database
         )
         self.settings = settings or get_settings()
         self.llm = llm or get_llm_client(self.settings)
+        self.context_builder = context_builder or ContextBuilderService(
+            knowledge_repository, query_planner=QueryPlanner(self.llm),
+            evidence_reranker=EvidenceReranker(self.llm)
+        )
         self.plugin_registry = plugin_registry or create_builtin_plugin_registry()
+        self.feedback = RunFeedbackService(self)
         self._current_execution: ContextVar[ExecutionFence | None] = ContextVar(
             f"agent_execution_fence_{id(self)}",
             default=None,
@@ -82,6 +90,17 @@ class AgentRunService:
         request: AgentRunCreateRequest,
         *,
         run_id: str | None = None,
+    ) -> AgentRun:
+        return self._create_run(project_id, task_id, request, run_id=run_id)
+
+    def _create_run(
+        self,
+        project_id: str,
+        task_id: str,
+        request: AgentRunCreateRequest,
+        *,
+        run_id: str | None = None,
+        feedback_rerun: tuple[str, str, FeedbackRerunRequest, int] | None = None,
     ) -> AgentRun:
         task = self.knowledge_repository.memory_repository.get_workspace_task(task_id)
         if task.project_id != project_id:
@@ -111,6 +130,26 @@ class AgentRunService:
         )
         with self.knowledge_repository._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            if feedback_rerun:
+                parent_id, feedback_id, rerun_request, parent_revision = feedback_rerun
+                duplicate = self.feedback.check_rerun_tx(
+                    connection, parent_id, feedback_id, rerun_request
+                )
+                if duplicate:
+                    return duplicate
+                parent = self.repository._require_run_tx(connection, parent_id)
+                if (
+                    parent["revision"] != parent_revision
+                    or parent["plugin_key"] != pin.key
+                    or parent["project_id"] != project_id
+                    or parent["task_id"] != task_id
+                    or parent["context_snapshot_id"] == context.snapshot_id
+                ):
+                    raise AgentRunConflictError("Review origin changed during context preparation.")
+                self.context_builder.validate_fresh_context_tx(connection, context)
+                if (pin.key == "research" and request.workflow == "research"
+                        and not context.project.knowledge_scopes):
+                    raise AgentRunConflictError("Research rerun requires an explicit scope.")
             try:
                 self.knowledge_repository.memory_repository.require_workspace_task_domain_plugin_tx(
                     connection,
@@ -148,6 +187,10 @@ class AgentRunService:
                 },
                 priority=100,
             )
+            if feedback_rerun:
+                self.feedback.link_rerun_tx(
+                    connection, parent_id, feedback_id, rerun_request, queued
+                )
             return queued
 
     def cancel_run(self, run_id: str) -> AgentRun:
@@ -175,21 +218,44 @@ class AgentRunService:
         """Close an invalid run or start a new run from a fresh ContextSnapshot."""
 
         reviewed = self.repository.get_run(run_id)
+        # Legacy rerun requests use the same governed path and a stable key.
+        # Repeated delivery returns the existing child even after it completed.
+        if action == "rerun":
+            existing = self.feedback.list(run_id)
+            for item in existing["feedback"]:
+                if item["request"]["idempotency_key"] == "legacy-review-rerun":
+                    if item["status"] == "pending":
+                        self.feedback.decide(run_id, item["id"], FeedbackDecision(
+                            expected_revision=1, decision="accepted",
+                            reviewer="legacy review endpoint",
+                            note=("Operator requested a new run; "
+                                  "this accepts the issue, not the draft."),
+                        ))
+                    return self.feedback.rerun(
+                        run_id, item["id"], FeedbackRerunRequest(
+                            idempotency_key="legacy-review-rerun", expected_revision=2,
+                            resolution_note="Explicit rerun from the existing review endpoint.",
+                        ),
+                    )
         if reviewed.status != "needs_review":
             raise AgentRunConflictError("Only needs_review AgentRuns have review actions.")
         if action == "close":
             return self.repository.close_needs_review(run_id)
         if action != "rerun":
             raise AgentRunConflictError(f"Unsupported review action: {action}")
-        return self.create_run(
-            reviewed.project_id,
-            reviewed.task_id,
-            AgentRunCreateRequest(
-                workflow=reviewed.options.workflow,
-                create_memory_proposal=reviewed.options.create_memory_proposal,
-                max_steps=reviewed.max_steps,
-                max_tool_calls=reviewed.max_tool_calls,
-                token_budget=reviewed.token_budget,
+        feedback = self.feedback.create(run_id, FeedbackRequest(
+            idempotency_key="legacy-review-rerun", category="citation",
+            reporter="legacy review endpoint",
+            note=reviewed.error_message or "Citation validation requires review.",
+        ))
+        self.feedback.decide(run_id, feedback["id"], FeedbackDecision(
+            expected_revision=1, decision="accepted", reviewer="legacy review endpoint",
+            note="Operator requested a new run; this accepts the issue, not the draft.",
+        ))
+        return self.feedback.rerun(
+            run_id, feedback["id"], FeedbackRerunRequest(
+                idempotency_key="legacy-review-rerun", expected_revision=2,
+                resolution_note="Explicit rerun from the existing review endpoint.",
             ),
         )
 
@@ -310,6 +376,14 @@ class AgentRunService:
             run_id,
             execution_fence=self._current_execution.get(),
         )
+
+    def begin_generation_attempt(self, run_id, slot, digest):
+        from app.agent.generation_attempts import begin
+        return begin(self, run_id, slot, digest)
+
+    def finish_generation_attempt(self, run_id, slot, **kwargs):
+        from app.agent.generation_attempts import finish
+        return finish(self, run_id, slot, **kwargs)
 
     def mark_needs_review(self, run_id: str, *, error_message: str) -> AgentRun:
         return self.repository.mark_needs_review(
@@ -469,13 +543,35 @@ class AgentRunService:
                 ContextBuildRequest(
                     task_id=task_id,
                     project_id=project_id,
-                    max_tokens=request.token_budget,
+                    # A run spans multiple model calls; snapshot capacity is separate.
+                    query_planning=request.query_planning,
+                    context_neighbors=request.context_neighbors,
+                    evidence_reranking=request.evidence_reranking,
+                    reading_format=(request.reading_format if request.reading_format != 'legacy'
+                                    else 'research-v1' if request.workflow in {
+                                        'research_v2', 'research_v3', 'research_v4',
+                                        'research_v5', 'research_v6', 'research_v7'
+                                    }
+                                    else 'legacy'),
+                    max_tokens=(request.context_max_tokens if request.context_max_tokens is not None
+                                else min(request.token_budget, 16000)),
                 )
             )
         if context.project.project_id != project_id or context.task.task_id != task_id:
             raise AgentRunConflictError(
                 "ContextSnapshot does not belong to the requested Project and Task."
             )
+        if request.workflow in {
+            'research_v2', 'research_v3', 'research_v4', 'research_v5', 'research_v6', 'research_v7'
+        }:
+            if context.reading_format == 'legacy':
+                raise AgentRunConflictError(
+                    f'{request.workflow} requires a new versioned reading snapshot'
+                )
+            if not context.project.knowledge_scopes:
+                raise AgentRunConflictError(
+                    f'{request.workflow} requires an explicit knowledge scope'
+                )
         return context
 
     def _model_metadata(self) -> tuple[str, str]:

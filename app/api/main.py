@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from fastapi import FastAPI
 
 from app.agent.service import AgentRunService
+from app.benchmarking.experiments import ExperimentReadService
 from app.config.settings import get_settings
 from app.domain_plugins.game_modeling.knowledge import GameKnowledgeAuthoringService
 from app.domain_plugins.service import DomainPluginService
@@ -21,6 +22,7 @@ from app.runtime.service import RuntimeObservabilityService
 from app.workspace.service import WorkspaceProjectionService
 
 from .routers.agent import build_agent_router
+from .routers.experiments import build_experiments_router
 from .routers.knowledge import build_knowledge_router
 from .routers.projects import build_projects_router
 from .routers.reports import build_reports_router
@@ -38,6 +40,7 @@ def create_app(
     workspace_projection_service: WorkspaceProjectionService | None = None,
     runtime_observability_service: RuntimeObservabilityService | None = None,
     research_command_service: ResearchCommandService | None = None,
+    experiment_service: ExperimentReadService | None = None,
 ) -> FastAPI:
     """Compose the modular monolith without executing long-running work."""
 
@@ -137,6 +140,7 @@ def create_app(
     app.include_router(build_reports_router(repository, reports))
     app.include_router(build_projects_router(memory, domain_plugins, game_knowledge, workspace))
     app.include_router(build_agent_router(memory, agents, workspace))
+    app.include_router(build_experiments_router(experiment_service or ExperimentReadService()))
     return app
 
 

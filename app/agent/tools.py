@@ -6,6 +6,7 @@ from typing import Any
 
 from app.agent.registry import RegisteredTool, ToolRegistry
 from app.context.models import ContextPackage
+from app.context.reading import research_payload
 
 
 def build_foundation_tool_registry() -> ToolRegistry:
@@ -113,16 +114,7 @@ def research_input_payload(package: ContextPackage) -> dict[str, Any]:
     a graph node and must never be placed in checkpoint state.
     """
 
-    return {
-        "context_snapshot_id": package.snapshot_id,
-        "context_sha256": package.package_sha256,
-        "project": package.project.model_dump(mode="json"),
-        "task": package.task.model_dump(mode="json"),
-        "memory": package.memory.model_dump(mode="json"),
-        "knowledge": package.knowledge.model_dump(mode="json"),
-        "artifacts": package.artifacts.model_dump(mode="json"),
-        "constraints": package.constraints.model_dump(mode="json"),
-    }
+    return research_payload(package)
 
 
 def _task_constraints(package: ContextPackage, arguments: dict[str, Any]) -> dict[str, Any]:

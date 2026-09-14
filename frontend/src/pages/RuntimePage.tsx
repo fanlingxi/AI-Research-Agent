@@ -182,13 +182,13 @@ export function RuntimePage() {
       </section>
 
       <section className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <Card className="min-w-0">
+        <Card className="flex min-w-0 flex-col">
           <CardHeader>
             <div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">统一任务流</p><h2 className="mt-1 text-lg font-semibold">任务时间线</h2></div>
             <FileClock className="text-brand" size={20} />
           </CardHeader>
-          <CardContent>
-            <div className="mb-4 flex flex-wrap gap-3">
+          <CardContent className="flex min-h-0 flex-1 flex-col xl:basis-0">
+            <div className="mb-4 flex shrink-0 flex-wrap gap-3">
               <label className="text-xs font-medium text-muted-ink">类型
                 <select className="mt-1 block min-w-40 rounded-lg border bg-white px-3 py-2 text-sm text-ink" value={kind} onChange={(event) => { setKind(event.target.value); resetPage(); }}>
                   <option value="">全部类型</option>
@@ -202,7 +202,7 @@ export function RuntimePage() {
                 </select>
               </label>
             </div>
-            <div className="max-h-[42rem] min-w-0 space-y-3 overflow-y-auto overscroll-contain pr-2" data-testid="runtime-work-list">
+            <div className="max-h-[42rem] min-w-0 space-y-3 overflow-y-auto overscroll-contain pr-2 xl:h-0 xl:min-h-64 xl:max-h-none xl:flex-1 xl:basis-0" data-testid="runtime-work-list">
               {workData.items.map((item) => (
                 <article className="min-w-0 rounded-lg border bg-white p-4" key={item.id}>
                   <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
@@ -231,7 +231,7 @@ export function RuntimePage() {
               {!workData.items.length ? <EmptyBlock title="没有匹配的任务">调整类型或状态筛选。</EmptyBlock> : null}
             </div>
             {(cursorHistory.length > 0 || workData.next_cursor) ? (
-              <div className="mt-4 flex items-center justify-between border-t pt-4">
+              <div className="mt-4 flex shrink-0 items-center justify-between border-t pt-4">
                 <Button disabled={!cursorHistory.length} size="sm" variant="outline" onClick={goBack}><ChevronLeft size={14} />上一页</Button>
                 <span className="text-xs text-muted-ink">第 {cursorHistory.length + 1} 页</span>
                 <Button disabled={!workData.next_cursor} size="sm" variant="outline" onClick={goNext}>下一页<ChevronRight size={14} /></Button>

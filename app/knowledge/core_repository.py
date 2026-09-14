@@ -24,6 +24,13 @@ from app.knowledge.schemas import (
 )
 from app.knowledge.source_identity import derive_source_identity
 from app.persistence.sqlite import SQLiteDatabase
+from app.retrieval.contracts import (
+    CandidateAudit,
+    CandidateMatch,
+    CandidateReference,
+    SourceIdentity,
+    validate_candidates,
+)
 from app.schemas.documents import DocumentChunk
 
 
@@ -435,6 +442,38 @@ class KnowledgeCoreRepository:
                 paper_ids.add(paper_id)
         return paper_ids
 
+    def authorized_report_paper_ids_tx(
+        self, connection: sqlite3.Connection, collection_slugs: list[str],
+    ) -> set[str]:
+        """Strict Core report scope; legacy shadow fallback is not authorization.
+
+        A scoped Paper must itself have membership, not merely share a document
+        with another published entity. Empty requested scopes mean all Core papers.
+        """
+        params: tuple[str, ...] = tuple(collection_slugs)
+        scope_sql = ""
+        if params:
+            placeholders = ", ".join("?" for _ in params)
+            scope_sql = f"""AND EXISTS (
+                SELECT 1 FROM legacy_record_map mapping
+                JOIN collection_memberships membership
+                  ON membership.aggregate_id = mapping.legacy_id
+                 AND membership.aggregate_type = 'entity'
+                WHERE mapping.legacy_table = 'published_entities'
+                  AND mapping.core_table = 'entities' AND mapping.core_id = entity.id
+                  AND membership.collection_slug IN ({placeholders})
+            )"""
+        return {str(row[0]) for row in connection.execute(f"""
+            SELECT DISTINCT chunk.document_id
+            FROM entities entity
+            JOIN claims claim ON claim.entity_id = entity.id
+            JOIN claim_evidence_links link ON link.claim_id = claim.id
+            JOIN evidences evidence ON evidence.id = link.evidence_id
+            JOIN chunks chunk ON chunk.id = evidence.chunk_id
+            WHERE entity.entity_type = 'Paper' AND entity.status = 'published'
+              AND claim.status = 'published' {scope_sql}
+        """, params)}
+
     def rehydrate_report_evidence(
         self,
         candidates: list[ChunkSearchHit],
@@ -443,37 +482,88 @@ class KnowledgeCoreRepository:
     ) -> list[ReportEvidence]:
         """Turn untrusted vector IDs into validated SQLite evidence rows."""
 
+        evidence, _ = self.rehydrate_report_candidates(
+            candidates, allowed_paper_ids=allowed_paper_ids
+        )
+        return evidence
+
+    @staticmethod
+    def report_corpus_ids_tx(connection: sqlite3.Connection, allowed: set[str]) -> list[str]:
+        if not allowed:
+            return []
+        placeholders = ", ".join("?" for _ in allowed)
+        return [str(row[0]) for row in connection.execute(
+            f"SELECT id FROM chunks WHERE document_id IN ({placeholders}) ORDER BY id",
+            tuple(sorted(allowed)),
+        )]
+
+    def rehydrate_report_candidates(
+        self,
+        candidates: list[ChunkSearchHit],
+        *,
+        allowed_paper_ids: set[str],
+    ) -> tuple[list[ReportEvidence], list[CandidateAudit]]:
+        """Use the same SQLite read for evidence, version binding and audit."""
+
+        with self._connect() as connection:
+            return self.rehydrate_report_candidates_tx(
+                connection, candidates, allowed_paper_ids=allowed_paper_ids,
+            )
+
+    def rehydrate_report_candidates_tx(
+        self, connection: sqlite3.Connection, candidates: list[ChunkSearchHit], *,
+        allowed_paper_ids: set[str],
+    ) -> tuple[list[ReportEvidence], list[CandidateAudit]]:
+        """Hydrate using the caller's scope snapshot, without opening a connection."""
+
+        references = [CandidateReference(
+            channel="vector", target_type="chunk", target_id=item.chunk_id, score=item.score,
+            source_identity=getattr(item, "source_identity", None),
+        ) for item in candidates]
+
         unique_ids = list(dict.fromkeys(item.chunk_id for item in candidates if item.chunk_id))
         if not unique_ids or not allowed_paper_ids:
-            return []
+            return [], validate_candidates(references, {})
         placeholders = ", ".join("?" for _ in unique_ids)
-        with self._connect() as connection:
-            rows = connection.execute(
-                f"""
-                SELECT chunk.id AS chunk_id, chunk.document_id, chunk.content,
-                       chunk.content_sha256 AS chunk_sha256,
-                       chunk.page_start, chunk.page_end,
-                       document.title, document.pages, document.content AS document_content,
-                       document.content_sha256 AS document_sha256,
-                       document.content_status, document.source_id,
-                       source.canonical_uri, source.version,
-                       source.content_sha256 AS source_sha256
-                FROM chunks chunk
-                JOIN documents document ON document.id = chunk.document_id
-                JOIN sources source ON source.id = document.source_id
-                WHERE chunk.id IN ({placeholders})
-                """,
-                tuple(unique_ids),
-            ).fetchall()
+        rows = connection.execute(
+            f"""
+            SELECT chunk.id AS chunk_id, chunk.document_id, chunk.content,
+                   chunk.content_sha256 AS chunk_sha256,
+                   chunk.page_start, chunk.page_end,
+                   document.title, document.pages, document.content AS document_content,
+                   document.content_sha256 AS document_sha256,
+                   document.content_status, document.source_id,
+                   source.canonical_uri, source.version,
+                   source.content_sha256 AS source_sha256
+            FROM chunks chunk
+            JOIN documents document ON document.id = chunk.document_id
+            JOIN sources source ON source.id = document.source_id
+            WHERE chunk.id IN ({placeholders})
+            """,
+            tuple(unique_ids),
+        ).fetchall()
         by_id = {str(row["chunk_id"]): row for row in rows}
+        bindings = {
+            ("chunk", chunk_id): [CandidateMatch(
+                item_type="chunk", item_id=chunk_id, sources=[SourceIdentity(
+                    source_id=str(row["source_id"]), source_version=str(row["version"]),
+                    source_sha256=str(row["source_sha256"]), document_id=str(row["document_id"]),
+                    document_sha256=str(row["document_sha256"]), chunk_id=chunk_id,
+                    chunk_sha256=str(row["chunk_sha256"]),
+                )],
+            )]
+            for chunk_id, row in by_id.items() if self._valid_report_chunk(row, allowed_paper_ids)
+        }
+        observations = validate_candidates(references, bindings)
         evidence: list[ReportEvidence] = []
         seen: set[str] = set()
-        for candidate in candidates:
+        for candidate, observation in zip(candidates, observations, strict=True):
+            if observation.status != "verified":
+                continue
             if candidate.chunk_id in seen:
+                observation.reason = "duplicate_ignored_first_valid_chunk"
                 continue
-            row = by_id.get(candidate.chunk_id)
-            if row is None or not self._valid_report_chunk(row, allowed_paper_ids):
-                continue
+            row = by_id[candidate.chunk_id]
             seen.add(candidate.chunk_id)
             evidence.append(
                 ReportEvidence(
@@ -487,7 +577,7 @@ class KnowledgeCoreRepository:
                     score=float(candidate.score),
                 )
             )
-        return evidence
+        return evidence, observations
 
     @staticmethod
     def _valid_report_chunk(row: sqlite3.Row, allowed_paper_ids: set[str]) -> bool:

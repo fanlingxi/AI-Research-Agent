@@ -21,7 +21,7 @@ def _memory(tmp_path) -> tuple[KnowledgeRepository, MemoryRepository]:
 def test_v0011_creates_memory_core_tables_and_replays_idempotently(tmp_path) -> None:
     knowledge, _ = _memory(tmp_path)
 
-    assert knowledge.schema_version() == 18
+    assert knowledge.schema_version() == 20
     with knowledge._connect() as connection:
         tables = {
             row["name"]
@@ -50,7 +50,7 @@ def test_v0011_creates_memory_core_tables_and_replays_idempotently(tmp_path) -> 
     assert {"proposal_type", "payload_json", "committed_record_id", "revision"}.issubset(columns)
 
     reopened = KnowledgeRepository(knowledge.path)
-    assert reopened.schema_version() == 18
+    assert reopened.schema_version() == 20
 
 
 def test_v11_fixture_upgrades_to_v12_without_changing_memory_business_data(tmp_path) -> None:
@@ -122,6 +122,10 @@ def test_v11_fixture_upgrades_to_v12_without_changing_memory_business_data(tmp_p
         connection.execute("DROP TABLE agent_run_outputs")
         connection.execute("DROP TABLE agent_tool_calls")
         connection.execute("DROP TABLE agent_run_events")
+        connection.execute("DROP TABLE agent_run_rechecks")
+        connection.execute("DROP TABLE agent_run_feedback")
+        connection.execute("DROP TABLE research_generation_attempts")
+        connection.execute("DELETE FROM schema_migrations WHERE version IN (19, 20)")
         connection.execute("DROP TABLE agent_runs")
         connection.execute("DROP TABLE context_snapshot_items")
         connection.execute("DROP TABLE context_snapshots")
@@ -135,7 +139,7 @@ def test_v11_fixture_upgrades_to_v12_without_changing_memory_business_data(tmp_p
         assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 11
 
     upgraded = KnowledgeRepository(knowledge.path)
-    assert upgraded.schema_version() == 18
+    assert upgraded.schema_version() == 20
     with upgraded._connect() as connection:
         after = {
             table: [dict(row) for row in connection.execute(f"SELECT * FROM {table} ORDER BY 1")]
@@ -149,7 +153,7 @@ def test_v11_fixture_upgrades_to_v12_without_changing_memory_business_data(tmp_p
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
 
     reopened = KnowledgeRepository(knowledge.path)
-    assert reopened.schema_version() == 18
+    assert reopened.schema_version() == 20
     with reopened._connect() as connection:
         assert {
             table: [dict(row) for row in connection.execute(f"SELECT * FROM {table} ORDER BY 1")]

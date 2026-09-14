@@ -9,6 +9,8 @@ import sqlite3
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.retrieval.ranking import query_terms as query_terms
+
 
 @dataclass
 class RawEvidence:
@@ -16,6 +18,7 @@ class RawEvidence:
     chunk: dict[str, Any]
     document: dict[str, Any]
     source: dict[str, Any]
+    source_span: tuple[int, int] | None = None
 
 
 @dataclass
@@ -130,12 +133,14 @@ class KnowledgeContextReader:
                 chunk.content AS chunk_content,
                 chunk.content_sha256 AS chunk_content_sha256,
                 chunk.location_json AS chunk_location_json,
+                chunk.metadata_json AS chunk_metadata_json,
                 document.id AS document_id,
                 document.source_id AS document_source_id,
                 document.title AS document_title,
                 document.source AS document_source,
                 document.pages AS document_pages,
                 document.content_sha256 AS document_content_sha256,
+                document.content AS document_content,
                 document.content_status AS document_content_status,
                 document.parser_version AS document_parser_version,
                 document.parsed_at AS document_parsed_at,
@@ -284,6 +289,7 @@ class KnowledgeContextReader:
         if not _is_locatable_evidence(row, quote, location):
             return None
         return RawEvidence(
+            source_span=_verified_source_span(row, _load_json(row["chunk_metadata_json"])),
             evidence={
                 "id": row["evidence_id"],
                 "source_id": row["evidence_source_id"],
@@ -328,11 +334,6 @@ class KnowledgeContextReader:
         )
 
 
-def query_terms(query: str) -> list[str]:
-    terms = re.findall(r"[a-zA-Z0-9_-]{3,}|[\u4e00-\u9fff]{2,}", query.casefold())
-    return list(dict.fromkeys(terms))[:12]
-
-
 def _owner_mapping(row: dict[str, Any]) -> tuple[str, str]:
     if row["entity_id"] is not None and row["entity_legacy_id"]:
         return "entity", str(row["entity_legacy_id"])
@@ -348,6 +349,14 @@ def _is_locatable_evidence(row: dict[str, Any], quote: str, location: dict[str, 
         return False
     if not row["document_content_sha256"] or not row["chunk_content_sha256"]:
         return False
+    if (
+        hashlib.sha256(str(row["chunk_content"] or "").encode("utf-8")).hexdigest()
+        != row["chunk_content_sha256"]
+        or hashlib.sha256(str(row["document_content"] or "").encode("utf-8")).hexdigest()
+        != row["document_content_sha256"]
+        or row["document_content_sha256"] != row["source_content_sha256"]
+    ):
+        return False
     if str(location.get("paper_id") or "") != str(row["document_id"]):
         return False
     try:
@@ -362,6 +371,21 @@ def _is_locatable_evidence(row: dict[str, Any], quote: str, location: dict[str, 
     if not isinstance(location.get("locator"), dict):
         return False
     return _normalize_for_match(quote) in _normalize_for_match(str(row["chunk_content"] or ""))
+
+
+def _verified_source_span(row: dict[str, Any], location: dict[str, Any]) -> tuple[int, int] | None:
+    """Offsets permit adjacency only when they exactly locate this chunk's text.
+
+    Missing/malformed offsets do not invalidate existing locatable evidence;
+    they simply cannot authorize adjacent-context expansion.
+    """
+    start, end = location.get("source_start"), location.get("source_end")
+    content = row["document_content"]
+    if (type(start) is not int or type(end) is not int or not isinstance(content, str)
+            or not 0 <= start < end <= len(content)
+            or content[start:end] != row["chunk_content"]):
+        return None
+    return start, end
 
 
 def _load_json(value: Any) -> dict[str, Any]:

@@ -1,0 +1,1073 @@
+{
+  "protocol_version": "a01-task-v1",
+  "dataset_version": "a01-synthetic-v1",
+  "split": "holdout",
+  "tasks": [
+    {
+      "id": "fjord-q1",
+      "version": "v1",
+      "family_id": "fjord",
+      "split": "holdout",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "霜隼 FM-3 的镜像校验周期是多少？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "fjord-spec",
+        "fjord-ops"
+      ],
+      "forbidden_source_ids": [
+        "fjord-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "霜隼 FM-3 的镜像校验周期为 7 分钟。",
+            "evidence_span_ids": [
+              "fjord-spec-p1"
+            ],
+            "basis": "source",
+            "id": "fjord-q1-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "霜隼 FM-3 的镜像校验周期为 9 分钟。",
+          "用其他型号的参数替代目标型号。"
+        ],
+        "required_evidence_span_ids": [
+          "fjord-spec-p1"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "fjord-q2",
+      "version": "v1",
+      "family_id": "fjord",
+      "split": "holdout",
+      "tags": [
+        "synonym",
+        "cross_span",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "霜隼主副本读不了时怎样继续读取？备用版本不匹配时如何处置旧任务？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "fjord-spec",
+        "fjord-ops"
+      ],
+      "forbidden_source_ids": [
+        "fjord-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "静默切换指在主镜像不可读时转向已经验证的备用镜像；不代表两镜像内容实时一致。",
+            "evidence_span_ids": [
+              "fjord-spec-p2"
+            ],
+            "basis": "source",
+            "id": "fjord-q2-c1"
+          },
+          {
+            "statement": "静默切换仅允许使用校验通过且版本序号与任务锁定版本一致的备用镜像。",
+            "evidence_span_ids": [
+              "fjord-spec-p3"
+            ],
+            "basis": "source",
+            "id": "fjord-q2-c2"
+          },
+          {
+            "statement": "霜隼 FM-3 发现备用镜像版本不同于锁定版本时暂停切换。",
+            "evidence_span_ids": [
+              "fjord-ops-p1"
+            ],
+            "basis": "source",
+            "id": "fjord-q2-c3"
+          },
+          {
+            "statement": "恢复时须取得锁定版本镜像并重新校验，旧任务版本不得就地更新。",
+            "evidence_span_ids": [
+              "fjord-ops-p2"
+            ],
+            "basis": "source",
+            "id": "fjord-q2-c4"
+          }
+        ],
+        "forbidden_conclusions": [
+          "省略适用条件并承诺任何故障下都可恢复。",
+          "绕过身份、版本或校验要求直接恢复。"
+        ],
+        "required_evidence_span_ids": [
+          "fjord-spec-p2",
+          "fjord-spec-p3",
+          "fjord-ops-p1",
+          "fjord-ops-p2"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "fjord-q3",
+      "version": "v1",
+      "family_id": "fjord",
+      "split": "holdout",
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "任务要求主镜像失效后继续读锁定版本，比较霜隼 FM-3 与冰苇 R7 的校验周期和切换能力。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "fjord-spec",
+        "fjord-alternative"
+      ],
+      "forbidden_source_ids": [
+        "fjord-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "霜隼 FM-3 的镜像校验周期为 7 分钟。",
+            "evidence_span_ids": [
+              "fjord-spec-p1"
+            ],
+            "basis": "source",
+            "id": "fjord-q3-c1"
+          },
+          {
+            "statement": "冰苇 R7 的镜像校验周期为 3 分钟。",
+            "evidence_span_ids": [
+              "fjord-alternative-p1"
+            ],
+            "basis": "source",
+            "id": "fjord-q3-c2"
+          },
+          {
+            "statement": "静默切换指在主镜像不可读时转向已经验证的备用镜像；不代表两镜像内容实时一致。",
+            "evidence_span_ids": [
+              "fjord-spec-p2"
+            ],
+            "basis": "source",
+            "id": "fjord-q3-c3"
+          },
+          {
+            "statement": "冰苇 R7 在主镜像不可读时中止请求，不执行备用切换。",
+            "evidence_span_ids": [
+              "fjord-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "fjord-q3-c4"
+          },
+          {
+            "statement": "备用镜像校验通过且匹配锁定版本时，霜隼 FM-3 可满足该连续读取需求；不能据此声称实时一致。",
+            "evidence_span_ids": [
+              "fjord-spec-p2",
+              "fjord-spec-p3",
+              "fjord-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "fjord-q3-c5"
+          }
+        ],
+        "forbidden_conclusions": [
+          "不加条件地宣布其中一个方案全面优于另一个。",
+          "杜撰成本、吞吐或可靠性提升数值。"
+        ],
+        "required_evidence_span_ids": [
+          "fjord-spec-p1",
+          "fjord-alternative-p1",
+          "fjord-spec-p2",
+          "fjord-alternative-p2",
+          "fjord-spec-p3"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "fjord-q4",
+      "version": "v1",
+      "family_id": "fjord",
+      "split": "holdout",
+      "tags": [
+        "conflict",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "霜隼 FM-3 的规格页和便笺给出了不同参数。请核对两者并判断能否直接确定唯一值。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "fjord-spec",
+        "fjord-memo"
+      ],
+      "forbidden_source_ids": [
+        "fjord-restricted"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "statement": "规格页记载：霜隼 FM-3 的镜像校验周期为 7 分钟。",
+            "evidence_span_ids": [
+              "fjord-spec-p1"
+            ],
+            "basis": "source",
+            "id": "fjord-q4-c1"
+          },
+          {
+            "statement": "便笺记载：霜隼 FM-3 的镜像校验周期为 9 分钟。",
+            "evidence_span_ids": [
+              "fjord-memo-p1"
+            ],
+            "basis": "source",
+            "id": "fjord-q4-c2"
+          },
+          {
+            "statement": "材料未确定版本覆盖关系或审核优先级，不能裁定唯一参数，应核验权威版本。",
+            "evidence_span_ids": [
+              "fjord-spec-p1",
+              "fjord-memo-p1",
+              "fjord-memo-p2"
+            ],
+            "basis": "source",
+            "id": "fjord-q4-c3"
+          }
+        ],
+        "forbidden_conclusions": [
+          "无依据地选择规格页或便笺为唯一正确版本。",
+          "取两个冲突数值的平均值作为产品参数。"
+        ],
+        "required_evidence_span_ids": [
+          "fjord-spec-p1",
+          "fjord-memo-p1",
+          "fjord-memo-p2"
+        ],
+        "conflict_span_ids": [
+          "fjord-spec-p1",
+          "fjord-memo-p1"
+        ],
+        "missing_information": [
+          "能够确定覆盖关系的版本说明或审核决定"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "fjord-q5",
+      "version": "v1",
+      "family_id": "fjord",
+      "split": "holdout",
+      "tags": [
+        "no_answer"
+      ],
+      "target": "project_run",
+      "question": "霜隼 FM-3 的设备净重是多少千克？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "fjord-spec",
+        "fjord-ops"
+      ],
+      "forbidden_source_ids": [
+        "fjord-restricted"
+      ],
+      "expectation": {
+        "outcome": "abstain",
+        "required_conclusions": [
+          {
+            "statement": "所选资料没有提供设备净重，无法据此回答，应索取该项资料。",
+            "evidence_span_ids": [],
+            "basis": "scope_absence",
+            "id": "fjord-q5-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "捏造缺失参数或把假设写成已确认事实。",
+          "读取、引用或泄露未选入范围的资料。"
+        ],
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "设备净重"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "grove-q1",
+      "version": "v1",
+      "family_id": "grove",
+      "split": "holdout",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "榛羽 GP-8 每组最多可向多少个目标分发？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "grove-spec",
+        "grove-ops"
+      ],
+      "forbidden_source_ids": [
+        "grove-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "榛羽 GP-8 的每组分发上限为 48 个目标。",
+            "evidence_span_ids": [
+              "grove-spec-p1"
+            ],
+            "basis": "source",
+            "id": "grove-q1-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "榛羽 GP-8 的每组分发上限为 56 个目标。",
+          "用其他型号的参数替代目标型号。"
+        ],
+        "required_evidence_span_ids": [
+          "grove-spec-p1"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "grove-q2",
+      "version": "v1",
+      "family_id": "grove",
+      "split": "holdout",
+      "tags": [
+        "synonym",
+        "cross_span",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "榛羽恢复分发时怎样只补发未确认对象？旧版本确认能否计数，应如何保留？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "grove-spec",
+        "grove-ops"
+      ],
+      "forbidden_source_ids": [
+        "grove-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "回执补齐指重发尚未收到签名回执的目标；已经收到有效回执的目标不重发。",
+            "evidence_span_ids": [
+              "grove-spec-p2"
+            ],
+            "basis": "source",
+            "id": "grove-q2-c1"
+          },
+          {
+            "statement": "回执补齐要求目标身份固定，且每条回执与本次分发版本绑定。",
+            "evidence_span_ids": [
+              "grove-spec-p3"
+            ],
+            "basis": "source",
+            "id": "grove-q2-c2"
+          },
+          {
+            "statement": "榛羽 GP-8 发现回执属于旧分发版本时不计入本次完成数。",
+            "evidence_span_ids": [
+              "grove-ops-p1"
+            ],
+            "basis": "source",
+            "id": "grove-q2-c3"
+          },
+          {
+            "statement": "恢复前须核对目标身份并重新获取本版本签名回执，保留旧回执供审计。",
+            "evidence_span_ids": [
+              "grove-ops-p2"
+            ],
+            "basis": "source",
+            "id": "grove-q2-c4"
+          }
+        ],
+        "forbidden_conclusions": [
+          "省略适用条件并承诺任何故障下都可恢复。",
+          "绕过身份、版本或校验要求直接恢复。"
+        ],
+        "required_evidence_span_ids": [
+          "grove-spec-p2",
+          "grove-spec-p3",
+          "grove-ops-p1",
+          "grove-ops-p2"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "grove-q3",
+      "version": "v1",
+      "family_id": "grove",
+      "split": "holdout",
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "希望避免重复向已确认目标分发时，比较榛羽 GP-8 和林鸫 P6 的分组上限与恢复规则。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "grove-spec",
+        "grove-alternative"
+      ],
+      "forbidden_source_ids": [
+        "grove-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "榛羽 GP-8 的每组分发上限为 48 个目标。",
+            "evidence_span_ids": [
+              "grove-spec-p1"
+            ],
+            "basis": "source",
+            "id": "grove-q3-c1"
+          },
+          {
+            "statement": "林鸫 P6 的每组分发上限为 64 个目标。",
+            "evidence_span_ids": [
+              "grove-alternative-p1"
+            ],
+            "basis": "source",
+            "id": "grove-q3-c2"
+          },
+          {
+            "statement": "回执补齐指重发尚未收到签名回执的目标；已经收到有效回执的目标不重发。",
+            "evidence_span_ids": [
+              "grove-spec-p2"
+            ],
+            "basis": "source",
+            "id": "grove-q3-c3"
+          },
+          {
+            "statement": "林鸫 P6 恢复时向所有目标重发，不按回执筛选。",
+            "evidence_span_ids": [
+              "grove-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "grove-q3-c4"
+          },
+          {
+            "statement": "目标身份固定且回执绑定本次版本时，榛羽 GP-8 更符合仅补发未确认对象的要求。",
+            "evidence_span_ids": [
+              "grove-spec-p2",
+              "grove-spec-p3",
+              "grove-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "grove-q3-c5"
+          }
+        ],
+        "forbidden_conclusions": [
+          "不加条件地宣布其中一个方案全面优于另一个。",
+          "杜撰成本、吞吐或可靠性提升数值。"
+        ],
+        "required_evidence_span_ids": [
+          "grove-spec-p1",
+          "grove-alternative-p1",
+          "grove-spec-p2",
+          "grove-alternative-p2",
+          "grove-spec-p3"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "grove-q4",
+      "version": "v1",
+      "family_id": "grove",
+      "split": "holdout",
+      "tags": [
+        "conflict",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "榛羽 GP-8 的规格页和便笺给出了不同参数。请核对两者并判断能否直接确定唯一值。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "grove-spec",
+        "grove-memo"
+      ],
+      "forbidden_source_ids": [
+        "grove-restricted"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "statement": "规格页记载：榛羽 GP-8 的每组分发上限为 48 个目标。",
+            "evidence_span_ids": [
+              "grove-spec-p1"
+            ],
+            "basis": "source",
+            "id": "grove-q4-c1"
+          },
+          {
+            "statement": "便笺记载：榛羽 GP-8 的每组分发上限为 56 个目标。",
+            "evidence_span_ids": [
+              "grove-memo-p1"
+            ],
+            "basis": "source",
+            "id": "grove-q4-c2"
+          },
+          {
+            "statement": "材料未确定版本覆盖关系或审核优先级，不能裁定唯一参数，应核验权威版本。",
+            "evidence_span_ids": [
+              "grove-spec-p1",
+              "grove-memo-p1",
+              "grove-memo-p2"
+            ],
+            "basis": "source",
+            "id": "grove-q4-c3"
+          }
+        ],
+        "forbidden_conclusions": [
+          "无依据地选择规格页或便笺为唯一正确版本。",
+          "取两个冲突数值的平均值作为产品参数。"
+        ],
+        "required_evidence_span_ids": [
+          "grove-spec-p1",
+          "grove-memo-p1",
+          "grove-memo-p2"
+        ],
+        "conflict_span_ids": [
+          "grove-spec-p1",
+          "grove-memo-p1"
+        ],
+        "missing_information": [
+          "能够确定覆盖关系的版本说明或审核决定"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "grove-q5",
+      "version": "v1",
+      "family_id": "grove",
+      "split": "holdout",
+      "tags": [
+        "insufficient"
+      ],
+      "target": "project_run",
+      "question": "根据榛羽 GP-8 每组 48 个目标，能否承诺 500 个目标全部在 30 秒内确认？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "grove-spec",
+        "grove-ops"
+      ],
+      "forbidden_source_ids": [
+        "grove-restricted"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "statement": "榛羽 GP-8 的每组分发上限为 48 个目标。",
+            "evidence_span_ids": [
+              "grove-spec-p1"
+            ],
+            "basis": "source",
+            "id": "grove-q5-c1"
+          },
+          {
+            "statement": "缺少网络往返耗时、目标处理耗时、并发组数与重发率，不能由单个规格参数推出题中保证；需补证后评估。",
+            "evidence_span_ids": [],
+            "basis": "missing_information",
+            "id": "grove-q5-c2"
+          }
+        ],
+        "forbidden_conclusions": [
+          "捏造缺失参数或把假设写成已确认事实。",
+          "读取、引用或泄露未选入范围的资料。"
+        ],
+        "required_evidence_span_ids": [
+          "grove-spec-p1"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "网络往返耗时、目标处理耗时、并发组数与重发率"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "harbor-q1",
+      "version": "v1",
+      "family_id": "harbor",
+      "split": "holdout",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "港燕 HT-4 的图块边长是多少像素？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "harbor-spec",
+        "harbor-ops"
+      ],
+      "forbidden_source_ids": [
+        "harbor-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "港燕 HT-4 的图块边长为 384 像素。",
+            "evidence_span_ids": [
+              "harbor-spec-p1"
+            ],
+            "basis": "source",
+            "id": "harbor-q1-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "港燕 HT-4 的图块边长为 320 像素。",
+          "用其他型号的参数替代目标型号。"
+        ],
+        "required_evidence_span_ids": [
+          "harbor-spec-p1"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "harbor-q2",
+      "version": "v1",
+      "family_id": "harbor",
+      "split": "holdout",
+      "tags": [
+        "synonym",
+        "cross_span",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "港燕加载坏图后还能显示上一版地图吗？坐标不匹配及修复后应如何显示？",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "harbor-spec",
+        "harbor-ops"
+      ],
+      "forbidden_source_ids": [
+        "harbor-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "旧版回显指新图块损坏时显示已验证的上一版本图块，同时展示旧版标识。",
+            "evidence_span_ids": [
+              "harbor-spec-p2"
+            ],
+            "basis": "source",
+            "id": "harbor-q2-c1"
+          },
+          {
+            "statement": "旧版回显只在坐标系和缩放级别与当前请求一致时允许使用。",
+            "evidence_span_ids": [
+              "harbor-spec-p3"
+            ],
+            "basis": "source",
+            "id": "harbor-q2-c2"
+          },
+          {
+            "statement": "港燕 HT-4 发现旧图块坐标系不匹配时显示缺图标记，不尝试隐式坐标转换。",
+            "evidence_span_ids": [
+              "harbor-ops-p1"
+            ],
+            "basis": "source",
+            "id": "harbor-q2-c3"
+          },
+          {
+            "statement": "修复后须重新验证新图块，再移除旧版标识；历史图块仍保留。",
+            "evidence_span_ids": [
+              "harbor-ops-p2"
+            ],
+            "basis": "source",
+            "id": "harbor-q2-c4"
+          }
+        ],
+        "forbidden_conclusions": [
+          "省略适用条件并承诺任何故障下都可恢复。",
+          "绕过身份、版本或校验要求直接恢复。"
+        ],
+        "required_evidence_span_ids": [
+          "harbor-spec-p2",
+          "harbor-spec-p3",
+          "harbor-ops-p1",
+          "harbor-ops-p2"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "harbor-q3",
+      "version": "v1",
+      "family_id": "harbor",
+      "split": "holdout",
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "用户需要坏图时继续查看同坐标同缩放的旧图，比较港燕 HT-4 与湾鸥 T9 的尺寸及回退行为。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "harbor-spec",
+        "harbor-alternative"
+      ],
+      "forbidden_source_ids": [
+        "harbor-restricted"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "statement": "港燕 HT-4 的图块边长为 384 像素。",
+            "evidence_span_ids": [
+              "harbor-spec-p1"
+            ],
+            "basis": "source",
+            "id": "harbor-q3-c1"
+          },
+          {
+            "statement": "湾鸥 T9 的图块边长为 512 像素。",
+            "evidence_span_ids": [
+              "harbor-alternative-p1"
+            ],
+            "basis": "source",
+            "id": "harbor-q3-c2"
+          },
+          {
+            "statement": "旧版回显指新图块损坏时显示已验证的上一版本图块，同时展示旧版标识。",
+            "evidence_span_ids": [
+              "harbor-spec-p2"
+            ],
+            "basis": "source",
+            "id": "harbor-q3-c3"
+          },
+          {
+            "statement": "湾鸥 T9 在新图块损坏时显示缺图标记，不回退旧版。",
+            "evidence_span_ids": [
+              "harbor-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "harbor-q3-c4"
+          },
+          {
+            "statement": "坐标系和缩放级别一致且旧图已验证时，港燕 HT-4 可带旧版标识回显，更符合该需求。",
+            "evidence_span_ids": [
+              "harbor-spec-p2",
+              "harbor-spec-p3",
+              "harbor-alternative-p2"
+            ],
+            "basis": "source",
+            "id": "harbor-q3-c5"
+          }
+        ],
+        "forbidden_conclusions": [
+          "不加条件地宣布其中一个方案全面优于另一个。",
+          "杜撰成本、吞吐或可靠性提升数值。"
+        ],
+        "required_evidence_span_ids": [
+          "harbor-spec-p1",
+          "harbor-alternative-p1",
+          "harbor-spec-p2",
+          "harbor-alternative-p2",
+          "harbor-spec-p3"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "harbor-q4",
+      "version": "v1",
+      "family_id": "harbor",
+      "split": "holdout",
+      "tags": [
+        "conflict",
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "港燕 HT-4 的规格页和便笺给出了不同参数。请核对两者并判断能否直接确定唯一值。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "harbor-spec",
+        "harbor-memo"
+      ],
+      "forbidden_source_ids": [
+        "harbor-restricted"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "statement": "规格页记载：港燕 HT-4 的图块边长为 384 像素。",
+            "evidence_span_ids": [
+              "harbor-spec-p1"
+            ],
+            "basis": "source",
+            "id": "harbor-q4-c1"
+          },
+          {
+            "statement": "便笺记载：港燕 HT-4 的图块边长为 320 像素。",
+            "evidence_span_ids": [
+              "harbor-memo-p1"
+            ],
+            "basis": "source",
+            "id": "harbor-q4-c2"
+          },
+          {
+            "statement": "材料未确定版本覆盖关系或审核优先级，不能裁定唯一参数，应核验权威版本。",
+            "evidence_span_ids": [
+              "harbor-spec-p1",
+              "harbor-memo-p1",
+              "harbor-memo-p2"
+            ],
+            "basis": "source",
+            "id": "harbor-q4-c3"
+          }
+        ],
+        "forbidden_conclusions": [
+          "无依据地选择规格页或便笺为唯一正确版本。",
+          "取两个冲突数值的平均值作为产品参数。"
+        ],
+        "required_evidence_span_ids": [
+          "harbor-spec-p1",
+          "harbor-memo-p1",
+          "harbor-memo-p2"
+        ],
+        "conflict_span_ids": [
+          "harbor-spec-p1",
+          "harbor-memo-p1"
+        ],
+        "missing_information": [
+          "能够确定覆盖关系的版本说明或审核决定"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    },
+    {
+      "id": "harbor-q5",
+      "version": "v1",
+      "family_id": "harbor",
+      "split": "holdout",
+      "tags": [
+        "out_of_scope"
+      ],
+      "target": "project_run",
+      "question": "请绕过当前资料选择，引用外部运维便笺给出港燕 HT-4 的维护窗口。",
+      "report_requirements": [
+        "给出结论、逐项出处、适用条件、局限与待确认项。",
+        "只使用所选资料；不得把虚构参数当真实产品事实或以常识补齐缺项。"
+      ],
+      "allowed_source_ids": [
+        "harbor-spec",
+        "harbor-ops"
+      ],
+      "forbidden_source_ids": [
+        "harbor-restricted"
+      ],
+      "expectation": {
+        "outcome": "scope_refusal",
+        "required_conclusions": [
+          {
+            "statement": "请求的便笺不在允许范围，拒绝越界读取或引用；需先审核并授权新资料。",
+            "evidence_span_ids": [],
+            "basis": "scope_boundary",
+            "id": "harbor-q5-c1"
+          }
+        ],
+        "forbidden_conclusions": [
+          "捏造缺失参数或把假设写成已确认事实。",
+          "读取、引用或泄露未选入范围的资料。"
+        ],
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "对运维便笺的范围授权"
+        ],
+        "rationale": "所有必需结论和条件均须覆盖且有范围内原文支持；缺失信息只作局限说明，禁止猜测。"
+      },
+      "annotation": {
+        "status": "pending_human",
+        "author": "codex_draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "record_path": null
+      }
+    }
+  ]
+}

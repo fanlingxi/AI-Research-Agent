@@ -148,7 +148,7 @@ def test_schema_migrations_and_sequential_replay_are_idempotent(tmp_path) -> Non
     first = service.decide("candidate-idempotent", CandidateDecision(decision="approve"))
     replay = service.decide("candidate-idempotent", CandidateDecision(decision="approve"))
 
-    assert repository.schema_version() == 18
+    assert repository.schema_version() == 20
     assert first.applied and not first.replayed
     assert replay.replayed and not replay.applied
     with pytest.raises(ValueError, match="不同"):
@@ -181,6 +181,44 @@ def test_concurrent_same_decision_creates_one_fact_event_and_projection(tmp_path
     assert sum(result.applied for result in results) == 1
     assert sum(result.replayed for result in results) == 1
     with sqlite3.connect(repository.path) as connection:
+        counts = [
+            connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            for table in ("review_events", "published_entities", "projection_outbox")
+        ]
+    assert counts == [1, 1, 1]
+
+
+@pytest.mark.parametrize("requested", ["approve", "reject"])
+def test_review_rechecks_candidate_when_ingestion_advances_between_reads(
+    tmp_path, monkeypatch, requested
+) -> None:
+    repository, service = _service(tmp_path)
+    ingestion = repository.create_ingestion(
+        topic="Review interleaving", sources=["paper.pdf"], pdf_max_pages=3, enqueue=False
+    )
+    repository.update_ingestion(ingestion.id, status="needs_review")
+    persist_evidence_chunk(repository, ingestion_id=ingestion.id, evidence=_evidence())
+    candidate_id = "candidate-interleaved"
+    repository.add_candidate_entity(_entity(ingestion, candidate_id, "Interleaved review"))
+    get_candidate = repository.get_candidate
+    interleaved = False
+
+    def read_then_complete_review(item_id):
+        nonlocal interleaved
+        stale = get_candidate(item_id)
+        if not interleaved:
+            interleaved = True
+            service.decide(item_id, CandidateDecision(decision="approve"))
+        return stale
+
+    monkeypatch.setattr(repository, "get_candidate", read_then_complete_review)
+    if requested == "approve":
+        replay = service.decide(candidate_id, CandidateDecision(decision=requested))
+        assert replay.replayed and not replay.applied
+    else:
+        with pytest.raises(ValueError, match="不同"):
+            service.decide(candidate_id, CandidateDecision(decision=requested))
+    with repository._connect() as connection:
         counts = [
             connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
             for table in ("review_events", "published_entities", "projection_outbox")

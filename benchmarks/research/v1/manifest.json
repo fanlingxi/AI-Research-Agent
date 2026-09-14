@@ -1,0 +1,73 @@
+{
+  "protocol_version": "a01-task-v1",
+  "dataset_version": "a01-synthetic-v1",
+  "corpus_version": "a01-corpus-v1",
+  "status": "frozen_candidate_pending_human",
+  "created_at": "2026-09-13",
+  "families": [
+    {
+      "id": "atlas",
+      "split": "dev",
+      "description": "岩雀缓存离线部署",
+      "task_count": 5
+    },
+    {
+      "id": "boreal",
+      "split": "dev",
+      "description": "松鸦批处理恢复",
+      "task_count": 5
+    },
+    {
+      "id": "cinder",
+      "split": "dev",
+      "description": "烛芯传感采样",
+      "task_count": 5
+    },
+    {
+      "id": "delta",
+      "split": "dev",
+      "description": "汀舟队列保留",
+      "task_count": 5
+    },
+    {
+      "id": "ember",
+      "split": "dev",
+      "description": "萤桥日志归档",
+      "task_count": 5
+    },
+    {
+      "id": "fjord",
+      "split": "holdout",
+      "description": "霜隼镜像切换",
+      "task_count": 5
+    },
+    {
+      "id": "grove",
+      "split": "holdout",
+      "description": "榛羽分发确认",
+      "task_count": 5
+    },
+    {
+      "id": "harbor",
+      "split": "holdout",
+      "description": "港燕图块回退",
+      "task_count": 5
+    }
+  ],
+  "split_counts": {
+    "dev": 25,
+    "holdout": 15
+  },
+  "required_tags": [
+    "exact_name",
+    "synonym",
+    "multi_source",
+    "cross_span",
+    "conflict",
+    "no_answer",
+    "insufficient",
+    "out_of_scope"
+  ],
+  "holdout_policy": "按主题、来源、预期决策族固定划分；保留题只用于阶段决策，禁止调参或作为提示示例。",
+  "model_execution": "not_implemented_not_authorized"
+}

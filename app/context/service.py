@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -42,6 +43,8 @@ from app.context.models import (
     canonical_package_sha256,
     runtime_context_token_count,
 )
+from app.context.neighbors import MAX_ANCHORS, adjacent_bundles
+from app.context.query_ranking import rank_query_bundles
 from app.context.ranking import RankedKnowledgeBundle, rank_bundles
 from app.context.repository import ContextSnapshotRepository
 from app.context.retrieval import (
@@ -50,8 +53,19 @@ from app.context.retrieval import (
     Neo4jContextCandidateRetriever,
     QdrantContextCandidateRetriever,
 )
+from app.context.retrieval_audit import bundle_bindings, context_retrieval_audit
 from app.knowledge.repository import KnowledgeRepository
 from app.memory.models import Artifact, MemoryDecision, ProjectMemorySnapshot, WorkspaceTask
+from app.retrieval.contracts import validate_candidates
+from app.retrieval.coverage import (
+    CoreCoverageReranker,
+    CoverageReranker,
+    coverage_indices,
+    selected_coverage,
+)
+from app.retrieval.policy import MAX_CONTEXT_PREPARATIONS, MAX_EXTERNAL_ATTEMPTS, is_transient_error
+from app.retrieval.query_planning import QueryPlanner, task_plan
+from app.retrieval.reranking import EvidenceReranker, apply_reranking, input_digest, ranking_input
 
 _TERMINAL_TASK_STATUSES = {"completed", "cancelled"}
 _TERMINAL_PROJECT_STATUSES = {"completed", "archived"}
@@ -60,9 +74,28 @@ _TERMINAL_PROJECT_STATUSES = {"completed", "archived"}
 class ContextConflictError(ValueError):
     """The task exists but is not eligible for a new runtime context."""
 
+    def __init__(
+        self, message: str, *, preparation_attempts: list[dict[str, Any]] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.preparation_attempts = preparation_attempts or []
+
 
 class ContextBudgetTooSmallError(ValueError):
     """The mandatory, normalized Runtime payload exceeds the supplied budget."""
+
+
+class _ContextInputsChanged(ContextConflictError):
+    """Prepared inputs changed before the observation/commit boundary."""
+
+
+@dataclass(frozen=True)
+class _PreparedInputs:
+    task: WorkspaceTask
+    memory: ProjectMemorySnapshot
+    bundles: list[RawKnowledgeBundle]
+    has_core_claim: bool
+    fingerprint: str
 
 
 class ContextBuilderService:
@@ -80,6 +113,9 @@ class ContextBuilderService:
         vector_retriever: ContextCandidateRetriever | None = None,
         graph_retriever: ContextCandidateRetriever | None = None,
         snapshot_repository: ContextSnapshotRepository | None = None,
+        query_planner: QueryPlanner | None = None,
+        evidence_reranker: EvidenceReranker | None = None,
+        coverage_reranker: CoverageReranker | None = None,
     ) -> None:
         self.repository = repository
         self.memory_repository = repository.memory_repository
@@ -87,6 +123,9 @@ class ContextBuilderService:
         self.knowledge_reader = KnowledgeContextReader()
         self.vector_retriever = vector_retriever or QdrantContextCandidateRetriever()
         self.graph_retriever = graph_retriever or Neo4jContextCandidateRetriever()
+        self.query_planner = query_planner or QueryPlanner()
+        self.evidence_reranker = evidence_reranker or EvidenceReranker()
+        self.coverage_reranker = coverage_reranker
         self.snapshot_repository = snapshot_repository or ContextSnapshotRepository(
             repository.path, repository.database
         )
@@ -99,72 +138,277 @@ class ContextBuilderService:
     def preview_context(self, request: ContextBuildRequest) -> ContextPackage:
         """Build the exact Runtime package without persisting a Snapshot."""
 
-        package, _ = self._prepare_context(request)
-        return package
+        return self._build_context(request, persist=False)
 
     def build_context(self, request: ContextBuildRequest) -> ContextPackage:
         """Create and persist one immutable Context Package.
 
-        Memory and formal Knowledge rows are read inside one ``query_only``
-        transaction. Snapshot persistence occurs only after its canonical JSON
-        has been finalized; it is the Context module's sole write operation.
+        Preparation reads one SQLite snapshot, then closes it before retrieval.
+        Final input validation and persistence share one write transaction.
         """
 
-        package, items = self._prepare_context(request)
-        self.snapshot_repository.save(package, items)
-        return package
+        return self._build_context(request, persist=True)
+
+    def validate_fresh_context_tx(
+        self, connection: sqlite3.Connection, package: ContextPackage
+    ) -> None:
+        """Check a newly prepared rerun input at the atomic queue/link boundary.
+
+        No retrieval or model calls occur here. Historical snapshots remain readable,
+        but are not accepted as freshly prepared feedback reruns.
+        """
+        audit = package.retrieval_audit
+        expected = audit.parameters.get("input_sha256") if audit else None
+        current = self._read_inputs_tx(connection, ContextBuildRequest(
+            task_id=package.task.task_id, project_id=package.project.project_id,
+        ))
+        if not expected or current.fingerprint != expected:
+            raise ContextConflictError("Context changed before feedback rerun was queued.")
+
+    def _build_context(self, request: ContextBuildRequest, *, persist: bool) -> ContextPackage:
+        request = request.model_copy(deep=True)
+        attempts: list[dict[str, Any]] = []
+        planning_cache: dict[str, Any] = {}
+        for attempt in range(1, MAX_CONTEXT_PREPARATIONS + 1):
+            with self.database.connect() as connection:
+                connection.execute("PRAGMA query_only = ON")
+                connection.execute("BEGIN")
+                prepared = self._read_inputs_tx(connection, request)
+            package, items = self._prepare_context(
+                request, prepared, attempt, attempts, planning_cache=planning_cache
+            )
+
+            def validate_state(
+                connection: sqlite3.Connection, expected: str = prepared.fingerprint,
+            ) -> None:
+                current = self._read_inputs_tx(connection, request)
+                if current.fingerprint != expected:
+                    raise _ContextInputsChanged("Context inputs changed during preparation.")
+
+            try:
+                if persist:
+                    self.snapshot_repository.save(package, items, validate_state=validate_state)
+                else:
+                    with self.database.connect() as connection:
+                        connection.execute("PRAGMA query_only = ON")
+                        connection.execute("BEGIN")
+                        validate_state(connection)
+                return package
+            except _ContextInputsChanged:
+                attempts.append({
+                    "attempt": attempt, "input_sha256": prepared.fingerprint,
+                    "outcome": "inputs_changed", "notices": package.diagnostics.notices,
+                    'reranking': package.retrieval_audit.parameters.get('reranking'),
+                })
+            except ContextConflictError as exc:
+                exc.preparation_attempts = [*attempts, {
+                    "attempt": attempt, "input_sha256": prepared.fingerprint,
+                    "outcome": "ineligible", "notices": package.diagnostics.notices,
+                }]
+                raise
+        raise ContextConflictError(
+            f"Context inputs changed in all {MAX_CONTEXT_PREPARATIONS} preparation attempts; "
+            "no snapshot was saved.", preparation_attempts=attempts,
+        )
+
+    def _read_inputs_tx(
+        self, connection: sqlite3.Connection, request: ContextBuildRequest
+    ) -> _PreparedInputs:
+        task = self.memory_repository.read_workspace_task_tx(connection, request.task_id)
+        if request.project_id is not None and request.project_id != task.project_id:
+            raise ContextConflictError("WorkspaceTask does not belong to the requested Project.")
+        memory = self.memory_repository.snapshot_tx(connection, task.project_id)
+        self._require_context_eligible(memory, task)
+        scopes = [scope.collection_slug for scope in memory.knowledge_scopes]
+        bundles = self.knowledge_reader.read_formal_bundles_tx(connection, scopes)
+        # Global existence only influences empty-core coverage when scoped bundles
+        # are absent. Unrelated writes must not invalidate an otherwise valid build.
+        has_core_claim = bool(scopes and not bundles and connection.execute(
+            "SELECT 1 FROM claims WHERE status = 'published' LIMIT 1"
+        ).fetchone())
+        fingerprint = _fingerprint({
+            "task": task.model_dump(mode="json"), "memory": memory.model_dump(mode="json"),
+            "bundles": [asdict(bundle) for bundle in bundles], "has_core_claim": has_core_claim,
+        })
+        return _PreparedInputs(task, memory, bundles, has_core_claim, fingerprint)
 
     def _prepare_context(
-        self, request: ContextBuildRequest
+        self, request: ContextBuildRequest, prepared: _PreparedInputs,
+        attempt: int, previous_attempts: list[dict[str, Any]],
+        *, planning_cache: dict[str, Any] | None = None,
     ) -> tuple[ContextPackage, list[ContextSnapshotItem]]:
-        """Perform the shared, read-only build path for preview and persistence."""
+        """Retrieve, rank and serialize after the preparation connection is closed."""
 
-        with self.database.connect() as connection:
-            connection.execute("PRAGMA query_only = ON")
-            connection.execute("BEGIN")
-            task = self.memory_repository.read_workspace_task_tx(connection, request.task_id)
-            if request.project_id is not None and request.project_id != task.project_id:
-                raise ContextConflictError(
-                    "WorkspaceTask does not belong to the requested Project."
+        task, memory_snapshot, raw_bundles = prepared.task, prepared.memory, prepared.bundles
+        scopes = [scope.collection_slug for scope in memory_snapshot.knowledge_scopes]
+        query = _task_query(task, memory_snapshot)
+        plan = None
+        query_details = []
+        if request.query_planning != "off":
+            question = "\n".join(part for part in (task.title, task.goal) if part)
+            planning_cache = planning_cache if planning_cache is not None else {}
+            if not scopes or not raw_bundles:
+                plan = task_plan(question, status="fallback", reason="no_verified_scope")
+            elif request.query_planning == "task-v1":
+                plan = task_plan(question)
+            elif "plan" not in planning_cache:
+                plan = self.query_planner.plan(question)
+                planning_cache.update(question=question, plan=plan)
+            elif planning_cache["question"] == question:
+                plan = planning_cache["plan"]
+            else:
+                plan = task_plan(question, status="fallback", reason="question_changed_after_plan")
+            if plan.status != "fallback":
+                query = plan.queries[0]
+        candidate_references, notices = self._optional_candidates(
+            request,
+            query=query,
+            collection_scopes=scopes,
+            raw_bundles=raw_bundles,
+        )
+        candidate_audits = validate_candidates(
+            candidate_references, bundle_bindings(raw_bundles)
+        )
+        ranked_bundles = rank_bundles(
+            raw_bundles,
+            query=query,
+            candidate_references=candidate_references,
+            candidate_audits=candidate_audits,
+            strategy=request.retrieval_strategy,
+        )
+        if plan is not None and plan.status != "fallback":
+            query_candidates, query_audits = [candidate_references], [candidate_audits]
+            for extra_query in plan.queries[1:]:
+                refs, extra_notices = self._optional_candidates(
+                    request, query=extra_query, collection_scopes=scopes,
+                    raw_bundles=raw_bundles,
                 )
-            memory_snapshot = self.memory_repository.snapshot_tx(connection, task.project_id)
-            self._require_context_eligible(memory_snapshot, task)
+                query_candidates.append(refs)
+                query_audits.append(validate_candidates(refs, bundle_bindings(raw_bundles)))
+                notices.extend(f"query_{len(query_candidates)-1}:{n}" for n in extra_notices)
+            ranked_bundles, query_details = rank_query_bundles(
+                raw_bundles, plan.queries, query_candidates, query_audits,
+                hybrid=request.enable_vector_candidates or request.enable_graph_candidates,
+            )
+            candidate_references = [ref for refs in query_candidates for ref in refs]
+            candidate_audits = [a for audits in query_audits for a in audits]
+        elif plan is not None:
+            notices.append(f"query_planning_fallback:{plan.reason}")
+        rerank_record = None
+        if request.evidence_reranking != 'off':
+            question = '\n'.join(part for part in (task.title, task.goal) if part)
+            payload = ranking_input(question, ranked_bundles)
+            candidate_claim_ids = [r.bundle.claim['id'] for r in ranked_bundles]
+            cache = planning_cache if planning_cache is not None else {}
+            original_ranks = {r.bundle.claim['id']: r.rank for r in ranked_bundles}
+            if '_rerank' not in cache:
+                ranker = ((self.coverage_reranker or (CoreCoverageReranker()
+                           if request.evidence_reranking == 'coverage-v2' else CoverageReranker()))
+                          if request.evidence_reranking in {'coverage-v1', 'coverage-v2'}
+                          else self.evidence_reranker)
+                record = ranker.rank(payload)
+                # Validate even injected adapters against this exact candidate input.
+                if record.get('input_sha256') != input_digest(payload):
+                    raise ContextConflictError('Reranker input binding mismatch')
+                if (request.evidence_reranking in {'coverage-v1', 'coverage-v2'}
+                        and record['status'] == 'ranked'):
+                    if coverage_indices(payload, record.get('parts')) != record.get('indices'):
+                        raise ContextConflictError('Coverage ordering binding mismatch')
+                record = {**record, 'candidate_claim_ids': candidate_claim_ids}
+                cache['_rerank'] = (prepared.fingerprint, record)
+            fingerprint, record = cache['_rerank']
+            if (fingerprint != prepared.fingerprint
+                    or record.get('input_sha256') != input_digest(payload)
+                    or record.get('candidate_claim_ids') != candidate_claim_ids):
+                rerank_record = {'status': 'fallback', 'reason': 'inputs_changed_after_rerank',
+                                 'model_calls': 0, 'usage': None, 'previous_attempt': record}
+            else:
+                rerank_record = {**record, 'original_ranks': original_ranks}
+                ranked_bundles = apply_reranking(ranked_bundles, record)
+                rerank_record['reranked_claim_ids'] = [r.bundle.claim['id'] for r in ranked_bundles]
+        neighbor_groups = None
+        if request.context_neighbors == "adjacent-v1":
+            ranked_bundles, neighbor_groups = adjacent_bundles(raw_bundles, ranked_bundles)
+        coverage = self._knowledge_coverage(
+            has_core_claim=prepared.has_core_claim,
+            scopes=scopes,
+            raw_bundles=raw_bundles,
+            ranked_bundles=ranked_bundles,
+        )
+        package, items = self._assemble_package(
+            request,
+            memory_snapshot=memory_snapshot,
+            task=task,
+            ranked_bundles=ranked_bundles,
+            coverage=coverage,
+            vector_candidates=sum(
+                reference.channel == "vector" for reference in candidate_references
+            ),
+            graph_candidates=sum(
+                reference.channel == "graph" for reference in candidate_references
+            ),
+            verified_bundles=len(raw_bundles),
+            notices=notices,
+            neighbor_groups=neighbor_groups,
+        )
 
-            scopes = [scope.collection_slug for scope in memory_snapshot.knowledge_scopes]
-            query = _task_query(task, memory_snapshot)
-            raw_bundles = self.knowledge_reader.read_formal_bundles_tx(connection, scopes)
-            candidate_references, notices = self._optional_candidates(
-                request,
-                query=query,
-                collection_scopes=scopes,
-                raw_bundles=raw_bundles,
-            )
-            ranked_bundles = rank_bundles(
-                raw_bundles,
-                query=query,
-                candidate_references=candidate_references,
-            )
-            coverage = self._knowledge_coverage(
-                connection,
-                scopes=scopes,
-                raw_bundles=raw_bundles,
-                ranked_bundles=ranked_bundles,
-            )
-            package, items = self._assemble_package(
-                request,
-                memory_snapshot=memory_snapshot,
-                task=task,
-                ranked_bundles=ranked_bundles,
-                coverage=coverage,
-                vector_candidates=sum(
-                    reference.channel == "vector" for reference in candidate_references
-                ),
-                graph_candidates=sum(
-                    reference.channel == "graph" for reference in candidate_references
-                ),
-                verified_bundles=len(raw_bundles),
-                notices=notices,
-            )
+        audit = context_retrieval_audit(
+            request, package, raw_bundles, ranked_bundles, candidate_audits
+        )
+        if rerank_record is not None:
+            if request.evidence_reranking in {'coverage-v1', 'coverage-v2'}:
+                rerank_record['selected_coverage'] = selected_coverage(
+                    rerank_record, {b.claim.claim_id for b in package.knowledge.claim_bundles}
+                )
+            audit.parameters['reranking'] = rerank_record
+        audit.parameters.update({
+            "consistency_policy": "prepare-revalidate-v1",
+            "input_sha256": prepared.fingerprint,
+            "preparation_attempts": attempt,
+            "previous_attempts": previous_attempts,
+            "max_preparation_attempts": MAX_CONTEXT_PREPARATIONS,
+            "max_external_attempts_per_channel": MAX_EXTERNAL_ATTEMPTS,
+        })
+        if plan is not None:
+            if plan.status != "fallback":
+                audit.strategy_id = f"project-context-query-{request.query_planning}"
+                audit.parameters = {key: value for key, value in audit.parameters.items()
+                                    if key not in {"lexical_weight", "semantic_weight",
+                                                   "owner_weight", "confidence_weight",
+                                                   "completeness_weight", "term_limit",
+                                                   "projection_aggregation",
+                                                   "confidence_fallback",
+                                                   "evidence_saturation_count"}}
+            audit.parameters.update({
+                "query_planning": plan.model_dump(mode="json"),
+                "query_rankings": query_details,
+                "query_fusion": {"rrf_k": 60, "per_query_limit": 40},
+                "planning_attempt": (planning_cache.get("plan").model_dump(mode="json")
+                                     if planning_cache and planning_cache.get("plan") else None),
+                "planning_usage_scope": "pre_snapshot_not_agent_run",
+                "max_planner_calls_per_build": 1,
+                "max_external_attempts_per_query_channel": MAX_EXTERNAL_ATTEMPTS,
+                "max_queries": 4,
+                "channel_rank_kind": "per_query_returned_candidate_position",
+            })
+        if neighbor_groups is not None:
+            selected_ids = {b.claim.claim_id for b in package.knowledge.claim_bundles}
+            audit.strategy_id += "+adjacent-v1"
+            audit.parameters["context_neighbors"] = {
+                "strategy": "adjacent-v1", "max_anchors": MAX_ANCHORS,
+                "neighbors_per_anchor": 2, "recursive": False,
+                "budget_policy": "whole_new_group_prefix",
+                "groups": [{**group, "selected": set(group["claim_ids"]) <= selected_ids}
+                           for group in neighbor_groups],
+            }
+        package = ContextPackage.model_validate({
+            **package.model_dump(mode="json"),
+            "package_schema_version": '1.2' if request.reading_format != 'legacy' else '1.1',
+            "retrieval_audit": audit.model_dump(mode="json"),
+        })
+        package = package.model_copy(
+            update={"package_sha256": canonical_package_sha256(package)}
+        )
 
         return package, items
 
@@ -181,6 +425,10 @@ class ContextBuilderService:
         document_ids = {
             evidence.document["id"] for bundle in raw_bundles for evidence in bundle.evidence
         }
+        if not request.enable_vector_candidates and not request.enable_graph_candidates:
+            return [], []
+        if not collection_scopes or not document_ids:
+            return [], ["external_candidates_skipped_no_verified_scope"]
         for enabled, retriever, channel in (
             (request.enable_vector_candidates, self.vector_retriever, "vector"),
             (request.enable_graph_candidates, self.graph_retriever, "graph"),
@@ -190,17 +438,29 @@ class ContextBuilderService:
             if retriever is None:
                 notices.append(f"{channel}_not_configured")
                 continue
-            try:
-                returned = retriever.retrieve(
-                    query,
-                    collection_scopes=collection_scopes,
-                    allowed_document_ids=document_ids,
-                    limit=40,
-                )
-            except Exception:
-                notices.append(f"{channel}_unavailable")
-                continue
-            references.extend(reference for reference in returned if reference.channel == channel)
+            for attempt in range(1, MAX_EXTERNAL_ATTEMPTS + 1):
+                try:
+                    returned = retriever.retrieve(
+                        query,
+                        collection_scopes=list(collection_scopes),
+                        allowed_document_ids=set(document_ids),
+                        limit=40,
+                    )
+                    if request.query_planning != "off":
+                        returned = returned[:40]
+                    channel_references = [ref for ref in returned if ref.channel == channel]
+                except Exception as exc:
+                    transient = is_transient_error(exc)
+                    notices.append(
+                        f"{channel}_attempt_{attempt}_"
+                        f"{'transient_failure' if transient else 'failure'}"
+                    )
+                    if transient and attempt < MAX_EXTERNAL_ATTEMPTS:
+                        continue
+                    notices.append(f"{channel}_unavailable")
+                    break
+                references.extend(channel_references)
+                break
         return references, notices
 
     @staticmethod
@@ -212,8 +472,8 @@ class ContextBuilderService:
 
     @staticmethod
     def _knowledge_coverage(
-        connection: sqlite3.Connection,
         *,
+        has_core_claim: bool,
         scopes: list[str],
         raw_bundles: list[RawKnowledgeBundle],
         ranked_bundles: list[RankedKnowledgeBundle],
@@ -222,9 +482,6 @@ class ContextBuilderService:
             return "no_scope"
         if raw_bundles:
             return "available" if ranked_bundles else "no_relevant_claims"
-        has_core_claim = connection.execute(
-            "SELECT 1 FROM claims WHERE status = 'published' LIMIT 1"
-        ).fetchone()
         return "no_relevant_claims" if has_core_claim else "empty_core"
 
     def _assemble_package(
@@ -239,6 +496,7 @@ class ContextBuilderService:
         graph_candidates: int,
         verified_bundles: int,
         notices: list[str],
+        neighbor_groups: list[dict] | None = None,
     ) -> tuple[ContextPackage, list[ContextSnapshotItem]]:
         project_context = _project_context(memory_snapshot)
         task_context = _task_context(task)
@@ -286,6 +544,8 @@ class ContextBuilderService:
         dropped_for_budget = 0
         dropped_memory = 0
         dropped_artifacts = 0
+        group_by_claim = {key: set(group["claim_ids"]) for group in (neighbor_groups or [])
+                          for key in group["claim_ids"]}
 
         def candidate_package() -> ContextPackage:
             candidate_notices = list(diagnostic_notices)
@@ -303,6 +563,7 @@ class ContextBuilderService:
                 )
             return ContextPackage(
                 snapshot_id=snapshot_id,
+                reading_format=request.reading_format,
                 created_at=created_at,
                 request_fingerprint=request_fingerprint,
                 project=project_context,
@@ -332,8 +593,11 @@ class ContextBuilderService:
             if package.token_usage.used <= request.max_tokens:
                 return package, _snapshot_items(package)
             if selected_bundles:
-                selected_bundles.pop()
-                dropped_for_budget += 1
+                last = selected_bundles[-1].claim.claim_id
+                dropped = group_by_claim.get(last, {last})
+                before = len(selected_bundles)
+                selected_bundles = [b for b in selected_bundles if b.claim.claim_id not in dropped]
+                dropped_for_budget += before - len(selected_bundles)
                 continue
             if artifacts.project_artifacts:
                 artifacts.project_artifacts.pop()

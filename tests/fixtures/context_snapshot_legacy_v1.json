@@ -1,0 +1,798 @@
+{
+  "package": {
+    "snapshot_id": "context-snapshot-5f9c1d0898834fe38cd2a82a92cd0bfa",
+    "package_schema_version": "1.0",
+    "builder_version": "phase2-context-builder-v1",
+    "created_at": "2026-09-13T10:09:00.784793+00:00",
+    "request_fingerprint": "eba1cf134d2260f35696db7a0ef0fa5df92b932fd5cc565aa087ce4a094b3a8c",
+    "project": {
+      "project_id": "project-9dee4560500a414584addfae626453a8",
+      "name": "Context Project",
+      "goal": "Build a traceable Context Builder package",
+      "domain": "engineering",
+      "status": "active",
+      "metadata": {
+        "constraints": [
+          "Use only explicit collection scopes."
+        ]
+      },
+      "revision": 2,
+      "created_at": "2026-09-13T10:09:00.759803+00:00",
+      "updated_at": "2026-09-13T10:09:00.765801+00:00",
+      "knowledge_scopes": [
+        {
+          "collection_slug": "a03b-legacy-fixture",
+          "created_at": "2026-09-13T10:09:00.765801+00:00",
+          "selection": {
+            "selected_reason": "required explicit project knowledge scope",
+            "retrieval_channels": [],
+            "rank": null,
+            "score": null,
+            "score_breakdown": {},
+            "estimated_tokens": 0,
+            "provenance": {
+              "project_id": "project-9dee4560500a414584addfae626453a8",
+              "collection_slug": "a03b-legacy-fixture"
+            }
+          }
+        }
+      ],
+      "selection": {
+        "selected_reason": "required project scope",
+        "retrieval_channels": [],
+        "rank": null,
+        "score": null,
+        "score_breakdown": {},
+        "estimated_tokens": 0,
+        "provenance": {
+          "record_type": "project"
+        }
+      }
+    },
+    "task": {
+      "task_id": "workspace-task-02342e6b2ed746e09536c50e0700d244",
+      "project_id": "project-9dee4560500a414584addfae626453a8",
+      "title": "Build Context Builder",
+      "goal": "Retrieve evidence-grounded context for the task.",
+      "status": "backlog",
+      "priority": "high",
+      "expected_output": "A ContextPackage with provenance.",
+      "metadata": {
+        "expected_output": "A ContextPackage with provenance."
+      },
+      "revision": 1,
+      "created_at": "2026-09-13T10:09:00.767806+00:00",
+      "updated_at": "2026-09-13T10:09:00.767806+00:00",
+      "selection": {
+        "selected_reason": "required current workspace task",
+        "retrieval_channels": [],
+        "rank": null,
+        "score": null,
+        "score_breakdown": {},
+        "estimated_tokens": 0,
+        "provenance": {
+          "record_type": "workspace_task"
+        }
+      }
+    },
+    "memory": {
+      "open_workspace_tasks": [],
+      "accepted_decisions": [
+        {
+          "decision_id": "memory-decision-13ca280e3bde4c4ebe601189b50b1fff",
+          "project_id": "project-9dee4560500a414584addfae626453a8",
+          "task_id": "workspace-task-02342e6b2ed746e09536c50e0700d244",
+          "summary": "Use SQLite as the formal fact authority.",
+          "rationale": "Vector projections may be stale.",
+          "impact": "Context must revalidate every candidate.",
+          "status": "accepted",
+          "metadata": {},
+          "revision": 1,
+          "created_at": "2026-09-13T10:09:00.772801+00:00",
+          "updated_at": "2026-09-13T10:09:00.772801+00:00",
+          "selection": {
+            "selected_reason": "accepted decision directly linked to current task",
+            "retrieval_channels": [],
+            "rank": null,
+            "score": null,
+            "score_breakdown": {},
+            "estimated_tokens": 0,
+            "provenance": {
+              "decision_id": "memory-decision-13ca280e3bde4c4ebe601189b50b1fff",
+              "revision": 1
+            }
+          }
+        }
+      ],
+      "required_constraints": [
+        "Use only explicit collection scopes."
+      ]
+    },
+    "knowledge": {
+      "claim_bundles": [
+        {
+          "claim": {
+            "claim_id": "core-claim-402776b026f1473db2f89273e4172e84",
+            "legacy_id": "published_entity_definition:legacy-audit-owner",
+            "entity_id": "core-entity-270b6cfbcaf4495a9814ee04b926792f",
+            "relation_id": null,
+            "subject": "Context Builder",
+            "predicate": "defines",
+            "object_value": "Context Builder assembles an evidence-grounded Context Package.",
+            "claim_type": "entity_definition",
+            "statement": "Context Builder assembles an evidence-grounded Context Package.",
+            "confidence": null,
+            "status": "published",
+            "collection_scopes": [
+              "a03b-legacy-fixture"
+            ],
+            "created_at": "2026-09-13T10:09:00.757804+00:00",
+            "updated_at": "2026-09-13T10:09:00.757804+00:00",
+            "selection": {
+              "selected_reason": "structured task/project term match",
+              "retrieval_channels": [
+                "structured"
+              ],
+              "rank": 1,
+              "score": 0.3136363636363636,
+              "score_breakdown": {
+                "lexical_relevance": 0.45454545454545453,
+                "semantic_relevance": 0.0,
+                "task_entity_match": 0.2727272727272727,
+                "confidence": 0.5,
+                "evidence_completeness": 0.5
+              },
+              "estimated_tokens": 0,
+              "provenance": {
+                "claim_id": "core-claim-402776b026f1473db2f89273e4172e84"
+              }
+            }
+          },
+          "entity": {
+            "entity_id": "core-entity-270b6cfbcaf4495a9814ee04b926792f",
+            "legacy_id": "legacy-audit-owner",
+            "name": "Context Builder",
+            "normalized_name": "context builder",
+            "entity_type": "Method",
+            "domain": "",
+            "status": "published",
+            "collection_scopes": [
+              "a03b-legacy-fixture"
+            ],
+            "created_at": "2026-09-13T10:09:00.757804+00:00",
+            "updated_at": "2026-09-13T10:09:00.757804+00:00",
+            "selection": {
+              "selected_reason": "structured task/project term match",
+              "retrieval_channels": [
+                "structured"
+              ],
+              "rank": 1,
+              "score": 0.3136363636363636,
+              "score_breakdown": {
+                "lexical_relevance": 0.45454545454545453,
+                "semantic_relevance": 0.0,
+                "task_entity_match": 0.2727272727272727,
+                "confidence": 0.5,
+                "evidence_completeness": 0.5
+              },
+              "estimated_tokens": 0,
+              "provenance": {
+                "entity_id": "core-entity-270b6cfbcaf4495a9814ee04b926792f"
+              }
+            }
+          },
+          "relation": null,
+          "evidence": [
+            {
+              "evidence_id": "core-evidence-0c0aca5ac2374ca78aafee9917c681fd",
+              "claim_id": "core-claim-402776b026f1473db2f89273e4172e84",
+              "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+              "chunk_id": "paper:legacy-audit-owner:page:1:chunk:0",
+              "quote": "Context Builder assembles a traceable evidence-grounded package for a task. Legacy snapshot fixture.",
+              "quote_sha256": "9a5d40784a6cd010e00ad7fb608d8396487ea96b6ed0aecf01d0d58de42759c3",
+              "location": {
+                "paper_id": "paper:legacy-audit-owner",
+                "page_start": 1,
+                "page_end": 1,
+                "locator": {
+                  "strategy": "quote",
+                  "quote_normalized": "context builder assembles a traceable evidence-grounded package for a task. legacy snapshot fixture."
+                }
+              },
+              "selection": {
+                "selected_reason": "structured task/project term match",
+                "retrieval_channels": [
+                  "structured"
+                ],
+                "rank": 1,
+                "score": 0.3136363636363636,
+                "score_breakdown": {
+                  "lexical_relevance": 0.45454545454545453,
+                  "semantic_relevance": 0.0,
+                  "task_entity_match": 0.2727272727272727,
+                  "confidence": 0.5,
+                  "evidence_completeness": 0.5
+                },
+                "estimated_tokens": 0,
+                "provenance": {
+                  "claim_id": "core-claim-402776b026f1473db2f89273e4172e84",
+                  "evidence_id": "core-evidence-0c0aca5ac2374ca78aafee9917c681fd",
+                  "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+                  "chunk_id": "paper:legacy-audit-owner:page:1:chunk:0"
+                }
+              }
+            }
+          ],
+          "chunks": [
+            {
+              "chunk_id": "paper:legacy-audit-owner:page:1:chunk:0",
+              "document_id": "paper:legacy-audit-owner",
+              "chunk_index": 0,
+              "page_start": 1,
+              "page_end": 1,
+              "content": "Context Builder assembles a traceable evidence-grounded package for a task. Legacy snapshot fixture.",
+              "content_sha256": "9a5d40784a6cd010e00ad7fb608d8396487ea96b6ed0aecf01d0d58de42759c3",
+              "location": {
+                "page_start": 1,
+                "page_end": 1
+              },
+              "selection": {
+                "selected_reason": "structured task/project term match",
+                "retrieval_channels": [
+                  "structured"
+                ],
+                "rank": 1,
+                "score": 0.3136363636363636,
+                "score_breakdown": {
+                  "lexical_relevance": 0.45454545454545453,
+                  "semantic_relevance": 0.0,
+                  "task_entity_match": 0.2727272727272727,
+                  "confidence": 0.5,
+                  "evidence_completeness": 0.5
+                },
+                "estimated_tokens": 0,
+                "provenance": {
+                  "claim_id": "core-claim-402776b026f1473db2f89273e4172e84",
+                  "evidence_id": "core-evidence-0c0aca5ac2374ca78aafee9917c681fd",
+                  "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+                  "chunk_id": "paper:legacy-audit-owner:page:1:chunk:0"
+                }
+              }
+            }
+          ],
+          "documents": [
+            {
+              "document_id": "paper:legacy-audit-owner",
+              "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+              "title": "Context Builder",
+              "source": "pdf",
+              "pages": 1,
+              "content_sha256": "9a5d40784a6cd010e00ad7fb608d8396487ea96b6ed0aecf01d0d58de42759c3",
+              "content_status": "available",
+              "parser_version": "test-core-fixture-v1",
+              "parsed_at": "2026-09-13T10:09:00.747793+00:00",
+              "selection": {
+                "selected_reason": "structured task/project term match",
+                "retrieval_channels": [
+                  "structured"
+                ],
+                "rank": 1,
+                "score": 0.3136363636363636,
+                "score_breakdown": {
+                  "lexical_relevance": 0.45454545454545453,
+                  "semantic_relevance": 0.0,
+                  "task_entity_match": 0.2727272727272727,
+                  "confidence": 0.5,
+                  "evidence_completeness": 0.5
+                },
+                "estimated_tokens": 0,
+                "provenance": {
+                  "claim_id": "core-claim-402776b026f1473db2f89273e4172e84",
+                  "evidence_id": "core-evidence-0c0aca5ac2374ca78aafee9917c681fd",
+                  "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+                  "chunk_id": "paper:legacy-audit-owner:page:1:chunk:0"
+                }
+              }
+            }
+          ],
+          "sources": [
+            {
+              "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+              "source_type": "pdf",
+              "title": "Context Builder",
+              "uri": "paper:legacy-audit-owner.pdf",
+              "canonical_uri": "paper:legacy-audit-owner.pdf",
+              "version": "content-sha256:9a5d40784a6cd010e00ad7fb608d8396487ea96b6ed0aecf01d0d58de42759c3",
+              "content_sha256": "9a5d40784a6cd010e00ad7fb608d8396487ea96b6ed0aecf01d0d58de42759c3",
+              "created_at": "2026-09-13T10:09:00.747793+00:00",
+              "updated_at": "2026-09-13T10:09:00.747793+00:00",
+              "selection": {
+                "selected_reason": "structured task/project term match",
+                "retrieval_channels": [
+                  "structured"
+                ],
+                "rank": 1,
+                "score": 0.3136363636363636,
+                "score_breakdown": {
+                  "lexical_relevance": 0.45454545454545453,
+                  "semantic_relevance": 0.0,
+                  "task_entity_match": 0.2727272727272727,
+                  "confidence": 0.5,
+                  "evidence_completeness": 0.5
+                },
+                "estimated_tokens": 0,
+                "provenance": {
+                  "claim_id": "core-claim-402776b026f1473db2f89273e4172e84",
+                  "evidence_id": "core-evidence-0c0aca5ac2374ca78aafee9917c681fd",
+                  "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+                  "chunk_id": "paper:legacy-audit-owner:page:1:chunk:0"
+                }
+              }
+            }
+          ],
+          "selection": {
+            "selected_reason": "structured task/project term match",
+            "retrieval_channels": [
+              "structured"
+            ],
+            "rank": 1,
+            "score": 0.3136363636363636,
+            "score_breakdown": {
+              "lexical_relevance": 0.45454545454545453,
+              "semantic_relevance": 0.0,
+              "task_entity_match": 0.2727272727272727,
+              "confidence": 0.5,
+              "evidence_completeness": 0.5
+            },
+            "estimated_tokens": 1608,
+            "provenance": {
+              "claim_id": "core-claim-402776b026f1473db2f89273e4172e84"
+            }
+          }
+        }
+      ]
+    },
+    "artifacts": {
+      "task_artifacts": [
+        {
+          "artifact_id": "artifact-69155953f4014bf196318c609a45c830",
+          "project_id": "project-9dee4560500a414584addfae626453a8",
+          "task_id": "workspace-task-02342e6b2ed746e09536c50e0700d244",
+          "type": "design",
+          "reference": "data\\runtime\\a03b\\unread-artifact.md",
+          "version": 1,
+          "status": "ready",
+          "supersedes_artifact_id": null,
+          "metadata": {
+            "format": "markdown"
+          },
+          "revision": 1,
+          "created_at": "2026-09-13T10:09:00.776794+00:00",
+          "updated_at": "2026-09-13T10:09:00.776794+00:00",
+          "selection": {
+            "selected_reason": "artifact directly linked to current task",
+            "retrieval_channels": [],
+            "rank": null,
+            "score": null,
+            "score_breakdown": {},
+            "estimated_tokens": 0,
+            "provenance": {
+              "artifact_id": "artifact-69155953f4014bf196318c609a45c830",
+              "revision": 1
+            }
+          }
+        }
+      ],
+      "project_artifacts": []
+    },
+    "constraints": {
+      "project_scope": "project-9dee4560500a414584addfae626453a8",
+      "domain": "engineering",
+      "collection_scopes": [
+        "a03b-legacy-fixture"
+      ],
+      "permitted_knowledge_statuses": [
+        "published"
+      ],
+      "time_limit_mode": "version_only",
+      "source_version_required": true,
+      "max_context_tokens": 6000,
+      "cross_project_allowed": false,
+      "cross_collection_allowed": false
+    },
+    "tools": {
+      "capabilities": [
+        {
+          "name": "context",
+          "description": "Read-only.",
+          "allowed_inputs": [
+            "task_id",
+            "project_id"
+          ],
+          "can_execute": false
+        }
+      ]
+    },
+    "token_usage": {
+      "budget": 6000,
+      "used": 2318,
+      "estimation_method": "characters_div_4",
+      "payload_representation": "runtime_context_v1"
+    },
+    "diagnostics": {
+      "knowledge_coverage": "available",
+      "structured_candidates": 1,
+      "vector_candidates": 0,
+      "graph_candidates": 0,
+      "verified_claim_bundles": 1,
+      "selected_claim_bundles": 1,
+      "dropped_for_budget": 0,
+      "notices": []
+    },
+    "package_sha256": "c2575bd86b86406dcd528d09e56bd3c591cef2c5511591e61685afe222ce97e9"
+  },
+  "runtime_payload": {
+    "project": {
+      "project_id": "project-9dee4560500a414584addfae626453a8",
+      "name": "Context Project",
+      "goal": "Build a traceable Context Builder package",
+      "domain": "engineering",
+      "status": "active",
+      "metadata": {
+        "constraints": [
+          "Use only explicit collection scopes."
+        ]
+      },
+      "revision": 2,
+      "created_at": "2026-09-13T10:09:00.759803+00:00",
+      "updated_at": "2026-09-13T10:09:00.765801+00:00",
+      "knowledge_scopes": [
+        {
+          "collection_slug": "a03b-legacy-fixture",
+          "created_at": "2026-09-13T10:09:00.765801+00:00",
+          "selection": {
+            "selected_reason": "required explicit project knowledge scope",
+            "provenance": {
+              "project_id": "project-9dee4560500a414584addfae626453a8",
+              "collection_slug": "a03b-legacy-fixture"
+            }
+          }
+        }
+      ],
+      "selection": {
+        "selected_reason": "required project scope",
+        "provenance": {
+          "record_type": "project"
+        }
+      }
+    },
+    "task": {
+      "task_id": "workspace-task-02342e6b2ed746e09536c50e0700d244",
+      "project_id": "project-9dee4560500a414584addfae626453a8",
+      "title": "Build Context Builder",
+      "goal": "Retrieve evidence-grounded context for the task.",
+      "status": "backlog",
+      "priority": "high",
+      "expected_output": "A ContextPackage with provenance.",
+      "metadata": {
+        "expected_output": "A ContextPackage with provenance."
+      },
+      "revision": 1,
+      "created_at": "2026-09-13T10:09:00.767806+00:00",
+      "updated_at": "2026-09-13T10:09:00.767806+00:00",
+      "selection": {
+        "selected_reason": "required current workspace task",
+        "provenance": {
+          "record_type": "workspace_task"
+        }
+      }
+    },
+    "memory": {
+      "accepted_decisions": [
+        {
+          "decision_id": "memory-decision-13ca280e3bde4c4ebe601189b50b1fff",
+          "project_id": "project-9dee4560500a414584addfae626453a8",
+          "task_id": "workspace-task-02342e6b2ed746e09536c50e0700d244",
+          "summary": "Use SQLite as the formal fact authority.",
+          "rationale": "Vector projections may be stale.",
+          "impact": "Context must revalidate every candidate.",
+          "status": "accepted",
+          "revision": 1,
+          "created_at": "2026-09-13T10:09:00.772801+00:00",
+          "updated_at": "2026-09-13T10:09:00.772801+00:00",
+          "selection": {
+            "selected_reason": "accepted decision directly linked to current task",
+            "provenance": {
+              "decision_id": "memory-decision-13ca280e3bde4c4ebe601189b50b1fff",
+              "revision": 1
+            }
+          }
+        }
+      ],
+      "required_constraints": [
+        "Use only explicit collection scopes."
+      ]
+    },
+    "knowledge": {
+      "claim_bundles": [
+        {
+          "claim": {
+            "claim_id": "core-claim-402776b026f1473db2f89273e4172e84",
+            "legacy_id": "published_entity_definition:legacy-audit-owner",
+            "entity_id": "core-entity-270b6cfbcaf4495a9814ee04b926792f",
+            "subject": "Context Builder",
+            "predicate": "defines",
+            "object_value": "Context Builder assembles an evidence-grounded Context Package.",
+            "claim_type": "entity_definition",
+            "statement": "Context Builder assembles an evidence-grounded Context Package.",
+            "status": "published",
+            "collection_scopes": [
+              "a03b-legacy-fixture"
+            ],
+            "created_at": "2026-09-13T10:09:00.757804+00:00",
+            "updated_at": "2026-09-13T10:09:00.757804+00:00",
+            "selection": {
+              "selected_reason": "structured task/project term match",
+              "retrieval_channels": [
+                "structured"
+              ],
+              "rank": 1,
+              "score": 0.3136363636363636,
+              "score_breakdown": {
+                "lexical_relevance": 0.45454545454545453,
+                "semantic_relevance": 0.0,
+                "task_entity_match": 0.2727272727272727,
+                "confidence": 0.5,
+                "evidence_completeness": 0.5
+              },
+              "provenance": {
+                "claim_id": "core-claim-402776b026f1473db2f89273e4172e84"
+              }
+            }
+          },
+          "entity": {
+            "entity_id": "core-entity-270b6cfbcaf4495a9814ee04b926792f",
+            "legacy_id": "legacy-audit-owner",
+            "name": "Context Builder",
+            "normalized_name": "context builder",
+            "entity_type": "Method",
+            "domain": "",
+            "status": "published",
+            "collection_scopes": [
+              "a03b-legacy-fixture"
+            ],
+            "created_at": "2026-09-13T10:09:00.757804+00:00",
+            "updated_at": "2026-09-13T10:09:00.757804+00:00",
+            "selection": {
+              "selected_reason": "structured task/project term match",
+              "retrieval_channels": [
+                "structured"
+              ],
+              "rank": 1,
+              "score": 0.3136363636363636,
+              "score_breakdown": {
+                "lexical_relevance": 0.45454545454545453,
+                "semantic_relevance": 0.0,
+                "task_entity_match": 0.2727272727272727,
+                "confidence": 0.5,
+                "evidence_completeness": 0.5
+              },
+              "provenance": {
+                "entity_id": "core-entity-270b6cfbcaf4495a9814ee04b926792f"
+              }
+            }
+          },
+          "evidence": [
+            {
+              "evidence_id": "core-evidence-0c0aca5ac2374ca78aafee9917c681fd",
+              "claim_id": "core-claim-402776b026f1473db2f89273e4172e84",
+              "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+              "chunk_id": "paper:legacy-audit-owner:page:1:chunk:0",
+              "quote": "Context Builder assembles a traceable evidence-grounded package for a task. Legacy snapshot fixture.",
+              "quote_sha256": "9a5d40784a6cd010e00ad7fb608d8396487ea96b6ed0aecf01d0d58de42759c3",
+              "location": {
+                "paper_id": "paper:legacy-audit-owner",
+                "page_start": 1,
+                "page_end": 1,
+                "locator": {
+                  "strategy": "quote",
+                  "quote_normalized": "context builder assembles a traceable evidence-grounded package for a task. legacy snapshot fixture."
+                }
+              },
+              "selection": {
+                "selected_reason": "structured task/project term match",
+                "retrieval_channels": [
+                  "structured"
+                ],
+                "rank": 1,
+                "score": 0.3136363636363636,
+                "score_breakdown": {
+                  "lexical_relevance": 0.45454545454545453,
+                  "semantic_relevance": 0.0,
+                  "task_entity_match": 0.2727272727272727,
+                  "confidence": 0.5,
+                  "evidence_completeness": 0.5
+                },
+                "provenance": {
+                  "claim_id": "core-claim-402776b026f1473db2f89273e4172e84",
+                  "evidence_id": "core-evidence-0c0aca5ac2374ca78aafee9917c681fd",
+                  "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+                  "chunk_id": "paper:legacy-audit-owner:page:1:chunk:0"
+                }
+              }
+            }
+          ],
+          "chunks": [
+            {
+              "chunk_id": "paper:legacy-audit-owner:page:1:chunk:0",
+              "document_id": "paper:legacy-audit-owner",
+              "chunk_index": 0,
+              "page_start": 1,
+              "page_end": 1,
+              "content": "Context Builder assembles a traceable evidence-grounded package for a task. Legacy snapshot fixture.",
+              "content_sha256": "9a5d40784a6cd010e00ad7fb608d8396487ea96b6ed0aecf01d0d58de42759c3",
+              "location": {
+                "page_start": 1,
+                "page_end": 1
+              },
+              "selection": {
+                "selected_reason": "structured task/project term match",
+                "retrieval_channels": [
+                  "structured"
+                ],
+                "rank": 1,
+                "score": 0.3136363636363636,
+                "score_breakdown": {
+                  "lexical_relevance": 0.45454545454545453,
+                  "semantic_relevance": 0.0,
+                  "task_entity_match": 0.2727272727272727,
+                  "confidence": 0.5,
+                  "evidence_completeness": 0.5
+                },
+                "provenance": {
+                  "claim_id": "core-claim-402776b026f1473db2f89273e4172e84",
+                  "evidence_id": "core-evidence-0c0aca5ac2374ca78aafee9917c681fd",
+                  "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+                  "chunk_id": "paper:legacy-audit-owner:page:1:chunk:0"
+                }
+              }
+            }
+          ],
+          "documents": [
+            {
+              "document_id": "paper:legacy-audit-owner",
+              "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+              "title": "Context Builder",
+              "source": "pdf",
+              "pages": 1,
+              "content_sha256": "9a5d40784a6cd010e00ad7fb608d8396487ea96b6ed0aecf01d0d58de42759c3",
+              "content_status": "available",
+              "parser_version": "test-core-fixture-v1",
+              "parsed_at": "2026-09-13T10:09:00.747793+00:00",
+              "selection": {
+                "selected_reason": "structured task/project term match",
+                "retrieval_channels": [
+                  "structured"
+                ],
+                "rank": 1,
+                "score": 0.3136363636363636,
+                "score_breakdown": {
+                  "lexical_relevance": 0.45454545454545453,
+                  "semantic_relevance": 0.0,
+                  "task_entity_match": 0.2727272727272727,
+                  "confidence": 0.5,
+                  "evidence_completeness": 0.5
+                },
+                "provenance": {
+                  "claim_id": "core-claim-402776b026f1473db2f89273e4172e84",
+                  "evidence_id": "core-evidence-0c0aca5ac2374ca78aafee9917c681fd",
+                  "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+                  "chunk_id": "paper:legacy-audit-owner:page:1:chunk:0"
+                }
+              }
+            }
+          ],
+          "sources": [
+            {
+              "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+              "source_type": "pdf",
+              "title": "Context Builder",
+              "uri": "paper:legacy-audit-owner.pdf",
+              "canonical_uri": "paper:legacy-audit-owner.pdf",
+              "version": "content-sha256:9a5d40784a6cd010e00ad7fb608d8396487ea96b6ed0aecf01d0d58de42759c3",
+              "content_sha256": "9a5d40784a6cd010e00ad7fb608d8396487ea96b6ed0aecf01d0d58de42759c3",
+              "created_at": "2026-09-13T10:09:00.747793+00:00",
+              "updated_at": "2026-09-13T10:09:00.747793+00:00",
+              "selection": {
+                "selected_reason": "structured task/project term match",
+                "retrieval_channels": [
+                  "structured"
+                ],
+                "rank": 1,
+                "score": 0.3136363636363636,
+                "score_breakdown": {
+                  "lexical_relevance": 0.45454545454545453,
+                  "semantic_relevance": 0.0,
+                  "task_entity_match": 0.2727272727272727,
+                  "confidence": 0.5,
+                  "evidence_completeness": 0.5
+                },
+                "provenance": {
+                  "claim_id": "core-claim-402776b026f1473db2f89273e4172e84",
+                  "evidence_id": "core-evidence-0c0aca5ac2374ca78aafee9917c681fd",
+                  "source_id": "core-source-f319d96201d3465f9871ff598e830a43",
+                  "chunk_id": "paper:legacy-audit-owner:page:1:chunk:0"
+                }
+              }
+            }
+          ],
+          "selection": {
+            "selected_reason": "structured task/project term match",
+            "retrieval_channels": [
+              "structured"
+            ],
+            "rank": 1,
+            "score": 0.3136363636363636,
+            "score_breakdown": {
+              "lexical_relevance": 0.45454545454545453,
+              "semantic_relevance": 0.0,
+              "task_entity_match": 0.2727272727272727,
+              "confidence": 0.5,
+              "evidence_completeness": 0.5
+            },
+            "estimated_tokens": 1608,
+            "provenance": {
+              "claim_id": "core-claim-402776b026f1473db2f89273e4172e84"
+            }
+          }
+        }
+      ]
+    },
+    "artifacts": {
+      "task_artifacts": [
+        {
+          "artifact_id": "artifact-69155953f4014bf196318c609a45c830",
+          "project_id": "project-9dee4560500a414584addfae626453a8",
+          "task_id": "workspace-task-02342e6b2ed746e09536c50e0700d244",
+          "type": "design",
+          "reference": "data\\runtime\\a03b\\unread-artifact.md",
+          "version": 1,
+          "status": "ready",
+          "metadata": {
+            "format": "markdown"
+          },
+          "revision": 1,
+          "created_at": "2026-09-13T10:09:00.776794+00:00",
+          "updated_at": "2026-09-13T10:09:00.776794+00:00",
+          "selection": {
+            "selected_reason": "artifact directly linked to current task",
+            "provenance": {
+              "artifact_id": "artifact-69155953f4014bf196318c609a45c830",
+              "revision": 1
+            }
+          }
+        }
+      ]
+    },
+    "constraints": {
+      "project_scope": "project-9dee4560500a414584addfae626453a8",
+      "domain": "engineering",
+      "collection_scopes": [
+        "a03b-legacy-fixture"
+      ],
+      "max_context_tokens": 6000
+    },
+    "tools": {
+      "capabilities": [
+        {
+          "name": "context",
+          "description": "Read-only.",
+          "allowed_inputs": [
+            "task_id",
+            "project_id"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -18,17 +18,18 @@ The product title used in public material is **Evidence-Grounded Personal Knowle
 
 ## Current status
 
-Phases 1–6 are complete. The documented engineering verification is:
+The research-workspace engineering closeout is implemented; report semantics and
+interaction acceptance remain open. See [current progress and limitations](PROJECT_STATUS.md)
+and [installation, verification, and demo](GETTING_STARTED.md).
 
-- backend pytest: 181 passed, 3 skipped;
-- React Vitest: 38 passed; production build passed;
-- Ruff, pip check, git diff --check, and docker compose config --quiet: passed;
-- browser acceptance passed at 1440×900 and 1920×1080 without horizontal overflow, including SPA deep-link refresh;
-- isolated 15-PDF verification covered 15 Sources, 15 Documents, 707 Chunks, and 687 pages; one real-provider report passed all quality gates with 8 evidence spans from 5 papers;
-- Phase 6 full deterministic evaluation candidate: 13 passed, 0 failed/error/skipped, 4/4 isolation attestations true;
-- Phase 6 demo candidate: 3 passed, 0 failed/error/skipped, isolation passed.
+As of 2026-09-14: backend 581 passed / 3 skipped; frontend 53 tests passed and
+production build passed. The application schema is v20. These checks establish
+engineering behavior, not model accuracy. New retrieval/generation strategies
+remain opt-in; the latest fixed comparison did not justify changing defaults.
 
-There is no human-approved Phase 6 baseline. Public material must say **candidate** and must not imply a baseline comparison or regression comparison. The current application schema contract is v18; historical candidate outputs retain their original schema-v15 fixture metadata and the evaluation runner never opens the operational database.
+Phase 6 documents and candidate outputs below are historical. Their original
+schema-v15 fixture metadata and counts are preserved; there is no human-approved
+Phase 6 baseline or independent semantic quality claim.
 
 ## Engineering and migration background
 

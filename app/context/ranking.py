@@ -4,8 +4,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.context.knowledge_reader import RawKnowledgeBundle, query_terms
+from app.context.knowledge_reader import RawKnowledgeBundle
 from app.context.retrieval import CandidateReference
+from app.retrieval.contracts import CandidateAudit
+from app.retrieval.hybrid import (
+    CHANNEL_LIMIT,
+    RetrievalStrategy,
+    bm25_rank,
+    reciprocal_rank_fusion,
+)
+from app.retrieval.ranking import query_terms, rank_scored_candidates
+from app.retrieval.ranking import term_coverage as _term_coverage
 
 
 @dataclass
@@ -23,15 +32,25 @@ def rank_bundles(
     *,
     query: str,
     candidate_references: list[CandidateReference],
+    candidate_audits: list[CandidateAudit] | None = None,
+    strategy: RetrievalStrategy = "legacy",
 ) -> list[RankedKnowledgeBundle]:
     """Rank only SQLite-verified bundles; unknown projection IDs have no effect."""
 
+    if strategy != "legacy":
+        return _hybrid_bundles(bundles, query, candidate_audits or [], strategy)
     terms = query_terms(query)
     scored: list[tuple[RawKnowledgeBundle, float, dict[str, float], list[str], str]] = []
     for bundle in bundles:
         lexical = _term_coverage(terms, _claim_text(bundle))
         entity_match = _term_coverage(terms, _owner_text(bundle))
-        vector_score, graph_score = _projection_scores(bundle, candidate_references)
+        references = candidate_references
+        if candidate_audits is not None:
+            references = [
+                ref for ref, audit in zip(candidate_references, candidate_audits, strict=True)
+                if any(match.item_id == bundle.claim["id"] for match in audit.matches)
+            ]
+        vector_score, graph_score = _projection_scores(bundle, references)
         confidence = float(bundle.claim["confidence"] or 0.5)
         evidence_completeness = min(1.0, len(bundle.evidence) / 2)
         semantic = max(vector_score, graph_score)
@@ -63,7 +82,11 @@ def rank_bundles(
             reasons.append("SQLite-revalidated graph candidate")
         scored.append((bundle, score, breakdown, channels, "; ".join(reasons)))
 
-    scored.sort(key=lambda item: (-item[1], str(item[0].claim["id"])))
+    scored = rank_scored_candidates(
+        scored,
+        score=lambda item: item[1],
+        identity=lambda item: (str(item[0].claim["id"]),),
+    )
     return [
         RankedKnowledgeBundle(
             bundle=bundle,
@@ -127,6 +150,33 @@ def _claim_text(bundle: RawKnowledgeBundle) -> str:
     )
 
 
+def _hybrid_bundles(bundles, query, audits, strategy):
+    if strategy not in {"bm25-v1", "hybrid-v1", "dense-v1"}:
+        raise ValueError("Unknown retrieval strategy")
+    by_id = {bundle.claim["id"]: bundle for bundle in bundles}
+    lexical = bm25_rank(query, {
+        key: " ".join([_claim_text(bundle), _owner_text(bundle),
+                       *(str(item.chunk["content"]) for item in bundle.evidence)])
+        for key, bundle in by_id.items()
+    })
+    channels = {} if strategy == "dense-v1" else {"bm25": [key for key, _ in lexical]}
+    if strategy in {"hybrid-v1", "dense-v1"}:
+        for channel in (("vector",) if strategy == "dense-v1" else ("vector", "graph")):
+            channels[channel] = list(dict.fromkeys(
+                match.item_id for audit in audits
+                if audit.channel == channel and audit.status == "verified"
+                and (audit.raw_score or 0) > 0
+                for match in audit.matches if match.item_id in by_id
+            ))[:CHANNEL_LIMIT]
+    bm25 = dict(lexical)
+    return [RankedKnowledgeBundle(
+        bundle=by_id[key], rank=index, score=score,
+        score_breakdown={"rrf_score": score, "bm25_score": bm25.get(key, 0),
+                         **{f"{name}_rank": rank for name, rank in ranks.items()}},
+        channels=list(ranks), selected_reason="SQLite-verified ranked channel fusion",
+    ) for index, (key, score, ranks) in enumerate(reciprocal_rank_fusion(channels), start=1)]
+
+
 def _owner_text(bundle: RawKnowledgeBundle) -> str:
     if bundle.entity:
         return " ".join(
@@ -139,10 +189,3 @@ def _owner_text(bundle: RawKnowledgeBundle) -> str:
             for field in ("relation_type", "domain", "source_entity_id", "target_entity_id")
         )
     return ""
-
-
-def _term_coverage(terms: list[str], text: str) -> float:
-    if not terms:
-        return 0.0
-    normalized = text.casefold()
-    return sum(term in normalized for term in terms) / len(terms)

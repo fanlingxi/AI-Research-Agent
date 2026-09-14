@@ -2,22 +2,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Protocol
 
-CandidateTarget = Literal["chunk", "entity", "relation", "legacy_entity", "legacy_relation"]
-
-
-@dataclass(frozen=True)
-class CandidateReference:
-    channel: Literal["vector", "graph"]
-    target_type: CandidateTarget
-    target_id: str
-    score: float = 0.5
+from app.retrieval.contracts import CandidateReference as CandidateReference
+from app.retrieval.contracts import CandidateTarget as CandidateTarget
 
 
 class ContextCandidateRetriever(Protocol):
-    """Return IDs only; Context Builder rehydrates every result from SQLite."""
+    """Return IDs only; Context Builder rehydrates every result from SQLite.
+
+    Implementations must bound their own IO. The builder runs synchronously,
+    outside database transactions, and retries only transient transport failures.
+    """
 
     def retrieve(
         self,
@@ -64,6 +60,7 @@ class QdrantContextCandidateRetriever:
                 target_type="chunk",
                 target_id=item.chunk_id,
                 score=float(item.score),
+                source_identity=getattr(item, "source_identity", None),
             )
             for item in evidence
         ]

@@ -90,6 +90,17 @@ def test_agent_run_queue_executes_deterministic_workflow_with_isolated_checkpoin
         assert connection.execute("SELECT COUNT(*) FROM memory_proposals").fetchone()[0] == 0
 
 
+@pytest.mark.parametrize("budget,context_budget", [(6000, 6000), (131072, 16000), (1048576, 16000)])
+def test_run_budget_is_separate_from_automatic_snapshot_capacity(tmp_path, budget, context_budget):
+    _, service, _, worker, project, task, _ = _runtime_stack(tmp_path)
+    run = service.create_run(project.id, task.id, _foundation_request(token_budget=budget))
+    assert run.token_budget == budget
+    package = service.load_context_snapshot(run.id)
+    assert package.token_usage.budget == context_budget
+    assert worker.run_once()
+    assert service.get_run(run.id).status == "completed"
+
+
 def test_agent_run_recovers_after_failure_from_the_same_checkpoint_thread(tmp_path) -> None:
     failed_once: set[str] = set()
 
@@ -369,6 +380,10 @@ def test_v12_to_v17_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         connection.execute("DROP TABLE agent_run_outputs")
         connection.execute("DROP TABLE agent_tool_calls")
         connection.execute("DROP TABLE agent_run_events")
+        connection.execute("DROP TABLE agent_run_rechecks")
+        connection.execute("DROP TABLE agent_run_feedback")
+        connection.execute("DROP TABLE research_generation_attempts")
+        connection.execute("DELETE FROM schema_migrations WHERE version IN (19, 20)")
         connection.execute("DROP TABLE agent_runs")
         connection.execute("DROP TABLE project_domain_plugins")
         connection.execute("DROP INDEX workspace_tasks_plugin_idx")
@@ -387,7 +402,7 @@ def test_v12_to_v17_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 12
 
     upgraded = KnowledgeRepository(repository.path)
-    assert upgraded.schema_version() == 18
+    assert upgraded.schema_version() == 20
     with upgraded._connect() as connection:
         assert dict(
             connection.execute(
@@ -406,4 +421,4 @@ def test_v12_to_v17_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         }
         assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
-    assert KnowledgeRepository(repository.path).schema_version() == 18
+    assert KnowledgeRepository(repository.path).schema_version() == 20

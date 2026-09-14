@@ -12,6 +12,7 @@ const ReviewPage = lazy(async () => ({ default: (await import("./pages/ReviewPag
 const KnowledgePage = lazy(async () => ({ default: (await import("./pages/KnowledgePage")).KnowledgePage }));
 const ReportsPage = lazy(async () => ({ default: (await import("./pages/ReportsPage")).ReportsPage }));
 const RuntimePage = lazy(async () => ({ default: (await import("./pages/RuntimePage")).RuntimePage }));
+const ExperimentsPage = lazy(async () => ({ default: (await import("./pages/ExperimentsPage")).ExperimentsPage }));
 
 export function App() {
   return (
@@ -27,6 +28,7 @@ export function App() {
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/runtime" element={<RuntimePage />} />
+          <Route path="/experiments" element={<ExperimentsPage />} />
           <Route path="*" element={<Navigate replace to="/" />} />
         </Routes>
       </Suspense>
