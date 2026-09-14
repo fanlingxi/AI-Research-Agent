@@ -1,302 +1,36 @@
-# Evidence-Grounded Personal Knowledge Agent Workspace
+# 证据驱动的智能研究工作台
 
-**证据约束的本地优先个人知识 Agent 工作台** —— 一个把已审核知识、项目记忆、受控上下文与可追溯 Agent 产物连接起来的本地优先工作空间。它不是把任意文档直接塞进提示词的普通 RAG：每次运行都绑定明确的 Knowledge scope、不可变 `ContextSnapshot`、领域插件 pin、工具审计、引用校验与人工治理边界。
+一个面向论文阅读、资料研究与项目知识管理的本地优先工作台。将资料导入、知识审核、证据检索、报告生成和反馈修订串联起来，让研究结论有出处、执行过程可追溯、积累的知识可复用。
 
-## 简历版本与复现入口
+## 项目亮点
 
-当前重点是基于已审核论文文本的研究闭环：导入与审核 → 按项目范围检索 → 冻结证据快照 → Worker生成带引用报告 → 反馈后新快照/新运行。SQLite保存事实，Qdrant只返回候选；恢复与版本追溯是核心工程能力。
+- **结论有据可查**：报告关联原文证据与来源，支持查看引用、定位原文；对证据不足的内容保留缺口说明，方便核验。
+- **知识范围可控**：资料经过审核后进入正式知识库，每个项目明确允许使用的资料范围，检索结果需要核查审核状态和来源版本。
+- **研究过程可追溯**：每次运行固定任务、知识与项目记忆的上下文快照，记录工作流版本、工具调用和产物，便于复核结果的生成依据。
+- **长任务可靠执行**：后台任务支持检查点、失败恢复与幂等处理，通过租约和执行权校验，避免重试或旧任务覆盖有效结果。
+- **反馈形成闭环**：发现问题后可提交反馈、修订任务并发起新运行，保留旧报告与版本关系；生成的记忆建议经审核后才能成为正式项目知识。
+- **检索灵活、数据本地优先**：支持按需启用关键词、混合检索和本地语义向量；业务数据由本地数据库统一管理，检索索引可重建，并提供备份恢复工具。
 
-- [本地安装、真实向量服务及备份恢复](docs/GETTING_STARTED.md)
-- [本轮真实服务与新论文对照结果](docs/PROJECT_STATUS.md)
-- [演示顺序与能力边界](docs/GETTING_STARTED.md#演示与验收)
-- [项目状态与待验收项](docs/PROJECT_STATUS.md)
+## 使用流程
 
-离线测试、真实模型运行完成和语义正确是三个不同指标。当前不承诺图表曲线理解、全部问题正确回答或已测得的生产吞吐；新生成版本保持显式候选。完整图谱投影需要Neo4j，本机该集成尚未验收。复现默认不需要Redis、Kafka或Kubernetes。
+**导入资料 → 审核知识 → 创建研究任务 → 检索并固定证据 → 生成引用报告 → 核验与反馈修订**
 
-```mermaid
-flowchart LR
-    S["Sources"] --> K["Knowledge Core"]
-    M["Memory Core"] --> C["Context Builder"]
-    K --> C
-    C --> CS["Immutable ContextSnapshot"]
-    CS --> P["Research / Game Modeling Plugin"]
-    P --> R["Bounded LangGraph Runtime"]
-    R --> V["Validator + Platform Finalizer"]
-    V --> A["Artifact"]
-    V --> MP["MemoryProposal"]
-    MP --> M
+在统一工作台中管理资料、项目和任务，查看上下文、运行状态、报告及来源。适合围绕一组论文开展资料整理、跨文献分析，以及持续积累项目知识。
 
-    subgraph E["Independent Evaluation Plane"]
-      VC["Versioned Cases"] --> IF["Isolated Fixtures"]
-      IF --> PS["Production Service Paths"]
-      PS --> EV["Deterministic Evaluators"]
-      EV --> BR["Candidate Benchmark Report"]
-    end
-```
+## 技术架构
 
-## Why this project
-
-An answer is not enough for long-running research or modeling work. The system needs to answer four questions together:
-
-- Which reviewed evidence was allowed to influence this task?
-- Which project facts and decisions were in scope?
-- Which domain workflow and tool permissions produced the result?
-- Which output or proposed memory update may a human accept, reject, or audit later?
-
-The workspace keeps these responsibilities separate. Knowledge is reviewed evidence; Memory is project state; a `ContextSnapshot` is the governed, reproducible runtime input; an AgentRun produces traceable outputs rather than silently mutating trusted records.
-
-## Core capabilities
-
-- Evidence-grounded Knowledge Core with reviewed sources, documents, chunks, claims, evidence, and collection scope.
-- Project-oriented Memory Core for projects, tasks, decisions, artifacts, knowledge scopes, plugin enablement, and reviewable memory proposals.
-- Immutable, budgeted `ContextSnapshot` construction with provenance and scope filtering.
-- Bounded, checkpointed LangGraph execution with auditable tool calls, cancellation/recovery semantics, validation, and finalization.
-- Two first-party domain plugins: Research and deterministic Game Modeling.
-- React Project Workspace projections for projects, tasks, context, runs, artifacts, and proposal review.
-- Offline, local-first Phase 6 evaluation and demo evidence pack that exercise production service paths through isolated fixtures.
-
-## Architecture
-
-The product path is deliberately one-way at its trust boundaries:
-
-1. Knowledge Core stores reviewed evidence and Memory Core stores project state.
-2. Context Builder reads both under a task/project scope and persists a canonical `ContextSnapshot` only after the payload is normalized.
-3. Agent Runtime resolves a static plugin pin, invokes its bounded LangGraph workflow, and records trace and tool-call facts.
-4. The validator and Platform Finalizer decide whether an output may become an Artifact and whether a MemoryProposal may be created.
-5. A proposal still requires the repository's review/commit governance; the Agent does not directly promote unreviewed facts or project state.
-
-The detailed, current architecture is in [docs/architecture/01_PROJECT_SPEC.md](docs/architecture/01_PROJECT_SPEC.md). Historical pre-platform material is kept in [docs/legacy](docs/legacy/).
-
-## Knowledge and Memory Governance
-
-**Knowledge Core** is the evidence layer: sources, documents, chunks, entities, relations, claims, and evidence are not interchangeable with generated prose. Candidate knowledge follows review before it becomes usable formal knowledge.
-
-**Memory Core** is the project layer: projects, workspace tasks, decisions, artifacts, scopes, enabled plugins, and `MemoryProposal` records have explicit lifecycle state and revisions. An Agent can propose a change; it cannot bypass review to make trusted project state.
-
-SQLite is the operational fact store. Qdrant, Neo4j, and Obsidian-compatible projections remain supporting retrieval/projection components rather than alternate business truth.
-
-## ContextSnapshot
-
-`ContextSnapshot` is the contract between governed data and an AgentRun. It contains the selected task, project memory, allowed knowledge bundles, evidence provenance, constraints, tool context, selection trace, and token-budget diagnostics. It is canonicalized and hashable, so a later run, artifact projection, or evaluator can identify the exact input contract it used.
-
-No-scope requests fail closed: no knowledge bundle and no business output are created merely to make a response look complete.
-
-## Agent Runtime
-
-The runtime dispatches a persisted AgentRun through a finite LangGraph workflow selected by its immutable plugin pin. Checkpoints support recovery from interruption; queue retries do not intentionally replay already completed business transitions. Tool calls are recorded with permissions, inputs, result summaries, and idempotency keys.
-
-The Platform Finalizer owns writes for Agent outputs, Artifacts, and optional MemoryProposals. Plugins describe a governed finalization command but receive no direct persistence handle.
-
-## Domain Plugins
-
-### Research
-
-The Research plugin exposes a foundation workflow and a research workflow. The research path requires a configured live LLM in normal product operation and validates evidence citations before finalization. Invalid citations can receive one bounded repair attempt; unresolved violations end in review rather than creating an Artifact or MemoryProposal.
-
-### Game Modeling
-
-The Game Modeling plugin is a first-party deterministic workflow over scoped Formula and Patch knowledge. It performs pure calculations, emits evidence-linked output, and fails closed when the requested patch version does not match the governed input. It owns neither a separate database nor a separate runtime.
-
-## Human-in-the-loop
-
-- Knowledge candidates require review before becoming trusted facts.
-- Memory changes are represented as proposals with review/commit status.
-- Artifact and run projections preserve AgentRun and ContextSnapshot provenance.
-- Domain plugins are statically registered and project-enabled; they do not dynamically install code or gain arbitrary storage access.
-
-## Evaluation
-
-Phase 6 is an **independent Evaluation Plane**, not a product runtime or new fact source. Each case builds a fresh temporary SQLite database, checkpoint path, vault path, and fixture root; it blocks network sockets and drives existing Context Builder, Runtime, validator, finalizer, plugin registry, and Workspace services.
-
-The current public result is a **deterministic evaluation candidate**. No human-approved baseline exists, so no regression comparison is available:
-
-| Candidate experiment | Result | Isolation | Scope |
-| --- | --- | --- | --- |
-| `phase6-20260817T164725Z-1cb4eed1d6` | 13 passed, 0 failed, 0 error, 0 skipped | 4/4 attestations true | Full contract suite |
-| `phase6-20260807T101505Z-534b3819bd` | 3 passed, 0 failed, 0 error, 0 skipped | passed | Reproducible demo subset |
-
-Manifest SHA-256: `5c1a4878d037c7df0187b8f50daf2a8b96e6fcadc5f3834a307ee0061f1705c2`.
-
-The current application schema contract is v20. Migrations 19–20 add feedback and generation-attempt records; migration 18 adds an additive ingestion-to-document membership table so one canonical source version can safely belong to more than one Collection ingestion. The historical candidate above was generated from an earlier schema-v15 fixture and did not open the operational database. There is no human-approved Phase 6 baseline; do not describe these results as baseline comparison or model-quality evidence.
-
-Run the full offline suite:
-
-```bash
-./.venv/bin/python -m app.benchmarking \
-  --manifest benchmarks/phase6/cases/v1/manifest.json \
-  --output data/reports/phase6
-```
-
-See [docs/demo/BENCHMARK_SUMMARY.md](docs/demo/BENCHMARK_SUMMARY.md) for exact scope and [benchmarks/phase6/README.md](benchmarks/phase6/README.md) for runner details.
-
-## Project Workspace
-
-The React Workspace is a client over existing projections, not another fact store. Its routes cover the dashboard, project sections, task detail, AgentRun trace, artifact content, proposal review, Knowledge Core, evidence reports, and runtime history. The Dashboard has one explicit dual-mode command entry: `quick_report` creates a scoped evidence report, while `project_run` requires a selected Project and creates or reuses a Task before building an immutable ContextSnapshot and AgentRun. `Idempotency-Key` binds retries to one persisted `ResearchCommand`, so a double click or reconnect does not create duplicate targets. Browser actions persist resources and durable queue intent; FastAPI never executes a long task in-process. One independent Worker owns command orchestration, ingestion, reports, AgentRun, Collection synchronization, and projection outbox work. Interactive work receives a higher queue priority, while attempt-and-owner fencing plus lease heartbeats prevent stale executors from overwriting a reclaimed task. Runtime v1 exposes bounded service health, Worker heartbeats, all work kinds, queue position, lease ownership, projection backlog, cursor pagination, and targeted failed-projection retry. SQLite remains authoritative and the UI does not expose checkpoint internals or arbitrary raw context payloads.
-
-The repository also retains a Streamlit operations service in `docker-compose.yml`. It exposes unified task diagnostics, failed projection recovery/rebuild, and raw read-only state; daily ingestion, search, review, reporting, and Agent work remain in React. The two interfaces are intentionally not interchangeable.
-
-## Demo
-
-The deterministic demo is local and offline. It runs three curated service-path scenarios:
-
-1. cited Research finalization;
-2. deterministic Game Modeling calculation;
-3. Workspace Artifact provenance projection.
-
-```bash
-./.venv/bin/python scripts/run_phase6_demo.py --output data/reports/phase6
-```
-
-The resulting immutable directory contains `run.json`, `report.md`, and `demo-summary.md`. It does not claim real-provider quality, production database validation, browser validation, or an accepted benchmark baseline. Use [docs/demo/DEMO_GUIDE.md](docs/demo/DEMO_GUIDE.md) to present it safely.
-
-## Quick Start
-
-Windows PowerShell 本地开发（无需先启动 Docker 的界面/离线验证）：见
-[Windows 本地调试指南](docs/GETTING_STARTED.md)。安装依赖后运行
-`powershell -ExecutionPolicy Bypass -File .\scripts\local.ps1 start`。
-
-### Backend and offline verification
-
-Requirements: Python 3.11+, Docker Compose for the compatibility stack. Keep the default mock configuration for local tests; never copy a real provider key into source code or frontend build variables.
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-cp .env.example .env
-
-./.venv/bin/python -m pytest -p no:cacheprovider
-./.venv/bin/python -m ruff check --no-cache .
-./.venv/bin/python -m pip check
-git diff --check
-docker compose config --quiet
-```
-
-`docker compose up --build`（或 `make up`）启动 React PC 工作台、API、worker、Qdrant、Neo4j 和 Streamlit 运维台。日常入口是 `http://127.0.0.1:5173`，Streamlit 运维入口是 `http://127.0.0.1:8501`。该本地栈使用同源 `/api` 代理和 React SPA 深链回退；使用前仍应设置非默认 Neo4j 密码并审查挂载的数据目录。
-
-Qdrant、Neo4j 和 Vault 都是 SQLite 正式事实的派生投影。需要修复漂移时，可以全量或按 Collection 重建；命令会从 SQLite 读取已发布事实，不读取未审核候选：
-
-```bash
-./.venv/bin/python -m app.knowledge.rebuild --target all
-./.venv/bin/python -m app.knowledge.rebuild --target qdrant --collection <collection-slug>
-```
-
-### OpenAI-compatible proxy smoke tests
-
-The backend already switches OpenAI-compatible chat endpoints manually through
-`LLM_PROVIDER=openai`, `OPENAI_BASE_URL`, and `LLM_MODEL`. Keep the provider
-key in the current shell or the Git-ignored `.env` file only; never pass it as
-a command-line argument or add it to source files. Keep `EMBEDDING_PROVIDER=hash`
-for this check, so the smoke test does not create embedding traffic.
-
-Run the bounded compatibility check once per endpoint. It discovers model IDs
-from `/models`, selects an economy-labelled `nano`, `mini`, or `flash` model,
-then sends one 32-token Chat Completions request. It prints a credential-free
-JSON result. The large-file/image endpoint is only validated as a chat proxy:
-this project does not currently upload files or images to a model endpoint.
-
-```bash
-./.venv/bin/python scripts/test_openai_proxy.py --base-url https://api.sharesai.xyz/v1
-./.venv/bin/python scripts/test_openai_proxy.py --base-url https://bnode.sharesai.xyz/v1
-```
-
-After the standard endpoint smoke test succeeds, use its reported
-`selected_model` for the synthetic live report test. The command keeps all
-SQLite and vault writes in pytest's temporary directory and caps each model
-completion at 512 tokens. `OPENAI_API_KEY` must already be set in the process
-environment or in the ignored local `.env` file.
-
-```bash
-LLM_PROVIDER=openai \
-OPENAI_BASE_URL=https://api.sharesai.xyz/v1 \
-LLM_MODEL=<selected_model> \
-LLM_MAX_TOKENS=512 \
-EMBEDDING_PROVIDER=hash \
-RUN_LIVE_LLM_INTEGRATION=1 \
-./.venv/bin/python -m pytest -q tests/test_report_live_integration.py
-```
-
-### React Workspace
-
-The React application lives in `frontend/`. Compose builds it into an Nginx web service; direct Vite development requires Node.js 22 LTS and the Corepack-managed `pnpm@11.21.0` pinned in `frontend/package.json`:
-
-```bash
-cd frontend
-pnpm install --frozen-lockfile
-pnpm dev
-```
-
-Validate it in a declared Node/pnpm environment with `pnpm test` and `pnpm build`. The supported product acceptance scope is the PC workspace at 1440×900 and 1920×1080; mobile adaptation is intentionally outside the current milestone.
-
-## Tech Stack
-
-| Area | Implementation |
+| 组成 | 技术与职责 |
 | --- | --- |
-| Backend | Python, FastAPI, Pydantic, SQLite |
-| Agent runtime | LangGraph, SQLite checkpointing, bounded workflows |
-| Knowledge and projections | SQLite fact store, Qdrant, Neo4j, Obsidian-compatible projections |
-| Frontend | React 19, TypeScript, Vite, Vitest, TanStack Query, Radix UI |
-| Quality | Pytest, Ruff, deterministic Phase 6 evaluation, Docker Compose validation |
+| 交互界面 | React、TypeScript：项目管理、任务执行、报告阅读与反馈 |
+| 后端服务 | Python、FastAPI：知识审核、任务调度与接口服务 |
+| 智能体执行 | LangGraph：有界工作流、检查点与运行恢复 |
+| 数据与检索 | SQLite 保存正式数据，Qdrant 提供向量检索，Neo4j 提供可选图谱投影 |
+| 工程验证 | 隔离的自动化测试、确定性演示与独立真实模型评测 |
 
-The repository package name remains `research-knowledge-core` for compatibility. The public product title is the title of this README.
+当前以已审核的文本证据研究为核心。检索与生成候选策略按需开启，报告内容可通过原文核验和反馈流程持续改进。
 
-## Safety Model
+## 开始使用
 
-- Local-first operational data is kept outside the evaluation fixtures.
-- `.env`, operational SQLite, checkpoints, raw papers, frontend dependency directories, and frontend build output are ignored by Git. Ignored does not make a file safe to upload: inspect archives and generated assets before sharing them.
-- API keys belong only in local environment configuration. Do not compile them into browser assets; rotate any credential suspected to have entered a build artifact.
-- Phase 6 blocks network access, uses scripted fixtures, and verifies that its temporary sandbox is removed.
-- Production migrations, including `v0009`, are outside the evaluation and demo commands.
-
-## Verified Engineering Status
-
-Verification records by stage:
-
-Current engineering verification: **581 backend tests passed, 3 skipped; 53 frontend tests passed**, production build and Ruff passed (2026-09-14). See [current progress](docs/PROJECT_STATUS.md) for remaining acceptance items.
-
-The following counts describe the earlier Phase 6 delivery:
-
-- Backend pytest: **181 passed, 3 skipped**.
-- Ruff: **passed**.
-- `pip check`: **passed**.
-- `git diff --check`: **passed**.
-- `docker compose config --quiet`: **passed**.
-- React unit tests / production build: **38 passed / passed**.
-- React browser acceptance: **1440×900 and 1920×1080 passed without horizontal overflow**; `/knowledge`, `/runtime`, `/reports`, and project deep-link refreshes remained inside the SPA.
-- Isolated 15-PDF acceptance: **15 Sources, 15 Documents, 707 Chunks, 687 pages**, with all first/last page ranges present and the pre/post-migration Document+Chunk hash unchanged.
-- Isolated real-provider report acceptance: **8 evidence spans from 5 papers, all report quality scores 1.0**, using prompt v3 and the unified Worker. This is one local semantic acceptance run, not a production benchmark.
-- Phase 6 full candidate: **13 passed, 0 failed, 0 error, 0 skipped; 4/4 isolation attestations true** (`phase6-20260817T164725Z-1cb4eed1d6`).
-- Phase 6 demo candidate: **3 passed, 0 failed; isolation passed**.
-
-These facts establish deterministic local contract coverage plus bounded browser, real-PDF, and real-provider acceptance. They do not replace a human-approved benchmark baseline, sustained production measurements, or public-release security review.
-
-## Limitations
-
-- The curated Phase 6 suite measures governance and deterministic service-path contracts, not open-domain retrieval quality or real-LLM quality.
-- No Phase 6 baseline has been accepted by a human reviewer.
-- The isolated real-provider acceptance is a single controlled run over public-paper evidence; it does not establish open-domain quality or production latency/cost.
-- Projection rebuilds against user-owned external stores still require explicit, isolated approval.
-- This repository is local-first and does not claim multi-agent, MCP, web-search, temporal-memory, or production-monitoring capabilities.
-
-## Roadmap
-
-The engineering closeout is implemented. Next steps are targeted report-semantic and interaction acceptance; new retrieval and generation strategies remain opt-in. See [current progress and known limits](docs/PROJECT_STATUS.md). An approved semantic baseline still requires human review.
-
-## Documentation
-
-The A08 retrieval and report changes are available as opt-in API controls:
-`workflow=research_v2`, `evidence_reranking=llm-v1`, and
-`reading_format=research-v1|inline-v1`. Existing defaults remain unchanged.
-See the [implementation results and request example](docs/PROJECT_STATUS.md)
-for configuration, recovery behavior, real-run evidence, and pending semantic review.
-
-- [Current architecture](docs/architecture/01_PROJECT_SPEC.md)
-- [Data and governance model](docs/architecture/03_DATA_MODEL_SPEC.md)
-- [ContextSnapshot contract](docs/architecture/04_CONTEXT_ENGINEERING_SPEC.md)
-- [Agent Runtime](docs/architecture/05_AGENT_RUNTIME_SPEC.md)
-- [Domain Plugins](docs/architecture/06_DOMAIN_PLUGIN_SPEC.md)
-- [Project Workspace](docs/architecture/07_UI_PRODUCT_SPEC.md)
-- [Benchmark summary](docs/demo/BENCHMARK_SUMMARY.md)
-- [Demo guide](docs/demo/DEMO_GUIDE.md)
-- [Resume project brief](docs/demo/RESUME_PROJECT_BRIEF.md)
-- [Historical material](docs/legacy/)
+- [安装与运行](docs/GETTING_STARTED.md)：环境准备、本地启动、向量服务、备份与演示。
+- [项目进度](docs/PROJECT_STATUS.md)：已实现能力、验证结果与当前边界。
+- [架构设计](docs/architecture/01_PROJECT_SPEC.md)：知识、项目记忆与智能体之间的协作方式。
