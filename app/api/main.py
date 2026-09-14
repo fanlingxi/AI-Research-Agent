@@ -9,10 +9,10 @@ from urllib.parse import urlparse
 from fastapi import FastAPI
 
 from app.agent.service import AgentRunService
-from app.benchmarking.experiments import ExperimentReadService
 from app.config.settings import get_settings
 from app.domain_plugins.game_modeling.knowledge import GameKnowledgeAuthoringService
 from app.domain_plugins.service import DomainPluginService
+from app.experiments.service import ExperimentReadService
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.service import KnowledgeIngestionService
@@ -93,7 +93,7 @@ def create_app(
     )
 
     def health_payload() -> dict[str, Any]:
-        worker_heartbeats = repository.list_executor_heartbeats("worker")
+        worker_heartbeats = repository.jobs.list_executor_heartbeats("worker")
         worker = worker_heartbeats[0] if worker_heartbeats else None
         worker_available = False
         if worker is not None:
@@ -122,7 +122,7 @@ def create_app(
                 "vault": settings.knowledge_vault_path,
                 "llm_provider": getattr(service.llm, "provider_name", "mock"),
                 "live_llm_configured": not service._is_mock_llm(),
-                "jobs": repository.job_summary(),
+                "jobs": repository.jobs.job_summary(),
                 "projections": repository.projection_summary(),
             },
         }

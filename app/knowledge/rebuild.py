@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Callable
 from typing import Literal, Protocol
 
 from pydantic import BaseModel
@@ -74,7 +75,10 @@ class KnowledgeProjectionRebuildService:
         *,
         target: ProjectionTarget = "all",
         collection_slug: str | None = None,
+        assert_active: Callable[[], None] | None = None,
     ) -> ProjectionRebuildResult:
+        if assert_active:
+            assert_active()
         selected_collection = (
             self.repository.get_collection(collection_slug) if collection_slug else None
         )
@@ -89,10 +93,14 @@ class KnowledgeProjectionRebuildService:
 
         if target in {"qdrant", "all"}:
             chunks = self.repository.list_projection_chunks(collection_slug)
+            if assert_active:
+                assert_active()
             self.indexer.replace(chunks, collection_slug=collection_slug)
             result.chunks = len(chunks)
 
         if target in {"neo4j", "all"}:
+            if assert_active:
+                assert_active()
             # Neo4j relationships and shared entities can cross Collection boundaries.
             # Rebuild the complete managed graph even when the command was scoped, so a
             # Collection repair cannot delete facts belonging to another Collection.
@@ -108,6 +116,8 @@ class KnowledgeProjectionRebuildService:
                 else self.repository.list_collections()
             )
             for collection in collections:
+                if assert_active:
+                    assert_active()
                 self.vault_exporter.render_topic(
                     topic=collection.name,
                     topic_slug=collection.slug,
@@ -116,6 +126,8 @@ class KnowledgeProjectionRebuildService:
                 )
             result.topics = len(collections)
 
+        if assert_active:
+            assert_active()
         return result
 
 

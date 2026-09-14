@@ -404,7 +404,7 @@ def test_research_workflow_stops_for_review_after_one_failed_repair(tmp_path) ->
 
     # A worker crash after needs_review but before queue acknowledgement must
     # not replay the graph when the durable job lease is later reclaimed.
-    repository.enqueue_job(
+    repository.jobs.enqueue_job(
         kind="agent_run", resource_id=run.id, payload={}, force_requeue=True
     )
     assert worker.run_once()

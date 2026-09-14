@@ -50,10 +50,10 @@ if (@($records | Where-Object { Get-ManagedProcess $_ }).Count -gt 0) {
 $python = Join-Path $projectRoot '.venv/Scripts/python.exe'
 $vite = Join-Path $projectRoot 'frontend/node_modules/vite/bin/vite.js'
 if (!(Test-Path -LiteralPath $python) -or !(Test-Path -LiteralPath $vite)) {
-    throw 'Install Python and frontend dependencies first; see docs/LOCAL_DEVELOPMENT.md.'
+    throw 'Install Python and frontend dependencies first; see docs/GETTING_STARTED.md.'
 }
 $node = (Get-Command node -ErrorAction Stop).Source
-foreach ($port in @(8000, 5173, 8501)) {
+foreach ($port in @(8000, 5173)) {
     $probe = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $port)
     try { $probe.Start() }
     catch { throw "Port $port is unavailable. Stop the existing listener before starting." }
@@ -67,15 +67,11 @@ if (!(Test-Path -LiteralPath $environmentFile)) {
 
 $env:PYTHONUTF8 = '1'
 $env:PYTHONUNBUFFERED = '1'
-$env:AI_RESEARCH_API_URL = 'http://127.0.0.1:8000'
-$env:AI_RESEARCH_REACT_URL = 'http://127.0.0.1:5173'
 $env:VITE_API_PROXY_TARGET = 'http://127.0.0.1:8000'
-$env:VITE_OPERATIONS_URL = 'http://127.0.0.1:8501'
 $services = @(
     @{ name = 'api'; executable = $python; arguments = '-m uvicorn app.api.main:create_app --factory --host 127.0.0.1 --port 8000'; directory = $projectRoot },
     @{ name = 'worker'; executable = $python; arguments = '-m app.worker'; directory = $projectRoot },
-    @{ name = 'web'; executable = $node; arguments = ('"{0}" --host 127.0.0.1 --port 5173 --strictPort' -f $vite); directory = (Join-Path $projectRoot 'frontend') },
-    @{ name = 'operations'; executable = $python; arguments = '-m streamlit run app/ui/streamlit_app.py --server.address 127.0.0.1 --server.port 8501 --server.headless true --browser.gatherUsageStats false'; directory = $projectRoot }
+    @{ name = 'web'; executable = $node; arguments = ('"{0}" --host 127.0.0.1 --port 5173 --strictPort' -f $vite); directory = (Join-Path $projectRoot 'frontend') }
 )
 $records = @()
 try {
@@ -112,11 +108,9 @@ try {
         try {
             $health = Invoke-RestMethod 'http://127.0.0.1:8000/health' -TimeoutSec 3
             $web = Invoke-WebRequest 'http://127.0.0.1:5173' -UseBasicParsing -TimeoutSec 3
-            $operations = Invoke-WebRequest 'http://127.0.0.1:8501/_stcore/health' -UseBasicParsing -TimeoutSec 3
-            if ($health.services.worker.available -and $web.StatusCode -eq 200 -and $operations.StatusCode -eq 200) {
+            if ($health.services.worker.available -and $web.StatusCode -eq 200) {
                 Write-Host 'Workspace:  http://127.0.0.1:5173'
                 Write-Host 'API docs:   http://127.0.0.1:8000/docs'
-                Write-Host 'Operations: http://127.0.0.1:8501'
                 Write-Host "Logs: $runtimeDirectory"
                 if (!$health.knowledge.live_llm_configured) { Write-Warning 'Live LLM is not configured. Extraction and research reports require .env configuration.' }
                 foreach ($name in @('qdrant', 'neo4j')) {

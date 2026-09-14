@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from app.benchmarking.experiments import ExperimentDataError, ExperimentReadService
+from app.experiments.service import ExperimentDataError, ExperimentReadService
 
 
 def build_experiments_router(service: ExperimentReadService) -> APIRouter:

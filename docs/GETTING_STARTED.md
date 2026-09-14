@@ -6,7 +6,7 @@
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 Push-Location frontend
 pnpm install --frozen-lockfile
 pnpm test
@@ -17,7 +17,7 @@ $env:PYTHONUTF8 = '1'
 .\.venv\Scripts\python.exe -m ruff check --no-cache .
 ```
 
-Windows 使用 `requirements.txt`；`requirements.lock` 是历史 macOS 环境快照。离线测试使用临时数据库和模型替身，不需真实密钥或服务，也不会向生产知识写入测试资料。外部集成测试需要显式开启。
+本地开发与测试使用 `requirements-dev.txt`，它包含 `requirements-runtime.txt` 中的运行依赖；容器仅安装运行依赖。旧 macOS 环境快照已移出当前目录，可从 Git 提交 `ddb080e` 恢复。离线测试使用临时数据库和模型替身，不需真实密钥或服务，也不会向生产知识写入测试资料。外部集成测试需要显式开启。
 
 ## 本地工作台
 
@@ -28,9 +28,22 @@ powershell -ExecutionPolicy Bypass -File scripts/local.ps1 status
 powershell -ExecutionPolicy Bypass -File scripts/local.ps1 stop
 ```
 
-首次启动从 `.env.example` 创建被忽略的 `.env`，保留已有配置。工作台在 `http://127.0.0.1:5173`，API 文档在 `http://127.0.0.1:8000/docs`，运维台在 `http://127.0.0.1:8501`。脚本在后台启动 API、Worker、前端及运维台，记录位于 `data/runtime/local/`。
+首次启动从 `.env.example` 创建被忽略的 `.env`，保留已有配置。工作台在 `http://127.0.0.1:5173`，API 文档在 `http://127.0.0.1:8000/docs`。脚本在后台启动 API、Worker、React 前端，记录位于 `data/runtime/local/`。
 
 无模型和检索服务时可检查项目管理、运行状态及确定性演示；真实抽取和报告需要配置模型提供方、模型名及对应密钥。完整知识投影还需要 Qdrant、Neo4j；可使用现有 `docker compose up -d qdrant neo4j`，先设置本地 Neo4j 密码。缺依赖时页面显示降级。`.env` 不进入版本控制。
+
+## 投影维护与诊断
+
+在 React 的“运行与恢复”页面查看服务健康、任务队列和失败事件，使用“安全重试”恢复具体任务。页面下方的“投影维护与诊断”提供：
+
+- **投影重建**：选择 Qdrant、Neo4j、Obsidian 或全部投影，以及资料集合；确认范围后提交。任务由 Worker 执行，关闭或刷新页面后仍可从任务时间线查看结果，失败时可重试同一任务。
+- **原始状态**：按需查看 API / Knowledge 与 Runtime 的只读 JSON，可手动刷新。
+
+重建会替换派生投影，请在其他写入任务结束后操作。Qdrant 和 Obsidian 可按集合重建；Neo4j 存在跨集合关系，始终重建完整受管图。正式知识不受重建修改。外部投影不是跨服务事务，中途失败可能留下部分结果，排除故障后重试。
+
+升级这一版本前先停止旧 API/Worker，再用当前代码启动。新任务使用 `unified-worker-v2`，检测到近期旧 Worker 心跳时拒绝提交。React 已覆盖原 Streamlit 运维功能，本地启动不再需要 8501 端口；已有 `.env` 的旧运维 URL 可移除，不影响当前配置。
+
+命令行维护入口继续保留，例如先用 `python -m app.knowledge.rebuild --help` 查看参数。网页与 CLI 复用相同的重建服务，不同时发起重建。
 
 ## 可选本地向量服务
 

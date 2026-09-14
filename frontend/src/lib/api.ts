@@ -653,7 +653,26 @@ export interface ExperimentTaskDetail {
   variants: ExperimentVariant[];
 }
 
+export type ProjectionTarget = "qdrant" | "neo4j" | "obsidian" | "all";
+export type ProjectionRebuild = {
+  id: string;
+  status: "queued" | "running" | "completed" | "failed";
+  attempts: number;
+  last_error: string | null;
+  payload: {
+    target: ProjectionTarget;
+    collection_slug: string | null;
+    result?: { chunks: number; entities: number; relations: number; topics: number };
+  };
+};
+
 export const api = {
+  submitRebuild: (input: { target: ProjectionTarget; collection_slug: string | null; confirmed: true }, key: string) =>
+    request<ProjectionRebuild>("/api/v1/runtime/rebuilds", {
+      method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(input),
+    }),
+  rebuild: (id: string) => request<ProjectionRebuild>(`/api/v1/runtime/rebuilds/${path(id)}`),
+  retryRebuild: (id: string) => request<ProjectionRebuild>(`/api/v1/runtime/rebuilds/${path(id)}/retry`, { method: "POST" }),
   semanticObservation: () => request<SemanticObservationData>("/api/experiments/semantic-observation"),
   experiments: () => request<{ experiments: ExperimentSummary[]; unavailable: { id: string; reason: string }[] }>("/api/experiments"),
   experiment: (id: string) => request<ExperimentDetail>(`/api/experiments/${path(id)}`),

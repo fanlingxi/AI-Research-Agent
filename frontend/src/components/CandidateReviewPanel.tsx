@@ -155,7 +155,7 @@ export function CandidateReviewPanel() {
         {candidates.data?.total ? <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4"><p className="text-xs text-muted-ink">显示 {pageStart}–{pageEnd} / {candidates.data.total} 条待审候选</p><div className="flex gap-2"><Button disabled={!offset || candidates.isFetching} size="sm" variant="outline" onClick={() => changePage(Math.max(0, offset - PAGE_SIZE))}><ChevronLeft size={14} />上一页</Button><Button disabled={candidates.data.next_offset === null || candidates.isFetching} size="sm" variant="outline" onClick={() => changePage(candidates.data?.next_offset ?? offset)}>下一页<ChevronRight size={14} /></Button></div></div> : null}
         {ingestions.data && !ingestions.data.length ? <EmptyBlock title="没有 Knowledge ingestion">请先在知识库提交 PDF，审核队列才会出现候选。</EmptyBlock> : null}
         {selectedId && !candidates.isPending && candidates.data && !candidates.data.total ? <EmptyBlock title="没有 draft candidate">当前筛选下没有待审候选；它们可能已经审核完成，或仍在等待抽取。</EmptyBlock> : null}
-        <p className="mt-4 flex items-center gap-1 text-xs text-muted-ink"><ChevronRight size={13} />需要 merge/link 的实体候选保留在 Operations Console，以明确选择 canonical entity。</p>
+        <p className="mt-4 flex items-center gap-1 text-xs text-muted-ink"><ChevronRight size={13} />当前页面尚不支持实体合并或关联；需要指定已有实体的候选请先保留待审，避免重复批准。</p>
       </CardContent>
     </Card>
   );

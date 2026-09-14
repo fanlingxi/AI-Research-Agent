@@ -196,6 +196,7 @@ def test_qdrant_indexer_sanitizes_chunk_before_embedding_and_json_payload(monkey
     settings = Settings(
         qdrant_url="http://qdrant.test",
         knowledge_qdrant_collection="safe-chunks",
+        embedding_provider="hash",
         embedding_dimension=2,
     )
     chunk = DocumentChunk(

@@ -204,7 +204,7 @@ function ReportComposer({
       </CardHeader>
       <CardContent>
         <p className="text-sm leading-6 text-muted-ink">
-          输入问题后会立即开始执行，无需另开终端或通用 Worker。报告只消费已发布的 PDF 证据。
+          提交后由后台执行器生成报告，页面会持续更新进度；报告只使用已发布的 PDF 证据。
         </p>
         <form className="mt-5 space-y-4" onSubmit={onSubmit}>
           <label className="block text-sm font-medium">

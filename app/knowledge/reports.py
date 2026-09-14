@@ -8,7 +8,8 @@ from app.config.settings import Settings, get_settings
 from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.query import KnowledgeQueryService, KnowledgeRetrievalError
 from app.knowledge.report_inputs import report_request
-from app.knowledge.repository import KnowledgeRepository, StaleReportExecution
+from app.knowledge.report_repository import StaleReportExecution
+from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import ReportEvaluation, ReportEvidence, ResearchReport
 from app.llms.provider import LLMClient, MockLLMClient, get_llm_client
 from app.retrieval.neural_embeddings import MODELS, collection_name, model_identity
@@ -58,7 +59,7 @@ class KnowledgeReportService:
         run_metadata = self._run_metadata()
         if auto_execute:
             run_metadata["current_stage"] = "queued_for_dispatch"
-        return self.repository.create_report(
+        return self.repository.reports.create_report(
             query=query,
             topic_slugs=selected_topics,
             top_k=top_k,
@@ -83,9 +84,9 @@ class KnowledgeReportService:
         if (expected_job_id is None) != (expected_job_attempt is None):
             raise ValueError("A claimed report requires both its job id and attempt.")
         if expected_job_id is None:
-            job = self.repository.claim_resource_job("report", report_id)
+            job = self.repository.jobs.claim_resource_job("report", report_id)
             if job is None:
-                return self.repository.get_report(report_id)
+                return self.repository.reports.get_report(report_id)
             expected_job_id, expected_job_attempt, expected_job_owner = (
                 job.id, job.attempts, job.lease_owner,
             )
@@ -95,9 +96,9 @@ class KnowledgeReportService:
         output_tokens = 0
         retrieval_diagnostics: dict[str, Any] = {}
         read_guard: dict[str, Any] | None = None
-        report = self.repository.get_report(report_id)
+        report = self.repository.reports.get_report(report_id)
         request = report_request(report)
-        report = self.repository.update_report(
+        report = self.repository.reports.update_report(
             report_id,
             status="running",
             run_metadata={**report.run_metadata, "current_stage": "retrieving_evidence"},
@@ -127,7 +128,7 @@ class KnowledgeReportService:
                     f"范围内至少有 {required_sources} 篇相关论文，但当前证据参数只选中 "
                     f"{selected_sources} 篇；请提高最多引用证据片段后重试。"
                 )
-            self.repository.update_report(
+            self.repository.reports.update_report(
                 report_id,
                 status="running",
                 evidence=evidence,
@@ -147,7 +148,7 @@ class KnowledgeReportService:
             usage = self._llm_usage()
             input_tokens += usage["input_tokens"]
             output_tokens += usage["output_tokens"]
-            self.repository.update_report(
+            self.repository.reports.update_report(
                 report_id,
                 status="running",
                 evidence=evidence,
@@ -170,7 +171,7 @@ class KnowledgeReportService:
                 revision_applied=False,
             )
             if not evaluation.passed:
-                self.repository.update_report(
+                self.repository.reports.update_report(
                     report_id,
                     status="running",
                     evidence=evidence,
@@ -281,7 +282,7 @@ class KnowledgeReportService:
                 expected_job_owner=expected_owner,
             )
         except StaleReportExecution:
-            return self.repository.get_report(report_id)
+            return self.repository.reports.get_report(report_id)
         except Exception as exc:
             try:
                 return self.fail_claimed(
@@ -292,7 +293,7 @@ class KnowledgeReportService:
                     expected_owner=expected_owner,
                 )
             except StaleReportExecution:
-                return self.repository.get_report(report_id)
+                return self.repository.reports.get_report(report_id)
 
     def fail_claimed(
         self,
@@ -304,8 +305,8 @@ class KnowledgeReportService:
         expected_owner: str | None = None,
     ) -> ResearchReport:
         """Atomically fail a claimed execution if this attempt still owns it."""
-        report = self.repository.get_report(report_id)
-        return self.repository.finalize_report_execution(
+        report = self.repository.reports.get_report(report_id)
+        return self.repository.reports.finalize_report_execution(
             report_id,
             job_id,
             expected_attempt=expected_attempt,
@@ -332,7 +333,7 @@ class KnowledgeReportService:
         error: str | None = None,
     ) -> ResearchReport:
         if expected_job_id is not None and expected_job_attempt is not None:
-            return self.repository.finalize_report_execution(
+            return self.repository.reports.finalize_report_execution(
                 report_id,
                 expected_job_id,
                 expected_attempt=expected_job_attempt,

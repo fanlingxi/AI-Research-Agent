@@ -232,8 +232,8 @@ def test_expired_job_lease_is_reclaimed_after_worker_restart(tmp_path) -> None:
         topic="租约恢复", sources=["paper.pdf"], pdf_max_pages=3, enqueue=True
     )
 
-    first = repository.claim_job(lease_seconds=-1)
-    second = repository.claim_job(lease_seconds=30)
+    first = repository.jobs.claim_job(lease_seconds=-1)
+    second = repository.jobs.claim_job(lease_seconds=30)
 
     assert first is not None and second is not None
     assert first.id == second.id
@@ -245,12 +245,12 @@ def test_recovery_does_not_steal_an_active_worker_lease(tmp_path) -> None:
     repository.create_ingestion(
         topic="活动租约", sources=["paper.pdf"], pdf_max_pages=3, enqueue=True
     )
-    active = repository.claim_job(lease_seconds=30)
+    active = repository.jobs.claim_job(lease_seconds=30)
 
     repository.recover_running_work()
 
     assert active is not None
-    assert repository.get_job(active.id).status == "running"
+    assert repository.jobs.get_job(active.id).status == "running"
 
 
 def test_unified_worker_claims_interactive_priority_before_older_batch_work(tmp_path) -> None:
@@ -265,12 +265,12 @@ def test_unified_worker_claims_interactive_priority_before_older_batch_work(tmp_
         auto_execute=True,
     )
 
-    claimed = repository.claim_job(lease_seconds=30, owner_id="worker-priority")
+    claimed = repository.jobs.claim_job(lease_seconds=30, owner_id="worker-priority")
 
     assert claimed is not None
     assert claimed.resource_id == interactive.id
-    assert claimed.priority > repository.get_resource_job("ingestion", background.id).priority
-    assert repository.get_resource_job("ingestion", background.id).status == "queued"
+    assert claimed.priority > repository.jobs.get_resource_job("ingestion", background.id).priority
+    assert repository.jobs.get_resource_job("ingestion", background.id).status == "queued"
 
 
 def test_job_fencing_requires_attempt_and_lease_owner(tmp_path) -> None:
@@ -278,30 +278,30 @@ def test_job_fencing_requires_attempt_and_lease_owner(tmp_path) -> None:
     ingestion = repository.create_ingestion(
         topic="所有者隔离", sources=["paper.pdf"], pdf_max_pages=3, enqueue=True
     )
-    claimed = repository.claim_resource_job(
+    claimed = repository.jobs.claim_resource_job(
         "ingestion", ingestion.id, lease_seconds=30, owner_id="worker-alpha"
     )
     assert claimed is not None
 
-    assert not repository.renew_job_lease(
+    assert not repository.jobs.renew_job_lease(
         claimed.id,
         expected_attempt=claimed.attempts,
         expected_owner="worker-beta",
         lease_seconds=30,
     )
-    assert not repository.complete_job(
+    assert not repository.jobs.complete_job(
         claimed.id,
         expected_attempt=claimed.attempts,
         expected_owner="worker-beta",
     )
-    assert not repository.fail_job(
+    assert not repository.jobs.fail_job(
         claimed.id,
         "stale executor",
         expected_attempt=claimed.attempts,
         expected_owner="worker-beta",
     )
-    assert repository.get_job(claimed.id).status == "running"
-    assert repository.complete_job(
+    assert repository.jobs.get_job(claimed.id).status == "running"
+    assert repository.jobs.complete_job(
         claimed.id,
         expected_attempt=claimed.attempts,
         expected_owner="worker-alpha",
@@ -329,13 +329,13 @@ def test_ingestion_heartbeat_prevents_duplicate_long_execution(tmp_path) -> None
         time.sleep(0.01)
     assert extractor.calls == 1
     time.sleep(1.1)
-    duplicate = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=1)
+    duplicate = repository.jobs.claim_resource_job("ingestion", ingestion.id, lease_seconds=1)
     thread.join(timeout=3)
 
     assert not thread.is_alive()
     assert duplicate is None
     assert extractor.calls == 1
-    assert repository.get_resource_job("ingestion", ingestion.id).attempts == 1
+    assert repository.jobs.get_resource_job("ingestion", ingestion.id).attempts == 1
     assert repository.get_ingestion(ingestion.id).status == "needs_review"
     assert len(repository.list_candidates(ingestion.id)) == 1
 
@@ -343,7 +343,7 @@ def test_ingestion_heartbeat_prevents_duplicate_long_execution(tmp_path) -> None
 def test_recovered_ingestion_replaces_partial_draft_candidates(tmp_path) -> None:
     extractor = _SlowExtractor()
     repository, service, ingestion = _claimed_ingestion_service(tmp_path, extractor)
-    first = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=-1)
+    first = repository.jobs.claim_resource_job("ingestion", ingestion.id, lease_seconds=-1)
     assert first is not None
     parsed = _slow_parser(source="slow.pdf", max_pages=150)
     paper = service._paper_from_document(parsed, "slow.pdf")
@@ -360,7 +360,7 @@ def test_recovered_ingestion_replaces_partial_draft_candidates(tmp_path) -> None
         ),
     )
     repository.add_candidate_entity(partial)
-    recovered = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=30)
+    recovered = repository.jobs.claim_resource_job("ingestion", ingestion.id, lease_seconds=30)
     assert recovered is not None and recovered.attempts == 2
 
     result = service.execute_claimed(recovered)
@@ -373,8 +373,8 @@ def test_recovered_ingestion_replaces_partial_draft_candidates(tmp_path) -> None
 
 def test_stale_ingestion_attempt_cannot_write_or_finalize(tmp_path) -> None:
     repository, service, ingestion = _claimed_ingestion_service(tmp_path, _SlowExtractor())
-    stale = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=-1)
-    current = repository.claim_resource_job("ingestion", ingestion.id, lease_seconds=30)
+    stale = repository.jobs.claim_resource_job("ingestion", ingestion.id, lease_seconds=-1)
+    current = repository.jobs.claim_resource_job("ingestion", ingestion.id, lease_seconds=30)
     assert stale is not None and current is not None
 
     with pytest.raises(StaleIngestionExecution):
@@ -385,7 +385,7 @@ def test_stale_ingestion_attempt_cannot_write_or_finalize(tmp_path) -> None:
         )
 
     assert repository.list_candidates(ingestion.id) == []
-    assert repository.get_resource_job("ingestion", ingestion.id).attempts == 2
+    assert repository.jobs.get_resource_job("ingestion", ingestion.id).attempts == 2
     assert service.execute_claimed(current).status == "needs_review"
 
 
@@ -442,7 +442,7 @@ def test_claimed_ingestion_with_mock_llm_fails_before_any_extraction_side_effect
     assert indexed_batches == []
     assert extractor.calls == 0
     assert repository.list_candidates(ingestion.id) == []
-    job = repository.get_resource_job("ingestion", ingestion.id)
+    job = repository.jobs.get_resource_job("ingestion", ingestion.id)
     assert job.status == "failed"
     assert job.attempts == 1
     assert "真实 API Key" in (job.last_error or "")
@@ -526,7 +526,7 @@ def test_projection_heartbeat_prevents_duplicate_short_lease_execution(tmp_path)
     assert duplicate is None
     assert projector.calls == 1
     assert repository.projection_summary()["completed"] == 1
-    heartbeat = repository.list_executor_heartbeats("worker")[0]
+    heartbeat = repository.jobs.list_executor_heartbeats("worker")[0]
     assert heartbeat.id == "projection-worker"
     assert heartbeat.current_job_id is None
 

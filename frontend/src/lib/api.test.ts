@@ -3,6 +3,23 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "./api";
 
 describe("workspace API client", () => {
+  it("keeps maintenance and raw health requests behind the API proxy", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const input = { target: "obsidian" as const, collection_slug: null, confirmed: true as const };
+    await api.submitRebuild(input, "rebuild-request-key");
+    await api.rebuild("job one");
+    await api.retryRebuild("job one");
+    await api.knowledgeHealth();
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "/api/v1/runtime/rebuilds", "/api/v1/runtime/rebuilds/job%20one",
+      "/api/v1/runtime/rebuilds/job%20one/retry", "/api/knowledge/health",
+    ]);
+    expect(fetchMock.mock.calls[0][1]).toEqual(expect.objectContaining({
+      method: "POST", body: JSON.stringify(input),
+      headers: expect.objectContaining({ "Idempotency-Key": "rebuild-request-key" }),
+    }));
+  });
   afterEach(() => vi.unstubAllGlobals());
 
   it("uses the frozen /api/v1 snapshot preview contract", async () => {

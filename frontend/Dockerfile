@@ -7,8 +7,6 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
-ARG VITE_OPERATIONS_URL=http://127.0.0.1:8501
-ENV VITE_OPERATIONS_URL=${VITE_OPERATIONS_URL}
 RUN pnpm build
 
 FROM nginx:1.27-alpine

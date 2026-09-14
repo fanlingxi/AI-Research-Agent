@@ -6,8 +6,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.routers.experiments import build_experiments_router
-from app.benchmarking.experiments import ExperimentDataError, ExperimentReadService
-from app.benchmarking.semantic_calibration import annotation_pack
+from app.experiments.calibration import annotation_pack
+from app.experiments.service import ExperimentDataError, ExperimentReadService
 
 
 def archive(tmp_path):

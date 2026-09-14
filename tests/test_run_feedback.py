@@ -255,18 +255,18 @@ def test_concurrent_rerun_has_one_child_job_and_history(stack):
 def test_queue_failure_rolls_back_child_and_link_and_can_retry(stack, monkeypatch):
     repo, service, *_, run = stack
     feedback = accept(stack, submit(stack))
-    original = repo._enqueue_job_tx
+    original = repo.jobs.enqueue_job_tx
 
     def fail(*args, **kwargs):
         raise RuntimeError("injected queue failure")
 
-    monkeypatch.setattr(repo, "_enqueue_job_tx", fail)
+    monkeypatch.setattr(repo.jobs, "enqueue_job_tx", fail)
     with pytest.raises(RuntimeError, match="injected"):
         service.feedback.rerun(run.id, feedback["id"], rerun_request())
     with repo._connect() as connection:
         assert connection.execute("SELECT COUNT(*) FROM agent_runs").fetchone()[0] == 1
         assert connection.execute("SELECT COUNT(*) FROM agent_run_rechecks").fetchone()[0] == 0
-    monkeypatch.setattr(repo, "_enqueue_job_tx", original)
+    monkeypatch.setattr(repo.jobs, "enqueue_job_tx", original)
     assert service.feedback.rerun(run.id, feedback["id"], rerun_request()).status == "queued"
 
 

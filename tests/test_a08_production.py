@@ -310,8 +310,8 @@ def test_generation_attempt_settlement_is_fenced_and_atomic(tmp_path, workflow):
     run = service.create_run(
         project.id, task.id, AgentRunCreateRequest(workflow=workflow, token_budget=32000)
     )
-    stale = repo.claim_resource_job("agent_run", run.id, lease_seconds=-1, owner_id="old")
-    current = repo.claim_resource_job("agent_run", run.id, lease_seconds=30, owner_id="new")
+    stale = repo.jobs.claim_resource_job("agent_run", run.id, lease_seconds=-1, owner_id="old")
+    current = repo.jobs.claim_resource_job("agent_run", run.id, lease_seconds=30, owner_id="new")
     with service.execution_scope(ExecutionFence.from_job(stale)):
         with pytest.raises(AgentRunConflictError):
             service.begin_generation_attempt(run.id, 0, "bound")

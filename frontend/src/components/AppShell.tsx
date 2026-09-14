@@ -1,10 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { Activity, BookOpenCheck, FileText, FlaskConical, FolderKanban, LayoutDashboard, Plus, SearchCheck, Settings2, ShieldCheck } from "lucide-react";
+import { Activity, BookOpenCheck, FileText, FlaskConical, FolderKanban, LayoutDashboard, Plus, SearchCheck, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 
 import { api } from "../lib/api";
-import { appConfig } from "../lib/config";
 import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 
@@ -47,7 +46,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             <MainLink to="/reports" label="研究报告" icon={<FileText size={17} />} />
             <MainLink to="/runtime" label="运行记录" icon={<Activity size={17} />} />
             <MainLink to="/experiments" label="实验对比" icon={<FlaskConical size={17} />} />
-            <a className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-ink" href={appConfig.operationsUrl} rel="noreferrer" target="_blank"><Settings2 size={17} />运营控制台</a>
           </nav>
 
           <div className="mt-8 flex items-center justify-between px-2">

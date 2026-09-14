@@ -10,8 +10,9 @@ from app.config.settings import Settings
 from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.query import KnowledgeQueryService, _latin_query_terms, _rank_evidence
 from app.knowledge.report_inputs import report_request
+from app.knowledge.report_repository import StaleReportExecution
 from app.knowledge.reports import KnowledgeReportService, _evaluate
-from app.knowledge.repository import KnowledgeRepository, StaleReportExecution
+from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import CandidateEntity, ChunkSearchHit, EvidenceSpan, ReportEvidence
 from app.knowledge.service import (
     KnowledgeIngestionService,
@@ -149,7 +150,7 @@ def _wait_for_report_status(
 ):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        report = repository.get_report(report_id)
+        report = repository.reports.get_report(report_id)
         if report.status == status:
             return report
         time.sleep(0.02)
@@ -167,7 +168,7 @@ def test_report_worker_revises_once_and_persists_evidence_evaluation(tmp_path) -
 
     assert submitted.status == "queued"
     assert worker.run_once()
-    completed = repository.get_report(submitted.id)
+    completed = repository.reports.get_report(submitted.id)
 
     assert completed.status == "completed"
     assert llm.calls == 2
@@ -181,7 +182,7 @@ def test_report_worker_revises_once_and_persists_evidence_evaluation(tmp_path) -
     assert completed.run_metadata["prompt_version"] == "knowledge-report-v3"
     assert completed.run_metadata["generation_calls"] == 2
     assert completed.run_metadata["latency_ms"] >= 0
-    assert repository.job_summary()["completed"] == 1
+    assert repository.jobs.job_summary()["completed"] == 1
 
 
 def test_report_prompts_include_quality_contract_and_revision_evidence(tmp_path) -> None:
@@ -222,13 +223,13 @@ def test_targeted_report_claim_does_not_consume_older_queued_work(tmp_path) -> N
         top_k=2,
     )
 
-    claimed = repository.claim_resource_job("report", report.id, lease_seconds=30)
+    claimed = repository.jobs.claim_resource_job("report", report.id, lease_seconds=30)
 
     assert claimed is not None
     assert claimed.kind == "report"
     assert claimed.resource_id == report.id
-    assert repository.get_resource_job("ingestion", older_ingestion.id).status == "queued"
-    assert repository.get_resource_job("report", report.id).attempts == 1
+    assert repository.jobs.get_resource_job("ingestion", older_ingestion.id).status == "queued"
+    assert repository.jobs.get_resource_job("report", report.id).attempts == 1
 
 
 def test_targeted_claim_is_idempotent_until_its_lease_expires(tmp_path) -> None:
@@ -239,19 +240,19 @@ def test_targeted_claim_is_idempotent_until_its_lease_expires(tmp_path) -> None:
         top_k=2,
     )
 
-    first = repository.claim_resource_job("report", report.id, lease_seconds=30)
-    duplicate = repository.claim_resource_job("report", report.id, lease_seconds=30)
+    first = repository.jobs.claim_resource_job("report", report.id, lease_seconds=30)
+    duplicate = repository.jobs.claim_resource_job("report", report.id, lease_seconds=30)
 
     assert first is not None
     assert duplicate is None
-    assert repository.get_resource_job("report", report.id).attempts == 1
+    assert repository.jobs.get_resource_job("report", report.id).attempts == 1
 
     with repository._connect() as connection:
         connection.execute(
             "UPDATE knowledge_jobs SET lease_until = ? WHERE id = ?",
             ("2000-01-01T00:00:00+00:00", first.id),
         )
-    reclaimed = repository.claim_resource_job("report", report.id, lease_seconds=30)
+    reclaimed = repository.jobs.claim_resource_job("report", report.id, lease_seconds=30)
 
     assert reclaimed is not None
     assert reclaimed.id == first.id
@@ -269,13 +270,13 @@ def test_concurrent_targeted_claims_have_a_single_winner(tmp_path) -> None:
 
     def claim():
         barrier.wait()
-        return repository.claim_resource_job("report", report.id, lease_seconds=30)
+        return repository.jobs.claim_resource_job("report", report.id, lease_seconds=30)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         results = list(executor.map(lambda _: claim(), range(2)))
 
     assert sum(result is not None for result in results) == 1
-    assert repository.get_resource_job("report", report.id).attempts == 1
+    assert repository.jobs.get_resource_job("report", report.id).attempts == 1
 
 
 def test_failed_report_job_can_be_cleanly_retried_with_the_same_identity(tmp_path) -> None:
@@ -291,16 +292,16 @@ def test_failed_report_job_can_be_cleanly_retried_with_the_same_identity(tmp_pat
         topic_slugs=[ingestion.topic_slug],
         top_k=2,
     )
-    first_job = repository.claim_resource_job("report", submitted.id, lease_seconds=30)
+    first_job = repository.jobs.claim_resource_job("report", submitted.id, lease_seconds=30)
 
     assert first_job is not None
     failed = service.execute_claimed(submitted.id, first_job.id, first_job.attempts)
     assert failed.status == "failed"
     assert failed.content
     assert failed.evidence
-    assert repository.get_resource_job("report", submitted.id).status == "failed"
+    assert repository.jobs.get_resource_job("report", submitted.id).status == "failed"
 
-    reset = repository.reset_report_for_retry(submitted.id)
+    reset = repository.reports.reset_report_for_retry(submitted.id)
 
     assert reset.id == submitted.id
     assert reset.status == "queued"
@@ -308,16 +309,16 @@ def test_failed_report_job_can_be_cleanly_retried_with_the_same_identity(tmp_pat
     assert reset.evidence == []
     assert reset.evaluation is None
     assert reset.error is None
-    assert repository.get_resource_job("report", submitted.id).status == "queued"
+    assert repository.jobs.get_resource_job("report", submitted.id).status == "queued"
 
     service.llm = _RevisingLLM()
-    second_job = repository.claim_resource_job("report", submitted.id, lease_seconds=30)
+    second_job = repository.jobs.claim_resource_job("report", submitted.id, lease_seconds=30)
     assert second_job is not None
     completed = service.execute_claimed(submitted.id, second_job.id, second_job.attempts)
 
     assert completed.status == "completed"
     assert second_job.attempts == 2
-    assert repository.get_resource_job("report", submitted.id).status == "completed"
+    assert repository.jobs.get_resource_job("report", submitted.id).status == "completed"
 
 
 def test_expired_dispatched_report_is_recovered_after_restart(tmp_path) -> None:
@@ -328,14 +329,14 @@ def test_expired_dispatched_report_is_recovered_after_restart(tmp_path) -> None:
         top_k=2,
         auto_execute=True,
     )
-    abandoned = repository.claim_dispatched_report_job(lease_seconds=-1)
+    abandoned = repository.reports.claim_dispatched_report_job(lease_seconds=-1)
 
     assert abandoned is not None
-    assert repository.get_report(submitted.id).status == "running"
+    assert repository.reports.get_report(submitted.id).status == "running"
 
     restarted = KnowledgeRepository(repository.path)
     restarted.recover_running_work()
-    assert restarted.get_resource_job("report", submitted.id).status == "queued"
+    assert restarted.jobs.get_resource_job("report", submitted.id).status == "queued"
     settings = Settings(
         knowledge_db_path=restarted.path,
         knowledge_vault_path=str(tmp_path / "restarted-vault"),
@@ -361,10 +362,10 @@ def test_expired_dispatched_report_is_recovered_after_restart(tmp_path) -> None:
         lease_seconds=30,
     )
     assert worker.run_once()
-    completed = restarted.get_report(submitted.id)
+    completed = restarted.reports.get_report(submitted.id)
 
     assert completed.status == "completed"
-    recovered_job = restarted.get_resource_job("report", submitted.id)
+    recovered_job = restarted.jobs.get_resource_job("report", submitted.id)
     assert recovered_job.status == "completed"
     assert recovered_job.attempts == 2
 
@@ -405,13 +406,13 @@ def test_report_lease_heartbeat_prevents_duplicate_long_execution(tmp_path) -> N
     worker_thread = Thread(target=worker.run_once)
     worker_thread.start()
     assert llm.started.wait(timeout=2.0)
-    initial_job = repository.get_resource_job("report", submitted.id)
+    initial_job = repository.jobs.get_resource_job("report", submitted.id)
     initial_lease = initial_job.lease_until
     time.sleep(1.05)
-    renewed_job = repository.get_resource_job("report", submitted.id)
-    duplicate = repository.claim_dispatched_report_job(lease_seconds=1)
+    renewed_job = repository.jobs.get_resource_job("report", submitted.id)
+    duplicate = repository.reports.claim_dispatched_report_job(lease_seconds=1)
     worker_thread.join(timeout=3.0)
-    completed = repository.get_report(submitted.id)
+    completed = repository.reports.get_report(submitted.id)
 
     assert initial_lease is not None
     assert renewed_job.lease_until is not None
@@ -471,7 +472,7 @@ def test_two_workers_do_not_duplicate_slow_report_llm_calls(tmp_path) -> None:
     completed = _wait_for_report_status(repository, submitted.id, "completed")
     worker_thread.join(timeout=2.0)
 
-    job = repository.get_resource_job("report", submitted.id)
+    job = repository.jobs.get_resource_job("report", submitted.id)
     assert completed.status == "completed"
     assert job.status == "completed"
     assert job.attempts == 1
@@ -487,35 +488,35 @@ def test_stale_report_attempt_cannot_overwrite_new_owner(tmp_path) -> None:
         top_k=2,
         auto_execute=True,
     )
-    old = repository.claim_dispatched_report_job(lease_seconds=-1)
-    new = repository.claim_dispatched_report_job(lease_seconds=30)
+    old = repository.reports.claim_dispatched_report_job(lease_seconds=-1)
+    new = repository.reports.claim_dispatched_report_job(lease_seconds=30)
 
     assert old is not None
     assert new is not None
     assert new.attempts == old.attempts + 1
     with pytest.raises(StaleReportExecution):
-        repository.update_report(
+        repository.reports.update_report(
             submitted.id,
             status="failed",
             error="stale stage write",
             expected_job_attempt=old.attempts,
         )
     with pytest.raises(StaleReportExecution):
-        repository.finalize_report_execution(
+        repository.reports.finalize_report_execution(
             submitted.id,
             old.id,
             expected_attempt=old.attempts,
             status="failed",
             error="stale terminal write",
         )
-    assert not repository.complete_job(old.id, expected_attempt=old.attempts)
-    assert not repository.fail_job(old.id, "stale failure", expected_attempt=old.attempts)
+    assert not repository.jobs.complete_job(old.id, expected_attempt=old.attempts)
+    assert not repository.jobs.fail_job(old.id, "stale failure", expected_attempt=old.attempts)
 
-    running = repository.get_resource_job("report", submitted.id)
+    running = repository.jobs.get_resource_job("report", submitted.id)
     assert running.status == "running"
     assert running.attempts == new.attempts
     result = reports.query_service.search(submitted.query, topic_slugs=submitted.topic_slugs)
-    completed = repository.finalize_report_execution(
+    completed = repository.reports.finalize_report_execution(
         submitted.id,
         new.id,
         expected_attempt=new.attempts,
@@ -528,7 +529,7 @@ def test_stale_report_attempt_cannot_overwrite_new_owner(tmp_path) -> None:
 
     assert completed.status == "completed"
     assert completed.content == "# 新执行结果"
-    assert repository.get_resource_job("report", submitted.id).status == "completed"
+    assert repository.jobs.get_resource_job("report", submitted.id).status == "completed"
 
 
 def test_reports_never_fall_back_to_mock_or_unpublished_evidence(tmp_path) -> None:
@@ -553,7 +554,7 @@ def test_claimed_report_rechecks_live_llm_before_query_or_generation(tmp_path) -
         topic_slugs=[ingestion.topic_slug],
         top_k=2,
     )
-    job = repository.claim_resource_job(
+    job = repository.jobs.claim_resource_job(
         "report",
         submitted.id,
         lease_seconds=30,
@@ -571,7 +572,7 @@ def test_claimed_report_rechecks_live_llm_before_query_or_generation(tmp_path) -
 
     assert failed.status == "failed"
     assert "真实 LLM" in (failed.error or "")
-    assert repository.get_resource_job("report", submitted.id).status == "failed"
+    assert repository.jobs.get_resource_job("report", submitted.id).status == "failed"
 
 
 def test_report_fails_after_the_single_revision_budget_is_exhausted(tmp_path) -> None:
@@ -831,10 +832,10 @@ def test_report_api_prioritizes_the_selected_report_for_the_worker(tmp_path) -> 
         repeated = client.post(f"/api/reports/{second.id}/execute")
 
     assert executed.status_code == 202
-    assert repository.get_report(second.id).status == "completed"
-    assert repository.get_resource_job("report", second.id).attempts == 1
-    assert repository.get_report(first.id).status == "queued"
-    assert repository.get_resource_job("report", first.id).status == "queued"
+    assert repository.reports.get_report(second.id).status == "completed"
+    assert repository.jobs.get_resource_job("report", second.id).attempts == 1
+    assert repository.reports.get_report(first.id).status == "queued"
+    assert repository.jobs.get_resource_job("report", first.id).status == "queued"
     assert repeated.status_code == 409
 
 
@@ -862,7 +863,7 @@ def test_report_api_creates_and_queues_in_one_request(tmp_path) -> None:
 
     assert response.status_code == 202
     assert completed.status == "completed"
-    job = repository.get_resource_job("report", report_id)
+    job = repository.jobs.get_resource_job("report", report_id)
     assert job.payload["auto_execute"] is True
     assert job.status == "completed"
     assert job.attempts == 1
@@ -916,7 +917,7 @@ def test_report_api_retries_a_failed_report_in_place(tmp_path) -> None:
 
     assert first.status_code == 202
     assert retried.status_code == 202
-    assert repository.get_report(submitted.id).status == "completed"
-    job = repository.get_resource_job("report", submitted.id)
+    assert repository.reports.get_report(submitted.id).status == "completed"
+    job = repository.jobs.get_resource_job("report", submitted.id)
     assert job.status == "completed"
     assert job.attempts == 2

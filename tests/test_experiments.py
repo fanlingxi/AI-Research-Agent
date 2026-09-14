@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.routers.experiments import build_experiments_router
-from app.benchmarking.experiments import ExperimentDataError, ExperimentReadService
+from app.experiments.service import ExperimentDataError, ExperimentReadService
 from scripts.validate_paper_benchmark import file_digest
 
 
@@ -180,8 +180,13 @@ def test_new_generation_strategy_is_not_mislabeled_as_legacy(tmp_path):
     assert service.describe("a02--sample")["tasks"][0]["variants"][0]["strategy"] == "bm25-v1"
 
 
-def test_read_only_api_and_empty_catalog(tmp_path):
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_read_only_api_and_empty_catalog(tmp_path, newline):
     service, _, _ = _service(tmp_path)
+    # A checkout's newline convention must not invalidate the frozen text hashes.
+    for path in service.dataset.glob("*.json"):
+        content = path.read_text(encoding="utf-8")
+        path.write_text(content, encoding="utf-8", newline=newline)
     app = FastAPI()
     app.include_router(build_experiments_router(service))
     client = TestClient(app)

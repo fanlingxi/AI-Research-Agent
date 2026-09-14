@@ -26,6 +26,7 @@ _RETRYABLE_KINDS = {
     "agent_run",
     "research_command",
     "projection",
+    "projection_rebuild",
 }
 
 
@@ -50,7 +51,7 @@ class RuntimeObservabilityService:
     def overview(self) -> RuntimeOverview:
         now = datetime.now(tz=UTC)
         executors = []
-        for heartbeat in self.repository.list_executor_heartbeats():
+        for heartbeat in self.repository.jobs.list_executor_heartbeats():
             last_seen = datetime.fromisoformat(heartbeat.last_heartbeat_at)
             online = (now - last_seen).total_seconds() <= max(
                 5.0, self.settings.knowledge_worker_poll_seconds * 3
@@ -223,6 +224,9 @@ WITH unified AS (
             WHEN 'report' THEN COALESCE(rep.query, job.resource_id)
             WHEN 'agent_run' THEN COALESCE(task.title, job.resource_id)
             WHEN 'collection_sync' THEN 'Collection 投影同步'
+            WHEN 'projection_rebuild' THEN '投影重建 · ' ||
+                json_extract(job.payload_json, '$.target') || ' · ' ||
+                COALESCE(json_extract(job.payload_json, '$.collection_slug'), '全部 Collection')
             WHEN 'research_command' THEN COALESCE(command.instruction, job.resource_id)
             ELSE job.resource_id
         END AS title,
@@ -231,6 +235,7 @@ WITH unified AS (
             WHEN 'report' THEN '/reports?report=' || job.resource_id
             WHEN 'agent_run' THEN '/agent-runs/' || job.resource_id
             WHEN 'research_command' THEN COALESCE(command.target_route, '/')
+            WHEN 'projection_rebuild' THEN '/runtime?rebuild=' || job.id
             ELSE '/runtime'
         END AS detail_route,
         CASE job.kind
@@ -246,6 +251,7 @@ WITH unified AS (
             WHEN 'agent_run' THEN run.current_node
             WHEN 'ingestion' THEN ing.status
             WHEN 'collection_sync' THEN 'collection_sync'
+            WHEN 'projection_rebuild' THEN 'projection_rebuild'
             WHEN 'research_command' THEN command.orchestration_stage
             ELSE NULL
         END AS current_stage,

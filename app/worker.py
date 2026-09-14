@@ -12,6 +12,8 @@ from app.agent.runtime import AgentRuntime
 from app.agent.service import AgentRunService
 from app.config.settings import get_settings
 from app.execution import ExecutionFence
+from app.knowledge.rebuild import KnowledgeProjectionRebuildService
+from app.knowledge.rebuild_jobs import ProjectionRebuildJobs, RebuildRequest
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import KnowledgeJob, ProjectionEvent
@@ -32,7 +34,7 @@ class KnowledgeWorker:
         research_command_service: ResearchCommandService | None = None,
         lease_seconds: int = 180,
         worker_id: str | None = None,
-        version: str = "unified-worker-v1",
+        version: str = "unified-worker-v2",
     ) -> None:
         self.repository = repository
         self.ingestion_service = ingestion_service
@@ -48,7 +50,7 @@ class KnowledgeWorker:
 
     def run_once(self) -> bool:
         self._heartbeat_executor()
-        job = self.repository.claim_job(
+        job = self.repository.jobs.claim_job(
             self.lease_seconds,
             owner_id=self.worker_id,
         )
@@ -105,11 +107,32 @@ class KnowledgeWorker:
                 if self.research_command_service is None:
                     raise RuntimeError("ResearchCommand orchestration is not configured")
                 self.research_command_service.execute_claimed(job)
-            else:
+            elif job.kind == "projection_rebuild":
+                jobs = ProjectionRebuildJobs(self.repository)
+                if job.payload.get("version") != "projection-rebuild-v1":
+                    raise ValueError("Unsupported projection rebuild request version")
+                request = RebuildRequest.model_validate({
+                    k: job.payload[k] for k in ("target", "collection_slug", "confirmed")
+                })
+                rebuild = KnowledgeProjectionRebuildService(
+                    self.repository,
+                    indexer=self.ingestion_service.indexer,
+                    projector=self.ingestion_service.projector,
+                    vault_exporter=self.ingestion_service.vault_exporter,
+                )
+                result = rebuild.rebuild(
+                    target=request.target, collection_slug=request.collection_slug,
+                    assert_active=lambda: jobs.assert_active(job),
+                )
+                jobs.complete(job, result)
+                return
+            elif job.kind == "collection_sync":
                 self.ingestion_service.sync_collections(
                     list(job.payload.get("collection_slugs", []))
                 )
-            self.repository.complete_job(
+            else:
+                raise ValueError(f"Unsupported job kind: {job.kind}")
+            self.repository.jobs.complete_job(
                 job.id,
                 expected_attempt=job.attempts,
                 expected_owner=job.lease_owner,
@@ -127,14 +150,14 @@ class KnowledgeWorker:
                         expected_owner=job.lease_owner,
                     )
                 else:
-                    self.repository.fail_job(
+                    self.repository.jobs.fail_job(
                         job.id,
                         str(exc),
                         expected_attempt=job.attempts,
                         expected_owner=job.lease_owner,
                     )
             except Exception:
-                self.repository.fail_job(
+                self.repository.jobs.fail_job(
                     job.id,
                     str(exc),
                     expected_attempt=job.attempts,
@@ -161,7 +184,7 @@ class KnowledgeWorker:
         interval = self._heartbeat_interval()
         while not stopped.wait(interval):
             try:
-                renewed = self.repository.renew_job_lease(
+                renewed = self.repository.jobs.renew_job_lease(
                     job.id,
                     expected_attempt=job.attempts,
                     lease_seconds=self.lease_seconds,
@@ -211,7 +234,7 @@ class KnowledgeWorker:
                 return
 
     def _heartbeat_executor(self, current_job_id: str | None = None) -> None:
-        self.repository.upsert_executor_heartbeat(
+        self.repository.jobs.upsert_executor_heartbeat(
             self.worker_id,
             role="worker",
             version=self.version,

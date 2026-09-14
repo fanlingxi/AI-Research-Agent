@@ -33,4 +33,4 @@
 
 - [安装与运行](docs/GETTING_STARTED.md)：环境准备、本地启动、向量服务、备份与演示。
 - [项目进度](docs/PROJECT_STATUS.md)：已实现能力、验证结果与当前边界。
-- [架构设计](docs/architecture/01_PROJECT_SPEC.md)：知识、项目记忆与智能体之间的协作方式。
+- [架构设计](docs/architecture/overview.md)：知识、项目记忆与智能体之间的协作方式。

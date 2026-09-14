@@ -177,7 +177,7 @@ class AgentRunService:
                 run_id=run_id,
             )
             queued = self.repository.queue_run_tx(connection, run.id)
-            self.knowledge_repository._enqueue_job_tx(
+            self.knowledge_repository.jobs.enqueue_job_tx(
                 connection,
                 kind="agent_run",
                 resource_id=run.id,
@@ -197,14 +197,14 @@ class AgentRunService:
         run = self.repository.cancel_run(run_id)
         # A claimed worker still checks the cancelled business status before it
         # invokes a graph. Completing a queued job avoids unnecessary work.
-        self.knowledge_repository.complete_resource_job("agent_run", run_id)
+        self.knowledge_repository.jobs.complete_resource_job("agent_run", run_id)
         return run
 
     def resume_run(self, run_id: str) -> AgentRun:
         with self.knowledge_repository._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             resumed = self.repository.resume_run_tx(connection, run_id)
-            self.knowledge_repository._enqueue_job_tx(
+            self.knowledge_repository.jobs.enqueue_job_tx(
                 connection,
                 kind="agent_run",
                 resource_id=run_id,
@@ -414,7 +414,7 @@ class AgentRunService:
             connection.execute("BEGIN IMMEDIATE")
             fence = self._current_execution.get()
             if fence is not None:
-                self.knowledge_repository.assert_job_ownership_tx(
+                self.knowledge_repository.jobs.assert_job_ownership_tx(
                     connection,
                     job_id=fence.job_id,
                     kind="agent_run",

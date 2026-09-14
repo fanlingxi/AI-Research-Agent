@@ -60,7 +60,7 @@ class ResearchCommandRepository:
                     now,
                 ),
             )
-            self.knowledge_repository._enqueue_job_tx(
+            self.knowledge_repository.jobs.enqueue_job_tx(
                 connection,
                 kind="research_command",
                 resource_id=command_id,
@@ -125,7 +125,7 @@ class ResearchCommandRepository:
     ) -> ResearchCommand:
         with self.knowledge_repository._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            self.knowledge_repository.assert_job_ownership_tx(
+            self.knowledge_repository.jobs.assert_job_ownership_tx(
                 connection,
                 job_id=fence.job_id,
                 kind="research_command",
@@ -171,7 +171,7 @@ class ResearchCommandRepository:
     ) -> ResearchCommand:
         with self.knowledge_repository._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            self.knowledge_repository.assert_job_ownership_tx(
+            self.knowledge_repository.jobs.assert_job_ownership_tx(
                 connection,
                 job_id=fence.job_id,
                 kind="research_command",
@@ -248,7 +248,7 @@ class ResearchCommandRepository:
                 """,
                 (_now(), command_id),
             )
-            self.knowledge_repository._enqueue_job_tx(
+            self.knowledge_repository.jobs.enqueue_job_tx(
                 connection,
                 kind="research_command",
                 resource_id=command_id,

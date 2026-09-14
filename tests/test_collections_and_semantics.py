@@ -108,7 +108,7 @@ def test_move_collection_reassigns_membership_and_queues_durable_sync(tmp_path) 
     assert [item.id for item in repository.list_published_entities("目标集合")] == [
         entity.candidate["candidate"]["canonical_id"]
     ]
-    sync = repository.claim_job()
+    sync = repository.jobs.claim_job()
     assert sync is not None
     assert sync.kind == "collection_sync"
     assert set(sync.payload["collection_slugs"]) == {"初始集合", "目标集合"}

@@ -95,7 +95,7 @@ def test_runtime_overview_exposes_services_counts_and_worker_heartbeat(tmp_path)
     ingestion = repository.create_ingestion(
         topic="Runtime Queue", sources=["paper.pdf"], pdf_max_pages=3, enqueue=True
     )
-    repository.upsert_executor_heartbeat(
+    repository.jobs.upsert_executor_heartbeat(
         "worker-runtime",
         role="worker",
         version="test-v1",
@@ -122,7 +122,7 @@ def test_runtime_work_unifies_kinds_filters_and_uses_cursor_pagination(tmp_path)
     ingestion = repository.create_ingestion(
         topic="Runtime Ingestion", sources=["paper.pdf"], pdf_max_pages=3, enqueue=True
     )
-    report = repository.create_report(
+    report = repository.reports.create_report(
         query="Runtime report status?",
         topic_slugs=[],
         top_k=8,

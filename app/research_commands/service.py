@@ -75,7 +75,7 @@ class ResearchCommandService:
             raise ValueError("Only a failed research command can be retried.")
         if command.target_resource_type == "report" and command.target_resource_id:
             self.report_service.ensure_execution_available()
-            report = self.knowledge_repository.reset_report_for_retry(
+            report = self.knowledge_repository.reports.reset_report_for_retry(
                 command.target_resource_id,
                 auto_execute=True,
             )
@@ -98,7 +98,7 @@ class ResearchCommandService:
         if command.status not in {"queued", "completed", "failed"}:
             return command
         if command.target_resource_type == "report" and command.target_resource_id:
-            report = self.knowledge_repository.get_report(command.target_resource_id)
+            report = self.knowledge_repository.reports.get_report(command.target_resource_id)
             if report.status == "completed":
                 return self.repository.reflect_target(
                     command.id, status="completed", orchestration_stage="completed"
@@ -143,7 +143,7 @@ class ResearchCommandService:
     ) -> ResearchCommand:
         report_id = _target_id("report", command.id)
         try:
-            report = self.knowledge_repository.get_report(report_id)
+            report = self.knowledge_repository.reports.get_report(report_id)
         except KeyError:
             report = self.report_service.submit(
                 query=payload.instruction,

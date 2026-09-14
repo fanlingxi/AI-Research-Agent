@@ -410,7 +410,7 @@ def test_real_report_query_audit_is_persisted_and_not_sent_to_llm(tmp_path):
     )
     report = reports.submit(query="grounded", topic_slugs=[ingestion.topic_slug], top_k=3)
     reports.run(report.id)
-    saved = repository.get_report(report.id)
+    saved = repository.reports.get_report(report.id)
     audit = saved.run_metadata["retrieval_diagnostics"]["retrieval_audit"]
     assert audit["strategy_id"] == "quick-report-legacy-v1"
     assert audit["candidates"][0]["channel_rank"] == 1

@@ -5,9 +5,9 @@ import pytest
 
 from app.agent.research_workflow import ResearchDraft
 from app.agent.semantic_review import SemanticReviewService
-from app.benchmarking.semantic_calibration import annotation_pack, calibrate
 from app.benchmarking.semantic_review import observe
 from app.context.models import canonical_package_sha256
+from app.experiments.calibration import annotation_pack, calibrate
 from tests.test_research_workflow import _draft, _research_stack
 
 

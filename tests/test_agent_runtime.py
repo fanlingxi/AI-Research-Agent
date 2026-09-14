@@ -142,7 +142,7 @@ def test_agent_run_recovers_after_failure_from_the_same_checkpoint_thread(tmp_pa
     assert safe_runtime.execute_queued(run.id).status == "completed"
     assert len(service.repository.list_tool_calls(run.id)) == 1
 
-    repository.enqueue_job(
+    repository.jobs.enqueue_job(
         kind="agent_run", resource_id=run.id, payload={}, force_requeue=True
     )
     assert safe_worker.run_once()
@@ -183,10 +183,10 @@ def test_agent_run_reclaims_an_interrupted_active_business_state(tmp_path) -> No
 def test_stale_agent_worker_cannot_write_after_job_is_reclaimed(tmp_path) -> None:
     repository, service, runtime, _, project, task, _ = _runtime_stack(tmp_path)
     run = service.create_run(project.id, task.id, _foundation_request())
-    stale = repository.claim_resource_job(
+    stale = repository.jobs.claim_resource_job(
         "agent_run", run.id, lease_seconds=-1, owner_id="old-agent-worker"
     )
-    current = repository.claim_resource_job(
+    current = repository.jobs.claim_resource_job(
         "agent_run", run.id, lease_seconds=30, owner_id="new-agent-worker"
     )
     assert stale is not None and current is not None

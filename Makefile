@@ -9,7 +9,7 @@ down:
 	docker compose down
 
 logs:
-	docker compose logs -f api worker web ui
+	docker compose logs -f api worker web
 
 test:
 	.venv/bin/python -m pytest -q

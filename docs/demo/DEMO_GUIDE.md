@@ -1,80 +1,35 @@
-# Offline Demo Guide
+# 离线演示
 
-## Goal
+这个演示通过临时数据库和模型替身，展示证据引用、领域执行和产物追溯。它不需要模型密钥，不访问正式数据库、Qdrant、Neo4j 或网络；也不衡量真实模型回答质量。
 
-Demonstrate the system’s evidence and governance boundaries without accessing a real provider, operational SQLite database, checkpoint database, Vault, Qdrant, Neo4j, or the internet.
+## 运行
 
-The demo produces a local **candidate evidence pack**. It is not a product UI demo, a human-approved benchmark baseline, or a claim about real-LLM quality.
+先按[开始使用](../GETTING_STARTED.md)安装依赖，然后从仓库根目录执行：
 
-## Prerequisites
+```powershell
+.\.venv\Scripts\python.exe scripts/run_phase6_demo.py --output data/reports/phase6
+```
 
-- Python environment with project dependencies available;
-- write access to a local evidence output directory;
-- no provider key is required.
+每次执行创建独立结果目录，包含 `run.json`、`report.md` 和 `demo-summary.md`。输出目录不要指向日常业务数据。打开 `report.md` 检查三个案例结果与隔离状态。
 
-Do not use an operational data directory as the output location. The normal Phase 6 runner creates independent fixtures and blocks network sockets.
+## 阅读结果
 
-## Run the demo
+| 案例 | 观察内容 | 对应实现 |
+| --- | --- | --- |
+| 研究报告 | 报告引用属于当前证据集合，校验后形成产物 | Context Builder、研究工作流、平台最终提交 |
+| 游戏建模 | 限定证据上的确定性公式计算 | 领域插件和共享运行时 |
+| 产物追溯 | Artifact 与运行、快照之间的来源关系一致 | 工作台数据视图 |
 
-~~~bash
-./.venv/bin/python scripts/run_phase6_demo.py --output data/reports/phase6
-~~~
+如需检查范围拒绝、补丁版本不匹配、恢复与幂等等更多边界，运行完整确定性集合：
 
-The command prints a new immutable directory such as:
+```powershell
+.\.venv\Scripts\python.exe -m app.benchmarking --manifest benchmarks/phase6/cases/v1/manifest.json --output data/reports/phase6
+```
 
-~~~text
-data/reports/phase6/phase6-<timestamp>-<id>/
-├── run.json
-├── report.md
-└── demo-summary.md
-~~~
+基准使用历史版本标识，详见[评测说明](../../benchmarks/phase6/README.md)。结果表示这次确定性契约检查是否通过，不是人工批准的质量基线。以前的运行记录单独保存在[历史结果说明](../evaluation/phase6-history.md)。
 
-Open report.md after the command completes. A successful current demo has three passing cases and a passed isolation status.
+## 体验实际工作台
 
-## Suggested five-minute walkthrough
+用[本地启动命令](../GETTING_STARTED.md#本地工作台)打开 React 工作台。真实研究需要配置模型与相应服务：导入资料、审核知识、指定项目范围、发起研究，随后核对报告引用和反馈后的新运行。
 
-### 1. Establish the governance model
-
-Start with the README architecture diagram. Explain that Knowledge and Memory are different trust domains, and that Context Builder creates a scoped, immutable ContextSnapshot before the runtime begins.
-
-### 2. Run cited Research finalization
-
-The research scenario sends a fixture task through the existing Context Builder, Research workflow, citation validator, and Platform Finalizer. The report shows that the terminal status is completed, cited evidence is present, and the resulting Artifact/MemoryProposal carries governed provenance.
-
-Key message: a citation is accepted only when it belongs to the selected context evidence bundle.
-
-### 3. Run deterministic Game Modeling
-
-The Game Modeling scenario executes a pure, evidence-linked formula calculation through the shared Runtime and Finalizer. Its companion negative contract verifies that a patch-version mismatch fails closed and produces no business output.
-
-Key message: a domain plugin reuses platform governance; it does not own a separate database or bypass validation.
-
-### 4. Show Workspace Artifact provenance
-
-The Workspace scenario projects an Artifact from its AgentRun and ContextSnapshot references. The evaluator checks that output, artifact, validation, and provenance agree.
-
-Key message: the UI projection is derived from governed records, not a second source of truth.
-
-### 5. Close with isolation and scope
-
-Show the report’s isolation result and state the boundary precisely: historical fixture schema v15, current operational schema v18 not opened, network blocked, and sandbox removed. The evidence is a deterministic candidate with no human-approved baseline.
-
-## Optional React Workspace walkthrough
-
-The React Workspace is separate from this offline demo. It requires a declared Node/pnpm environment and its own test/build verification:
-
-~~~bash
-cd frontend
-pnpm test
-pnpm build
-~~~
-
-The current workbench verification ran 38 Vitest checks and a production build. These browser-component results remain separate from the offline evaluation candidate and do not imply real-provider semantic quality.
-
-## Presenter safety checklist
-
-- Never display .env, local operational data, or generated frontend build assets.
-- Do not claim an accepted Phase 6 baseline or regression result.
-- Do not claim live model quality, external retrieval quality, or production database validation.
-- Do not run production v0009 or any unreviewed migration during the demo.
-- Keep the generated report as evidence; it contains no need for external-provider credentials.
+离线演示生成的是结果文件，不会自动把案例灌入日常工作台。全新克隆也不包含私人实验历史；最新工程验证、真实模型对照及待人工核验项见[项目状态](../PROJECT_STATUS.md)。

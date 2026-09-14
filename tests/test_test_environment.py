@@ -127,7 +127,27 @@ def test_importing_api_module_does_not_initialize_stores(
     )
 
     result = subprocess.run(
-        [sys.executable, "-c", "import app.api.main"],
+        [sys.executable, "-c", """
+import importlib.abc
+import sys
+
+class NoEvaluationTools(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == 'scripts' or fullname.startswith(('scripts.', 'app.benchmarking')):
+            raise ImportError(f'Application requires development-only module: {fullname}')
+
+sys.meta_path.insert(0, NoEvaluationTools())
+import app.api.main
+from pathlib import Path
+from app.config.settings import get_settings
+
+root = Path(get_settings().knowledge_db_path).parent
+service = app.api.main.ExperimentReadService(
+    root=root / 'evaluation', semantic_archive=root / 'observations',
+)
+assert service.list_experiments() == {'experiments': [], 'unavailable': []}
+assert service.semantic_observation()['available'] is False
+"""],
         cwd=project_root,
         env=environment,
         text=True,

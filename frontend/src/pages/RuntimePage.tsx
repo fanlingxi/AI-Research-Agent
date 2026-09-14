@@ -8,7 +8,6 @@ import {
   FileClock,
   RefreshCw,
   ServerCog,
-  ShieldAlert,
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -18,7 +17,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { api, type RuntimeWorkItem } from "../lib/api";
-import { appConfig } from "../lib/config";
+import { ProjectionMaintenance } from "../components/ProjectionMaintenance";
 import { formatDate } from "../lib/utils";
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -37,6 +36,7 @@ const KIND_LABELS: Record<string, string> = {
   research_command: "研究指令",
   collection_sync: "Collection 同步",
   projection: "外部投影",
+  projection_rebuild: "投影重建",
 };
 
 const STAGE_LABELS: Record<string, string> = {
@@ -47,6 +47,7 @@ const STAGE_LABELS: Record<string, string> = {
   evaluation: "引用与质量校验",
   revision: "受控修订",
   collection_sync: "同步 Collection 投影",
+  projection_rebuild: "重建派生投影",
   entity_projection: "投影知识实体",
   relation_projection: "投影图关系",
 };
@@ -90,6 +91,7 @@ export function RuntimePage() {
   };
   const retry = useMutation({
     mutationFn: async (item: RuntimeWorkItem) => {
+      if (item.kind === "projection_rebuild") return api.retryRebuild(item.id);
       if (item.kind === "projection") return api.retryProjection(item.id);
       if (item.kind === "ingestion") return api.retryIngestion(item.resource_id);
       if (item.kind === "report") return api.retryReport(item.resource_id);
@@ -277,10 +279,7 @@ export function RuntimePage() {
               {overviewData.projection_backlog.failed > 0 ? <p className="mt-3 text-xs leading-5 text-red-800">失败投影会导致 SQLite 有正式事实，但 Neo4j/Vault 暂未同步。在左侧筛选“外部投影 + failed”可定点重试。</p> : null}
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader><div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">高级诊断</p><h2 className="mt-1 font-semibold">需要底层检查？</h2></div><ShieldAlert className="text-brand" size={20} /></CardHeader>
-            <CardContent><p className="text-sm leading-6 text-muted-ink">日常状态、恢复和投影重试已在主工作台中完成；Streamlit 仅保留原始状态和重建诊断。</p><a className="mt-4 inline-flex text-sm font-medium text-brand hover:underline" href={appConfig.operationsUrl} rel="noreferrer" target="_blank">打开运维控制台</a></CardContent>
-          </Card>
+          <ProjectionMaintenance />
         </aside>
       </section>
     </div>

@@ -247,7 +247,7 @@ class KnowledgeIngestionService:
             result = self.repository.update_ingestion(
                 ingestion_id, status="needs_review", error=warning
             )
-            self.repository.complete_resource_job("ingestion", ingestion_id)
+            self.repository.jobs.complete_resource_job("ingestion", ingestion_id)
             return result
         except StaleIngestionExecution:
             raise

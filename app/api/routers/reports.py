@@ -13,7 +13,7 @@ from app.knowledge.repository import KnowledgeRepository
 
 def _require_report(repository: KnowledgeRepository, report_id: str):
     try:
-        return repository.get_report(report_id)
+        return repository.reports.get_report(report_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Report not found.") from exc
 
@@ -38,7 +38,7 @@ def build_reports_router(
         report = _require_report(repository, report_id)
         if retry_failed:
             try:
-                return repository.reset_report_for_retry(
+                return repository.reports.reset_report_for_retry(
                     report_id, auto_execute=True
                 ).model_dump()
             except KeyError as exc:
@@ -52,7 +52,7 @@ def build_reports_router(
                 detail=f"Report is {report.status}; {action} instead.",
             )
         try:
-            return repository.mark_report_for_dispatch(report_id).model_dump()
+            return repository.reports.mark_report_for_dispatch(report_id).model_dump()
         except KeyError as exc:
             raise HTTPException(status_code=409, detail="Report job is missing.") from exc
         except ValueError as exc:
@@ -76,7 +76,7 @@ def build_reports_router(
 
     @router.get("/api/reports")
     def list_reports() -> list[dict[str, Any]]:
-        return [item.model_dump() for item in repository.list_reports()]
+        return [item.model_dump() for item in repository.reports.list_reports()]
 
     @router.get("/api/reports/{report_id}")
     def get_report(report_id: str) -> dict[str, Any]:

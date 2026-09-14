@@ -1,1 +1,0 @@
-"""Research quality evaluation."""

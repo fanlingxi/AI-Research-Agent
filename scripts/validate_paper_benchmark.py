@@ -11,6 +11,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
+from app.tools.file_hash import file_digest
 from scripts.validate_research_dataset import (
     Digest,
     Identifier,
@@ -105,13 +106,6 @@ def _contained_file(root: Path, relative: str) -> Path:
     _require(path.is_relative_to(root.resolve()), "file path escapes dataset")
     _require(path.is_file(), f"missing file: {relative}")
     return path
-
-
-def file_digest(path: Path) -> str:
-    content = path.read_bytes() if path.suffix == ".pdf" else path.read_text(
-        encoding="utf-8"
-    ).encode("utf-8")
-    return hashlib.sha256(content).hexdigest()
 
 
 def schemas() -> dict:

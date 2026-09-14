@@ -368,7 +368,7 @@ def test_report_failure_persists_retrieval_attempts_or_rejection_audit(tmp_path,
     )
     report = service.submit(query="evidence", topic_slugs=[ingestion.topic_slug])
     result = service.run(report.id)
-    assert result.status == repository.get_resource_job("report", report.id).status == "failed"
+    assert result.status == repository.jobs.get_resource_job("report", report.id).status == "failed"
     assert result.run_metadata["generation_calls"] == 0
     diagnostics = result.run_metadata["retrieval_diagnostics"]
     if failure == "unavailable":

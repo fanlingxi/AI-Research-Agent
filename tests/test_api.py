@@ -348,7 +348,7 @@ def test_api_creates_and_queues_ingestion_for_the_worker(tmp_path) -> None:
     assert response.status_code == 202
     assert completed.document_count == 1
     assert completed.candidate_count == 3
-    job = repository.get_resource_job("ingestion", ingestion_id)
+    job = repository.jobs.get_resource_job("ingestion", ingestion_id)
     assert job.payload["auto_execute"] is True
     assert job.status == "completed"
     assert job.attempts == 1
@@ -385,8 +385,8 @@ def test_execute_and_retry_reject_mock_llm_without_mutating_existing_jobs(tmp_pa
         sources=["failed.pdf"],
         pdf_max_pages=150,
     )
-    failed_job = repository.get_resource_job("ingestion", failed.id)
-    repository.fail_job(failed_job.id, "prior failure")
+    failed_job = repository.jobs.get_resource_job("ingestion", failed.id)
+    repository.jobs.fail_job(failed_job.id, "prior failure")
     repository.update_ingestion(failed.id, status="failed", error="prior failure")
 
     with TestClient(
@@ -404,14 +404,14 @@ def test_execute_and_retry_reject_mock_llm_without_mutating_existing_jobs(tmp_pa
     assert "真实 API Key" in execute_response.json()["detail"]
     assert "真实 API Key" in retry_response.json()["detail"]
     assert repository.get_ingestion(queued.id).status == "queued"
-    queued_job = repository.get_resource_job("ingestion", queued.id)
+    queued_job = repository.jobs.get_resource_job("ingestion", queued.id)
     assert queued_job.status == "queued"
     assert queued_job.attempts == 0
     assert queued_job.payload.get("auto_execute") is not True
     unchanged_failed = repository.get_ingestion(failed.id)
     assert unchanged_failed.status == "failed"
     assert unchanged_failed.error == "prior failure"
-    unchanged_failed_job = repository.get_resource_job("ingestion", failed.id)
+    unchanged_failed_job = repository.jobs.get_resource_job("ingestion", failed.id)
     assert unchanged_failed_job.status == "failed"
     assert unchanged_failed_job.attempts == 0
     assert repository.list_candidates(queued.id) == []
@@ -451,4 +451,4 @@ def test_api_reuses_an_equivalent_active_ingestion_submission(tmp_path) -> None:
     assert repeated.json()["deduplicated"] is True
     assert repeated.json()["id"] == first.json()["id"]
     assert len(ingestions.json()) == 1
-    assert repository.job_summary() == {"queued": 1}
+    assert repository.jobs.job_summary() == {"queued": 1}

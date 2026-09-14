@@ -1,40 +1,18 @@
-# Documentation
+# 项目文档
 
-This directory distinguishes the current implementation from historical planning material.
+建议先运行工作台，再沿一次研究流程阅读实现。
 
-## Current public documentation
+| 想了解什么 | 入口 |
+| --- | --- |
+| 安装、启动、配置和备份 | [开始使用](GETTING_STARTED.md) |
+| 模块分层、代码位置与设计取舍 | [架构概览](architecture/overview.md) |
+| 事实源、检索范围与快照一致性 | [数据和上下文](architecture/data-context.md) |
+| 后台执行、幂等恢复与插件边界 | [执行与恢复](architecture/execution.md) |
+| 本地修改与验证方式 | [开发说明](DEVELOPMENT.md) |
+| 一次可运行的离线演示 | [演示指南](demo/DEMO_GUIDE.md) |
+| 最新实测结果和已知局限 | [项目状态](PROJECT_STATUS.md) |
+| 较早阶段的确定性评测记录 | [Phase 6 历史结果](evaluation/phase6-history.md) |
 
-- [Project specification and architecture](architecture/01_PROJECT_SPEC.md)
-- [Data and governance model](architecture/03_DATA_MODEL_SPEC.md)
-- [ContextSnapshot contract](architecture/04_CONTEXT_ENGINEERING_SPEC.md)
-- [Agent Runtime](architecture/05_AGENT_RUNTIME_SPEC.md)
-- [Domain Plugins](architecture/06_DOMAIN_PLUGIN_SPEC.md)
-- [React Project Workspace](architecture/07_UI_PRODUCT_SPEC.md)
-- [Phase 6 benchmark summary](demo/BENCHMARK_SUMMARY.md)
-- [Offline demo guide](demo/DEMO_GUIDE.md)
-- [Resume and interview brief](demo/RESUME_PROJECT_BRIEF.md)
+应用名称统一为“证据驱动的智能研究工作台”。Python 项目名 `research-knowledge-core` 保留兼容。
 
-The product title used in public material is **Evidence-Grounded Personal Knowledge Agent Workspace** (证据约束的本地优先个人知识 Agent 工作台). The repository package name remains research-knowledge-core for compatibility.
-
-## Current status
-
-The research-workspace engineering closeout is implemented; report semantics and
-interaction acceptance remain open. See [current progress and limitations](PROJECT_STATUS.md)
-and [installation, verification, and demo](GETTING_STARTED.md).
-
-As of 2026-09-14: backend 581 passed / 3 skipped; frontend 53 tests passed and
-production build passed. The application schema is v20. These checks establish
-engineering behavior, not model accuracy. New retrieval/generation strategies
-remain opt-in; the latest fixed comparison did not justify changing defaults.
-
-Phase 6 documents and candidate outputs below are historical. Their original
-schema-v15 fixture metadata and counts are preserved; there is no human-approved
-Phase 6 baseline or independent semantic quality claim.
-
-## Engineering and migration background
-
-- [Engineering guidelines](engineering/11_ENGINEERING_GUIDELINES.md)
-- [Migration background](migration/02_MIGRATION_PLAN.md)
-- [Historical design and development records](legacy/)
-
-The migration and Codex prompt directories preserve the project’s evolution. They are not the source of truth for the current public architecture; use the architecture and demo documents above.
+当前目录只保留使用、实现和验证说明。旧版代码与过程材料的历史查阅方式见[开发说明](DEVELOPMENT.md#历史资料)。基准输入位于 [benchmarks](../benchmarks/)，私人运行归档不随仓库分发。

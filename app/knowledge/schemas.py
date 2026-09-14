@@ -272,7 +272,8 @@ class ConfidenceAutoApprovalResult(BulkCandidateDecisionResult):
 class KnowledgeJob(BaseModel):
     id: str
     kind: Literal[
-        "ingestion", "report", "collection_sync", "agent_run", "research_command"
+        "ingestion", "report", "collection_sync", "agent_run", "research_command",
+        "projection_rebuild",
     ]
     resource_id: str
     status: JobStatus
