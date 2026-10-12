@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
+import { cn } from "../../lib/utils";
 import { Page } from "../ui/page";
 
 /** Shared reading layout for quick reports and project reports. */
@@ -33,7 +34,7 @@ export function ReportLayout({
       <Link className="inline-flex items-center gap-1.5 text-[13px] text-muted-ink hover:text-ink" to={backTo}><ArrowLeft size={15} />{backLabel}</Link>
       <header className="mt-5 min-w-0 border-b pb-6">
         <div className="flex flex-wrap items-center gap-2">{kind}</div>
-        <h1 className="mt-3 max-w-4xl break-words text-[22px] font-semibold leading-[1.45] tracking-tight text-ink sm:text-[26px]">{title}</h1>
+        <h1 className={cn("mt-3 max-w-4xl break-words font-semibold leading-[1.45] tracking-tight text-ink", typeof title === "string" && title.length > 60 ? "text-lg sm:text-xl" : "text-[22px] sm:text-[26px]")}>{title}</h1>
         {meta ? <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-muted-ink">{meta}</div> : null}
         {actions ? <div className="mt-5 flex flex-wrap gap-2">{actions}</div> : null}
       </header>

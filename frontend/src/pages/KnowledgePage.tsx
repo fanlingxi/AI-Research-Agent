@@ -205,7 +205,7 @@ function CollectionBrowser({ collection, ingestions, pending }: { collection: Kn
             {(papers.length ? papers.map((paper) => ({ key: paper.id, title: paper.name, note: paper.summary })) : sources.map((source) => ({ key: source, title: fileName(source), note: "" }))).map((paper) => (
               <li className="flex min-w-0 gap-2.5 rounded-lg border px-3 py-2.5" key={paper.key}>
                 <FileText className="mt-0.5 shrink-0 text-muted-ink" size={15} />
-                <span className="min-w-0"><span className="block text-[13.5px] font-medium leading-5">{paper.title}</span>{paper.note ? <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-muted-ink">{paper.note}</span> : null}</span>
+                <span className="min-w-0"><span className="block text-[13.5px] font-medium leading-5">{paper.title}</span>{paper.note ? <span className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-ink">{paper.note}</span> : null}</span>
               </li>
             ))}
           </ul>

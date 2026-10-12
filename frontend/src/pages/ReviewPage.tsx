@@ -114,7 +114,7 @@ export function ReviewPage() {
               <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-warning-soft text-amber-800"><Lightbulb size={16} /></span>
               <span className="min-w-0 flex-1">
                 <span className="block font-medium leading-6">{proposalTitle(proposal)}</span>
-                <span className="mt-0.5 line-clamp-2 block text-[13px] text-muted-ink">{proposal.rationale || "未提供理由。"}</span>
+                <span className="mt-0.5 line-clamp-2 text-[13px] text-muted-ink">{proposal.rationale || "未提供理由。"}</span>
                 <span className="mt-1.5 block text-xs text-muted-ink">{projectNames.get(proposal.project_id) ?? "项目"} · {formatDate(proposal.updated_at)}</span>
               </span>
               <StatusBadge status={proposal.status} />

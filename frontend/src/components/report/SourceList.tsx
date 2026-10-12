@@ -34,7 +34,7 @@ export function SourceList({ items, activeId, onSelect, emptyText = "这份报�
             <span className="min-w-0">
               <span className="line-clamp-2 text-[13px] font-medium leading-5 text-ink">{item.title}</span>
               <span className="mt-0.5 block text-xs text-muted-ink">{item.page}</span>
-              {item.excerpt ? <span className="mt-1 line-clamp-2 block text-xs leading-5 text-muted-ink">{item.excerpt}</span> : null}
+              {item.excerpt ? <span className="mt-1 line-clamp-2 text-xs leading-5 text-muted-ink">{item.excerpt}</span> : null}
             </span>
           </button>
         </li>

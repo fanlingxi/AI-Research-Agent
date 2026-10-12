@@ -21,7 +21,7 @@ export function ReportRow({ item, compact }: { item: LibraryItem; compact?: bool
         item.kind === "quick" ? "bg-info-soft text-sky-700" : "bg-brand-soft text-brand",
       )}><Icon size={15} /></span>
       <span className="min-w-0 flex-1">
-        <span className={cn("block font-medium leading-6 text-ink group-hover:text-brand-strong", compact ? "line-clamp-1 text-[13.5px]" : "line-clamp-2")}>{item.title}</span>
+        <span className={cn("font-medium leading-6 text-ink group-hover:text-brand-strong", compact ? "line-clamp-1 text-[13.5px]" : "line-clamp-2")}>{item.title}</span>
         <span className="mt-0.5 block truncate text-xs text-muted-ink">{item.kind === "quick" ? "快速报告" : "项目报告"} · {item.context} · {formatDate(item.updatedAt)}</span>
       </span>
       {item.status !== "ready" && item.status !== "completed" ? <StatusBadge className="mt-1" status={item.status} /> : null}

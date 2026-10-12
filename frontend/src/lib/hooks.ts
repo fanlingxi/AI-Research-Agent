@@ -75,8 +75,10 @@ export function documentTitle(
   titles: Map<string, string>,
   uri?: string | null,
 ) {
-  if (title && title.trim()) return title.trim();
+  // Prefer the reviewed paper title from formal knowledge so the same paper is named
+  // consistently everywhere; stored parser titles (possibly frozen in snapshots) are the fallback.
   if (paperId && titles.has(paperId)) return titles.get(paperId)!;
+  if (title && title.trim()) return title.trim();
   const name = fileName(uri);
   if (name) return name;
   return "未识别标题的文献";
