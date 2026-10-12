@@ -284,14 +284,41 @@ export interface EntityCandidate extends CandidateBase {
   name: string;
   type: string;
   aliases?: string[];
-  merge_suggestions?: Array<{ entity_id: string; name: string; type: string; similarity: number; match_kind: string }>;
+  merge_suggestions?: MergeSuggestion[];
 }
+
+export interface MergeSuggestion {
+  entity_id: string;
+  name: string;
+  type: string;
+  similarity: number;
+  match_kind: "exact" | "similar" | string;
+}
+
+export interface DuplicateGroup {
+  key: string;
+  name: string;
+  type: string;
+  /** Existing published entity the drafts most likely denote; null when only drafts share the name. */
+  target: MergeSuggestion | null;
+  candidates: EntityCandidate[];
+}
+
+export interface DuplicateGroups {
+  groups: DuplicateGroup[];
+  candidate_count: number;
+}
+
+export type CandidateDecisionKind = "approve" | "reject" | "defer" | "merge";
 
 export interface RelationCandidate extends CandidateBase {
   source_candidate_id: string;
   target_candidate_id: string;
   source_name?: string;
   target_name?: string;
+  /** Name of the published entity a merged endpoint resolves to, when it differs. */
+  source_canonical_name?: string;
+  target_canonical_name?: string;
   type: string;
 }
 
@@ -316,9 +343,16 @@ export interface BulkApprovalResult {
   blocked_relations: number;
 }
 
+export interface CandidateDecisionResult {
+  candidate: KnowledgeCandidate & { candidate: { canonical_id?: string | null } };
+  applied: boolean;
+  replayed: boolean;
+  projection_status: string;
+}
+
 export interface BulkCandidateDecisionResult {
   ingestion: KnowledgeIngestion;
-  decision: "approve" | "reject" | "defer";
+  decision: CandidateDecisionKind;
   requested: number;
   applied: number;
   replayed: number;
@@ -791,19 +825,29 @@ export const api = {
         limit: options.limit ?? 25,
       })}`,
     ),
-  decideCandidate: (candidateId: string, decision: "approve" | "reject" | "defer") =>
-    request<unknown>(`/api/knowledge/candidates/${path(candidateId)}/decision`, {
+  decideCandidate: (candidateId: string, decision: CandidateDecisionKind, canonicalId?: string) =>
+    request<CandidateDecisionResult>(`/api/knowledge/candidates/${path(candidateId)}/decision`, {
       method: "POST",
-      body: JSON.stringify({ decision }),
+      body: JSON.stringify(decision === "merge" ? { decision, canonical_id: canonicalId } : { decision }),
     }),
   decideCandidatesBulk: (
     ingestionId: string,
     candidateIds: string[],
-    decision: "approve" | "reject" | "defer",
+    decision: CandidateDecisionKind,
+    canonicalId?: string,
   ) => request<BulkCandidateDecisionResult>(
     `/api/knowledge/ingestions/${path(ingestionId)}/candidates/bulk-decision`,
-    { method: "POST", body: JSON.stringify({ candidate_ids: candidateIds, decision }) },
+    {
+      method: "POST",
+      body: JSON.stringify(
+        decision === "merge"
+          ? { candidate_ids: candidateIds, decision, canonical_id: canonicalId }
+          : { candidate_ids: candidateIds, decision },
+      ),
+    },
   ),
+  duplicateGroups: (ingestionId: string) =>
+    request<DuplicateGroups>(`/api/knowledge/ingestions/${path(ingestionId)}/duplicate-groups`),
   autoApproveHighConfidence: (ingestionId: string) =>
     request<ConfidenceAutoApprovalResult>(
       `/api/knowledge/ingestions/${path(ingestionId)}/auto-approve-high-confidence`,

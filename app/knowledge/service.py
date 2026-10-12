@@ -449,6 +449,7 @@ class KnowledgeIngestionService:
                         candidate_id,
                         CandidateDecision(
                             decision=decision.decision,
+                            canonical_id=decision.canonical_id,
                             review_note=decision.review_note,
                         ),
                     )
@@ -483,6 +484,7 @@ class KnowledgeIngestionService:
                     candidate_id,
                     CandidateDecision(
                         decision=decision.decision,
+                        canonical_id=decision.canonical_id,
                         review_note=decision.review_note,
                     ),
                 )
