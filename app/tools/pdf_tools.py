@@ -28,7 +28,7 @@ def parse_pdf_source(
     for page_index in range(page_limit):
         text = reader.pages[page_index].extract_text() or ""
         if text.strip():
-            page_texts.append(sanitize_utf8_text(text.strip()))
+            page_texts.append(collapse_fake_bold(sanitize_utf8_text(text.strip())))
             page_numbers.append(page_index + 1)
 
     metadata_title = reader.metadata.title if reader.metadata and reader.metadata.title else None
@@ -90,11 +90,42 @@ def _slugify(value: str) -> str:
     return slug or "downloaded-paper"
 
 
+_PLACEHOLDER_TITLES = {"untitled", "title", "untitled document", "no title", "document", "paper"}
+# Fake-bold PDFs draw each glyph several times; extractors emit "基 基 基于 于 于".
+_FAKE_BOLD = re.compile(r"([^\x00-\x7f\s]) \1 \1")
+
+
+# Running headers such as "Proceedings of ... pages 338–354" or "©2024 Association for ...".
+_VENUE_LINE = re.compile(
+    r"\bpages \d+\s*[–-]\s*\d+|©|\(v ?olume \d|association for computational linguistics"
+    r"|\b(?:january|february|march|april|may|june|july|august|september|october|november"
+    r"|december) \d{1,2}\s*[–-]\s*\d{1,2},? \d{4}|arxiv:\d",
+    re.IGNORECASE,
+)
+
+
+def collapse_fake_bold(text: str) -> str:
+    """Undo repeated-glyph stutter only on lines that clearly show the pattern."""
+
+    lines = []
+    for line in text.split("\n"):
+        if len(_FAKE_BOLD.findall(line)) >= 2:
+            line = _FAKE_BOLD.sub(r"\1", line)
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def _usable_title(value: str | None) -> str | None:
     if not value:
         return None
     normalized = re.sub(r"\s+", " ", value).strip()
-    if not normalized or normalized.lower().endswith(".pdf"):
+    lowered = normalized.lower()
+    if (
+        not normalized
+        or lowered.endswith((".pdf", ".doc", ".docx", ".tex"))
+        or lowered in _PLACEHOLDER_TITLES
+        or lowered.startswith("microsoft word - ")
+    ):
         return None
     return normalized
 
@@ -121,10 +152,12 @@ def _infer_title(page_texts: list[str]) -> str | None:
     for index, line in enumerate(lines):
         candidate = re.sub(r"\s+", " ", line).strip()
         lowered = candidate.lower()
+        cjk = sum("一" <= char <= "鿿" for char in candidate)
         if (
-            12 <= len(candidate) <= 220
+            (12 if cjk < 4 else 6) <= len(candidate) <= 220
             and any(char.isalpha() for char in candidate)
             and not lowered.startswith(blocked_prefixes)
+            and not _VENUE_LINE.search(candidate)
         ):
             continuation = _title_continuation(lines[index + 1 : index + 3])
             return f"{candidate} {continuation}".strip()
@@ -139,7 +172,15 @@ def _title_continuation(lines: list[str]) -> str:
         candidate = re.sub(r"\s+", " ", line).strip()
         if not candidate or len(candidate) > 140:
             break
-        if any(marker in candidate for marker in ("@", "∗", "*", "†", "‡")):
+        if any(marker in candidate for marker in ("@", "∗", "*", "†", "‡", "，", "、")):
+            break
+        words = candidate.split()
+        if candidate.count(",") >= 2 or (
+            len(words) >= 6 and all(w[:1].isupper() and w.isalpha() for w in words)
+        ):
+            break  # English author list
+        # A short all-CJK line under a Chinese title is an author name, not a wrap.
+        if len(candidate) <= 4 and all("一" <= char <= "鿿" for char in candidate):
             break
         if re.search(r"\d", candidate):
             break

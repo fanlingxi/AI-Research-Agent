@@ -52,3 +52,18 @@ avaswani@google.com
 """
 
     assert _infer_title([first_page]) == "Attention Is All You Need"
+
+
+def test_fake_bold_chinese_heading_collapses_and_placeholder_title_is_ignored() -> None:
+    from app.tools.pdf_tools import _infer_title, _usable_title, collapse_fake_bold
+
+    page = collapse_fake_bold(
+        "基 基 基于 于 于ChatGPT查 查 查询 询 询改 改 改写 写 写"
+        "的 的 的文 文 文档 档 档检 检 检索 索 索\n"
+        "李 李 李澳 澳 澳， ， ，涂 涂 涂新 新 新辉 辉 辉*\n"
+        "正文 中 的 单个 重复 字 不 受 影响：哈 哈 哈"
+    )
+    assert page.splitlines()[0] == "基于ChatGPT查询改写的文档检索"
+    assert page.splitlines()[2].endswith("哈 哈 哈")
+    assert _usable_title("untitled") is None
+    assert _infer_title([page]) == "基于ChatGPT查询改写的文档检索"
