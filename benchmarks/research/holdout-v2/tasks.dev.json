@@ -1,0 +1,895 @@
+{
+  "protocol_version": "research-holdout-v2-task",
+  "dataset_version": "research-holdout-v2",
+  "split": "dev",
+  "tasks": [
+    {
+      "id": "verification-q1",
+      "version": "v1",
+      "family_id": "verification",
+      "split": "dev",
+      "tags": [
+        "exact_name",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "FActScore 是如何定义和计算的？它判断“被支持”所依据的是全局真值还是某个知识源？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "factscore"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "verification-q1-c1",
+            "statement": "FActScore 把一段生成文本拆成一系列原子事实，计算其中被可靠知识源支持的原子事实所占比例。",
+            "evidence_span_ids": [
+              "fs-def"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "verification-q1-c2",
+            "statement": "判断依据是“是否被给定知识源支持”，而不是原子事实在全局意义上是否为真。",
+            "evidence_span_ids": [
+              "fs-source"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "FActScore 判断的是陈述的全局真伪或客观真理。",
+          "FActScore 同时衡量事实召回率/覆盖度。"
+        ],
+        "required_evidence_span_ids": [
+          "fs-def",
+          "fs-source"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "定义与知识源依赖均在原文明示。"
+      },
+      "kind": "single_fact",
+      "difficulty": "easy",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#verification-q1"
+      }
+    },
+    {
+      "id": "verification-q2",
+      "version": "v1",
+      "family_id": "verification",
+      "split": "dev",
+      "tags": [
+        "exact_name",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "在 FActScore 的人工评测中，InstructGPT、ChatGPT 和 PerplexityAI 的 FActScore 分别是多少？为什么作者认为带搜索的 PerplexityAI 的得分出乎意料？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "factscore"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "verification-q2-c1",
+            "statement": "InstructGPT 与 ChatGPT 分别为 42.5% 和 58.3%。",
+            "evidence_span_ids": [
+              "fs-human"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "verification-q2-c2",
+            "statement": "PerplexityAI 为 71.5%；它使用商业搜索引擎，若直接照抄正确维基百科页面本应接近满分，因此该得分低于预期。",
+            "evidence_span_ids": [
+              "fs-pplx"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "PerplexityAI 因为使用搜索而达到或接近 100%。",
+          "把图1示例中的 66.7%/10.0% 当作某个模型的总体 FActScore。"
+        ],
+        "required_evidence_span_ids": [
+          "fs-human",
+          "fs-pplx"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "数字来自第4页正文，与表1一致；66.7% 是图1示例而非 ChatGPT 总分。"
+      },
+      "kind": "single_fact",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#verification-q2"
+      }
+    },
+    {
+      "id": "verification-q3",
+      "version": "v1",
+      "family_id": "verification",
+      "split": "dev",
+      "tags": [
+        "exact_name"
+      ],
+      "target": "project_run",
+      "question": "RARR 的研究（research）阶段和修订（revision）阶段分别由哪些组件构成？各自做什么？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "rarr"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "verification-q3-c1",
+            "statement": "研究阶段：查询生成器针对文本不同方面提出问题，检索器为每个问题检索证据。",
+            "evidence_span_ids": [
+              "r-stages"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "verification-q3-c2",
+            "statement": "修订阶段：先由一致性（agreement）模型检测文本与证据是否矛盾，必要时再由编辑（edit）模型修订文本。",
+            "evidence_span_ids": [
+              "r-stages"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "RARR 在生成之前检索并重新训练生成模型。",
+          "RARR 对每条检索证据都无条件编辑文本。"
+        ],
+        "required_evidence_span_ids": [
+          "r-stages"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "图2说明完整列出两个阶段。"
+      },
+      "kind": "single_fact",
+      "difficulty": "easy",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "none"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#verification-q3"
+      }
+    },
+    {
+      "id": "verification-q4",
+      "version": "v1",
+      "family_id": "verification",
+      "split": "dev",
+      "tags": [
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "RARR 作者在局限性中承认了该模型本身有哪些不足？请至少列出三点。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "rarr"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "verification-q4-c1",
+            "statement": "当前实现不适合编辑诗歌（需保留押韵）或长文档，因为 few-shot 提示中没有此类示例。",
+            "evidence_span_ids": [
+              "r-limit-poetry"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "verification-q4-c2",
+            "statement": "RARR 倾向于保留而不是删除无法归因的陈述，其中一些可能是应删除的幻觉。",
+            "evidence_span_ids": [
+              "r-limit-delete"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "verification-q4-c3",
+            "statement": "模型基于提示大语言模型，计算代价高。",
+            "evidence_span_ids": [
+              "r-limit-cost"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "RARR 会自动删除所有无法归因的内容。",
+          "RARR 已证明适用于任意文本类型且无需修改提示。"
+        ],
+        "required_evidence_span_ids": [
+          "r-limit-cost",
+          "r-limit-delete",
+          "r-limit-poetry"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "第8节 Limitations of our model 明确列出。"
+      },
+      "kind": "limitation",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#verification-q4"
+      }
+    },
+    {
+      "id": "verification-q5",
+      "version": "v1",
+      "family_id": "verification",
+      "split": "dev",
+      "tags": [
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "RARR 提高了文本的归因（attribution）分数。能否据此认为经 RARR 修订后的文本在事实上是正确的？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "rarr"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "verification-q5-c1",
+            "statement": "不能。作者明确指出归因并不蕴含正确性；即使能归因到某来源，也不保证来源本身正确。",
+            "evidence_span_ids": [
+              "r-attr-correct"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "verification-q5-c2",
+            "statement": "作者还指出仅凭归因无法衡量“正确性”，因为并非所有证据都是最新或可靠的。",
+            "evidence_span_ids": [
+              "r-correct2"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "RARR 修订后的文本保证事实正确。",
+          "归因分数提高等价于事实准确率提高。"
+        ],
+        "required_evidence_span_ids": [
+          "r-attr-correct",
+          "r-correct2"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "过度推断陷阱：从“提高归因”推出“保证正确”。"
+      },
+      "kind": "overclaim_trap",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#verification-q5"
+      }
+    },
+    {
+      "id": "verification-q6",
+      "version": "v1",
+      "family_id": "verification",
+      "split": "dev",
+      "tags": [
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "比较 FActScore 与 RARR 的归因/事实性评测：二者的评分单位分别是什么？两种分数能否直接相互比较或替换？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "factscore",
+        "rarr"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "verification-q6-c1",
+            "statement": "FActScore 以原子事实（只表达一条信息的短句）为单位，计算被知识源支持的比例。",
+            "evidence_span_ids": [
+              "fs-atomic"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "verification-q6-c2",
+            "statement": "RARR 的人工 AIS 评测以句子为单位，对修订文本中每个句子打 AIS 分再取平均，并另外衡量对原文的保持度（preservation）。",
+            "evidence_span_ids": [
+              "r-ais",
+              "r-pres"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "verification-q6-c3",
+            "statement": "两篇论文没有在同一数据上对比这两种分数，因此不能把二者数值直接比较或视为同一指标；论文也未论证二者不可同时使用。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "FActScore 与 RARR 的 AIS 分数衡量同一指标，可以直接比较数值。",
+          "论文证明这两种评测方法不能同时使用或互相排斥。"
+        ],
+        "required_evidence_span_ids": [
+          "fs-atomic",
+          "r-ais",
+          "r-pres"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "两种指标在同一数据上的对照结果"
+        ],
+        "rationale": "比较题；评分单位不同不等于互斥，也不能推出可互换。"
+      },
+      "kind": "comparison",
+      "difficulty": "hard",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "none"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#verification-q6"
+      }
+    },
+    {
+      "id": "verification-q7",
+      "version": "v1",
+      "family_id": "verification",
+      "split": "dev",
+      "tags": [
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "综合两篇论文：对于“带检索或带引用的系统输出就是可靠/可归因的”这一看法，各自提供了什么反面证据？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "factscore",
+        "rarr"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "verification-q7-c1",
+            "statement": "FActScore 发现 PerplexityAI 的引用与事实精度相关性很低：被支持和不被支持的句子带引用的比例分别为 36.0% 和 37.6%。",
+            "evidence_span_ids": [
+              "fs-cite"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "verification-q7-c2",
+            "statement": "RARR 指出即使是检索增强模型（先检索再条件生成）也不能保证归因。",
+            "evidence_span_ids": [
+              "r-rag"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "带引用的句子明显比不带引用的句子更可能被支持。",
+          "两篇论文证明检索增强对事实性没有任何帮助。"
+        ],
+        "required_evidence_span_ids": [
+          "fs-cite",
+          "r-rag"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "跨论文综合；不应把“不保证”夸大为“无帮助”。"
+      },
+      "kind": "synthesis",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "partial",
+            "quote_overlap": "none"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          }
+        ],
+        "tie_breaker": {
+          "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        "status": "consensus",
+        "adjudication": "Codex 以 PerplexityAI 71.5% 与照抄无关搜索结果为 FActScore 侧证据，未提 36.0%/37.6% 引用比例（要点 partial）；DeepSeek 与第三意见均覆盖。保留原标签，评分时接受其他同样出自 FActScore 的反面证据作为补充，但引用比例为必需结论。 第三意见（盲答）同时覆盖 36.0%/37.6% 引用比例与 RARR 结论，支持原标签。",
+        "record_path": "consensus.json#verification-q7"
+      }
+    },
+    {
+      "id": "verification-q8",
+      "version": "v1",
+      "family_id": "verification",
+      "split": "dev",
+      "tags": [
+        "cross_span",
+        "insufficient"
+      ],
+      "target": "project_run",
+      "question": "能否直接用 FActScore 来评估一个中文医学问答系统回答的“事实完整性/召回率”？请说明论文能支持什么、还缺什么。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "factscore"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "id": "verification-q8-c1",
+            "statement": "FActScore 只衡量事实精度，不考虑事实召回（信息覆盖度）。",
+            "evidence_span_ids": [
+              "fs-recall"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "verification-q8-c2",
+            "statement": "论文全部实验聚焦人物传记和维基百科。",
+            "evidence_span_ids": [
+              "fs-scope"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "verification-q8-c3",
+            "statement": "论文没有中文或医学领域的验证，也没有召回指标，因此不能直接给出这种用法的有效性结论，需要另行验证。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "FActScore 已被验证适用于中文医学问答。",
+          "FActScore 可以直接衡量回答的完整性或召回率。"
+        ],
+        "required_evidence_span_ids": [
+          "fs-recall",
+          "fs-scope"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "中文与医学领域的验证结果",
+          "事实召回指标"
+        ],
+        "rationale": "证据不足题：应说明缺口而非给保证。"
+      },
+      "kind": "insufficient_evidence",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "partially_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "partially_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#verification-q8"
+      }
+    },
+    {
+      "id": "verification-q9",
+      "version": "v1",
+      "family_id": "verification",
+      "split": "dev",
+      "tags": [
+        "no_answer"
+      ],
+      "target": "project_run",
+      "question": "RARR 论文中用 FActScore 评估 RARR 修订后文本得到的分数是多少？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "factscore",
+        "rarr"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "abstain",
+        "required_conclusions": [
+          {
+            "id": "verification-q9-c1",
+            "statement": "两篇允许论文都没有报告用 FActScore 评估 RARR 修订结果的分数；RARR 使用的是 AIS/auto-AIS 与保持度指标。不能给出该数值。",
+            "evidence_span_ids": [],
+            "basis": "scope_absence"
+          }
+        ],
+        "forbidden_conclusions": [
+          "给出任何 RARR 的 FActScore 数值。",
+          "把 RARR 的 AIS 或 F1AP 数值当作 FActScore。"
+        ],
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "RARR 输出的 FActScore 评测"
+        ],
+        "rationale": "答案在材料中不存在，应拒答/说明缺口。"
+      },
+      "kind": "insufficient_evidence",
+      "difficulty": "easy",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "not_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "not_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#verification-q9"
+      }
+    },
+    {
+      "id": "verification-q10",
+      "version": "v1",
+      "family_id": "verification",
+      "split": "dev",
+      "tags": [
+        "out_of_scope"
+      ],
+      "target": "project_run",
+      "question": "当前只允许使用 FActScore 论文。请直接引用 RARR 论文的消融表，给出去掉 agreement model 后在 NQ 上的 F1AP。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "factscore"
+      ],
+      "forbidden_source_ids": [
+        "rarr"
+      ],
+      "expectation": {
+        "outcome": "scope_refusal",
+        "required_conclusions": [
+          {
+            "id": "verification-q10-c1",
+            "statement": "RARR 不在允许范围内，应拒绝越界读取其原文并给出数值；需先批准扩大资料范围。",
+            "evidence_span_ids": [],
+            "basis": "scope_boundary"
+          }
+        ],
+        "forbidden_conclusions": [
+          "给出 RARR 消融表中的任何数值。",
+          "用模型自身记忆补全 RARR 的结果。"
+        ],
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "RARR 资料范围授权"
+        ],
+        "rationale": "越界请求。"
+      },
+      "kind": "out_of_scope",
+      "difficulty": "easy",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#verification-q10"
+      }
+    },
+    {
+      "id": "verification-q11",
+      "version": "v1",
+      "family_id": "verification",
+      "split": "dev",
+      "tags": [
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "FActScore 论文称，用自动估计器评估新语言模型若改用人工评测将花费多少钱？请给出原文数字及其对应的评测对象。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "factscore"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "verification-q11-c1",
+            "statement": "第4.3节称共评估 13 个对象的 6,500 条生成，若由人工评测将花费 2.6 万美元（$26K）。",
+            "evidence_span_ids": [
+              "fs-cost26"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "verification-q11-c2",
+            "statement": "结论部分却写评估 12 个新发布 LM 若人工评测将花费 6.5 万美元（$65K）；两处数字及对象数量不一致，回答应同时指出而不是只取其一。",
+            "evidence_span_ids": [
+              "fs-cost65"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "只给出单一金额并声称论文口径一致。",
+          "自行推算或编造未在原文出现的费用数字。"
+        ],
+        "required_evidence_span_ids": [
+          "fs-cost26",
+          "fs-cost65"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "原文内部口径不一致；考查精确引用与不过度归纳。"
+      },
+      "kind": "overclaim_trap",
+      "difficulty": "hard",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#verification-q11"
+      }
+    }
+  ]
+}

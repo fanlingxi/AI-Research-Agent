@@ -152,14 +152,15 @@ def prepare():
     return {"output": str(output), "chunks": len(chunks)}
 
 
-def execute(output):
+def execute(output, *, cases_path=CASES, output_root=OUTPUT):
+    """Run each prepared case once per workflow; other frozen sets pass their own paths."""
     guard("RUN_LIVE_LLM_INTEGRATION")
     guard("RUN_STORE_INTEGRATION")
     output = Path(output).resolve(strict=True)
-    if output.parent != OUTPUT.resolve():
+    if output.parent != Path(output_root).resolve():
         raise ValueError("Execution requires this tool's prepared archive")
     config = read(output / "config.json")
-    if not config["prepared"] or config["cases_sha256"] != digest(CASES):
+    if not config["prepared"] or config["cases_sha256"] != digest(Path(cases_path)):
         raise ValueError("Preparation is incomplete or questions changed")
     if config["production_code"] != fingerprints():
         raise ValueError(
@@ -177,7 +178,7 @@ def execute(output):
         {
             "provider": client.provider_name,
             "model": client.model,
-            "max_calls": 180,
+            "max_calls": config["max_calls"],
             "output_tokens": 8192,
             "timeout": 120,
             "ranking_timeout": 90,
