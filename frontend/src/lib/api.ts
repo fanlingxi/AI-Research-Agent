@@ -283,6 +283,8 @@ interface CandidateBase {
 export interface EntityCandidate extends CandidateBase {
   name: string;
   type: string;
+  aliases?: string[];
+  merge_suggestions?: Array<{ entity_id: string; name: string; type: string; similarity: number; match_kind: string }>;
 }
 
 export interface RelationCandidate extends CandidateBase {
@@ -483,6 +485,39 @@ export interface ResearchCommand {
   error: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface KnowledgeEvidenceRef {
+  paper_id: string;
+  chunk_id: string;
+  page_start: number;
+  page_end: number;
+  quote: string;
+}
+
+export interface KnowledgeEntity {
+  id: string;
+  name: string;
+  type: string;
+  summary: string;
+  aliases: string[];
+  evidence: KnowledgeEvidenceRef[];
+}
+
+export interface KnowledgeRelation {
+  id: string;
+  source_entity_id: string;
+  target_entity_id: string;
+  type: string;
+  summary: string;
+  confidence: number;
+  evidence: KnowledgeEvidenceRef[];
+}
+
+export interface KnowledgeCollectionDetail {
+  collection: KnowledgeCollection;
+  entities: KnowledgeEntity[];
+  relations: KnowledgeRelation[];
 }
 
 export interface KnowledgeSearchResult {
@@ -702,6 +737,7 @@ export const api = {
       `/api/projects/${path(projectId)}/knowledge-scopes`,
     ),
   collections: () => request<KnowledgeCollection[]>("/api/knowledge/collections"),
+  collection: (slug: string) => request<KnowledgeCollectionDetail>(`/api/knowledge/collections/${path(slug)}`),
   replaceScopes: (projectId: string, expectedProjectRevision: number, collectionSlugs: string[]) =>
     request<ProjectKnowledgeScope[]>(`/api/projects/${path(projectId)}/knowledge-scopes`, {
       method: "PUT",

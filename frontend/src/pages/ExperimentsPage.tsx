@@ -1,7 +1,7 @@
 import { SemanticObservation } from "../components/SemanticObservation";
 import { MetricHelp } from "../components/MetricHelp";
 import { useQuery } from "@tanstack/react-query";
-import { FlaskConical, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { useSearchParams } from "react-router-dom";
@@ -10,10 +10,11 @@ import remarkGfm from "remark-gfm";
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { api, type ExperimentSummary, type ExperimentVariant } from "../lib/api";
 import { cn } from "../lib/utils";
+import { Page, PageHeader } from "../components/ui/page";
 
 const STRATEGIES: Record<string, string> = { legacy: "旧策略", "bm25-v1": "BM25 单路", "hybrid-v1": "混合 RRF" };
 const STATUSES: Record<string, string> = { completed: "完成", failed: "失败", missing: "记录缺失", not_attempted: "未尝试", running: "进行中", preparing: "准备中" };
-const selectClass = "mt-1 w-full min-w-0 rounded-lg border bg-white px-3 py-2 text-sm";
+const selectClass = "mt-1 w-full min-w-0 rounded-lg border bg-panel px-3 py-2 text-sm";
 const percent = (value: number | null | undefined) => value == null ? "未评分" : `${(value * 100).toFixed(1)}%`;
 const money = (value: number | null) => value == null ? "未知" : `¥${value.toFixed(6)}`;
 const splitLabel = (split: string) => ({ dev: "开发集 dev", holdout: "历史保留集 holdout" })[split] ?? split;
@@ -71,7 +72,7 @@ function Variant({ variant }: { variant: ExperimentVariant }) {
       <div className="space-y-4 p-4">
         {variant.error && <div className="break-words rounded-lg bg-danger-soft p-3 text-sm text-red-900" role="note"><p className="font-medium">失败原因</p><p className="mt-1">{variant.error}</p></div>}
         {variant.issues.map((issue) => <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900" key={issue}>{issue}</p>)}
-        {variant.content ? <details><summary className="cursor-pointer text-sm font-medium text-brand">查看生成报告</summary><div className="prose-workspace mt-3 break-words"><ReactMarkdown remarkPlugins={[remarkGfm]}>{variant.content}</ReactMarkdown></div></details> : <p className="text-xs text-muted-ink">{variant.model === "未调用（仅检索）" ? "本次只测检索，没有生成报告。" : "无可用生成报告；失败记录仍计入分母。"}</p>}
+        {variant.content ? <details><summary className="cursor-pointer text-sm font-medium text-brand">查看生成报告</summary><div className="prose-compact mt-3 break-words"><ReactMarkdown remarkPlugins={[remarkGfm]}>{variant.content}</ReactMarkdown></div></details> : <p className="text-xs text-muted-ink">{variant.model === "未调用（仅检索）" ? "本次只测检索，没有生成报告。" : "无可用生成报告；失败记录仍计入分母。"}</p>}
         <div><h4 className="text-sm font-medium">已选原文 · {variant.evidence.length} 段</h4><p className="mt-1 text-xs text-muted-ink">按实际选择顺序展示；检索证据不等于语义验收。</p></div>
         {!variant.evidence.length && <p className="rounded-lg border border-dashed p-3 text-sm text-muted-ink">没有可核验的原文片段。</p>}
         {variant.evidence.map((evidence, index) => (
@@ -109,8 +110,8 @@ export function ExperimentsPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-8">
-      <header><div className="flex items-center gap-2 text-brand"><FlaskConical size={20} /><span className="text-sm font-medium">研究质量与实验</span></div><h1 className="mt-2 text-2xl font-semibold tracking-tight">实验对比</h1><p className="mt-2 text-sm text-muted-ink">查看同题策略、原文证据与失败。本页只读，不会启动模型调用。</p></header>
+    <Page width="wide" className="space-y-6">
+      <PageHeader title="实验对比" description="面向开发与评估：查看不同检索策略在同一批题目上的证据与失败记录。本页只读，不会调用模型。" />
       <SemanticObservation />
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="note">
         <p className="font-medium">下方展示 A02 / A04 历史实验归档</p>
@@ -151,6 +152,6 @@ export function ExperimentsPage() {
           </section>
         </div>
       </>}
-    </div>
+    </Page>
   );
 }

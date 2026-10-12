@@ -19,6 +19,8 @@ import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { api, type RuntimeWorkItem } from "../lib/api";
 import { ProjectionMaintenance } from "../components/ProjectionMaintenance";
 import { formatDate } from "../lib/utils";
+import { statusLabel } from "../lib/labels";
+import { Page, PageHeader } from "../components/ui/page";
 
 const SERVICE_LABELS: Record<string, string> = {
   api: "API 编排服务",
@@ -144,17 +146,12 @@ export function RuntimePage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl p-6 lg:p-8">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-6">
-        <div>
-          <p className="text-sm font-medium text-brand">运行可观测性</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">运行与恢复</h1>
-          <p className="mt-2 text-sm text-muted-ink">查看任务为何排队、当前阶段、执行器所有权与投影失败。</p>
-        </div>
-        <Button variant="outline" onClick={() => { void overview.refetch(); void work.refetch(); }}>
-          <RefreshCw size={15} />刷新
-        </Button>
-      </header>
+    <Page width="wide">
+      <PageHeader
+        title="运行记录"
+        description="后台任务的排队、执行与失败情况，以及各项服务的状态。日常使用通常不需要来这里；任务卡住或失败时可在此排查和重试。"
+        actions={<Button variant="outline" onClick={() => { void overview.refetch(); void work.refetch(); }}><RefreshCw size={15} />刷新</Button>}
+      />
 
       {!workerOnline && queued > 0 ? (
         <div className="mt-5 flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950" role="alert">
@@ -192,27 +189,27 @@ export function RuntimePage() {
           <CardContent className="flex min-h-0 flex-1 flex-col xl:basis-0">
             <div className="mb-4 flex shrink-0 flex-wrap gap-3">
               <label className="text-xs font-medium text-muted-ink">类型
-                <select className="mt-1 block min-w-40 rounded-lg border bg-white px-3 py-2 text-sm text-ink" value={kind} onChange={(event) => { setKind(event.target.value); resetPage(); }}>
+                <select className="mt-1 block min-w-40 rounded-lg border bg-panel px-3 py-2 text-sm text-ink" value={kind} onChange={(event) => { setKind(event.target.value); resetPage(); }}>
                   <option value="">全部类型</option>
                   {Object.entries(KIND_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </label>
               <label className="text-xs font-medium text-muted-ink">状态
-                <select className="mt-1 block min-w-36 rounded-lg border bg-white px-3 py-2 text-sm text-ink" value={status} onChange={(event) => { setStatus(event.target.value); resetPage(); }}>
+                <select className="mt-1 block min-w-36 rounded-lg border bg-panel px-3 py-2 text-sm text-ink" value={status} onChange={(event) => { setStatus(event.target.value); resetPage(); }}>
                   <option value="">全部状态</option>
-                  {["queued", "running", "failed", "completed", "needs_review", "stale_context"].map((value) => <option key={value} value={value}>{value}</option>)}
+                  {["queued", "running", "failed", "completed", "needs_review", "stale_context"].map((value) => <option key={value} value={value}>{statusLabel(value)}</option>)}
                 </select>
               </label>
             </div>
             <div className="max-h-[42rem] min-w-0 space-y-3 overflow-y-auto overscroll-contain pr-2 xl:h-0 xl:min-h-64 xl:max-h-none xl:flex-1 xl:basis-0" data-testid="runtime-work-list">
               {workData.items.map((item) => (
-                <article className="min-w-0 rounded-lg border bg-white p-4" key={item.id}>
+                <article className="min-w-0 rounded-lg border bg-panel p-4" key={item.id}>
                   <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <Link className="break-words font-medium hover:text-brand hover:underline" to={item.detail_route}>{item.title}</Link>
                       <p className="mt-1 text-xs text-muted-ink">{KIND_LABELS[item.kind] ?? item.kind} · {item.current_stage ? (STAGE_LABELS[item.current_stage] ?? item.current_stage) : "未记录阶段"}</p>
                     </div>
-                    <div className="flex gap-2"><StatusBadge status={item.business_status} /><StatusBadge status={item.job_status} /></div>
+                    <div className="flex gap-2"><StatusBadge status={item.business_status} />{item.job_status !== item.business_status ? <StatusBadge status={item.job_status} /> : null}</div>
                   </div>
                   <div className="mt-3 grid gap-2 text-xs text-muted-ink sm:grid-cols-2 xl:grid-cols-4">
                     <span>尝试 {item.attempt}</span>
@@ -249,7 +246,7 @@ export function RuntimePage() {
             <CardHeader><div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">执行器</p><h2 className="mt-1 font-semibold">Worker 心跳</h2></div><ServerCog className="text-brand" size={20} /></CardHeader>
             <CardContent className="space-y-3">
               {overviewData.executors.map((executor) => (
-                <div className="rounded-lg border bg-white p-3" key={executor.id}>
+                <div className="rounded-lg border bg-panel p-3" key={executor.id}>
                   <div className="flex justify-between gap-2"><p className="truncate text-sm font-medium" title={executor.id}>{executor.id}</p><StatusBadge status={executor.online ? "active" : "failed"} /></div>
                   <p className="mt-2 text-xs text-muted-ink">{executor.version} · 最后心跳 {formatDate(executor.last_heartbeat_at)}</p>
                   <p className="mt-1 truncate text-xs text-muted-ink">当前任务：{executor.current_job_id ?? "空闲"}</p>
@@ -263,7 +260,7 @@ export function RuntimePage() {
             <CardContent className="space-y-3">
               {Object.entries(overviewData.work_counts).flatMap(([workKind, counts]) =>
                 Object.entries(counts).map(([workStatus, count]) => (
-                  <div className="flex items-center justify-between rounded-lg border bg-white px-3 py-2" key={`${workKind}-${workStatus}`}>
+                  <div className="flex items-center justify-between rounded-lg border bg-panel px-3 py-2" key={`${workKind}-${workStatus}`}>
                     <div><p className="text-xs font-medium">{KIND_LABELS[workKind] ?? workKind}</p><StatusBadge status={workStatus} /></div><span className="font-semibold">{count}</span>
                   </div>
                 )),
@@ -274,14 +271,14 @@ export function RuntimePage() {
             <CardHeader><div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">投影 backlog</p><h2 className="mt-1 font-semibold">图关系与 Vault</h2></div><Activity className="text-brand" size={20} /></CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-2 text-center text-sm">
-                {(["queued", "running", "failed", "completed"] as const).map((value) => <div className="rounded-lg border bg-white p-2" key={value}><p className="text-lg font-semibold">{overviewData.projection_backlog[value]}</p><p className="text-xs text-muted-ink">{value}</p></div>)}
+                {(["queued", "running", "failed", "completed"] as const).map((value) => <div className="rounded-lg border bg-panel p-2" key={value}><p className="text-lg font-semibold">{overviewData.projection_backlog[value]}</p><p className="text-xs text-muted-ink">{statusLabel(value)}</p></div>)}
               </div>
-              {overviewData.projection_backlog.failed > 0 ? <p className="mt-3 text-xs leading-5 text-red-800">失败投影会导致 SQLite 有正式事实，但 Neo4j/Vault 暂未同步。在左侧筛选“外部投影 + failed”可定点重试。</p> : null}
+              {overviewData.projection_backlog.failed > 0 ? <p className="mt-3 text-xs leading-5 text-red-800">投影失败时，正式知识已保存，但图谱或文档投影暂未同步。在左侧筛选“外部投影 + 失败”可逐条重试。</p> : null}
             </CardContent>
           </Card>
           <ProjectionMaintenance />
         </aside>
       </section>
-    </div>
+    </Page>
   );
 }
