@@ -1,0 +1,1704 @@
+{
+  "version": "research-holdout-v3-corpus",
+  "full_text_tracked": false,
+  "sources": [
+    {
+      "id": "rankgpt",
+      "family_id": "rerank",
+      "split": "dev",
+      "version": "2023.emnlp-main.923",
+      "title": "Is ChatGPT Good at Search? Investigating Large Language Models as Re-Ranking Agents",
+      "authors": [
+        "Weiwei Sun",
+        "Lingyong Yan",
+        "Xinyu Ma",
+        "Shuaiqiang Wang",
+        "Pengjie Ren",
+        "Zhumin Chen",
+        "Dawei Yin",
+        "Zhaochun Ren"
+      ],
+      "landing_url": "https://aclanthology.org/2023.emnlp-main.923/",
+      "pdf_url": "https://aclanthology.org/2023.emnlp-main.923.pdf",
+      "doi": "10.18653/v1/2023.emnlp-main.923",
+      "fetched_at": "2026-10-12T16:06:28.615308+00:00",
+      "pdf_path": "papers/2023.emnlp-main.923.pdf",
+      "pdf_sha256": "8e571de7732285e9adc195da08966ada335d669f94fc2f6c9acb53024278426c",
+      "pdf_pages": 20,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2023.emnlp-main.923/",
+      "license_evidence": "ACL Anthology landing page footer: materials published in or after 2016 are licensed under Creative Commons Attribution 4.0 International. Saved HTML identified by landing_page_sha256.",
+      "landing_page_sha256": "62ceebdb926107f142bcf928114fd8d69cfdb7c25762d0a03975f9864c6ad5c6",
+      "attribution": "Weiwei Sun; Lingyong Yan; Xinyu Ma; Shuaiqiang Wang; Pengjie Ren; Zhumin Chen; Dawei Yin; Zhaochun Ren. Is ChatGPT Good at Search? Investigating Large Language Models as Re-Ranking Agents. 2023.emnlp-main.923. https://aclanthology.org/2023.emnlp-main.923/",
+      "transformations": "pypdf plain extraction; collapse whitespace per PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation or table reconstruction. Full text is not tracked; fetched_at uses saved landing page modification time.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "03fdcc1192a92bd92a1060bac441844b519682059ba1822cb42a3519b7c426f0",
+      "text_chars": 69801,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 3853
+        },
+        {
+          "pdf_page": 2,
+          "start": 3855,
+          "end": 8405
+        },
+        {
+          "pdf_page": 3,
+          "start": 8407,
+          "end": 12221
+        },
+        {
+          "pdf_page": 4,
+          "start": 12223,
+          "end": 16281
+        },
+        {
+          "pdf_page": 5,
+          "start": 16283,
+          "end": 20679
+        },
+        {
+          "pdf_page": 6,
+          "start": 20681,
+          "end": 24469
+        },
+        {
+          "pdf_page": 7,
+          "start": 24471,
+          "end": 28778
+        },
+        {
+          "pdf_page": 8,
+          "start": 28780,
+          "end": 32205
+        },
+        {
+          "pdf_page": 9,
+          "start": 32207,
+          "end": 36633
+        },
+        {
+          "pdf_page": 10,
+          "start": 36635,
+          "end": 41486
+        },
+        {
+          "pdf_page": 11,
+          "start": 41488,
+          "end": 45427
+        },
+        {
+          "pdf_page": 12,
+          "start": 45429,
+          "end": 47638
+        },
+        {
+          "pdf_page": 13,
+          "start": 47640,
+          "end": 48865
+        },
+        {
+          "pdf_page": 14,
+          "start": 48867,
+          "end": 50838
+        },
+        {
+          "pdf_page": 15,
+          "start": 50840,
+          "end": 54577
+        },
+        {
+          "pdf_page": 16,
+          "start": 54579,
+          "end": 56767
+        },
+        {
+          "pdf_page": 17,
+          "start": 56769,
+          "end": 59205
+        },
+        {
+          "pdf_page": 18,
+          "start": 59207,
+          "end": 63107
+        },
+        {
+          "pdf_page": 19,
+          "start": 63109,
+          "end": 66252
+        },
+        {
+          "pdf_page": 20,
+          "start": 66254,
+          "end": 69801
+        }
+      ]
+    },
+    {
+      "id": "prp",
+      "family_id": "rerank",
+      "split": "dev",
+      "version": "2024.findings-naacl.97",
+      "title": "Large Language Models are Effective Text Rankers with Pairwise Ranking Prompting",
+      "authors": [
+        "Zhen Qin",
+        "Rolf Jagerman",
+        "Kai Hui",
+        "Honglei Zhuang",
+        "Junru Wu",
+        "Le Yan",
+        "Jiaming Shen",
+        "Tianqi Liu",
+        "Jialu Liu",
+        "Donald Metzler",
+        "Xuanhui Wang",
+        "Michael Bendersky"
+      ],
+      "landing_url": "https://aclanthology.org/2024.findings-naacl.97/",
+      "pdf_url": "https://aclanthology.org/2024.findings-naacl.97.pdf",
+      "doi": "10.18653/v1/2024.findings-naacl.97",
+      "fetched_at": "2026-10-12T16:06:35.242043+00:00",
+      "pdf_path": "papers/2024.findings-naacl.97.pdf",
+      "pdf_sha256": "2449d1f79f102f1b2c79f8b2b535e13419c5e10a0cf1edee17cd4811daa35354",
+      "pdf_pages": 15,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2024.findings-naacl.97/",
+      "license_evidence": "ACL Anthology landing page footer: materials published in or after 2016 are licensed under Creative Commons Attribution 4.0 International. Saved HTML identified by landing_page_sha256.",
+      "landing_page_sha256": "e49b7064c8e96f1328d84c712434e3b842fdf0db561bcb5d32ad52ac2ca6c378",
+      "attribution": "Zhen Qin; Rolf Jagerman; Kai Hui; Honglei Zhuang; Junru Wu; Le Yan; Jiaming Shen; Tianqi Liu; Jialu Liu; Donald Metzler; Xuanhui Wang; Michael Bendersky. Large Language Models are Effective Text Rankers with Pairwise Ranking Prompting. 2024.findings-naacl.97. https://aclanthology.org/2024.findings-naacl.97/",
+      "transformations": "pypdf plain extraction; collapse whitespace per PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation or table reconstruction. Full text is not tracked; fetched_at uses saved landing page modification time.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "4b6992a8f06dff9b1185afb94eaf9c790fd3e9b0307c04db3130bdc0e94d1886",
+      "text_chars": 58491,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 4272
+        },
+        {
+          "pdf_page": 2,
+          "start": 4274,
+          "end": 8533
+        },
+        {
+          "pdf_page": 3,
+          "start": 8535,
+          "end": 12774
+        },
+        {
+          "pdf_page": 4,
+          "start": 12776,
+          "end": 16767
+        },
+        {
+          "pdf_page": 5,
+          "start": 16769,
+          "end": 20577
+        },
+        {
+          "pdf_page": 6,
+          "start": 20579,
+          "end": 24412
+        },
+        {
+          "pdf_page": 7,
+          "start": 24414,
+          "end": 28700
+        },
+        {
+          "pdf_page": 8,
+          "start": 28702,
+          "end": 32652
+        },
+        {
+          "pdf_page": 9,
+          "start": 32654,
+          "end": 37267
+        },
+        {
+          "pdf_page": 10,
+          "start": 37269,
+          "end": 42164
+        },
+        {
+          "pdf_page": 11,
+          "start": 42166,
+          "end": 47084
+        },
+        {
+          "pdf_page": 12,
+          "start": 47086,
+          "end": 49519
+        },
+        {
+          "pdf_page": 13,
+          "start": 49521,
+          "end": 52222
+        },
+        {
+          "pdf_page": 14,
+          "start": 52224,
+          "end": 55694
+        },
+        {
+          "pdf_page": 15,
+          "start": 55696,
+          "end": 58491
+        }
+      ]
+    },
+    {
+      "id": "query2doc",
+      "family_id": "expansion",
+      "split": "holdout",
+      "version": "2023.emnlp-main.585",
+      "title": "Query2doc: Query Expansion with Large Language Models",
+      "authors": [
+        "Liang Wang",
+        "Nan Yang",
+        "Furu Wei"
+      ],
+      "landing_url": "https://aclanthology.org/2023.emnlp-main.585/",
+      "pdf_url": "https://aclanthology.org/2023.emnlp-main.585.pdf",
+      "doi": "10.18653/v1/2023.emnlp-main.585",
+      "fetched_at": "2026-10-12T16:06:41.740571+00:00",
+      "pdf_path": "papers/2023.emnlp-main.585.pdf",
+      "pdf_sha256": "b3026d44fed97a360bfa269d9e028a6ff233fa89b119bf823e1fe0f16963db86",
+      "pdf_pages": 10,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2023.emnlp-main.585/",
+      "license_evidence": "ACL Anthology landing page footer: materials published in or after 2016 are licensed under Creative Commons Attribution 4.0 International. Saved HTML identified by landing_page_sha256.",
+      "landing_page_sha256": "a4f08d2c3c539f6a3031f73e3035a19d604d3e5589ca2fc844d58f7d78f7c243",
+      "attribution": "Liang Wang; Nan Yang; Furu Wei. Query2doc: Query Expansion with Large Language Models. 2023.emnlp-main.585. https://aclanthology.org/2023.emnlp-main.585/",
+      "transformations": "pypdf plain extraction; collapse whitespace per PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation or table reconstruction. Full text is not tracked; fetched_at uses saved landing page modification time.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "c66e1992ecc9789617e1b823a4e8522ffd25078c59893ef6b31842c5fc8a7cd2",
+      "text_chars": 38552,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 4020
+        },
+        {
+          "pdf_page": 2,
+          "start": 4022,
+          "end": 7918
+        },
+        {
+          "pdf_page": 3,
+          "start": 7920,
+          "end": 11567
+        },
+        {
+          "pdf_page": 4,
+          "start": 11569,
+          "end": 15039
+        },
+        {
+          "pdf_page": 5,
+          "start": 15041,
+          "end": 19629
+        },
+        {
+          "pdf_page": 6,
+          "start": 19631,
+          "end": 24515
+        },
+        {
+          "pdf_page": 7,
+          "start": 24517,
+          "end": 29681
+        },
+        {
+          "pdf_page": 8,
+          "start": 29683,
+          "end": 33394
+        },
+        {
+          "pdf_page": 9,
+          "start": 33396,
+          "end": 36091
+        },
+        {
+          "pdf_page": 10,
+          "start": 36093,
+          "end": 38552
+        }
+      ]
+    },
+    {
+      "id": "iter-retgen",
+      "family_id": "expansion",
+      "split": "holdout",
+      "version": "2023.findings-emnlp.620",
+      "title": "Enhancing Retrieval-Augmented Large Language Models with Iterative Retrieval-Generation Synergy",
+      "authors": [
+        "Zhihong Shao",
+        "Yeyun Gong",
+        "Yelong Shen",
+        "Minlie Huang",
+        "Nan Duan",
+        "Weizhu Chen"
+      ],
+      "landing_url": "https://aclanthology.org/2023.findings-emnlp.620/",
+      "pdf_url": "https://aclanthology.org/2023.findings-emnlp.620.pdf",
+      "doi": "10.18653/v1/2023.findings-emnlp.620",
+      "fetched_at": "2026-10-12T16:06:47.721386+00:00",
+      "pdf_path": "papers/2023.findings-emnlp.620.pdf",
+      "pdf_sha256": "db24ab6673be173fc98f51894a7d09e0f83aec79d70a8011dcc0359fdc5a5407",
+      "pdf_pages": 27,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2023.findings-emnlp.620/",
+      "license_evidence": "ACL Anthology landing page footer: materials published in or after 2016 are licensed under Creative Commons Attribution 4.0 International. Saved HTML identified by landing_page_sha256.",
+      "landing_page_sha256": "d92b394bd0b5bce13faaccc4e228b8648caef0c62ad2d5087712fe7d42279af1",
+      "attribution": "Zhihong Shao; Yeyun Gong; Yelong Shen; Minlie Huang; Nan Duan; Weizhu Chen. Enhancing Retrieval-Augmented Large Language Models with Iterative Retrieval-Generation Synergy. 2023.findings-emnlp.620. https://aclanthology.org/2023.findings-emnlp.620/",
+      "transformations": "pypdf plain extraction; collapse whitespace per PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation or table reconstruction. Full text is not tracked; fetched_at uses saved landing page modification time.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "f3f4bbfabf9375a88043d9664717f4544a89e894aa9c34a67601276bcf2ccaa8",
+      "text_chars": 86554,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 4554
+        },
+        {
+          "pdf_page": 2,
+          "start": 4556,
+          "end": 9253
+        },
+        {
+          "pdf_page": 3,
+          "start": 9255,
+          "end": 13599
+        },
+        {
+          "pdf_page": 4,
+          "start": 13601,
+          "end": 17256
+        },
+        {
+          "pdf_page": 5,
+          "start": 17258,
+          "end": 21035
+        },
+        {
+          "pdf_page": 6,
+          "start": 21037,
+          "end": 25108
+        },
+        {
+          "pdf_page": 7,
+          "start": 25110,
+          "end": 29157
+        },
+        {
+          "pdf_page": 8,
+          "start": 29159,
+          "end": 33384
+        },
+        {
+          "pdf_page": 9,
+          "start": 33386,
+          "end": 36929
+        },
+        {
+          "pdf_page": 10,
+          "start": 36931,
+          "end": 42195
+        },
+        {
+          "pdf_page": 11,
+          "start": 42197,
+          "end": 47522
+        },
+        {
+          "pdf_page": 12,
+          "start": 47524,
+          "end": 48416
+        },
+        {
+          "pdf_page": 13,
+          "start": 48418,
+          "end": 49947
+        },
+        {
+          "pdf_page": 14,
+          "start": 49949,
+          "end": 51052
+        },
+        {
+          "pdf_page": 15,
+          "start": 51054,
+          "end": 53569
+        },
+        {
+          "pdf_page": 16,
+          "start": 53571,
+          "end": 57334
+        },
+        {
+          "pdf_page": 17,
+          "start": 57336,
+          "end": 59711
+        },
+        {
+          "pdf_page": 18,
+          "start": 59713,
+          "end": 62701
+        },
+        {
+          "pdf_page": 19,
+          "start": 62703,
+          "end": 64801
+        },
+        {
+          "pdf_page": 20,
+          "start": 64803,
+          "end": 67327
+        },
+        {
+          "pdf_page": 21,
+          "start": 67329,
+          "end": 69365
+        },
+        {
+          "pdf_page": 22,
+          "start": 69367,
+          "end": 71794
+        },
+        {
+          "pdf_page": 23,
+          "start": 71796,
+          "end": 75496
+        },
+        {
+          "pdf_page": 24,
+          "start": 75498,
+          "end": 78247
+        },
+        {
+          "pdf_page": 25,
+          "start": 78249,
+          "end": 80827
+        },
+        {
+          "pdf_page": 26,
+          "start": 80829,
+          "end": 83062
+        },
+        {
+          "pdf_page": 27,
+          "start": 83064,
+          "end": 86554
+        }
+      ]
+    },
+    {
+      "id": "replug",
+      "family_id": "retriever",
+      "split": "holdout",
+      "version": "2024.naacl-long.463",
+      "title": "REPLUG: Retrieval-Augmented Black-Box Language Models",
+      "authors": [
+        "Weijia Shi",
+        "Sewon Min",
+        "Michihiro Yasunaga",
+        "Minjoon Seo",
+        "Richard James",
+        "Mike Lewis",
+        "Luke Zettlemoyer",
+        "Wen-tau Yih"
+      ],
+      "landing_url": "https://aclanthology.org/2024.naacl-long.463/",
+      "pdf_url": "https://aclanthology.org/2024.naacl-long.463.pdf",
+      "doi": "10.18653/v1/2024.naacl-long.463",
+      "fetched_at": "2026-10-12T16:07:00.535610+00:00",
+      "pdf_path": "papers/2024.naacl-long.463.pdf",
+      "pdf_sha256": "8875a886e36202f4864a6ed4ea2aa6783adc38148e9abf15f3e66a939f9f875c",
+      "pdf_pages": 14,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2024.naacl-long.463/",
+      "license_evidence": "ACL Anthology landing page footer: materials published in or after 2016 are licensed under Creative Commons Attribution 4.0 International. Saved HTML identified by landing_page_sha256.",
+      "landing_page_sha256": "2795a35edd83847e13e85bd3500154a22cbd562e05dfceb6eb9c0fceaaa072df",
+      "attribution": "Weijia Shi; Sewon Min; Michihiro Yasunaga; Minjoon Seo; Richard James; Mike Lewis; Luke Zettlemoyer; Wen-tau Yih. REPLUG: Retrieval-Augmented Black-Box Language Models. 2024.naacl-long.463. https://aclanthology.org/2024.naacl-long.463/",
+      "transformations": "pypdf plain extraction; collapse whitespace per PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation or table reconstruction. Full text is not tracked; fetched_at uses saved landing page modification time.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "191819c9d8d1bd76af053f2bb2208f1d752f6620f8818720015e2a0d616d7118",
+      "text_chars": 52288,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 3696
+        },
+        {
+          "pdf_page": 2,
+          "start": 3698,
+          "end": 8312
+        },
+        {
+          "pdf_page": 3,
+          "start": 8314,
+          "end": 11538
+        },
+        {
+          "pdf_page": 4,
+          "start": 11540,
+          "end": 15431
+        },
+        {
+          "pdf_page": 5,
+          "start": 15433,
+          "end": 18445
+        },
+        {
+          "pdf_page": 6,
+          "start": 18447,
+          "end": 22556
+        },
+        {
+          "pdf_page": 7,
+          "start": 22558,
+          "end": 26385
+        },
+        {
+          "pdf_page": 8,
+          "start": 26387,
+          "end": 30224
+        },
+        {
+          "pdf_page": 9,
+          "start": 30226,
+          "end": 34134
+        },
+        {
+          "pdf_page": 10,
+          "start": 34136,
+          "end": 39298
+        },
+        {
+          "pdf_page": 11,
+          "start": 39300,
+          "end": 44736
+        },
+        {
+          "pdf_page": 12,
+          "start": 44738,
+          "end": 45705
+        },
+        {
+          "pdf_page": 13,
+          "start": 45707,
+          "end": 47825
+        },
+        {
+          "pdf_page": 14,
+          "start": 47827,
+          "end": 52288
+        }
+      ]
+    },
+    {
+      "id": "aar",
+      "family_id": "retriever",
+      "split": "holdout",
+      "version": "2023.acl-long.136",
+      "title": "Augmentation-Adapted Retriever Improves Generalization of Language Models as Generic Plug-In",
+      "authors": [
+        "Zichun Yu",
+        "Chenyan Xiong",
+        "Shi Yu (于是)",
+        "Zhiyuan Liu"
+      ],
+      "landing_url": "https://aclanthology.org/2023.acl-long.136/",
+      "pdf_url": "https://aclanthology.org/2023.acl-long.136.pdf",
+      "doi": "10.18653/v1/2023.acl-long.136",
+      "fetched_at": "2026-10-12T16:07:11.896716+00:00",
+      "pdf_path": "papers/2023.acl-long.136.pdf",
+      "pdf_sha256": "842da0362c23d40b028bb6a8a32f685df45db67f2eecd40114861be9b8c2864f",
+      "pdf_pages": 16,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2023.acl-long.136/",
+      "license_evidence": "ACL Anthology landing page footer: materials published in or after 2016 are licensed under Creative Commons Attribution 4.0 International. Saved HTML identified by landing_page_sha256.",
+      "landing_page_sha256": "084aaa1e5b67d6f640ff2279b4a10c7c1dd6cf99d6fcf64420b3bcf1d72af7e7",
+      "attribution": "Zichun Yu; Chenyan Xiong; Shi Yu (于是); Zhiyuan Liu. Augmentation-Adapted Retriever Improves Generalization of Language Models as Generic Plug-In. 2023.acl-long.136. https://aclanthology.org/2023.acl-long.136/",
+      "transformations": "pypdf plain extraction; collapse whitespace per PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation or table reconstruction. Full text is not tracked; fetched_at uses saved landing page modification time.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "eff1e881ec4eaba61d36da0e1c159d28f779a739e3f6e9abdb31353acb34c86f",
+      "text_chars": 58993,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 4051
+        },
+        {
+          "pdf_page": 2,
+          "start": 4053,
+          "end": 8744
+        },
+        {
+          "pdf_page": 3,
+          "start": 8746,
+          "end": 12942
+        },
+        {
+          "pdf_page": 4,
+          "start": 12944,
+          "end": 17241
+        },
+        {
+          "pdf_page": 5,
+          "start": 17243,
+          "end": 20813
+        },
+        {
+          "pdf_page": 6,
+          "start": 20815,
+          "end": 25171
+        },
+        {
+          "pdf_page": 7,
+          "start": 25173,
+          "end": 29429
+        },
+        {
+          "pdf_page": 8,
+          "start": 29431,
+          "end": 33963
+        },
+        {
+          "pdf_page": 9,
+          "start": 33965,
+          "end": 38338
+        },
+        {
+          "pdf_page": 10,
+          "start": 38340,
+          "end": 43312
+        },
+        {
+          "pdf_page": 11,
+          "start": 43314,
+          "end": 48253
+        },
+        {
+          "pdf_page": 12,
+          "start": 48255,
+          "end": 49289
+        },
+        {
+          "pdf_page": 13,
+          "start": 49291,
+          "end": 52968
+        },
+        {
+          "pdf_page": 14,
+          "start": 52970,
+          "end": 55046
+        },
+        {
+          "pdf_page": 15,
+          "start": 55048,
+          "end": 57349
+        },
+        {
+          "pdf_page": 16,
+          "start": 57351,
+          "end": 58993
+        }
+      ]
+    },
+    {
+      "id": "m3-embedding",
+      "family_id": "need",
+      "split": "holdout",
+      "version": "2024.findings-acl.137",
+      "title": "M3-Embedding: Multi-Linguality, Multi-Functionality, Multi-Granularity Text Embeddings Through Self-Knowledge Distillation",
+      "authors": [
+        "Jianlyu Chen",
+        "Shitao Xiao",
+        "Peitian Zhang",
+        "Kun Luo",
+        "Defu Lian",
+        "Zheng Liu"
+      ],
+      "landing_url": "https://aclanthology.org/2024.findings-acl.137/",
+      "pdf_url": "https://aclanthology.org/2024.findings-acl.137.pdf",
+      "doi": "10.18653/v1/2024.findings-acl.137",
+      "fetched_at": "2026-10-12T16:07:19.561574+00:00",
+      "pdf_path": "papers/2024.findings-acl.137.pdf",
+      "pdf_sha256": "b16708f475d64bcace839d7af7556a034bd35b066df6f80b84586a7aa474cbf8",
+      "pdf_pages": 18,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2024.findings-acl.137/",
+      "license_evidence": "ACL Anthology landing page footer: materials published in or after 2016 are licensed under Creative Commons Attribution 4.0 International. Saved HTML identified by landing_page_sha256.",
+      "landing_page_sha256": "9017f5bde0523a5dff95de48e75abacdacf15d035675143403278f09822999bb",
+      "attribution": "Jianlyu Chen; Shitao Xiao; Peitian Zhang; Kun Luo; Defu Lian; Zheng Liu. M3-Embedding: Multi-Linguality, Multi-Functionality, Multi-Granularity Text Embeddings Through Self-Knowledge Distillation. 2024.findings-acl.137. https://aclanthology.org/2024.findings-acl.137/",
+      "transformations": "pypdf plain extraction; collapse whitespace per PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation or table reconstruction. Full text is not tracked; fetched_at uses saved landing page modification time.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "0f7b1abadb379c48c30bd6cdd24a2321dde2fba36dca3158945ae580d729cb65",
+      "text_chars": 69666,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 4361
+        },
+        {
+          "pdf_page": 2,
+          "start": 4363,
+          "end": 9440
+        },
+        {
+          "pdf_page": 3,
+          "start": 9442,
+          "end": 14224
+        },
+        {
+          "pdf_page": 4,
+          "start": 14226,
+          "end": 17824
+        },
+        {
+          "pdf_page": 5,
+          "start": 17826,
+          "end": 22106
+        },
+        {
+          "pdf_page": 6,
+          "start": 22108,
+          "end": 26987
+        },
+        {
+          "pdf_page": 7,
+          "start": 26989,
+          "end": 31368
+        },
+        {
+          "pdf_page": 8,
+          "start": 31370,
+          "end": 35876
+        },
+        {
+          "pdf_page": 9,
+          "start": 35878,
+          "end": 39949
+        },
+        {
+          "pdf_page": 10,
+          "start": 39951,
+          "end": 45310
+        },
+        {
+          "pdf_page": 11,
+          "start": 45312,
+          "end": 50498
+        },
+        {
+          "pdf_page": 12,
+          "start": 50500,
+          "end": 55721
+        },
+        {
+          "pdf_page": 13,
+          "start": 55723,
+          "end": 56675
+        },
+        {
+          "pdf_page": 14,
+          "start": 56677,
+          "end": 61054
+        },
+        {
+          "pdf_page": 15,
+          "start": 61056,
+          "end": 63567
+        },
+        {
+          "pdf_page": 16,
+          "start": 63569,
+          "end": 65360
+        },
+        {
+          "pdf_page": 17,
+          "start": 65362,
+          "end": 68362
+        },
+        {
+          "pdf_page": 18,
+          "start": 68364,
+          "end": 69666
+        }
+      ]
+    },
+    {
+      "id": "skr",
+      "family_id": "need",
+      "split": "holdout",
+      "version": "2023.findings-emnlp.691",
+      "title": "Self-Knowledge Guided Retrieval Augmentation for Large Language Models",
+      "authors": [
+        "Yile Wang",
+        "Peng Li",
+        "Maosong Sun (孙茂松)",
+        "Yang Liu"
+      ],
+      "landing_url": "https://aclanthology.org/2023.findings-emnlp.691/",
+      "pdf_url": "https://aclanthology.org/2023.findings-emnlp.691.pdf",
+      "doi": "10.18653/v1/2023.findings-emnlp.691",
+      "fetched_at": "2026-10-12T16:07:30.530174+00:00",
+      "pdf_path": "papers/2023.findings-emnlp.691.pdf",
+      "pdf_sha256": "c9e30dd81e978fbe9f9c482d566e782a93128f259e78e24ce4e10234c37c278b",
+      "pdf_pages": 13,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2023.findings-emnlp.691/",
+      "license_evidence": "ACL Anthology landing page footer: materials published in or after 2016 are licensed under Creative Commons Attribution 4.0 International. Saved HTML identified by landing_page_sha256.",
+      "landing_page_sha256": "1ac1675e26a746765f462b57529e6464fe909a38e27acac9fa420108021aa08c",
+      "attribution": "Yile Wang; Peng Li; Maosong Sun (孙茂松); Yang Liu. Self-Knowledge Guided Retrieval Augmentation for Large Language Models. 2023.findings-emnlp.691. https://aclanthology.org/2023.findings-emnlp.691/",
+      "transformations": "pypdf plain extraction; collapse whitespace per PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation or table reconstruction. Full text is not tracked; fetched_at uses saved landing page modification time.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "19b15ee8205c9f69105ee2f35b2d875869614955e873b1d8b84a41d514a944a9",
+      "text_chars": 53863,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 4323
+        },
+        {
+          "pdf_page": 2,
+          "start": 4325,
+          "end": 8944
+        },
+        {
+          "pdf_page": 3,
+          "start": 8946,
+          "end": 12512
+        },
+        {
+          "pdf_page": 4,
+          "start": 12514,
+          "end": 16734
+        },
+        {
+          "pdf_page": 5,
+          "start": 16736,
+          "end": 19997
+        },
+        {
+          "pdf_page": 6,
+          "start": 19999,
+          "end": 24548
+        },
+        {
+          "pdf_page": 7,
+          "start": 24550,
+          "end": 27956
+        },
+        {
+          "pdf_page": 8,
+          "start": 27958,
+          "end": 32162
+        },
+        {
+          "pdf_page": 9,
+          "start": 32164,
+          "end": 36741
+        },
+        {
+          "pdf_page": 10,
+          "start": 36743,
+          "end": 41966
+        },
+        {
+          "pdf_page": 11,
+          "start": 41968,
+          "end": 47106
+        },
+        {
+          "pdf_page": 12,
+          "start": 47108,
+          "end": 49777
+        },
+        {
+          "pdf_page": 13,
+          "start": 49779,
+          "end": 53863
+        }
+      ]
+    }
+  ],
+  "spans": [
+    {
+      "id": "rg-01",
+      "source_id": "rankgpt",
+      "pdf_page": 5,
+      "quote": "In benchmark datasets, we re-rank the top-100 pas- sages retrieved by BM25 using pyserini1 and use nDCG@{1, 5,10} as evaluation metrics.",
+      "source_version": "2023.emnlp-main.923",
+      "start": 18531,
+      "end": 18667
+    },
+    {
+      "id": "rg-02",
+      "source_id": "rankgpt",
+      "pdf_page": 5,
+      "quote": "we use the sliding window strategy introduced in Section 3.2 with a window size of 20 and step size of 10.",
+      "source_version": "2023.emnlp-main.923",
+      "start": 18720,
+      "end": 18826
+    },
+    {
+      "id": "rg-03",
+      "source_id": "rankgpt",
+      "pdf_page": 4,
+      "quote": "We re- rank these passages in a back-to-first order using a sliding window. This strategy involves two hyper- parameters: window size (w) and step size (s).",
+      "source_version": "2023.emnlp-main.923",
+      "start": 12313,
+      "end": 12469
+    },
+    {
+      "id": "pr-01",
+      "source_id": "prp",
+      "pdf_page": 4,
+      "quote": "for each pair of documents, we will inquire the LLM twice by swapping their or- der: u(q, d1, d2) and u(q, d2, d1).",
+      "source_version": "2024.findings-naacl.97",
+      "start": 12997,
+      "end": 13112
+    },
+    {
+      "id": "pr-02",
+      "source_id": "prp",
+      "pdf_page": 4,
+      "quote": "The output of the pairwise ranking prompting is a local ordering of d1 > d 2 or d2 > d 1 if both promptings make consistent decisions, andd1 = d2 otherwise.",
+      "source_version": "2024.findings-naacl.97",
+      "start": 13212,
+      "end": 13368
+    },
+    {
+      "id": "pr-03",
+      "source_id": "prp",
+      "pdf_page": 4,
+      "quote": "Intuitively, if the LLM consistently prefers di over another document dj, di gets one point. When LLM is not sure by producing conﬂicting or irrel- evant results (for the generation API), each docu- ment gets half a point.",
+      "source_version": "2024.findings-naacl.97",
+      "start": 13881,
+      "end": 14103
+    },
+    {
+      "id": "pr-04",
+      "source_id": "prp",
+      "pdf_page": 4,
+      "quote": "There might be ties for the aggregated scores, in which case we fall back to ini- tial ranking.",
+      "source_version": "2024.findings-naacl.97",
+      "start": 14104,
+      "end": 14199
+    },
+    {
+      "id": "pr-05",
+      "source_id": "prp",
+      "pdf_page": 4,
+      "quote": "Given an initial ranking, we start from the bottom of the list, com- pare and swap document pairs with a stride of 1 on-the-ﬂy based on LLM outputs. One pass only requires O(N ) time complexity.",
+      "source_version": "2024.findings-naacl.97",
+      "start": 16081,
+      "end": 16275
+    },
+    {
+      "id": "pr-06",
+      "source_id": "prp",
+      "pdf_page": 4,
+      "quote": "By noticing that ranking usually only cares about Top-K ranking metrics, we can perform K passes, where K is small, even if thousands of documents are ranked (Zhuang et al., 2023). We call this ap- proach PRP-Sliding-K.",
+      "source_version": "2024.findings-naacl.97",
+      "start": 16310,
+      "end": 16529
+    },
+    {
+      "id": "rg-04",
+      "source_id": "rankgpt",
+      "pdf_page": 3,
+      "quote": "We then ask the LLMs to generate the per- mutation of passages in descending order based on their relevance to the query. The passages are ranked using the identifiers, in a format such as[2] > [3] > [1] > etc.",
+      "source_version": "2023.emnlp-main.923",
+      "start": 11631,
+      "end": 11841
+    },
+    {
+      "id": "rg-05",
+      "source_id": "rankgpt",
+      "pdf_page": 4,
+      "quote": "we directly use the model-generated permutation as the tar- get, without introducing any inductive bias such as consistency-checking or log-probability manipula- tion (Bonifacio et al., 2022; Sachan et al., 2023).",
+      "source_version": "2023.emnlp-main.923",
+      "start": 13550,
+      "end": 13763
+    },
+    {
+      "id": "rg-06",
+      "source_id": "rankgpt",
+      "pdf_page": 4,
+      "quote": "To achieve this, we sample 10,000 queries from MS MARCO and retrieve 20 candidate passages using BM25 for each query.",
+      "source_version": "2023.emnlp-main.923",
+      "start": 13764,
+      "end": 13881
+    },
+    {
+      "id": "rg-07",
+      "source_id": "rankgpt",
+      "pdf_page": 4,
+      "quote": "Using the per- mutationR generated by ChatGPT, we consider RankNet loss (Burges et al., 2005) to optimize the student model:",
+      "source_version": "2023.emnlp-main.923",
+      "start": 14531,
+      "end": 14655
+    },
+    {
+      "id": "pr-07",
+      "source_id": "prp",
+      "pdf_page": 4,
+      "quote": "LLMs as the comparator for sorting algorithms. We use Heapsort in this paper due to its guaranteed O(N log N ) computation complexity. We call this approach PRP-Sorting.",
+      "source_version": "2024.findings-naacl.97",
+      "start": 15343,
+      "end": 15512
+    },
+    {
+      "id": "rg-08",
+      "source_id": "rankgpt",
+      "pdf_page": 9,
+      "quote": "Additionally, this study solely focuses on examining LLMs in the re-ranking task. Consequently, the upper bound of the ranking effect is contingent upon the recall of the initial passage retrieval.",
+      "source_version": "2023.emnlp-main.923",
+      "start": 33628,
+      "end": 33825
+    },
+    {
+      "id": "rg-09",
+      "source_id": "rankgpt",
+      "pdf_page": 9,
+      "quote": "Our findings also in- dicate that the re-ranking effect of LLMs is highly sensitive to the initial order of passages, which is usually determined by the first-stage retrieval, such as BM25.",
+      "source_version": "2023.emnlp-main.923",
+      "start": 33826,
+      "end": 34015
+    },
+    {
+      "id": "pr-08",
+      "source_id": "prp",
+      "pdf_page": 6,
+      "quote": "RankGPT gpt-4 1T* 82.56 79.16 75.59 78.40 74.11 70.56",
+      "source_version": "2024.findings-naacl.97",
+      "start": 21667,
+      "end": 21720
+    },
+    {
+      "id": "pr-09",
+      "source_id": "prp",
+      "pdf_page": 6,
+      "quote": "PRP-Sliding-10 FLAN-UL2 20B 78.29 75.49 72.65 85.80 75.35 70.46",
+      "source_version": "2024.findings-naacl.97",
+      "start": 22443,
+      "end": 22506
+    },
+    {
+      "id": "pr-10",
+      "source_id": "prp",
+      "pdf_page": 6,
+      "quote": "Table 2: Results on TREC-DL2019 and TREC-DL2020 datasets by reranking top 100 documents retrieved by BM25.",
+      "source_version": "2024.findings-naacl.97",
+      "start": 20579,
+      "end": 20685
+    },
+    {
+      "id": "rg-10",
+      "source_id": "rankgpt",
+      "pdf_page": 5,
+      "quote": "As an initial effort, we built NovelEval-2306, a novel test set with 21 novel questions. This test set is constructed by gathering questions and pas- sages from 4 domains that were published after the release of GPT-4.",
+      "source_version": "2023.emnlp-main.923",
+      "start": 17690,
+      "end": 17908
+    },
+    {
+      "id": "rg-11",
+      "source_id": "rankgpt",
+      "pdf_page": 5,
+      "quote": "Next, we searched 20 candidate passages for each question using Google search. The relevance of these passages was manually labeled as: 0 for not relevant, 1 for partially relevant, and 2 for relevant.",
+      "source_version": "2023.emnlp-main.923",
+      "start": 18234,
+      "end": 18435
+    },
+    {
+      "id": "rg-12",
+      "source_id": "rankgpt",
+      "pdf_page": 5,
+      "quote": "since many LLMs do not disclose informa- tion about their training data, there is a potential risk of contamination of the existing benchmark test set (OpenAI, 2023).",
+      "source_version": "2023.emnlp-main.923",
+      "start": 17165,
+      "end": 17331
+    },
+    {
+      "id": "rg-13",
+      "source_id": "rankgpt",
+      "pdf_page": 19,
+      "quote": "Consequently, the average running time per query is 11 seconds for gpt-3.5-turbo and 32 seconds for gpt-4.",
+      "source_version": "2023.emnlp-main.923",
+      "start": 65940,
+      "end": 66046
+    },
+    {
+      "id": "rg-14",
+      "source_id": "rankgpt",
+      "pdf_page": 19,
+      "quote": "the running time is contingent on the OpenAI service, e.g., API latency. Besides, the running time can also vary across different API versions and network environments.",
+      "source_version": "2023.emnlp-main.923",
+      "start": 65505,
+      "end": 65673
+    },
+    {
+      "id": "pr-11",
+      "source_id": "prp",
+      "pdf_page": 6,
+      "quote": "*OpenAI has not publicly released the model parameters and the numbers are based on public esti- mates (VanBuskirk, 2023; Baktash and Dawodi, 2023)",
+      "source_version": "2024.findings-naacl.97",
+      "start": 20909,
+      "end": 21056
+    },
+    {
+      "id": "qd-01",
+      "source_id": "query2doc",
+      "pdf_page": 2,
+      "quote": "we boost the query term weights by repeating the queryn times before concatenating with the pseudo-documentd′: q+ = concat({q}× n, d′) (1)",
+      "source_version": "2023.emnlp-main.585",
+      "start": 5771,
+      "end": 5909
+    },
+    {
+      "id": "qd-02",
+      "source_id": "query2doc",
+      "pdf_page": 2,
+      "quote": "We ﬁnd that n = 5 is a generally good value and do not tune it on a dataset basis.",
+      "source_version": "2023.emnlp-main.585",
+      "start": 6016,
+      "end": 6098
+    },
+    {
+      "id": "qd-03",
+      "source_id": "query2doc",
+      "pdf_page": 2,
+      "quote": "Dense Retrieval The new query q+ is a sim- ple concatenation of the original query q and the pseudo-documentd′ separated by [SEP]: q+ = concat(q, [SEP], d′) (2)",
+      "source_version": "2023.emnlp-main.585",
+      "start": 6099,
+      "end": 6259
+    },
+    {
+      "id": "qd-04",
+      "source_id": "query2doc",
+      "pdf_page": 1,
+      "quote": "Our proposed method, called query2doc, gen- erates pseudo-documents by few-shot prompting LLMs and concatenates them with the original query to form a new query.",
+      "source_version": "2023.emnlp-main.585",
+      "start": 2863,
+      "end": 3024
+    },
+    {
+      "id": "it-01",
+      "source_id": "iter-retgen",
+      "pdf_page": 3,
+      "quote": "in iteration t, we (1) leverage the generation yt−1 from the previous iteration, concatenated withq, to retrieve top-k paragraphs, and then (2) prompt an LLMM to produce an output yt, with both the retrieved paragraphs (denoted asDyt−1||q) andq integrated into the prompt.",
+      "source_version": "2023.findings-emnlp.620",
+      "start": 12091,
+      "end": 12363
+    },
+    {
+      "id": "it-02",
+      "source_id": "iter-retgen",
+      "pdf_page": 3,
+      "quote": "In the first iteration, we can retrieve knowl- edge with only the question q.",
+      "source_version": "2023.findings-emnlp.620",
+      "start": 13005,
+      "end": 13082
+    },
+    {
+      "id": "it-03",
+      "source_id": "iter-retgen",
+      "pdf_page": 3,
+      "quote": "the LLM output from the previous iteration, though having no guarantee of correctness, shows what might be needed to answer the question, and thus can be leveraged to bridge the semantic gaps;",
+      "source_version": "2023.findings-emnlp.620",
+      "start": 13104,
+      "end": 13296
+    },
+    {
+      "id": "qd-05",
+      "source_id": "query2doc",
+      "pdf_page": 4,
+      "quote": "However, it is worth noting that the LLM generations may contain fac- tual errors. For instance, in the second query, the theme song \"It’s a Jungle Out There\" was used as of season two in 2003, not 2002 1.",
+      "source_version": "2023.emnlp-main.585",
+      "start": 14617,
+      "end": 14822
+    },
+    {
+      "id": "qd-07",
+      "source_id": "query2doc",
+      "pdf_page": 3,
+      "quote": "The evaluation met- rics include MRR@10, R@k (k∈{ 50, 1k}), and nDCG@10.",
+      "source_version": "2023.emnlp-main.585",
+      "start": 9348,
+      "end": 9420
+    },
+    {
+      "id": "it-04",
+      "source_id": "iter-retgen",
+      "pdf_page": 4,
+      "quote": "Evaluation metrics are exact match (EM) and F1 for multi-hop question answering datasets, and ac- curacy for both fact verification and commonsense reasoning datasets.",
+      "source_version": "2023.findings-emnlp.620",
+      "start": 16425,
+      "end": 16592
+    },
+    {
+      "id": "it-05",
+      "source_id": "iter-retgen",
+      "pdf_page": 4,
+      "quote": "For more robust evaluation, we also evaluate the correctness of model outputs using text-davinci-003, the resulting metric de- noted as Acc†.",
+      "source_version": "2023.findings-emnlp.620",
+      "start": 16593,
+      "end": 16734
+    },
+    {
+      "id": "qd-08",
+      "source_id": "query2doc",
+      "pdf_page": 4,
+      "quote": "DBpedia NFCorpus Scifact Trec-Covid Touche2020",
+      "source_version": "2023.emnlp-main.585",
+      "start": 11569,
+      "end": 11615
+    },
+    {
+      "id": "qd-09",
+      "source_id": "query2doc",
+      "pdf_page": 4,
+      "quote": "BM25 31.3 32.5 66.5 65.6 36.7 + query2doc 37.0 +5.7 34.9+2.4 68.6+2.1 72.2+6.6 39.8+3.1",
+      "source_version": "2023.emnlp-main.585",
+      "start": 11616,
+      "end": 11703
+    },
+    {
+      "id": "qd-10",
+      "source_id": "query2doc",
+      "pdf_page": 4,
+      "quote": "SimLM (Wang et al., 2023) 34.9 32.7 62.4 55.0 18.9 + query2doc 38.3 +3.4 32.1-0.6 59.5-2.9 59.9+4.9 25.6+6.7",
+      "source_version": "2023.emnlp-main.585",
+      "start": 11704,
+      "end": 11812
+    },
+    {
+      "id": "qd-11",
+      "source_id": "query2doc",
+      "pdf_page": 4,
+      "quote": "Table 2: Zero-shot out-of-domain results on 5 low-resource datasets from the BEIR benchmark (Thakur et al., 2021). The reported numbers are nDCG@10.",
+      "source_version": "2023.emnlp-main.585",
+      "start": 11927,
+      "end": 12075
+    },
+    {
+      "id": "qd-12",
+      "source_id": "query2doc",
+      "pdf_page": 4,
+      "quote": "In Table 5, we show two queries along with their respective pseudo-documents and groundtruth.",
+      "source_version": "2023.emnlp-main.585",
+      "start": 14221,
+      "end": 14314
+    },
+    {
+      "id": "it-06",
+      "source_id": "iter-retgen",
+      "pdf_page": 3,
+      "quote": "Given a question q and a retrieval corpus D = {d} whered is a paragraph, ITER-RETGEN repeats retrieval-generation for T iterations;",
+      "source_version": "2023.findings-emnlp.620",
+      "start": 11959,
+      "end": 12090
+    },
+    {
+      "id": "it-07",
+      "source_id": "iter-retgen",
+      "pdf_page": 3,
+      "quote": "The last output yT will be produced as the final response.",
+      "source_version": "2023.findings-emnlp.620",
+      "start": 12462,
+      "end": 12520
+    },
+    {
+      "id": "rp-01",
+      "source_id": "replug",
+      "pdf_page": 5,
+      "quote": "To avoid trivial retrieval, we ensure that the external corpus documents do not overlap with the documents from which the training queries are sampled.",
+      "source_version": "2024.naacl-long.463",
+      "start": 16719,
+      "end": 16870
+    },
+    {
+      "id": "rp-02",
+      "source_id": "replug",
+      "pdf_page": 4,
+      "quote": "Because the parameters in the retriever are updated during the training process, the previously com- puted document embeddings are no longer up to date.",
+      "source_version": "2024.naacl-long.463",
+      "start": 15008,
+      "end": 15160
+    },
+    {
+      "id": "rp-03",
+      "source_id": "replug",
+      "pdf_page": 5,
+      "quote": "We re-compute the docu- ment embeddings every 3k steps and fine-tune the retriever for a total of 25k steps.",
+      "source_version": "2024.naacl-long.463",
+      "start": 17383,
+      "end": 17491
+    },
+    {
+      "id": "rp-04",
+      "source_id": "replug",
+      "pdf_page": 4,
+      "quote": "Specifically, we first compute PLM (y| d,x ), the LM probability of the ground truth outputy given the input contextx and a docu- mentd. The higher the probability, the better the documentdi is at improving the LM’s perplexity.",
+      "source_version": "2024.naacl-long.463",
+      "start": 14099,
+      "end": 14326
+    },
+    {
+      "id": "rp-05",
+      "source_id": "replug",
+      "pdf_page": 4,
+      "quote": "Given the input context x and the corresponding ground truth continuation y, we compute the re- trieval likelihood and the language model likeli- hood. The dense retriever is trained by minimizing the KL divergence between these two distributions:",
+      "source_version": "2024.naacl-long.463",
+      "start": 14493,
+      "end": 14740
+    },
+    {
+      "id": "rp-06",
+      "source_id": "replug",
+      "pdf_page": 4,
+      "quote": "When minimiz- ing the loss, we can only update the retrieval model parameters. The LM parameters are fixed due to our black-box assumption.",
+      "source_version": "2024.naacl-long.463",
+      "start": 14821,
+      "end": 14960
+    },
+    {
+      "id": "aa-01",
+      "source_id": "aar",
+      "pdf_page": 3,
+      "quote": "we aggregate the source LM Ls’s average FiD cross-attention (FiDAtt) scores Sa i correspond- ing to document da i from the first decoder token over all the layers, all the heads and all the input tokens t of da i⊕ q:",
+      "source_version": "2023.acl-long.136",
+      "start": 12402,
+      "end": 12618
+    },
+    {
+      "id": "aa-02",
+      "source_id": "aar",
+      "pdf_page": 3,
+      "quote": "To make the training process more robust, we uti- lize the FiDAtt scores to annotate the LM-preferred positive documents in a discrete way: Da+ = Dh+∪ Top-KSa i ,Da , (5)",
+      "source_version": "2023.acl-long.136",
+      "start": 12767,
+      "end": 12937
+    },
+    {
+      "id": "aa-03",
+      "source_id": "aar",
+      "pdf_page": 4,
+      "quote": "where Dh+ is the human-preferred positive doc- ument set (i.e., ground truth) on Ts. Top-KSa i ,Da means the documents with the top-k average Fi- DAtt scores Sa i in the retrieved document set Da.",
+      "source_version": "2023.acl-long.136",
+      "start": 12944,
+      "end": 13140
+    },
+    {
+      "id": "rp-07",
+      "source_id": "replug",
+      "pdf_page": 4,
+      "quote": "We prepend each document d∈D ′ to x, pass this concatenation to the LM separately, and then ensemble output probabilities from allk passes.",
+      "source_version": "2024.naacl-long.463",
+      "start": 11752,
+      "end": 11891
+    },
+    {
+      "id": "aa-04",
+      "source_id": "aar",
+      "pdf_page": 3,
+      "quote": "Given a decoder-only LM like GPT-3 (Brown et al., 2020), the LM input can be a simple concate- nation of the query and all the augmentation docu- ments{da 1 . . . da N}. Then, the LM will generate the answer based on the inputs auto-regressively.",
+      "source_version": "2023.acl-long.136",
+      "start": 9849,
+      "end": 10095
+    },
+    {
+      "id": "aa-05",
+      "source_id": "aar",
+      "pdf_page": 3,
+      "quote": "It first encodes each concatena- tion of the (da i , q) pair separately and then lets the decoder attend to all parts:",
+      "source_version": "2023.acl-long.136",
+      "start": 10604,
+      "end": 10722
+    },
+    {
+      "id": "aa-06",
+      "source_id": "aar",
+      "pdf_page": 3,
+      "quote": "we utilize an encoder-decoder LM as source LM (Ls) to provide LM-preferred signals on a source task (Ts) for fine-tuning a pre-trained retriever. Then, we plug the fine-tuned retriever into unseen target LM (Lt) on a set of target tasks (Tt) non-intersecting with Ts.",
+      "source_version": "2023.acl-long.136",
+      "start": 12078,
+      "end": 12345
+    },
+    {
+      "id": "aa-07",
+      "source_id": "aar",
+      "pdf_page": 9,
+      "quote": "Due to the limitation of computational resources, we have not evaluated the Flan-T5XXL whose num- ber of parameters is 11B, and the OPT whose num- ber of parameters is greater than 1.3B.",
+      "source_version": "2023.acl-long.136",
+      "start": 36807,
+      "end": 36993
+    },
+    {
+      "id": "aa-08",
+      "source_id": "aar",
+      "pdf_page": 9,
+      "quote": "Since OPT and GPT-neo perform poorly in the zero-shot setting and separating attention scores of each document in the input is tedious for decoder- only models, we choose not to use them as source LMs.",
+      "source_version": "2023.acl-long.136",
+      "start": 36994,
+      "end": 37195
+    },
+    {
+      "id": "aa-09",
+      "source_id": "aar",
+      "pdf_page": 9,
+      "quote": "taking the encoder- decoder model Flan-T5 Base as our source LM is also robust to augment decoder-only models.",
+      "source_version": "2023.acl-long.136",
+      "start": 37219,
+      "end": 37329
+    },
+    {
+      "id": "rp-09",
+      "source_id": "replug",
+      "pdf_page": 9,
+      "quote": "REPLUG exhibits limitations in interpretability. It’s unclear when the model re- lies on retrieved knowledge or on knowledge en- coded within its own parameters.",
+      "source_version": "2024.naacl-long.463",
+      "start": 30647,
+      "end": 30808
+    },
+    {
+      "id": "rp-10",
+      "source_id": "replug",
+      "pdf_page": 9,
+      "quote": "Such models could trace the source of the gener- ated answers, whether it’s from retrieved data or internal parameters, thus providing a clear knowl- edge provenance.",
+      "source_version": "2024.naacl-long.463",
+      "start": 30921,
+      "end": 31087
+    },
+    {
+      "id": "sk-01",
+      "source_id": "skr",
+      "pdf_page": 3,
+      "quote": "qi∈ { D+, if E[ˆa(M, qi)]≥ E[ˆaR(M, qi)]; D−, otherwise, (4)",
+      "source_version": "2023.findings-emnlp.691",
+      "start": 10613,
+      "end": 10673
+    },
+    {
+      "id": "sk-02",
+      "source_id": "skr",
+      "pdf_page": 3,
+      "quote": "where E is an evaluation metric such as accuracy and exact match score, we discard the question qi if both the ˆa(M, qi) and ˆaR(M, qi) are incorrect.",
+      "source_version": "2023.findings-emnlp.691",
+      "start": 10674,
+      "end": 10824
+    },
+    {
+      "id": "sk-03",
+      "source_id": "skr",
+      "pdf_page": 3,
+      "quote": "which includes questions that M can directly give correct answers without ex- ternal information (LLM knowns) and the subset D− ={q− 1 , ..., q− n} where the external information can lead to more accurate results (LLM unknowns).",
+      "source_version": "2023.findings-emnlp.691",
+      "start": 10899,
+      "end": 11127
+    },
+    {
+      "id": "sk-04",
+      "source_id": "skr",
+      "pdf_page": 4,
+      "quote": "The self-knowledge given by the responses from LLMs (via direct prompting or in-context learning) or the predicted labels (via the trained classifier or k-nearest-neighbor search) reflects the neces- sity for external knowledge towards the question qt.",
+      "source_version": "2023.findings-emnlp.691",
+      "start": 16134,
+      "end": 16386
+    },
+    {
+      "id": "sk-05",
+      "source_id": "skr",
+      "pdf_page": 4,
+      "quote": "Adaptive Retrieval Augmentation (for LLM known) {q1◦ a1}, ...,{qd◦ ad},{qt} A: (LLM directly answers without retrieval) (for LLM unknown) {q1◦ p1◦ a1}, ...,{qd◦ pd◦ ad},{qt} Here are some passages: {pt} A: (LLM answers with retrieval augmentation)",
+      "source_version": "2023.findings-emnlp.691",
+      "start": 16481,
+      "end": 16728
+    },
+    {
+      "id": "m3-01",
+      "source_id": "m3-embedding",
+      "pdf_page": 5,
+      "quote": "we simply employ the inte- gration scoresinter as the teacher, where the loss function of each retrieval method is modified as:",
+      "source_version": "2024.findings-acl.137",
+      "start": 18363,
+      "end": 18490
+    },
+    {
+      "id": "m3-02",
+      "source_id": "m3-embedding",
+      "pdf_page": 5,
+      "quote": "the integration can just be the weighted sum of different prediction scores: sinter←w1·sdense +w2·slex +w3·smul. (3)",
+      "source_version": "2024.findings-acl.137",
+      "start": 17856,
+      "end": 17972
+    },
+    {
+      "id": "m3-03",
+      "source_id": "m3-embedding",
+      "pdf_page": 1,
+      "quote": "It can simultaneously accomplish the three com- mon retrieval functionalities: dense retrieval, multi-vector retrieval, and sparse retrieval.",
+      "source_version": "2024.findings-acl.137",
+      "start": 806,
+      "end": 947
+    },
+    {
+      "id": "m3-04",
+      "source_id": "m3-embedding",
+      "pdf_page": 1,
+      "quote": "Be- sides, it is also capable of processing inputs of different granularities, spanning from short sentences to long documents of up to 8,192 to- kens.",
+      "source_version": "2024.findings-acl.137",
+      "start": 948,
+      "end": 1099
+    },
+    {
+      "id": "m3-05",
+      "source_id": "m3-embedding",
+      "pdf_page": 8,
+      "quote": "Max Length Avg ar de en es fr hi it ja ko pt ru th zh",
+      "source_version": "2024.findings-acl.137",
+      "start": 31370,
+      "end": 31423
+    },
+    {
+      "id": "m3-06",
+      "source_id": "m3-embedding",
+      "pdf_page": 8,
+      "quote": "Dense+Sparse 8192 64.8 63.0 56.4 64.2 88.7 84.2 52.3 75.8 58.5 53.1 86.0 75.6 42.9 42.0",
+      "source_version": "2024.findings-acl.137",
+      "start": 32291,
+      "end": 32378
+    },
+    {
+      "id": "m3-07",
+      "source_id": "m3-embedding",
+      "pdf_page": 8,
+      "quote": "All 8192 65.0 64.7 57.9 63.8 86.8 83.9 52.2 75.5 60.1 55.7 85.4 73.8 44.7 40.0",
+      "source_version": "2024.findings-acl.137",
+      "start": 32379,
+      "end": 32457
+    },
+    {
+      "id": "m3-08",
+      "source_id": "m3-embedding",
+      "pdf_page": 8,
+      "quote": "Table 3: Evaluation of multilingual long-doc retrieval on the MLDR test set (measured by nDCG@10).",
+      "source_version": "2024.findings-acl.137",
+      "start": 32657,
+      "end": 32755
+    },
+    {
+      "id": "m3-09",
+      "source_id": "m3-embedding",
+      "pdf_page": 4,
+      "quote": "the final retrieval result is re-ranked based on the integrated relevance score: srank←w1·sdense +w2·slex +w3·smul (1) where the values ofw1,w2 andw3 depend on the downstream scenario.",
+      "source_version": "2024.findings-acl.137",
+      "start": 16479,
+      "end": 16663
+    },
+    {
+      "id": "sk-07",
+      "source_id": "skr",
+      "pdf_page": 4,
+      "quote": "First, both methods require design- ing prompts and calling the LLMs for each new question, which makes it impractical.",
+      "source_version": "2023.findings-emnlp.691",
+      "start": 13570,
+      "end": 13689
+    },
+    {
+      "id": "sk-08",
+      "source_id": "skr",
+      "pdf_page": 4,
+      "quote": "Second, in- context learning could also be unstable due to con- textual bias and sensitivity (Zhao et al., 2021; Lu et al., 2022) and it is more difficult to address such an issue for close-source LLMs.",
+      "source_version": "2023.findings-emnlp.691",
+      "start": 13690,
+      "end": 13892
+    },
+    {
+      "id": "sk-09",
+      "source_id": "skr",
+      "pdf_page": 4,
+      "quote": "Third, they cannot make use of all questions due to the constraints of maximum tokens.",
+      "source_version": "2023.findings-emnlp.691",
+      "start": 13893,
+      "end": 13979
+    },
+    {
+      "id": "sk-10",
+      "source_id": "skr",
+      "pdf_page": 3,
+      "quote": "Four different strategies are proposed to detect the self-knowledge of target questions, including direct prompting, in-context learning, training a classifier, and nearest neighbor search.",
+      "source_version": "2023.findings-emnlp.691",
+      "start": 11165,
+      "end": 11354
+    },
+    {
+      "id": "sk-11",
+      "source_id": "skr",
+      "pdf_page": 3,
+      "quote": "We use the LLM itself in the former two methods and explicit smaller modes in the latter two methods.",
+      "source_version": "2023.findings-emnlp.691",
+      "start": 11355,
+      "end": 11456
+    },
+    {
+      "id": "m3-10",
+      "source_id": "m3-embedding",
+      "pdf_page": 9,
+      "quote": "The performance of our model on very long documents or documents exceeding the specified token limit needs to be further investigated.",
+      "source_version": "2024.findings-acl.137",
+      "start": 38327,
+      "end": 38461
+    },
+    {
+      "id": "pr-12",
+      "source_id": "prp",
+      "pdf_page": 6,
+      "quote": "Method LLM Size TREC-DL2019 TREC-DL2020 NDCG@1 NDCG@5 NDCG@10 NDCG@1 NDCG@5 NDCG@10",
+      "source_version": "2024.findings-naacl.97",
+      "start": 21057,
+      "end": 21140
+    },
+    {
+      "id": "rp-11",
+      "source_id": "replug",
+      "pdf_page": 4,
+      "quote": "Therefore, following Guu et al. (2020), we recompute the document embeddings and rebuild the efficient search index using the new embed- dings everyT training steps.",
+      "source_version": "2024.naacl-long.463",
+      "start": 15161,
+      "end": 15326
+    },
+    {
+      "id": "m3-11",
+      "source_id": "m3-embedding",
+      "pdf_page": 8,
+      "quote": "For Dense+Sparse method, we set w1 = 0.2, w2 = 0 .8 and w3 = 0 in equation (1). For All method, we set w1 = 0.15, w2 = 0.5 and w3 = 0.35 in equation(1).",
+      "source_version": "2024.findings-acl.137",
+      "start": 33195,
+      "end": 33347
+    }
+  ]
+}

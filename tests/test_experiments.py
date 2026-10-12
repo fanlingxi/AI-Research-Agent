@@ -158,7 +158,12 @@ def test_artifact_traversal_and_symlink_escape_are_rejected(tmp_path):
     _write(secret, {"secret": "do not expose"})
     target = directory / "config.json"
     target.unlink()
-    target.symlink_to(secret)
+    try:
+        target.symlink_to(secret)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("Windows sandbox does not grant symbolic-link creation privileges")
+        raise
     with pytest.raises(ExperimentDataError, match="受管目录"):
         service.describe("a04--sample")
     assert service.list_experiments()["unavailable"]
