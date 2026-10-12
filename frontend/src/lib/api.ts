@@ -511,7 +511,7 @@ export type ResearchCommandInput =
       create_memory_proposal: boolean;
       max_steps: number;
       max_tool_calls: number;
-      token_budget: number;
+      token_budget?: number;
     };
 
 export interface ResearchCommand {
@@ -941,12 +941,12 @@ export const api = {
     request<{ proposal: MemoryProposal }>(`/api/memory-proposals/${path(proposalId)}/commit`, {
       method: "POST",
     }),
-  previewContext: (projectId: string, taskId: string, maxTokens = 6000) =>
+  previewContext: (projectId: string, taskId: string, maxTokens?: number) =>
     request<{ snapshot: ContextSnapshotSummary }>(
       `/api/v1/projects/${path(projectId)}/workspace-tasks/${path(taskId)}/context-snapshots/preview`,
       { method: "POST", body: JSON.stringify({ max_tokens: maxTokens }) },
     ),
-  createSnapshot: (projectId: string, taskId: string, maxTokens = 6000) =>
+  createSnapshot: (projectId: string, taskId: string, maxTokens?: number) =>
     request<ContextSnapshotSummary>(
       `/api/v1/projects/${path(projectId)}/workspace-tasks/${path(taskId)}/context-snapshots`,
       { method: "POST", body: JSON.stringify({ max_tokens: maxTokens }) },
@@ -965,13 +965,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({
         context_snapshot_id: snapshotId,
-        workflow: "research",
         create_memory_proposal: createProposal,
-        max_steps: 10,
-        // All available snapshot tools are local, read-only context views.
-        // Allow the bounded research planner to use the full three-tool set.
-        max_tool_calls: 3,
-        token_budget: 6000,
       }),
     }),
   projectRuns: (projectId: string) =>

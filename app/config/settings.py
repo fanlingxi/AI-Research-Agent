@@ -70,6 +70,7 @@ class Settings(BaseSettings):
     report_retrieval_strategy: Literal["legacy", "bm25-v1", "hybrid-v1", "dense-v1"] = "legacy"
     report_min_retrieval_relevance: float = Field(default=0.6, ge=0.0, le=1.0)
     report_min_source_diversity: int = Field(default=3, ge=1, le=10)
+    research_default_profile: Literal["standard", "classic"] = "standard"
 
     qdrant_url: str = "http://localhost:6333"
     neo4j_uri: str = "bolt://localhost:7687"

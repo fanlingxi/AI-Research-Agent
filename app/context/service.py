@@ -56,6 +56,7 @@ from app.context.retrieval import (
 from app.context.retrieval_audit import bundle_bindings, context_retrieval_audit
 from app.knowledge.repository import KnowledgeRepository
 from app.memory.models import Artifact, MemoryDecision, ProjectMemorySnapshot, WorkspaceTask
+from app.research_profiles import RETRIEVAL_FIELDS, ResearchProfileName, resolve_research_profile
 from app.retrieval.contracts import validate_candidates
 from app.retrieval.coverage import (
     CoreCoverageReranker,
@@ -149,6 +150,16 @@ class ContextBuilderService:
 
         return self._build_context(request, persist=True)
 
+    def build_research_context(
+        self, request: ContextBuildRequest, *, profile: ResearchProfileName,
+        persist: bool = True,
+    ) -> ContextPackage:
+        """Apply project defaults before freezing; explicit retrieval stays unchanged."""
+        return self._build_context(
+            request, persist=persist,
+            default_profile=None if request.model_fields_set & RETRIEVAL_FIELDS else profile,
+        )
+
     def validate_fresh_context_tx(
         self, connection: sqlite3.Connection, package: ContextPackage
     ) -> None:
@@ -165,7 +176,10 @@ class ContextBuilderService:
         if not expected or current.fingerprint != expected:
             raise ContextConflictError("Context changed before feedback rerun was queued.")
 
-    def _build_context(self, request: ContextBuildRequest, *, persist: bool) -> ContextPackage:
+    def _build_context(
+        self, request: ContextBuildRequest, *, persist: bool,
+        default_profile: ResearchProfileName | None = None,
+    ) -> ContextPackage:
         request = request.model_copy(deep=True)
         attempts: list[dict[str, Any]] = []
         planning_cache: dict[str, Any] = {}
@@ -174,9 +188,33 @@ class ContextBuilderService:
                 connection.execute("PRAGMA query_only = ON")
                 connection.execute("BEGIN")
                 prepared = self._read_inputs_tx(connection, request)
+            effective_request = request
+            if default_profile is not None:
+                profile, reason = resolve_research_profile(
+                    default_profile, has_scope=bool(prepared.memory.knowledge_scopes),
+                )
+                effective_request = profile.context_request(request)
             package, items = self._prepare_context(
-                request, prepared, attempt, attempts, planning_cache=planning_cache
+                effective_request, prepared, attempt, attempts, planning_cache=planning_cache
             )
+            if default_profile is not None:
+                resolved, fallback = resolve_research_profile(
+                    default_profile, has_scope=bool(prepared.memory.knowledge_scopes),
+                    notices=package.diagnostics.notices,
+                )
+                if resolved != profile:
+                    failed_notices = package.diagnostics.notices
+                    package, items = self._prepare_context(
+                        resolved.context_request(request), prepared, attempt, attempts,
+                        planning_cache=planning_cache,
+                    )
+                    package.diagnostics.notices.extend(failed_notices)
+                package.diagnostics.notices.append(f"research_profile:{resolved.name}")
+                if fallback or reason:
+                    package.diagnostics.notices.append(
+                        f"profile_fallback_reason:{fallback or reason}"
+                    )
+                package.package_sha256 = canonical_package_sha256(package)
 
             def validate_state(
                 connection: sqlite3.Connection, expected: str = prepared.fingerprint,

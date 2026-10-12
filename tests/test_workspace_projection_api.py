@@ -10,6 +10,7 @@ from app.config.settings import Settings
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import EvidenceSpan, PublishedEntity
 from tests.core_fixtures import persist_evidence_chunk
+from tests.test_context_builder import _VectorCandidates
 
 
 def _workspace_stack(tmp_path):
@@ -82,6 +83,7 @@ def _workspace_stack(tmp_path):
         metadata={},
     )
     agents = AgentRunService(repository, settings=settings)
+    agents.context_builder.vector_retriever = _VectorCandidates(evidence.chunk_id)
     return repository, agents, project, task, evidence
 
 
