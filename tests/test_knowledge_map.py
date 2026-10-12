@@ -246,3 +246,32 @@ def test_knowledge_map_node_detail_drills_down_to_evidence(tmp_path) -> None:
     assert draft["review"]["candidate_id"] == seeded["draft_entity"]
     assert draft["claims"][0]["evidence"][0]["paper_title"] == "Map Fixture Paper"
     assert missing.status_code == 404
+
+
+def test_source_file_serves_only_registered_local_pdfs(tmp_path) -> None:
+    import sqlite3
+    from pathlib import Path
+
+    from fastapi.testclient import TestClient
+
+    from app.api.main import create_app
+    from app.knowledge.repository import KnowledgeRepository
+
+    pdf = Path("benchmarks/research/papers-v1/papers/alce.pdf").resolve()
+    stray = tmp_path / "stray.pdf"
+    stray.write_bytes(pdf.read_bytes())
+    repository = KnowledgeRepository(str(tmp_path / "knowledge.db"))
+    with sqlite3.connect(tmp_path / "knowledge.db") as connection:
+        connection.execute(
+            "INSERT INTO sources (id, source_type, title, uri, created_at, updated_at)"
+            " VALUES ('s1', 'pdf', 'ALCE', ?, 't', 't')",
+            (str(pdf),),
+        )
+    client = TestClient(create_app(knowledge_repository=repository))
+
+    served = client.get("/api/knowledge/source-file", params={"uri": str(pdf)})
+    assert served.status_code == 200
+    assert served.headers["content-type"] == "application/pdf"
+    assert served.content[:4] == b"%PDF"
+    for uri in (str(stray), str(Path("pyproject.toml").resolve())):
+        assert client.get("/api/knowledge/source-file", params={"uri": uri}).status_code == 404

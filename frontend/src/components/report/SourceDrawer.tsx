@@ -22,6 +22,8 @@ export interface SourceView {
   claim?: string | null;
   passage?: string | null;
   uri?: string | null;
+  /** First cited page, used to open a local PDF at the right place. */
+  pageNumber?: number | null;
   meta?: ReactNode;
 }
 
@@ -84,7 +86,7 @@ export function SourceSheet({
                 </section>
               ) : null}
               {source.passage ? <Passage text={source.passage} quoted={Boolean(source.quote)} /> : null}
-              {source.uri ? <SourceLocation uri={source.uri} /> : null}
+              {source.uri ? <SourceLocation uri={source.uri} page={source.pageNumber} /> : null}
               {source.meta ? <div className="border-t pt-4 text-xs leading-5 text-muted-ink">{source.meta}</div> : null}
             </>
           ) : null}
@@ -106,7 +108,7 @@ function Passage({ text, quoted }: { text: string; quoted: boolean }) {
   );
 }
 
-function SourceLocation({ uri }: { uri: string }) {
+function SourceLocation({ uri, page }: { uri: string; page?: number | null }) {
   const [copied, setCopied] = useState(false);
   const isWeb = /^https?:\/\//i.test(uri);
   return (
@@ -117,9 +119,21 @@ function SourceLocation({ uri }: { uri: string }) {
         {isWeb ? (
           <a className="inline-flex items-center gap-1 text-[13px] font-medium text-brand hover:underline" href={uri} rel="noreferrer" target="_blank">打开原文 <ExternalLink size={13} /></a>
         ) : (
-          <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard?.writeText(uri).then(() => setCopied(true)); }}>
-            <Copy size={13} />{copied ? "已复制本地路径" : "复制本地路径"}
-          </Button>
+          <>
+            {/\.pdf$/i.test(uri) ? (
+              <a
+                className="inline-flex items-center gap-1 text-[13px] font-medium text-brand hover:underline"
+                href={`/api/knowledge/source-file?uri=${encodeURIComponent(uri)}${page ? `#page=${page}` : ""}`}
+                rel="noreferrer"
+                target="_blank"
+              >
+                打开原文 PDF{page ? `（第 ${page} 页）` : ""} <ExternalLink size={13} />
+              </a>
+            ) : null}
+            <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard?.writeText(uri).then(() => setCopied(true)); }}>
+              <Copy size={13} />{copied ? "已复制本地路径" : "复制本地路径"}
+            </Button>
+          </>
         )}
       </div>
     </section>
@@ -158,6 +172,7 @@ export function SnapshotSourceSheet({
       source={data ? {
         title: documentTitle(data.document.title, data.document.id, titles, data.source.uri),
         page: pageLabel(data.chunk.page_start, data.chunk.page_end),
+        pageNumber: data.chunk.page_start,
         quote: data.evidence.quote,
         claim: data.claim.statement,
         uri: data.source.uri,

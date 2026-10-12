@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse
 
 from app.api.schemas import CollectionRequest, KnowledgeCandidatePatch, KnowledgeIngestionRequest
 from app.knowledge.extractor import LiveLLMRequiredError
@@ -228,6 +230,23 @@ def build_knowledge_router(
             return knowledge_map.node_detail(node_id, include_pending=include_pending)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="知识节点不存在或未发布。") from exc
+
+    @router.get("/api/knowledge/source-file")
+    def get_source_file(uri: Annotated[str, Query(min_length=1, max_length=2000)]):
+        """Serve a local PDF only when that exact path is a registered source or document."""
+        with repository.database.connect() as connection:
+            registered = connection.execute(
+                "SELECT 1 FROM sources WHERE uri = ? OR canonical_uri = ?"
+                " UNION SELECT 1 FROM documents WHERE local_path = ? LIMIT 1",
+                (uri, uri, uri),
+            ).fetchone()
+        path = Path(uri)
+        if not registered or path.suffix.lower() != ".pdf" or not path.is_file():
+            raise HTTPException(status_code=404, detail="原文文件不存在或未登记。")
+        return FileResponse(
+            path, media_type="application/pdf", content_disposition_type="inline",
+            filename=path.name,
+        )
 
     @router.get("/api/knowledge/entities/{entity_id}")
     def get_knowledge_entity_detail(entity_id: str) -> dict[str, Any]:
