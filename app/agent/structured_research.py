@@ -105,6 +105,9 @@ class StructuredResearchWorkflow(ResearchWorkflow):
     def prepare_report(self, report, package):
         return render_report(report)
 
+    def parse_report(self, value):
+        return self.report_model.model_validate(value)
+
     def __init__(self, service):
         super().__init__(service)
         if isinstance(self.llm, LangChainChatClient):
@@ -163,7 +166,7 @@ class StructuredResearchWorkflow(ResearchWorkflow):
                 if error:
                     return self._needs_review(state, f"Generation call failed: {error}")
             try:
-                report = self.report_model.model_validate(json.loads(_strip_json_fence(response)))
+                report = self.parse_report(json.loads(_strip_json_fence(response)))
                 draft = self.prepare_report(report, package)
                 validation = validate_research_draft(draft, package)
                 if report.answer_status == "insufficient_evidence":
@@ -328,7 +331,7 @@ class CoveredReport(StructuredReport):
     answer_parts: list[AnswerPart] = Field(min_length=1, max_length=8)
 
 
-def prepare_covered_report(report, package):
+def prepare_covered_report(report, package, *, status_label=None):
     question = "\n".join((package.task.title, package.task.goal))
     parts, used = set(), []
     for part in report.answer_parts:
@@ -374,7 +377,8 @@ def prepare_covered_report(report, package):
     rendered = render_report(report)
     ordered_findings = [findings[i] for p in report.answer_parts for i in p.finding_indices]
     labels = {"complete": "完整回答", "partial": "部分回答", "insufficient_evidence": "证据不足"}
-    text = [f"# {plain(report.title)}", f"回答状态：{labels[report.answer_status]}"]
+    text = [f"# {plain(report.title)}",
+            f"回答状态：{status_label or labels[report.answer_status]}"]
     for part in report.answer_parts:
         text.append(f"## {plain(part.question_part)}")
         for index in part.finding_indices:
@@ -512,7 +516,7 @@ class DirectResearchWorkflow(StructuredResearchWorkflow):
         "No Markdown or separate summary; the platform renders the report.\n"
     )
 
-    def prepare_report(self, report, package):
+    def prepare_report(self, report, package, *, status_label=None):
         parts, offset = [], 0
         for part in report.answer_parts:
             count = len(part.findings)
@@ -523,7 +527,7 @@ class DirectResearchWorkflow(StructuredResearchWorkflow):
         covered = CoveredReport(title=report.title, findings=report.findings,
                                 answer_status=report.answer_status, limitations=report.limitations,
                                 answer_parts=parts)
-        return prepare_covered_report(covered, package)
+        return prepare_covered_report(covered, package, status_label=status_label)
 
 
 class AnchoredDirectResearchWorkflow(DirectResearchWorkflow):
@@ -531,7 +535,7 @@ class AnchoredDirectResearchWorkflow(DirectResearchWorkflow):
 
     The analysis step may paraphrase the task into research_question; v6 then copied
     question_part from that paraphrase and the unchanged verbatim check rejected it.
-    Validation stays identical; only the final prompt gains the original text and rules.
+    Verbatim validation stays intact; oversized support quotes use a contiguous prefix.
     """
 
     report_rules = DirectResearchWorkflow.report_rules + (
@@ -550,6 +554,34 @@ class AnchoredDirectResearchWorkflow(DirectResearchWorkflow):
         "different paper. Use 证据不足 only for an in-scope request the supplied evidence does "
         "not establish.\n"
     )
+
+    def parse_report(self, value):
+        # Leave malformed shapes to the schema validator, preserving repair diagnostics.
+        def items(obj, key):
+            values = obj.get(key) if isinstance(obj, dict) else None
+            return values if isinstance(values, list) else []
+
+        for part in items(value, "answer_parts"):
+            for finding in items(part, "findings"):
+                for anchor in items(finding, "support"):
+                    quote = anchor.get("quote") if isinstance(anchor, dict) else None
+                    if isinstance(quote, str) and len(quote) > 1500:
+                        prefix = quote[:1000]
+                        end = next((i + 1 for i in range(len(prefix) - 1, 18, -1)
+                                    if prefix[i].isspace() or prefix[i] in ".!?。！？"),
+                                   len(prefix))
+                        # No ellipsis or rewriting: contains_quote still checks this prefix.
+                        anchor["quote"] = prefix[:end]
+        return super().parse_report(value)
+
+    def prepare_report(self, report, package):
+        out_of_scope = all(
+            not part.findings and "超出允许资料范围" in part.gap
+            for part in report.answer_parts
+        )
+        return super().prepare_report(
+            report, package, status_label="超出允许资料范围" if out_of_scope else None
+        )
 
     def _report_task_block(self, package):
         return (

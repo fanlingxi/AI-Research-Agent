@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+from copy import deepcopy
 from types import SimpleNamespace
 
 import pytest
+from pydantic import ValidationError
 
 from app.agent import structured_research as sr
 from app.agent.models import AgentRunCreateRequest
@@ -109,3 +111,119 @@ def test_v8_still_rejects_question_part_copied_from_paraphrase(tmp_path):
     _, done, _, _ = _v8_run(tmp_path, lambda _, analysis: analysis["research_question"])
     assert done.status == "needs_review"
     assert done.repair_count == 1
+
+
+@pytest.mark.parametrize("workflow,verbatim", [
+    ("research_v8", True), ("research_v7", True), ("research_v8", False),
+])
+def test_long_support_quote_run(tmp_path, monkeypatch, workflow, verbatim):
+    _, service, worker, project, task, _, bundle, llm = _research_stack(
+        tmp_path, [_analysis(), _plan()]
+    )
+    quote = ("A governed snapshot preserves evidence. " * 50)[:1600]
+    load_snapshot = service.load_context_snapshot
+
+    def load_with_long_evidence(run_id):
+        package = load_snapshot(run_id).model_copy(deep=True)
+        for claim_bundle in package.knowledge.claim_bundles:
+            for evidence in claim_bundle.evidence:
+                if evidence.evidence_id == bundle.evidence[0].evidence_id:
+                    evidence.quote = quote
+        return package
+
+    monkeypatch.setattr(service, "load_context_snapshot", load_with_long_evidence)
+    finding = anchored_report(bundle, task.goal)["findings"][0]
+    finding["support"][0]["quote"] = quote if verbatim else "x" * 1600
+    value = {"title": "Long quote report", "answer_parts": [
+        {"question_part": task.goal, "findings": [finding], "gap": ""},
+    ]}
+    llm.responses.extend([json.dumps(value)] * 2)
+    run = service.create_run(
+        project.id, task.id,
+        AgentRunCreateRequest(workflow=workflow, token_budget=32000, reading_format="inline-v1"),
+    )
+    assert worker.run_once()
+    done = service.get_run(run.id)
+    if workflow == "research_v8" and verbatim:
+        assert done.status == "completed", done.error_message
+        assert done.repair_count == 0
+        assert service.repository.get_output(run.id).structured["draft"]["answer_status"] == (
+            "complete"
+        )
+    else:
+        assert done.status == "needs_review"
+        assert done.repair_count == 1
+        diagnostic = "Invalid schema" if workflow == "research_v7" else "exact contiguous quote"
+        assert diagnostic in llm.calls[-1]
+
+
+def _direct_value(quote):
+    return {"title": "Report", "answer_parts": [{
+        "question_part": "Requested fact", "gap": "Missing detail",
+        "findings": [{"claim_bundle_id": "bundle", "assertion": "Supported assertion",
+                      "evidence_ids": ["evidence"], "scope": "Source scope",
+                      "support": [{"evidence_id": "evidence", "quote": quote}]}],
+    }]}
+
+
+@pytest.mark.parametrize("quote,expected", [
+    ("x" * 1500, "x" * 1500),
+    ("x" * 1600, "x" * 1000),
+    ("x" * 950 + "。" + "y" * 649, "x" * 950 + "。"),
+    ("x" * 950 + "\n" + "y" * 649, "x" * 950 + "\n"),
+    ("x " + "y" * 1598, ("x " + "y" * 1598)[:1000]),
+])
+def test_v8_only_shortens_oversized_support_quotes_to_contiguous_prefixes(quote, expected):
+    value = _direct_value(quote)
+    expected_value = deepcopy(value)
+    expected_value["answer_parts"][0]["findings"][0]["support"][0]["quote"] = expected
+    workflow = sr.AnchoredDirectResearchWorkflow.__new__(sr.AnchoredDirectResearchWorkflow)
+    assert workflow.parse_report(value).model_dump() == expected_value
+    assert quote.startswith(expected)
+    assert 20 <= len(expected) <= 1500
+
+
+@pytest.mark.parametrize("field", ["assertion", "gap"])
+def test_v8_does_not_truncate_other_fields(field):
+    value = _direct_value("x" * 1600)
+    part = value["answer_parts"][0]
+    target = part if field == "gap" else part["findings"][0]
+    target[field] = "x" * 1600
+    workflow = sr.AnchoredDirectResearchWorkflow.__new__(sr.AnchoredDirectResearchWorkflow)
+    with pytest.raises(ValidationError) as exc:
+        workflow.parse_report(value)
+    assert any(error["loc"][-1] == field for error in exc.value.errors())
+    assert target[field] == "x" * 1600
+
+
+@pytest.mark.parametrize("workflow_class", [sr.AnchoredDirectResearchWorkflow,
+                                            sr.DirectResearchWorkflow])
+@pytest.mark.parametrize("mode", ["all_outside", "mixed_gaps", "partly_answered"])
+def test_out_of_scope_heading_is_only_used_for_all_outside_v8(workflow_class, mode):
+    quote = "A governed snapshot preserves evidence."
+    value = _direct_value(quote)
+    part = value["answer_parts"][0]
+    if mode != "partly_answered":
+        part["findings"] = []
+    part["gap"] = "超出允许资料范围：仅允许 X 论文。"
+    value["answer_parts"].append({
+        "question_part": "Another fact", "findings": [],
+        "gap": "缺少相关证据" if mode == "mixed_gaps" else "超出允许资料范围：仅允许 X 论文。",
+    })
+    package = SimpleNamespace(
+        task=SimpleNamespace(title="Requested fact", goal="Another fact"),
+        knowledge=SimpleNamespace(claim_bundles=[SimpleNamespace(
+            claim=SimpleNamespace(claim_id="bundle"),
+            evidence=[SimpleNamespace(evidence_id="evidence", quote=quote)],
+        )]),
+    )
+    report = sr.DirectReport.model_validate(value)
+    workflow = workflow_class.__new__(workflow_class)
+    rendered = workflow.prepare_report(report, package)
+    expected = "部分回答" if mode == "partly_answered" else "证据不足"
+    if workflow_class is sr.AnchoredDirectResearchWorkflow and mode == "all_outside":
+        expected = "超出允许资料范围"
+    assert rendered.markdown.split("\n\n")[1] == f"回答状态：{expected}"
+    assert rendered.answer_status == (
+        "partial" if mode == "partly_answered" else "insufficient_evidence"
+    )
