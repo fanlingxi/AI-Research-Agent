@@ -149,8 +149,11 @@ def schemas() -> dict:
 
 def extract_pages(pdf: Path) -> tuple[str, list[dict]]:
     """Corpus normalization: whitespace collapsed per page, pages joined by two LF."""
+    import logging
+
     from pypdf import PdfReader
 
+    logging.getLogger("pypdf").setLevel(logging.ERROR)  # font notices do not affect plain text
     text, pages = "", []
     for number, page in enumerate(PdfReader(pdf).pages, 1):
         content = re.sub(r"\s+", " ", page.extract_text(extraction_mode="plain") or "").strip()

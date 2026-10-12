@@ -1,0 +1,875 @@
+{
+  "label_provenance": "ai-consensus",
+  "human_verified": false,
+  "statement": "本数据集的全部期望标签为多 AI 共识（ai-consensus），不是人工金标（human gold），未经任何人工核验。题目、期望要点与证据跨度由 Claude 起草；Codex 与 DeepSeek 在看不到期望答案的条件下独立作答并判断可答性；有分歧或要点覆盖不足的题再由一个全新的 Claude 子代理盲答作为第三意见，最终由起草者书面裁决。起草者与第三意见同属 Claude 模型家族，存在同源偏差。产品负责人已授权：在明确标注为非人工标签的前提下，可用本集决定候选策略是否成为默认。",
+  "labelers": {
+    "claude": "claude-opus-5.5 (drafter and adjudicator; same model family as tie-breaker)",
+    "codex": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+    "deepseek": "DeepSeek Harness dsh headless (deepseek-flash)",
+    "tiebreak": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only"
+  },
+  "drafted_tasks": 35,
+  "kept_tasks": 35,
+  "dropped": [],
+  "answerability_pairwise_all_drafted": {
+    "claude~codex": {
+      "tasks": 35,
+      "answerability_agree": 34
+    },
+    "claude~deepseek": {
+      "tasks": 35,
+      "answerability_agree": 34
+    },
+    "claude~tiebreak": {
+      "tasks": 7,
+      "answerability_agree": 5
+    },
+    "codex~deepseek": {
+      "tasks": 35,
+      "answerability_agree": 33
+    },
+    "codex~tiebreak": {
+      "tasks": 7,
+      "answerability_agree": 6
+    },
+    "deepseek~tiebreak": {
+      "tasks": 7,
+      "answerability_agree": 6
+    }
+  },
+  "answer_points_vs_draft_all_drafted": {
+    "codex": {
+      "full": 31,
+      "partial": 4
+    },
+    "deepseek": {
+      "full": 33,
+      "partial": 2
+    }
+  },
+  "labeler_quote_fidelity": {
+    "codex": {
+      "exact": 66,
+      "ws": 114,
+      "none": 1
+    },
+    "deepseek": {
+      "exact": 172,
+      "none": 5,
+      "other_page": 5,
+      "punct": 6
+    },
+    "tiebreak": {
+      "exact": 70
+    }
+  },
+  "labeler_quote_fidelity_legend": {
+    "exact": "逐字出现在声明页",
+    "ws": "仅在忽略空白（含换行/连字符后空格的位置）后出现在声明页",
+    "punct": "还需统一弯引号/破折号与大小写",
+    "other_page": "出现在同一论文的其他页",
+    "none": "原文中找不到（多为改写或拼接）"
+  },
+  "draft_quotes": {
+    "drafted": 68,
+    "added_in_adjudication": 3,
+    "exact_unique_on_declared_page": 71
+  },
+  "tie_breaker_tasks": [
+    "longtail-q4",
+    "multistep-q3",
+    "multistep-q6",
+    "noise-q5",
+    "noise-q6",
+    "noise-q7",
+    "verification-q7"
+  ],
+  "tie_breaker_points_vs_draft": {
+    "verification-q7": "full",
+    "multistep-q3": "full",
+    "multistep-q6": "full",
+    "noise-q5": "full",
+    "noise-q6": "full",
+    "noise-q7": "full",
+    "longtail-q4": "full"
+  },
+  "tasks": {
+    "verification-q1": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "verification-q2": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "verification-q3": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "none"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "verification-q4": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "verification-q5": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "verification-q6": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "none"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "verification-q7": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "partial",
+          "quote_overlap": "none"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        }
+      ],
+      "tie_breaker": {
+        "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+        "answerability": "answerable",
+        "answerability_agrees": true,
+        "points": "full",
+        "quote_overlap": "all"
+      },
+      "adjudication": "Codex 以 PerplexityAI 71.5% 与照抄无关搜索结果为 FActScore 侧证据，未提 36.0%/37.6% 引用比例（要点 partial）；DeepSeek 与第三意见均覆盖。保留原标签，评分时接受其他同样出自 FActScore 的反面证据作为补充，但引用比例为必需结论。 第三意见（盲答）同时覆盖 36.0%/37.6% 引用比例与 RARR 结论，支持原标签。"
+    },
+    "verification-q8": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "partially_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "partially_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "verification-q9": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "not_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "not_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "verification-q10": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "out_of_scope",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "out_of_scope",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "verification-q11": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "multistep-q1": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "multistep-q2": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "multistep-q3": {
+      "status": "adjudicated",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": false,
+          "points": "full",
+          "quote_overlap": "some"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "partially_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        }
+      ],
+      "tie_breaker": {
+        "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+        "answerability": "partially_answerable",
+        "answerability_agrees": true,
+        "points": "full",
+        "quote_overlap": "some"
+      },
+      "adjudication": "可答性分歧：起草为 qualified_answer，Codex 判 answerable，DeepSeek 与第三意见判 partially_answerable。三方对机制差异与“两文未直接比较、不能判断优劣或可否替代”的要点完全一致，分歧只在问题后半句能否由原文回答。采纳多数（2/3 独立标注者）：改为 needs_review（insufficient），要求回答必须明确说明缺少同条件直接比较，机制部分仍须引用原文。"
+    },
+    "multistep-q4": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "multistep-q5": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "none"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "multistep-q6": {
+      "status": "adjudicated",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "not_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "partially_answerable",
+          "answerability_agrees": false,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        }
+      ],
+      "tie_breaker": {
+        "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+        "answerability": "not_answerable",
+        "answerability_agrees": true,
+        "points": "full",
+        "quote_overlap": "not_applicable"
+      },
+      "adjudication": "可答性分歧：起草与 DeepSeek 判 partially_answerable（needs_review），Codex 与第三意见判 not_answerable。四方对内容一致：表3的 ChatGPT 组只有 Direct/Retrieve-then-read/LLM rewriter 三行，可训练改写器只在 Vicuna-13B 组报告，所问数值不存在，不能借用 Vicuna 数字。分歧仅在类别；采纳两名独立标注者中的多数（Codex+第三意见）改为 abstain（no_answer），不再要求证据跨度，但保留“说明表中缺行、不得借用 Vicuna 数字”的必需结论与禁止结论。"
+    },
+    "multistep-q7": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "out_of_scope",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "out_of_scope",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "multistep-q8": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "noise-q1": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "noise-q2": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "noise-q3": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "none"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "noise-q4": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "noise-q5": {
+      "status": "adjudicated",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        }
+      ],
+      "tie_breaker": {
+        "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+        "answerability": "answerable",
+        "answerability_agrees": true,
+        "points": "full",
+        "quote_overlap": "some"
+      },
+      "adjudication": "两名独立标注者都给出 75.0<75.7 反例，但都没有把作者局限声明列为要点；该局限对回答本题并非必需，改为不要求。新增必需结论：同一位置在 2x 约束下为 77.2，结果依赖压缩比与位置（两名标注者均有类似表述）。 第三意见给出同一 75.0<75.7 反例及 LongChat 持平、ZeroSCROLLS/LongBench 个别任务低于原始提示等其他反例，并提及局限声明；据此把第二条结论写成“依赖压缩比、位置与任务”，接受任一原文反例。"
+    },
+    "noise-q6": {
+      "status": "adjudicated",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        }
+      ],
+      "tie_breaker": {
+        "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+        "answerability": "answerable",
+        "answerability_agrees": true,
+        "points": "full",
+        "quote_overlap": "all"
+      },
+      "adjudication": "Codex 指出 Chain-of-Note 正文“全噪声时不如不检索”与表格数值无法同条件核对（无检索 NQ EM 28.80 来自全量测试集，噪声实验来自含相关文档的子集，100% 噪声 Retrieve-Read 为 34.28）。改以两名标注者都引用的表3趋势作为必需证据，删除依赖该正文说法的禁止结论。 第三意见独立给出相同的表3趋势与相同的数值不一致提醒，支持修订。"
+    },
+    "noise-q7": {
+      "status": "adjudicated",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "partially_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "none"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "partially_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "none"
+        }
+      ],
+      "tie_breaker": {
+        "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+        "answerability": "partially_answerable",
+        "answerability_agrees": true,
+        "points": "full",
+        "quote_overlap": "some"
+      },
+      "adjudication": "两名标注者都给出核心缺口（无组合实验、不能外推），但用以说明“各自单独评测”的证据与起草不同（机制与各自收益）。把来源侧结论放宽为“各自只单独评测（举例）”，接受任何说明两文单独评测的原文证据。 第三意见同样判为部分可答，并以模型/输入形式不同说明两文单独评测，支持放宽后的结论。"
+    },
+    "noise-q8": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "out_of_scope",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "out_of_scope",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "longtail-q1": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "longtail-q2": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "longtail-q3": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "longtail-q4": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "partial",
+          "quote_overlap": "some"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        }
+      ],
+      "tie_breaker": {
+        "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+        "answerability": "answerable",
+        "answerability_agrees": true,
+        "points": "full",
+        "quote_overlap": "some"
+      },
+      "adjudication": "Codex 以 DPR-NQ 具体数值说明反例并指出“平均更好≠每组合更好”，未明说有监督检索器提升幅度较小（partial）；Codex 另指出 DPR 在 WebQ 的 R@20 略升，正文“略差”是概括。保留原标签。 第三意见覆盖 DPR 例外与有监督检索器提升较小，支持原标签。"
+    },
+    "longtail-q5": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "longtail-q6": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "partially_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "partially_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "longtail-q7": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "out_of_scope",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "out_of_scope",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    },
+    "longtail-q8": {
+      "status": "consensus",
+      "verdicts": [
+        {
+          "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        {
+          "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        }
+      ],
+      "tie_breaker": null,
+      "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。"
+    }
+  }
+}

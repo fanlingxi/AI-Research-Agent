@@ -1,0 +1,63 @@
+{
+  "protocol_version": "research-holdout-v2-task",
+  "dataset_version": "research-holdout-v2",
+  "corpus_version": "research-holdout-v2-corpus",
+  "status": "frozen_ai_consensus",
+  "label_provenance": "ai-consensus",
+  "human_verified": false,
+  "language": "zh_questions_en_sources",
+  "created_at": "2026-10-12",
+  "labelers": [
+    "claude-opus-5.5 (drafter and adjudicator; same model family as tie-breaker)",
+    "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+    "DeepSeek Harness dsh headless (deepseek-flash)",
+    "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only"
+  ],
+  "families": [
+    {
+      "id": "verification",
+      "split": "dev",
+      "task_count": 11,
+      "source_ids": [
+        "factscore",
+        "rarr"
+      ]
+    },
+    {
+      "id": "multistep",
+      "split": "holdout",
+      "task_count": 8,
+      "source_ids": [
+        "ircot",
+        "rewrite"
+      ]
+    },
+    {
+      "id": "noise",
+      "split": "holdout",
+      "task_count": 8,
+      "source_ids": [
+        "chain-of-note",
+        "longllmlingua"
+      ]
+    },
+    {
+      "id": "longtail",
+      "split": "holdout",
+      "task_count": 8,
+      "source_ids": [
+        "popqa",
+        "densex"
+      ]
+    }
+  ],
+  "split_counts": {
+    "dev": 11,
+    "holdout": 24
+  },
+  "dropped_tasks": [],
+  "decision_use": "可用于决定候选工作流能否取代默认工作流，但须在报告中写明标签来源为 ai-consensus（非人工金标）、保留集规模小且题目不独立；不得称为人工验证或独立盲测结果。保留集一经用于调优即失去保留性质，后继版本须把对应论文族移入开发集。",
+  "coverage_note": "4 个论文族、8 篇 ACL Anthology 论文（CC BY 4.0）；中文问题、英文原文。覆盖单篇事实/精确锚点、跨篇综合、比较、方法局限、证据不足、越界与过度推断陷阱（含原文内部数字不一致）。不构造严格冲突；同族论文互相引用或共享主题，保留集只保证论文身份不重叠，不保证语义隔离。曾考虑的中文 CCL 论文因 pypdf 抽取把拉丁字母与数字映射为乱码而放弃。",
+  "raw_papers_are_evaluation_input": true,
+  "annotations_are_model_input": false
+}

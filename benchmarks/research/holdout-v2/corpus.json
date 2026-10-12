@@ -1,0 +1,1733 @@
+{
+  "version": "research-holdout-v2-corpus",
+  "full_text_tracked": false,
+  "sources": [
+    {
+      "id": "factscore",
+      "family_id": "verification",
+      "split": "dev",
+      "version": "2023.emnlp-main.741",
+      "title": "FActScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation",
+      "authors": [
+        "Sewon Min",
+        "Kalpesh Krishna",
+        "Xinxi Lyu",
+        "Mike Lewis",
+        "Wen-tau Yih",
+        "Pang Koh",
+        "Mohit Iyyer",
+        "Luke Zettlemoyer",
+        "Hannaneh Hajishirzi"
+      ],
+      "landing_url": "https://aclanthology.org/2023.emnlp-main.741/",
+      "pdf_url": "https://aclanthology.org/2023.emnlp-main.741.pdf",
+      "doi": "10.18653/v1/2023.emnlp-main.741",
+      "fetched_at": "2026-10-12T00:09:33.305969+00:00",
+      "pdf_path": "papers/factscore.pdf",
+      "pdf_sha256": "8486fe22a15aaf3fe2e1d7043d169000600205dde9c601c9fd31c0dd6f7380e9",
+      "pdf_pages": 25,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2023.emnlp-main.741/",
+      "license_evidence": "ACL Anthology landing page footer (saved, sha256 in landing_page_sha256): 'Materials published in or after 2016 are licensed on a Creative Commons Attribution 4.0 International License'; this ACL-venue paper is from 2023.",
+      "landing_page_sha256": "afe638b1f791e9e7542ad23b7c7024d5c812999dbd9cfc3df423a7c0c13bbf01",
+      "attribution": "Sewon Min; Kalpesh Krishna; Xinxi Lyu; Mike Lewis; Wen-tau Yih; Pang Koh; Mohit Iyyer; Luke Zettlemoyer; Hannaneh Hajishirzi. FActScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation. 2023.emnlp-main.741. https://aclanthology.org/2023.emnlp-main.741/",
+      "transformations": "pypdf plain extraction; collapse all whitespace within each PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation, or table reconstruction. Full text is not tracked; rebuild it from the PDF.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "4c88ff0cd151c3b06e570b17095169d7439ad3c01a70be6a2f745c4f89e1a5cb",
+      "text_chars": 97329,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 5023
+        },
+        {
+          "pdf_page": 2,
+          "start": 5025,
+          "end": 9677
+        },
+        {
+          "pdf_page": 3,
+          "start": 9679,
+          "end": 14007
+        },
+        {
+          "pdf_page": 4,
+          "start": 14009,
+          "end": 18267
+        },
+        {
+          "pdf_page": 5,
+          "start": 18269,
+          "end": 23149
+        },
+        {
+          "pdf_page": 6,
+          "start": 23151,
+          "end": 27828
+        },
+        {
+          "pdf_page": 7,
+          "start": 27830,
+          "end": 31889
+        },
+        {
+          "pdf_page": 8,
+          "start": 31891,
+          "end": 36264
+        },
+        {
+          "pdf_page": 9,
+          "start": 36266,
+          "end": 40090
+        },
+        {
+          "pdf_page": 10,
+          "start": 40092,
+          "end": 44761
+        },
+        {
+          "pdf_page": 11,
+          "start": 44763,
+          "end": 49869
+        },
+        {
+          "pdf_page": 12,
+          "start": 49871,
+          "end": 54967
+        },
+        {
+          "pdf_page": 13,
+          "start": 54969,
+          "end": 60159
+        },
+        {
+          "pdf_page": 14,
+          "start": 60161,
+          "end": 60552
+        },
+        {
+          "pdf_page": 15,
+          "start": 60554,
+          "end": 65289
+        },
+        {
+          "pdf_page": 16,
+          "start": 65291,
+          "end": 70001
+        },
+        {
+          "pdf_page": 17,
+          "start": 70003,
+          "end": 74510
+        },
+        {
+          "pdf_page": 18,
+          "start": 74512,
+          "end": 78651
+        },
+        {
+          "pdf_page": 19,
+          "start": 78653,
+          "end": 82727
+        },
+        {
+          "pdf_page": 20,
+          "start": 82729,
+          "end": 86326
+        },
+        {
+          "pdf_page": 21,
+          "start": 86328,
+          "end": 90705
+        },
+        {
+          "pdf_page": 22,
+          "start": 90707,
+          "end": 92635
+        },
+        {
+          "pdf_page": 23,
+          "start": 92637,
+          "end": 96786
+        },
+        {
+          "pdf_page": 24,
+          "start": 96788,
+          "end": 96943
+        },
+        {
+          "pdf_page": 25,
+          "start": 96945,
+          "end": 97329
+        }
+      ]
+    },
+    {
+      "id": "rarr",
+      "family_id": "verification",
+      "split": "dev",
+      "version": "2023.acl-long.910",
+      "title": "RARR: Researching and Revising What Language Models Say, Using Language Models",
+      "authors": [
+        "Luyu Gao",
+        "Zhuyun Dai",
+        "Panupong Pasupat",
+        "Anthony Chen",
+        "Arun Tejasvi Chaganty",
+        "Yicheng Fan",
+        "Vincent Zhao",
+        "Ni Lao",
+        "Hongrae Lee",
+        "Da-Cheng Juan",
+        "Kelvin Guu"
+      ],
+      "landing_url": "https://aclanthology.org/2023.acl-long.910/",
+      "pdf_url": "https://aclanthology.org/2023.acl-long.910.pdf",
+      "doi": "10.18653/v1/2023.acl-long.910",
+      "fetched_at": "2026-10-12T00:09:38.362037+00:00",
+      "pdf_path": "papers/rarr.pdf",
+      "pdf_sha256": "012e1231dc847c4cee6c7cb0e6ffee43f5799f70754930c815db1674ceffeab9",
+      "pdf_pages": 32,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2023.acl-long.910/",
+      "license_evidence": "ACL Anthology landing page footer (saved, sha256 in landing_page_sha256): 'Materials published in or after 2016 are licensed on a Creative Commons Attribution 4.0 International License'; this ACL-venue paper is from 2023.",
+      "landing_page_sha256": "c39c6c7a909088cfc761e8e49ce09a137c0c9a10017bc913bcdef1e5662ff313",
+      "attribution": "Luyu Gao; Zhuyun Dai; Panupong Pasupat; Anthony Chen; Arun Tejasvi Chaganty; Yicheng Fan; Vincent Zhao; Ni Lao; Hongrae Lee; Da-Cheng Juan; Kelvin Guu. RARR: Researching and Revising What Language Models Say, Using Language Models. 2023.acl-long.910. https://aclanthology.org/2023.acl-long.910/",
+      "transformations": "pypdf plain extraction; collapse all whitespace within each PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation, or table reconstruction. Full text is not tracked; rebuild it from the PDF.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "ce6d1b2a3fb734e4d256de03e5882f1e787d3ee94b7a172e1f9b4c06b4e21fe0",
+      "text_chars": 127001,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 4256
+        },
+        {
+          "pdf_page": 2,
+          "start": 4258,
+          "end": 9251
+        },
+        {
+          "pdf_page": 3,
+          "start": 9253,
+          "end": 13660
+        },
+        {
+          "pdf_page": 4,
+          "start": 13662,
+          "end": 18819
+        },
+        {
+          "pdf_page": 5,
+          "start": 18821,
+          "end": 23437
+        },
+        {
+          "pdf_page": 6,
+          "start": 23439,
+          "end": 28072
+        },
+        {
+          "pdf_page": 7,
+          "start": 28074,
+          "end": 32929
+        },
+        {
+          "pdf_page": 8,
+          "start": 32931,
+          "end": 39015
+        },
+        {
+          "pdf_page": 9,
+          "start": 39017,
+          "end": 43305
+        },
+        {
+          "pdf_page": 10,
+          "start": 43307,
+          "end": 48001
+        },
+        {
+          "pdf_page": 11,
+          "start": 48003,
+          "end": 52311
+        },
+        {
+          "pdf_page": 12,
+          "start": 52313,
+          "end": 56956
+        },
+        {
+          "pdf_page": 13,
+          "start": 56958,
+          "end": 61910
+        },
+        {
+          "pdf_page": 14,
+          "start": 61912,
+          "end": 66489
+        },
+        {
+          "pdf_page": 15,
+          "start": 66491,
+          "end": 70252
+        },
+        {
+          "pdf_page": 16,
+          "start": 70254,
+          "end": 73914
+        },
+        {
+          "pdf_page": 17,
+          "start": 73916,
+          "end": 74465
+        },
+        {
+          "pdf_page": 18,
+          "start": 74467,
+          "end": 78146
+        },
+        {
+          "pdf_page": 19,
+          "start": 78148,
+          "end": 82078
+        },
+        {
+          "pdf_page": 20,
+          "start": 82080,
+          "end": 86382
+        },
+        {
+          "pdf_page": 21,
+          "start": 86384,
+          "end": 88186
+        },
+        {
+          "pdf_page": 22,
+          "start": 88188,
+          "end": 90271
+        },
+        {
+          "pdf_page": 23,
+          "start": 90273,
+          "end": 95542
+        },
+        {
+          "pdf_page": 24,
+          "start": 95544,
+          "end": 100876
+        },
+        {
+          "pdf_page": 25,
+          "start": 100878,
+          "end": 104011
+        },
+        {
+          "pdf_page": 26,
+          "start": 104013,
+          "end": 109175
+        },
+        {
+          "pdf_page": 27,
+          "start": 109177,
+          "end": 113648
+        },
+        {
+          "pdf_page": 28,
+          "start": 113650,
+          "end": 116647
+        },
+        {
+          "pdf_page": 29,
+          "start": 116649,
+          "end": 120348
+        },
+        {
+          "pdf_page": 30,
+          "start": 120350,
+          "end": 123297
+        },
+        {
+          "pdf_page": 31,
+          "start": 123299,
+          "end": 125432
+        },
+        {
+          "pdf_page": 32,
+          "start": 125434,
+          "end": 127001
+        }
+      ]
+    },
+    {
+      "id": "ircot",
+      "family_id": "multistep",
+      "split": "holdout",
+      "version": "2023.acl-long.557",
+      "title": "Interleaving Retrieval with Chain-of-Thought Reasoning for Knowledge-Intensive Multi-Step Questions",
+      "authors": [
+        "Harsh Trivedi",
+        "Niranjan Balasubramanian",
+        "Tushar Khot",
+        "Ashish Sabharwal"
+      ],
+      "landing_url": "https://aclanthology.org/2023.acl-long.557/",
+      "pdf_url": "https://aclanthology.org/2023.acl-long.557.pdf",
+      "doi": "10.18653/v1/2023.acl-long.557",
+      "fetched_at": "2026-10-12T00:09:47.666585+00:00",
+      "pdf_path": "papers/ircot.pdf",
+      "pdf_sha256": "d307211b02415e5a590e4a13165a2006ea53548d11566d33fd781ee1db80e3b6",
+      "pdf_pages": 24,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2023.acl-long.557/",
+      "license_evidence": "ACL Anthology landing page footer (saved, sha256 in landing_page_sha256): 'Materials published in or after 2016 are licensed on a Creative Commons Attribution 4.0 International License'; this ACL-venue paper is from 2023.",
+      "landing_page_sha256": "9a1e8fb98cb018c0d4c8df49cb4e8fbb0a2f44264bc61c32ffd082f347cad8f2",
+      "attribution": "Harsh Trivedi; Niranjan Balasubramanian; Tushar Khot; Ashish Sabharwal. Interleaving Retrieval with Chain-of-Thought Reasoning for Knowledge-Intensive Multi-Step Questions. 2023.acl-long.557. https://aclanthology.org/2023.acl-long.557/",
+      "transformations": "pypdf plain extraction; collapse all whitespace within each PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation, or table reconstruction. Full text is not tracked; rebuild it from the PDF.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "4e99738f6b35cc89d60758f606e157baf707d2b964ff330547cf45d3b989743f",
+      "text_chars": 86469,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 3718
+        },
+        {
+          "pdf_page": 2,
+          "start": 3720,
+          "end": 8592
+        },
+        {
+          "pdf_page": 3,
+          "start": 8594,
+          "end": 13154
+        },
+        {
+          "pdf_page": 4,
+          "start": 13156,
+          "end": 17289
+        },
+        {
+          "pdf_page": 5,
+          "start": 17291,
+          "end": 22083
+        },
+        {
+          "pdf_page": 6,
+          "start": 22085,
+          "end": 24714
+        },
+        {
+          "pdf_page": 7,
+          "start": 24716,
+          "end": 27066
+        },
+        {
+          "pdf_page": 8,
+          "start": 27068,
+          "end": 29978
+        },
+        {
+          "pdf_page": 9,
+          "start": 29980,
+          "end": 34874
+        },
+        {
+          "pdf_page": 10,
+          "start": 34876,
+          "end": 39477
+        },
+        {
+          "pdf_page": 11,
+          "start": 39479,
+          "end": 44493
+        },
+        {
+          "pdf_page": 12,
+          "start": 44495,
+          "end": 45943
+        },
+        {
+          "pdf_page": 13,
+          "start": 45945,
+          "end": 50683
+        },
+        {
+          "pdf_page": 14,
+          "start": 50685,
+          "end": 54956
+        },
+        {
+          "pdf_page": 15,
+          "start": 54958,
+          "end": 59810
+        },
+        {
+          "pdf_page": 16,
+          "start": 59812,
+          "end": 60103
+        },
+        {
+          "pdf_page": 17,
+          "start": 60105,
+          "end": 64453
+        },
+        {
+          "pdf_page": 18,
+          "start": 64455,
+          "end": 68906
+        },
+        {
+          "pdf_page": 19,
+          "start": 68908,
+          "end": 73260
+        },
+        {
+          "pdf_page": 20,
+          "start": 73262,
+          "end": 77685
+        },
+        {
+          "pdf_page": 21,
+          "start": 77687,
+          "end": 82314
+        },
+        {
+          "pdf_page": 22,
+          "start": 82316,
+          "end": 82602
+        },
+        {
+          "pdf_page": 23,
+          "start": 82604,
+          "end": 84773
+        },
+        {
+          "pdf_page": 24,
+          "start": 84775,
+          "end": 86469
+        }
+      ]
+    },
+    {
+      "id": "rewrite",
+      "family_id": "multistep",
+      "split": "holdout",
+      "version": "2023.emnlp-main.322",
+      "title": "Query Rewriting in Retrieval-Augmented Large Language Models",
+      "authors": [
+        "Xinbei Ma",
+        "Yeyun Gong",
+        "Pengcheng He",
+        "Hai Zhao",
+        "Nan Duan"
+      ],
+      "landing_url": "https://aclanthology.org/2023.emnlp-main.322/",
+      "pdf_url": "https://aclanthology.org/2023.emnlp-main.322.pdf",
+      "doi": "10.18653/v1/2023.emnlp-main.322",
+      "fetched_at": "2026-10-12T00:09:51.417735+00:00",
+      "pdf_path": "papers/rewrite.pdf",
+      "pdf_sha256": "47f985749bc248b330dd5b965a2c072413017972523f052c5702ae22f3bd75e3",
+      "pdf_pages": 13,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2023.emnlp-main.322/",
+      "license_evidence": "ACL Anthology landing page footer (saved, sha256 in landing_page_sha256): 'Materials published in or after 2016 are licensed on a Creative Commons Attribution 4.0 International License'; this ACL-venue paper is from 2023.",
+      "landing_page_sha256": "d173e41f638fb31656c97c1ee32dac520fedce01d93924a4814db74c8e270e57",
+      "attribution": "Xinbei Ma; Yeyun Gong; Pengcheng He; Hai Zhao; Nan Duan. Query Rewriting in Retrieval-Augmented Large Language Models. 2023.emnlp-main.322. https://aclanthology.org/2023.emnlp-main.322/",
+      "transformations": "pypdf plain extraction; collapse all whitespace within each PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation, or table reconstruction. Full text is not tracked; rebuild it from the PDF.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "d4aa94f20d7e3c41c961308e83f66815ab7c3913beda0a44eb01e81e09fc9949",
+      "text_chars": 53912,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 4601
+        },
+        {
+          "pdf_page": 2,
+          "start": 4603,
+          "end": 9309
+        },
+        {
+          "pdf_page": 3,
+          "start": 9311,
+          "end": 13313
+        },
+        {
+          "pdf_page": 4,
+          "start": 13315,
+          "end": 17800
+        },
+        {
+          "pdf_page": 5,
+          "start": 17802,
+          "end": 21718
+        },
+        {
+          "pdf_page": 6,
+          "start": 21720,
+          "end": 25655
+        },
+        {
+          "pdf_page": 7,
+          "start": 25657,
+          "end": 29049
+        },
+        {
+          "pdf_page": 8,
+          "start": 29051,
+          "end": 33446
+        },
+        {
+          "pdf_page": 9,
+          "start": 33448,
+          "end": 38280
+        },
+        {
+          "pdf_page": 10,
+          "start": 38282,
+          "end": 43558
+        },
+        {
+          "pdf_page": 11,
+          "start": 43560,
+          "end": 48788
+        },
+        {
+          "pdf_page": 12,
+          "start": 48790,
+          "end": 53166
+        },
+        {
+          "pdf_page": 13,
+          "start": 53168,
+          "end": 53912
+        }
+      ]
+    },
+    {
+      "id": "chain-of-note",
+      "family_id": "noise",
+      "split": "holdout",
+      "version": "2024.emnlp-main.813",
+      "title": "Chain-of-Note: Enhancing Robustness in Retrieval-Augmented Language Models",
+      "authors": [
+        "Wenhao Yu",
+        "Hongming Zhang",
+        "Xiaoman Pan",
+        "Peixin Cao",
+        "Kaixin Ma",
+        "Jian Li",
+        "Hongwei Wang",
+        "Dong Yu (于东)"
+      ],
+      "landing_url": "https://aclanthology.org/2024.emnlp-main.813/",
+      "pdf_url": "https://aclanthology.org/2024.emnlp-main.813.pdf",
+      "doi": "10.18653/v1/2024.emnlp-main.813",
+      "fetched_at": "2026-10-12T00:09:55.022811+00:00",
+      "pdf_path": "papers/chain-of-note.pdf",
+      "pdf_sha256": "851af70dadc3fb225086cfb15b7c4eaa869ee87312a844ad0dbb4082f3f25904",
+      "pdf_pages": 14,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2024.emnlp-main.813/",
+      "license_evidence": "ACL Anthology landing page footer (saved, sha256 in landing_page_sha256): 'Materials published in or after 2016 are licensed on a Creative Commons Attribution 4.0 International License'; this ACL-venue paper is from 2024.",
+      "landing_page_sha256": "8ab818ecf6dfa3b53525361075ea32b0cabb5b5069725b0c908089b1b78f1ffc",
+      "attribution": "Wenhao Yu; Hongming Zhang; Xiaoman Pan; Peixin Cao; Kaixin Ma; Jian Li; Hongwei Wang; Dong Yu (于东). Chain-of-Note: Enhancing Robustness in Retrieval-Augmented Language Models. 2024.emnlp-main.813. https://aclanthology.org/2024.emnlp-main.813/",
+      "transformations": "pypdf plain extraction; collapse all whitespace within each PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation, or table reconstruction. Full text is not tracked; rebuild it from the PDF.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "815a8ccd3b7d833d99767be07f71a9c7a8a1d85d580fb208c334b1a7922314c6",
+      "text_chars": 57429,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 4139
+        },
+        {
+          "pdf_page": 2,
+          "start": 4141,
+          "end": 8918
+        },
+        {
+          "pdf_page": 3,
+          "start": 8920,
+          "end": 14909
+        },
+        {
+          "pdf_page": 4,
+          "start": 14911,
+          "end": 19687
+        },
+        {
+          "pdf_page": 5,
+          "start": 19689,
+          "end": 24167
+        },
+        {
+          "pdf_page": 6,
+          "start": 24169,
+          "end": 28233
+        },
+        {
+          "pdf_page": 7,
+          "start": 28235,
+          "end": 32103
+        },
+        {
+          "pdf_page": 8,
+          "start": 32105,
+          "end": 36116
+        },
+        {
+          "pdf_page": 9,
+          "start": 36118,
+          "end": 41068
+        },
+        {
+          "pdf_page": 10,
+          "start": 41070,
+          "end": 46152
+        },
+        {
+          "pdf_page": 11,
+          "start": 46154,
+          "end": 47812
+        },
+        {
+          "pdf_page": 12,
+          "start": 47814,
+          "end": 52433
+        },
+        {
+          "pdf_page": 13,
+          "start": 52435,
+          "end": 55113
+        },
+        {
+          "pdf_page": 14,
+          "start": 55115,
+          "end": 57429
+        }
+      ]
+    },
+    {
+      "id": "longllmlingua",
+      "family_id": "noise",
+      "split": "holdout",
+      "version": "2024.acl-long.91",
+      "title": "LongLLMLingua: Accelerating and Enhancing LLMs in Long Context Scenarios via Prompt Compression",
+      "authors": [
+        "Huiqiang Jiang",
+        "Qianhui Wu",
+        "Xufang Luo",
+        "Dongsheng Li",
+        "Chin-Yew Lin",
+        "Yuqing Yang",
+        "Lili Qiu"
+      ],
+      "landing_url": "https://aclanthology.org/2024.acl-long.91/",
+      "pdf_url": "https://aclanthology.org/2024.acl-long.91.pdf",
+      "doi": "10.18653/v1/2024.acl-long.91",
+      "fetched_at": "2026-10-12T00:10:00.267268+00:00",
+      "pdf_path": "papers/longllmlingua.pdf",
+      "pdf_sha256": "baddd67ba8fb10b68ab1251de9961cc1e4868ead89b97bf99a5838ea80fb4c1c",
+      "pdf_pages": 20,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2024.acl-long.91/",
+      "license_evidence": "ACL Anthology landing page footer (saved, sha256 in landing_page_sha256): 'Materials published in or after 2016 are licensed on a Creative Commons Attribution 4.0 International License'; this ACL-venue paper is from 2024.",
+      "landing_page_sha256": "288bc7b5c4fd11d6a76d96c2db82c060f435450d3e0a8e36befb6c66413f4af2",
+      "attribution": "Huiqiang Jiang; Qianhui Wu; Xufang Luo; Dongsheng Li; Chin-Yew Lin; Yuqing Yang; Lili Qiu. LongLLMLingua: Accelerating and Enhancing LLMs in Long Context Scenarios via Prompt Compression. 2024.acl-long.91. https://aclanthology.org/2024.acl-long.91/",
+      "transformations": "pypdf plain extraction; collapse all whitespace within each PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation, or table reconstruction. Full text is not tracked; rebuild it from the PDF.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "bafc4717438cd3fe17be6771396bed9b17140b73ed371f371001c4ee09519f28",
+      "text_chars": 77268,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 4334
+        },
+        {
+          "pdf_page": 2,
+          "start": 4336,
+          "end": 7949
+        },
+        {
+          "pdf_page": 3,
+          "start": 7951,
+          "end": 12346
+        },
+        {
+          "pdf_page": 4,
+          "start": 12348,
+          "end": 16096
+        },
+        {
+          "pdf_page": 5,
+          "start": 16098,
+          "end": 20177
+        },
+        {
+          "pdf_page": 6,
+          "start": 20179,
+          "end": 24924
+        },
+        {
+          "pdf_page": 7,
+          "start": 24926,
+          "end": 29476
+        },
+        {
+          "pdf_page": 8,
+          "start": 29478,
+          "end": 33178
+        },
+        {
+          "pdf_page": 9,
+          "start": 33180,
+          "end": 37703
+        },
+        {
+          "pdf_page": 10,
+          "start": 37705,
+          "end": 42806
+        },
+        {
+          "pdf_page": 11,
+          "start": 42808,
+          "end": 48040
+        },
+        {
+          "pdf_page": 12,
+          "start": 48042,
+          "end": 52185
+        },
+        {
+          "pdf_page": 13,
+          "start": 52187,
+          "end": 56853
+        },
+        {
+          "pdf_page": 14,
+          "start": 56855,
+          "end": 60634
+        },
+        {
+          "pdf_page": 15,
+          "start": 60636,
+          "end": 64470
+        },
+        {
+          "pdf_page": 16,
+          "start": 64472,
+          "end": 68286
+        },
+        {
+          "pdf_page": 17,
+          "start": 68288,
+          "end": 70560
+        },
+        {
+          "pdf_page": 18,
+          "start": 70562,
+          "end": 73626
+        },
+        {
+          "pdf_page": 19,
+          "start": 73628,
+          "end": 75031
+        },
+        {
+          "pdf_page": 20,
+          "start": 75033,
+          "end": 77268
+        }
+      ]
+    },
+    {
+      "id": "popqa",
+      "family_id": "longtail",
+      "split": "holdout",
+      "version": "2023.acl-long.546",
+      "title": "When Not to Trust Language Models: Investigating Effectiveness of Parametric and Non-Parametric Memories",
+      "authors": [
+        "Alex Mallen",
+        "Akari Asai",
+        "Victor Zhong",
+        "Rajarshi Das",
+        "Daniel Khashabi",
+        "Hannaneh Hajishirzi"
+      ],
+      "landing_url": "https://aclanthology.org/2023.acl-long.546/",
+      "pdf_url": "https://aclanthology.org/2023.acl-long.546.pdf",
+      "doi": "10.18653/v1/2023.acl-long.546",
+      "fetched_at": "2026-10-12T00:10:04.725700+00:00",
+      "pdf_path": "papers/popqa.pdf",
+      "pdf_sha256": "b08f238c0c631e304eb0e8ea0ef59e3d18b82895e89c3619318b83d6c2e5369a",
+      "pdf_pages": 21,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2023.acl-long.546/",
+      "license_evidence": "ACL Anthology landing page footer (saved, sha256 in landing_page_sha256): 'Materials published in or after 2016 are licensed on a Creative Commons Attribution 4.0 International License'; this ACL-venue paper is from 2023.",
+      "landing_page_sha256": "7570a3b022b3fb7ba13a4d5605ce7f000d9ba30d20a563ecf08e5109de59a7a5",
+      "attribution": "Alex Mallen; Akari Asai; Victor Zhong; Rajarshi Das; Daniel Khashabi; Hannaneh Hajishirzi. When Not to Trust Language Models: Investigating Effectiveness of Parametric and Non-Parametric Memories. 2023.acl-long.546. https://aclanthology.org/2023.acl-long.546/",
+      "transformations": "pypdf plain extraction; collapse all whitespace within each PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation, or table reconstruction. Full text is not tracked; rebuild it from the PDF.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "a0cf19dd0b0533ff1668fd96fbc973bb0f832eb6b131c369f904618785963648",
+      "text_chars": 69470,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 3873
+        },
+        {
+          "pdf_page": 2,
+          "start": 3875,
+          "end": 8718
+        },
+        {
+          "pdf_page": 3,
+          "start": 8720,
+          "end": 12949
+        },
+        {
+          "pdf_page": 4,
+          "start": 12951,
+          "end": 17676
+        },
+        {
+          "pdf_page": 5,
+          "start": 17678,
+          "end": 20777
+        },
+        {
+          "pdf_page": 6,
+          "start": 20779,
+          "end": 24803
+        },
+        {
+          "pdf_page": 7,
+          "start": 24805,
+          "end": 29054
+        },
+        {
+          "pdf_page": 8,
+          "start": 29056,
+          "end": 33279
+        },
+        {
+          "pdf_page": 9,
+          "start": 33281,
+          "end": 37528
+        },
+        {
+          "pdf_page": 10,
+          "start": 37530,
+          "end": 42459
+        },
+        {
+          "pdf_page": 11,
+          "start": 42461,
+          "end": 47487
+        },
+        {
+          "pdf_page": 12,
+          "start": 47489,
+          "end": 48084
+        },
+        {
+          "pdf_page": 13,
+          "start": 48086,
+          "end": 52249
+        },
+        {
+          "pdf_page": 14,
+          "start": 52251,
+          "end": 55705
+        },
+        {
+          "pdf_page": 15,
+          "start": 55707,
+          "end": 57633
+        },
+        {
+          "pdf_page": 16,
+          "start": 57635,
+          "end": 59334
+        },
+        {
+          "pdf_page": 17,
+          "start": 59336,
+          "end": 60532
+        },
+        {
+          "pdf_page": 18,
+          "start": 60534,
+          "end": 62750
+        },
+        {
+          "pdf_page": 19,
+          "start": 62752,
+          "end": 65198
+        },
+        {
+          "pdf_page": 20,
+          "start": 65200,
+          "end": 67566
+        },
+        {
+          "pdf_page": 21,
+          "start": 67568,
+          "end": 69470
+        }
+      ]
+    },
+    {
+      "id": "densex",
+      "family_id": "longtail",
+      "split": "holdout",
+      "version": "2024.emnlp-main.845",
+      "title": "Dense X Retrieval: What Retrieval Granularity Should We Use?",
+      "authors": [
+        "Tong Chen",
+        "Hongwei Wang",
+        "Sihao Chen",
+        "Wenhao Yu",
+        "Kaixin Ma",
+        "Xinran Zhao",
+        "Hongming Zhang",
+        "Dong Yu (于东)"
+      ],
+      "landing_url": "https://aclanthology.org/2024.emnlp-main.845/",
+      "pdf_url": "https://aclanthology.org/2024.emnlp-main.845.pdf",
+      "doi": "10.18653/v1/2024.emnlp-main.845",
+      "fetched_at": "2026-10-12T00:10:15.237905+00:00",
+      "pdf_path": "papers/densex.pdf",
+      "pdf_sha256": "28296441e7a995a64436dd9e065814faac24a395fd6754ccd2c58149f3ace660",
+      "pdf_pages": 19,
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence_url": "https://aclanthology.org/2024.emnlp-main.845/",
+      "license_evidence": "ACL Anthology landing page footer (saved, sha256 in landing_page_sha256): 'Materials published in or after 2016 are licensed on a Creative Commons Attribution 4.0 International License'; this ACL-venue paper is from 2024.",
+      "landing_page_sha256": "b9120ff6333e497f086be9c5ada8add958a7c564d09dbb5c82ef5f3ceb76935a",
+      "attribution": "Tong Chen; Hongwei Wang; Sihao Chen; Wenhao Yu; Kaixin Ma; Xinran Zhao; Hongming Zhang; Dong Yu (于东). Dense X Retrieval: What Retrieval Granularity Should We Use?. 2024.emnlp-main.845. https://aclanthology.org/2024.emnlp-main.845/",
+      "transformations": "pypdf plain extraction; collapse all whitespace within each PDF page to one ASCII space; join pages with two LF; no dehyphenation, translation, or table reconstruction. Full text is not tracked; rebuild it from the PDF.",
+      "extractor": "pypdf 6.18.0",
+      "text_sha256": "cec05385d676418ae537cd43879df111446cd82620cd37afd3dfa59ff6c668b1",
+      "text_chars": 75715,
+      "pages": [
+        {
+          "pdf_page": 1,
+          "start": 0,
+          "end": 4016
+        },
+        {
+          "pdf_page": 2,
+          "start": 4018,
+          "end": 8641
+        },
+        {
+          "pdf_page": 3,
+          "start": 8643,
+          "end": 13060
+        },
+        {
+          "pdf_page": 4,
+          "start": 13062,
+          "end": 17398
+        },
+        {
+          "pdf_page": 5,
+          "start": 17400,
+          "end": 21652
+        },
+        {
+          "pdf_page": 6,
+          "start": 21654,
+          "end": 25641
+        },
+        {
+          "pdf_page": 7,
+          "start": 25643,
+          "end": 30374
+        },
+        {
+          "pdf_page": 8,
+          "start": 30376,
+          "end": 34250
+        },
+        {
+          "pdf_page": 9,
+          "start": 34252,
+          "end": 38844
+        },
+        {
+          "pdf_page": 10,
+          "start": 38846,
+          "end": 43974
+        },
+        {
+          "pdf_page": 11,
+          "start": 43976,
+          "end": 49297
+        },
+        {
+          "pdf_page": 12,
+          "start": 49299,
+          "end": 54708
+        },
+        {
+          "pdf_page": 13,
+          "start": 54710,
+          "end": 58718
+        },
+        {
+          "pdf_page": 14,
+          "start": 58720,
+          "end": 62542
+        },
+        {
+          "pdf_page": 15,
+          "start": 62544,
+          "end": 65784
+        },
+        {
+          "pdf_page": 16,
+          "start": 65786,
+          "end": 69372
+        },
+        {
+          "pdf_page": 17,
+          "start": 69374,
+          "end": 72137
+        },
+        {
+          "pdf_page": 18,
+          "start": 72139,
+          "end": 75053
+        },
+        {
+          "pdf_page": 19,
+          "start": 75055,
+          "end": 75715
+        }
+      ]
+    }
+  ],
+  "spans": [
+    {
+      "id": "c-datasets",
+      "source_id": "chain-of-note",
+      "source_version": "2024.emnlp-main.813",
+      "pdf_page": 2,
+      "start": 7044,
+      "end": 7249,
+      "quote": "The evaluations were conducted on the NQ and three additional out-of-domain open-domain QA datasets, namely TriviaQA (Joshi et al., 2017), WebQ (Berant et al., 2013), and RealTimeQA (Ka- sai et al., 2023)."
+    },
+    {
+      "id": "c-limit",
+      "source_id": "chain-of-note",
+      "source_version": "2024.emnlp-main.813",
+      "pdf_page": 8,
+      "start": 35625,
+      "end": 35757,
+      "quote": "One major limitation of the CHAIN -OF-NOTE (CON) approach is its increased inference cost due to the sequential generation of notes."
+    },
+    {
+      "id": "c-rr-table",
+      "source_id": "chain-of-note",
+      "source_version": "2024.emnlp-main.813",
+      "pdf_page": 7,
+      "start": 29824,
+      "end": 29910,
+      "quote": "Retrieve-Read (Shi et al., 2023c) 15.6 19.9 6.1 + CHAIN -OF-NOTE (ours) 15.7 20.3 13.0"
+    },
+    {
+      "id": "c-rr-text",
+      "source_id": "chain-of-note",
+      "source_version": "2024.emnlp-main.813",
+      "pdf_page": 2,
+      "start": 7556,
+      "end": 7618,
+      "quote": "a +10.5 increase in the rejection rate for real-time questions"
+    },
+    {
+      "id": "c-t3-0",
+      "source_id": "chain-of-note",
+      "source_version": "2024.emnlp-main.813",
+      "pdf_page": 7,
+      "start": 29279,
+      "end": 29343,
+      "quote": "Retrieve-Read 0% 69.23 75.57 83.34 89.44 42.24 58.59 64.93 74.53"
+    },
+    {
+      "id": "c-t3-100",
+      "source_id": "chain-of-note",
+      "source_version": "2024.emnlp-main.813",
+      "pdf_page": 7,
+      "start": 28303,
+      "end": 28369,
+      "quote": "Retrieve-Read 100% 34.28 41.74 55.30 61.67 29.58 46.34 39.72 49.92"
+    },
+    {
+      "id": "c-time",
+      "source_id": "chain-of-note",
+      "source_version": "2024.emnlp-main.813",
+      "pdf_page": 8,
+      "start": 32492,
+      "end": 32570,
+      "quote": "Retrieve-Read 0.6104 + CHAIN -OF-NOTE 12.0192 + CHAIN -OF-NOTE (hybrid) 0.6074"
+    },
+    {
+      "id": "c-type1",
+      "source_id": "chain-of-note",
+      "source_version": "2024.emnlp-main.813",
+      "pdf_page": 4,
+      "start": 15979,
+      "end": 16104,
+      "quote": "First, when a document directly answers the query, the model formulates the final response based on this relevant information"
+    },
+    {
+      "id": "c-type23",
+      "source_id": "chain-of-note",
+      "source_version": "2024.emnlp-main.813",
+      "pdf_page": 4,
+      "start": 16133,
+      "end": 16502,
+      "quote": "Second, if the retrieved document does not directly answer the query but provides useful context, the model leverages this information along with its inherent knowledge to deduce an answer, as shown in Figure 2(b). Third, in cases where the retrieved documents are irrelevant, and the model lacks sufficient knowledge to answer, it defaults to responding with “unknown\""
+    },
+    {
+      "id": "d-dpr",
+      "source_id": "densex",
+      "source_version": "2024.emnlp-main.845",
+      "pdf_page": 5,
+      "start": 20736,
+      "end": 20968,
+      "quote": "with DPR, which have been trained on NQ, TQA, WebQ, and SQuAD, we observe that proposition and sentence level retrieval perform slightly worse compared to passage level on three out of the four datasets, with the exception of SQuAD."
+    },
+    {
+      "id": "d-english",
+      "source_id": "densex",
+      "source_version": "2024.emnlp-main.845",
+      "pdf_page": 9,
+      "start": 35953,
+      "end": 36008,
+      "quote": "Our current study is limited to English Wikipedia only."
+    },
+    {
+      "id": "d-four",
+      "source_id": "densex",
+      "source_version": "2024.emnlp-main.845",
+      "pdf_page": 4,
+      "start": 14491,
+      "end": 14592,
+      "quote": "We compare the performance of the four following supervised or unsupervised dense retriever mod- els."
+    },
+    {
+      "id": "d-longtail",
+      "source_id": "densex",
+      "source_version": "2024.emnlp-main.845",
+      "pdf_page": 6,
+      "start": 25094,
+      "end": 25240,
+      "quote": "Our findings indicate that the per- formance gain from retrieval by proposition can mostly be attributed to queries for long-tailed infor- mation."
+    },
+    {
+      "id": "d-p1",
+      "source_id": "densex",
+      "source_version": "2024.emnlp-main.845",
+      "pdf_page": 3,
+      "start": 9685,
+      "end": 9856,
+      "quote": "1. Each proposition should correspond to a distinct piece of meaning in text, where the composition of all propositions would represent the seman- tics of the entire text."
+    },
+    {
+      "id": "d-p2",
+      "source_id": "densex",
+      "source_version": "2024.emnlp-main.845",
+      "pdf_page": 3,
+      "start": 9857,
+      "end": 9952,
+      "quote": "2. A proposition should be minimal, i.e. it cannot be further split into separate propositions."
+    },
+    {
+      "id": "d-p3",
+      "source_id": "densex",
+      "source_version": "2024.emnlp-main.845",
+      "pdf_page": 3,
+      "start": 9953,
+      "end": 10035,
+      "quote": "3. A proposition should be contextualized and self- contained (Choi et al., 2021)."
+    },
+    {
+      "id": "d-six",
+      "source_id": "densex",
+      "source_version": "2024.emnlp-main.845",
+      "pdf_page": 9,
+      "start": 35733,
+      "end": 35780,
+      "quote": "we evaluate 6 types of popular dense retrievers"
+    },
+    {
+      "id": "d-supervised",
+      "source_id": "densex",
+      "source_version": "2024.emnlp-main.845",
+      "pdf_page": 5,
+      "start": 20490,
+      "end": 20629,
+      "quote": "With the supervised retrievers, proposition-level retrieval still shows an advantage on average, yet the sizes of improvements are smaller."
+    },
+    {
+      "id": "fs-atomic",
+      "source_id": "factscore",
+      "source_version": "2023.emnlp-main.741",
+      "pdf_page": 3,
+      "start": 11611,
+      "end": 11690,
+      "quote": "we define an atomic fact as a short sentence conveying one piece of information"
+    },
+    {
+      "id": "fs-cite",
+      "source_id": "factscore",
+      "source_version": "2023.emnlp-main.741",
+      "pdf_page": 6,
+      "start": 24294,
+      "end": 24380,
+      "quote": "36.0% and 37.6% of supported and unsupported sentences have ci- tations, respectively."
+    },
+    {
+      "id": "fs-cost26",
+      "source_id": "factscore",
+      "source_version": "2023.emnlp-main.741",
+      "pdf_page": 8,
+      "start": 35146,
+      "end": 35264,
+      "quote": "In total, we evaluate 6,500 generations from 13 subjects, which would have cost $26K if they were evaluated by humans."
+    },
+    {
+      "id": "fs-cost65",
+      "source_id": "factscore",
+      "source_version": "2023.emnlp-main.741",
+      "pdf_page": 9,
+      "start": 38861,
+      "end": 38948,
+      "quote": "evaluating 12 recently- released LMs that could have cost $65K if evalu- ated by humans"
+    },
+    {
+      "id": "fs-def",
+      "source_id": "factscore",
+      "source_version": "2023.emnlp-main.741",
+      "pdf_page": 1,
+      "start": 990,
+      "end": 1124,
+      "quote": "breaks a generation into a series of atomic facts and computes the percentage of atomic facts supported by a reliable knowledge source"
+    },
+    {
+      "id": "fs-human",
+      "source_id": "factscore",
+      "source_version": "2023.emnlp-main.741",
+      "pdf_page": 4,
+      "start": 17051,
+      "end": 17128,
+      "quote": "InstructGPT and ChatGPT achieve FACTSCORE s of 42.5% and 58.3%, respectively."
+    },
+    {
+      "id": "fs-pplx",
+      "source_id": "factscore",
+      "source_version": "2023.emnlp-main.741",
+      "pdf_page": 4,
+      "start": 17129,
+      "end": 17315,
+      "quote": "PerplexityAI, which uses a commercial search en- gine and thus should have a perfect FACTSCORE if directly copying the text from the correct Wikipedia page, attains a FACTSCORE of 71.5%."
+    },
+    {
+      "id": "fs-recall",
+      "source_id": "factscore",
+      "source_version": "2023.emnlp-main.741",
+      "pdf_page": 10,
+      "start": 41230,
+      "end": 41320,
+      "quote": "FACTSCORE does not consider factual recall: the coverage of information in a genera- tion."
+    },
+    {
+      "id": "fs-scope",
+      "source_id": "factscore",
+      "source_version": "2023.emnlp-main.741",
+      "pdf_page": 9,
+      "start": 39564,
+      "end": 39628,
+      "quote": "All of our experiments focus on people biographies and Wikipedia"
+    },
+    {
+      "id": "fs-source",
+      "source_id": "factscore",
+      "source_version": "2023.emnlp-main.741",
+      "pdf_page": 3,
+      "start": 12357,
+      "end": 12484,
+      "quote": "instead of whether an atomic fact is globally true or false, we consider whether it issupported by a given source of knowledge."
+    },
+    {
+      "id": "g-2x-row",
+      "source_id": "longllmlingua",
+      "source_version": "2024.acl-long.91",
+      "pdf_page": 7,
+      "start": 25749,
+      "end": 25792,
+      "quote": "LongLLMLingua 77.2 72.9 70.8 70.5 70.6 76.2"
+    },
+    {
+      "id": "g-4x-row",
+      "source_id": "longllmlingua",
+      "source_version": "2024.acl-long.91",
+      "pdf_page": 7,
+      "start": 26514,
+      "end": 26557,
+      "quote": "LongLLMLingua 75.0 71.8 71.2 71.2 74.7 75.5"
+    },
+    {
+      "id": "g-challenges",
+      "source_id": "longllmlingua",
+      "source_version": "2024.acl-long.91",
+      "pdf_page": 1,
+      "start": 570,
+      "end": 637,
+      "quote": "higher computational cost, performance reduction, and position bias"
+    },
+    {
+      "id": "g-components",
+      "source_id": "longllmlingua",
+      "source_version": "2024.acl-long.91",
+      "pdf_page": 9,
+      "start": 35340,
+      "end": 35493,
+      "quote": "a question- aware coarse-to-fine compression method, a doc- ument reordering mechanism, dynamic compres- sion ratios, and a subsequence recovery strategy"
+    },
+    {
+      "id": "g-latency",
+      "source_id": "longllmlingua",
+      "source_version": "2024.acl-long.91",
+      "pdf_page": 1,
+      "start": 1446,
+      "end": 1506,
+      "quote": "LongLLMLingua can accelerate end-to-end latency by 1.4x-2.6x"
+    },
+    {
+      "id": "g-llms",
+      "source_id": "longllmlingua",
+      "source_version": "2024.acl-long.91",
+      "pdf_page": 5,
+      "start": 19852,
+      "end": 19918,
+      "quote": "we use GPT-3.5-Turbo-06136 and LongChat-13B-16k as the target LLMs"
+    },
+    {
+      "id": "g-noise",
+      "source_id": "longllmlingua",
+      "source_version": "2024.acl-long.91",
+      "pdf_page": 2,
+      "start": 4707,
+      "end": 4787,
+      "quote": "LLMs’ performance in downstream tasks decreases with increased noise in prompts."
+    },
+    {
+      "id": "g-orig-row",
+      "source_id": "longllmlingua",
+      "source_version": "2024.acl-long.91",
+      "pdf_page": 7,
+      "start": 26606,
+      "end": 26646,
+      "quote": "Original Prompt 75.7 57.3 54.1 55.4 63.1"
+    },
+    {
+      "id": "g-recompress",
+      "source_id": "longllmlingua",
+      "source_version": "2024.acl-long.91",
+      "pdf_page": 9,
+      "start": 36111,
+      "end": 36224,
+      "quote": "it requires re-compression for different questions, even with the same context, preventing caching of the context"
+    },
+    {
+      "id": "i-iirc",
+      "source_id": "ircot",
+      "source_version": "2023.acl-long.557",
+      "pdf_page": 6,
+      "start": 23304,
+      "end": 23432,
+      "quote": "For GPT3, IRCoT doesn’t improve the QA score on IIRC, despite signifi- cantly improved retrieval (21 points as shown in Fig. 3)."
+    },
+    {
+      "id": "i-max8",
+      "source_id": "ircot",
+      "source_version": "2023.acl-long.557",
+      "pdf_page": 4,
+      "start": 16033,
+      "end": 16093,
+      "quote": "4set to 8 in our experiments. 5set to 15 in our experiments."
+    },
+    {
+      "id": "i-notrain",
+      "source_id": "ircot",
+      "source_version": "2023.acl-long.557",
+      "pdf_page": 2,
+      "start": 7726,
+      "end": 7854,
+      "quote": "improves performance with both large-scale (175B models) as well as smaller-scale mod- els (Flan-T5-*,≤11B) without any training"
+    },
+    {
+      "id": "i-onestep",
+      "source_id": "ircot",
+      "source_version": "2023.acl-long.557",
+      "pdf_page": 1,
+      "start": 940,
+      "end": 1030,
+      "quote": "we observe that this one-step retrieve-and-read approach is insufficient for multi-step QA"
+    },
+    {
+      "id": "i-small",
+      "source_id": "ircot",
+      "source_version": "2023.acl-long.557",
+      "pdf_page": 8,
+      "start": 28111,
+      "end": 28192,
+      "quote": "For all sizes except the smallest (0.2B), we see IRCoT QA is better than OneR QA."
+    },
+    {
+      "id": "i-steps",
+      "source_id": "ircot",
+      "source_version": "2023.acl-long.557",
+      "pdf_page": 2,
+      "start": 5185,
+      "end": 5466,
+      "quote": "(i) extend CoT: use the ques- tion, the paragraphs collected thus far, and the CoT sentences generated thus far to generate the next CoT sentence; (ii) expand retrieved information: use the last CoT sentence as a query to retrieve additional paragraphs to add to the collected set."
+    },
+    {
+      "id": "i-stop",
+      "source_id": "ircot",
+      "source_version": "2023.acl-long.557",
+      "pdf_page": 4,
+      "start": 15421,
+      "end": 15615,
+      "quote": "If the generated CoT sentence has the “answer is:” string or the maximum number of steps 4 has been reached, we terminate the process and return all collected paragraphs as the retrieval result."
+    },
+    {
+      "id": "p-10pct",
+      "source_id": "popqa",
+      "source_version": "2023.acl-long.546",
+      "pdf_page": 7,
+      "start": 28355,
+      "end": 28484,
+      "quote": "For 10% of questions, retrieval- augmentation causes the LM to incorrectly answer a question it could otherwise answer correctly."
+    },
+    {
+      "id": "p-hurt",
+      "source_id": "popqa",
+      "source_version": "2023.acl-long.546",
+      "pdf_page": 2,
+      "start": 5825,
+      "end": 5982,
+      "quote": "we also find that retrieval augmentation can hurt the performance of large LMs on questions about popular entities as the retrieved context can be misleading"
+    },
+    {
+      "id": "p-longtail",
+      "source_id": "popqa",
+      "source_version": "2023.acl-long.546",
+      "pdf_page": 1,
+      "start": 1113,
+      "end": 1243,
+      "quote": "We find that LMs struggle with less popular factual knowledge, and that retrieval augmentation helps significantly in these cases."
+    },
+    {
+      "id": "p-per-rel",
+      "source_id": "popqa",
+      "source_version": "2023.acl-long.546",
+      "pdf_page": 8,
+      "start": 30367,
+      "end": 30448,
+      "quote": "We determine the popularity threshold inde- pendently for each relationship type."
+    },
+    {
+      "id": "p-threshold",
+      "source_id": "popqa",
+      "source_version": "2023.acl-long.546",
+      "pdf_page": 8,
+      "start": 29905,
+      "end": 30064,
+      "quote": "we use retrieval for questions whose popularity is lower than a threshold (popu- larity threshold), and for more popular entities, do not use retrieval at all."
+    },
+    {
+      "id": "r-ais",
+      "source_id": "rarr",
+      "source_version": "2023.acl-long.910",
+      "pdf_page": 3,
+      "start": 9524,
+      "end": 9647,
+      "quote": "We ask annotators to give an AIS score for each sentence s of y, and then report the average AIS score across all sentences"
+    },
+    {
+      "id": "r-attr-correct",
+      "source_id": "rarr",
+      "source_version": "2023.acl-long.910",
+      "pdf_page": 2,
+      "start": 6722,
+      "end": 6761,
+      "quote": "attribution does not entail correctness"
+    },
+    {
+      "id": "r-correct2",
+      "source_id": "rarr",
+      "source_version": "2023.acl-long.910",
+      "pdf_page": 8,
+      "start": 38479,
+      "end": 38597,
+      "quote": "This underscores that attribution alone cannot measure “correctness” since not all evidence is up-to-date or reliable."
+    },
+    {
+      "id": "r-limit-cost",
+      "source_id": "rarr",
+      "source_version": "2023.acl-long.910",
+      "pdf_page": 10,
+      "start": 45935,
+      "end": 46028,
+      "quote": "our model is computationally costly, since it is based on prompt- ing a large language model."
+    },
+    {
+      "id": "r-limit-delete",
+      "source_id": "rarr",
+      "source_version": "2023.acl-long.910",
+      "pdf_page": 10,
+      "start": 45660,
+      "end": 45734,
+      "quote": "RARR tends to preserve rather than delete claims that it cannot attribute."
+    },
+    {
+      "id": "r-limit-poetry",
+      "source_id": "rarr",
+      "source_version": "2023.acl-long.910",
+      "pdf_page": 10,
+      "start": 45304,
+      "end": 45431,
+      "quote": "the current implementation of RARR would not be well-prepared to edit poetry (where preserving rhyme matters) or long documents"
+    },
+    {
+      "id": "r-pres",
+      "source_id": "rarr",
+      "source_version": "2023.acl-long.910",
+      "pdf_page": 2,
+      "start": 8885,
+      "end": 8972,
+      "quote": "(2) preservation: how much the revised text y preserves aspects of the original text x."
+    },
+    {
+      "id": "r-rag",
+      "source_id": "rarr",
+      "source_version": "2023.acl-long.910",
+      "pdf_page": 1,
+      "start": 4037,
+      "end": 4224,
+      "quote": "Even retrieval- augmented models (Guu et al., 2020; Lewis et al., 2020), which retrieve relevant documents and then condition on them to generate text, still do not guarantee attribution."
+    },
+    {
+      "id": "r-stages",
+      "source_id": "rarr",
+      "source_version": "2023.acl-long.910",
+      "pdf_page": 2,
+      "start": 7816,
+      "end": 8142,
+      "quote": "the research stage uses a query generator to raise questions about different aspects of the text. The retriever then searches for evidence to investigate each query. The revision stage first runs an agreement model to detect disagreement between the text and the evidence, then runs an edit model to revise the text if needed."
+    },
+    {
+      "id": "w-hotpot-hurt",
+      "source_id": "rewrite",
+      "source_version": "2023.emnlp-main.322",
+      "pdf_page": 6,
+      "start": 25177,
+      "end": 25232,
+      "quote": "On HotpotQA, the stan- dard retrieval hurts the reader."
+    },
+    {
+      "id": "w-limit-tradeoff",
+      "source_id": "rewrite",
+      "source_version": "2023.emnlp-main.322",
+      "pdf_page": 9,
+      "start": 34778,
+      "end": 34870,
+      "quote": "There is still a trade-off between generalization and specialization among downstream tasks."
+    },
+    {
+      "id": "w-limit-web",
+      "source_id": "rewrite",
+      "source_version": "2023.emnlp-main.322",
+      "pdf_page": 9,
+      "start": 35453,
+      "end": 35527,
+      "quote": "Using a web search engine as the retriever also leads to some limitations."
+    },
+    {
+      "id": "w-multihop",
+      "source_id": "rewrite",
+      "source_version": "2023.emnlp-main.322",
+      "pdf_page": 6,
+      "start": 25382,
+      "end": 25472,
+      "quote": "This suggests that multi-hop questions are not suitable queries for the web search engine."
+    },
+    {
+      "id": "w-oneturn",
+      "source_id": "rewrite",
+      "source_version": "2023.emnlp-main.322",
+      "pdf_page": 9,
+      "start": 35341,
+      "end": 35445,
+      "quote": "our motivation is to enhance the one- turn retriever-then-read framework with a trainable query rewriter"
+    },
+    {
+      "id": "w-popqa-inferior",
+      "source_id": "rewrite",
+      "source_version": "2023.emnlp-main.322",
+      "pdf_page": 7,
+      "start": 28558,
+      "end": 28630,
+      "quote": "on PopQA, the trainable rewriter re- mains inferior to the LLM rewriter."
+    },
+    {
+      "id": "w-ppo",
+      "source_id": "rewrite",
+      "source_version": "2023.emnlp-main.322",
+      "pdf_page": 4,
+      "start": 17675,
+      "end": 17718,
+      "quote": "We adopt Proximal Policy Optimization (PPO)"
+    },
+    {
+      "id": "w-stages",
+      "source_id": "rewrite",
+      "source_version": "2023.emnlp-main.322",
+      "pdf_page": 4,
+      "start": 15181,
+      "end": 15307,
+      "quote": "The rewriter is first trained on pseudo data to warm up (§3.2.1), then continually trained by reinforcement learning (§3.2.2)."
+    },
+    {
+      "id": "w-t5",
+      "source_id": "rewrite",
+      "source_version": "2023.emnlp-main.322",
+      "pdf_page": 4,
+      "start": 15051,
+      "end": 15124,
+      "quote": "The trainable model is initial- ized with the pre-trained T5-large (770M)"
+    }
+  ]
+}
