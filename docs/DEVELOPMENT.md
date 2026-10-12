@@ -52,4 +52,4 @@ git show ddb080e:archive/v1/README.md
 git show ddb080e:docs/migration/02_MIGRATION_PLAN.md
 ```
 
-更早的 v1 另有 `v1-archive-1fb7dc6` 标签。保留历史用于追溯，不需要把整套旧应用放在当前运行树中。历史评测结果见[Phase 6 记录](evaluation/phase6-history.md)，当前状态统一见[项目状态](PROJECT_STATUS.md)。
+更早的 v1 另有 `v1-archive-1fb7dc6` 标签。保留历史用于追溯，不需要把整套旧应用放在当前运行树中。早期评测记录可在 Git 历史中查阅，当前状态统一见[项目状态](PROJECT_STATUS.md)。
