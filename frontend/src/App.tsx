@@ -13,6 +13,7 @@ const KnowledgePage = lazy(async () => ({ default: (await import("./pages/Knowle
 const ReportsPage = lazy(async () => ({ default: (await import("./pages/ReportsPage")).ReportsPage }));
 const RuntimePage = lazy(async () => ({ default: (await import("./pages/RuntimePage")).RuntimePage }));
 const ExperimentsPage = lazy(async () => ({ default: (await import("./pages/ExperimentsPage")).ExperimentsPage }));
+const KnowledgeMapPage = lazy(async () => ({ default: (await import("./features/knowledge-map")).KnowledgeMapPage }));
 
 export function App() {
   return (
@@ -21,6 +22,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/knowledge" element={<KnowledgePage />} />
+          <Route path="/knowledge/map" element={<KnowledgeMapPage />} />
           <Route path="/projects/:projectId/:section" element={<ProjectWorkspacePage />} />
           <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailPage />} />
           <Route path="/agent-runs/:runId" element={<AgentRunPage />} />
