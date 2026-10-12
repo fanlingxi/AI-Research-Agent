@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.api.schemas import CollectionRequest, KnowledgeCandidatePatch, KnowledgeIngestionRequest
 from app.knowledge.extractor import LiveLLMRequiredError
+from app.knowledge.map_view import KnowledgeMapReader
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import BulkCandidateDecision, CandidateDecision, CandidateStatus
@@ -25,6 +26,7 @@ def build_knowledge_router(
     reports: KnowledgeReportService,
 ) -> APIRouter:
     router = APIRouter(tags=["knowledge"])
+    knowledge_map = KnowledgeMapReader(repository.database)
 
     @router.post("/api/knowledge/ingestions", status_code=202)
     def submit_knowledge_ingestion(payload: KnowledgeIngestionRequest) -> dict[str, Any]:
@@ -202,6 +204,30 @@ def build_knowledge_router(
         if topic_slug and collection_slug and topic_slug != collection_slug:
             raise HTTPException(status_code=422, detail="topic_slug 与 collection_slug 必须一致。")
         return service.graph(collection_slug or topic_slug)
+
+    @router.get("/api/knowledge/map")
+    def get_knowledge_map(
+        collection_slug: Annotated[str | None, Query(max_length=200)] = None,
+        entity_type: Annotated[list[str] | None, Query()] = None,
+        q: Annotated[str | None, Query(max_length=200)] = None,
+        include_pending: bool = False,
+        limit: Annotated[int, Query(ge=1, le=5000)] = 300,
+    ) -> dict[str, Any]:
+        """Read-only, bounded map of formal knowledge; drafts only when explicitly requested."""
+        return knowledge_map.graph(
+            collection=collection_slug or None,
+            entity_types=entity_type,
+            query=q,
+            include_pending=include_pending,
+            limit=limit,
+        ).model_dump()
+
+    @router.get("/api/knowledge/map/nodes/{node_id:path}")
+    def get_knowledge_map_node(node_id: str, include_pending: bool = False) -> dict[str, Any]:
+        try:
+            return knowledge_map.node_detail(node_id, include_pending=include_pending)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="知识节点不存在或未发布。") from exc
 
     @router.get("/api/knowledge/entities/{entity_id}")
     def get_knowledge_entity_detail(entity_id: str) -> dict[str, Any]:
