@@ -46,7 +46,7 @@ function Pipeline({ events, status, currentNode }: { events: AgentRunEvent[]; st
             {index < PIPELINE.length - 1 ? <span className={cn("absolute left-[9px] top-5 h-[calc(100%-12px)] w-px", done ? "bg-brand/40" : "bg-line")} /> : null}
             <span className={cn(
               "relative z-10 grid size-[19px] shrink-0 place-items-center rounded-full",
-              done ? "bg-brand text-white" : running ? "bg-info-soft text-sky-700" : broken ? "bg-danger-soft text-red-700" : "bg-panel text-line-strong ring-1 ring-line-strong",
+              done ? "bg-brand text-on-brand" : running ? "bg-info-soft text-sky-700" : broken ? "bg-danger-soft text-red-700" : "bg-panel text-line-strong ring-1 ring-line-strong",
             )}>
               {done ? <Check size={12} /> : running ? <LoaderCircle className="animate-spin" size={12} /> : broken ? <XCircle size={12} /> : <Circle size={6} fill="currentColor" />}
             </span>
@@ -132,7 +132,7 @@ function RunDetail({ runId }: { runId: string }) {
       {current.error_message ? (
         <Notice className="mt-5" tone="danger" icon={<AlertCircle size={15} />} title="运行未完成">
           <p>{safeRunError(current.error_code, current.error_message)}</p>
-          {current.status === "needs_review" ? <pre className="mt-2 max-h-40 max-w-full overflow-auto whitespace-pre-wrap rounded bg-white/70 p-3 text-xs">{current.error_message}</pre> : null}
+          {current.status === "needs_review" ? <pre className="mt-2 max-h-40 max-w-full overflow-auto whitespace-pre-wrap rounded bg-panel/70 p-3 text-xs">{current.error_message}</pre> : null}
         </Notice>
       ) : null}
       {proposalId ? <Notice className="mt-5" tone="warning" title="智能体提出了一条项目记忆" action={<Link className="text-[13px] font-medium underline" to={`/review?tab=memory&proposal=${proposalId}`}>去审核</Link>}>需要你批准后才会写入项目记忆。</Notice> : null}

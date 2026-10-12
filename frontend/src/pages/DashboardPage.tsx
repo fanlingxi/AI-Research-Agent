@@ -54,7 +54,7 @@ function ReviewSummary() {
             <span className="text-lg font-semibold tabular-nums text-amber-700">{proposals}</span>
           </Link>
         ) : null}
-        {total ? <Link className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-brand-soft text-[13px] font-medium text-brand-strong hover:bg-[#d8ebe6]" to="/review">开始审核<ArrowRight size={14} /></Link> : null}
+        {total ? <Link className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-brand-soft text-[13px] font-medium text-brand-strong hover:bg-brand-hover" to="/review">开始审核<ArrowRight size={14} /></Link> : null}
       </CardContent>
     </Card>
   );

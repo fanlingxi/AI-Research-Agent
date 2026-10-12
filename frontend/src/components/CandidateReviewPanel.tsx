@@ -330,13 +330,13 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
       ) : null}
 
       {selectedCandidateIds.length ? (
-        <div className="sticky bottom-4 z-20 mt-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink/10 bg-ink px-4 py-2.5 text-white shadow-[var(--shadow-pop)]" role="toolbar" aria-label="批量操作">
+        <div className="sticky bottom-4 z-20 mt-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink/10 bg-toolbar px-4 py-2.5 text-white shadow-[var(--shadow-pop)]" role="toolbar" aria-label="批量操作">
           <span className="text-[13px]">已选 <strong className="tabular-nums">{selectedCandidateIds.length}</strong> 条</span>
           <div className="flex flex-wrap gap-1.5">
             <Button className="text-white/80 hover:bg-white/10 hover:text-white" size="sm" variant="ghost" onClick={clearSelection}>取消选择</Button>
             <Button className="text-white/90 hover:bg-white/10 hover:text-white" disabled={reviewPending} size="sm" variant="ghost" onClick={() => runBulkDecision("defer")}>批量搁置</Button>
             <Button className="bg-transparent text-red-200 ring-1 ring-red-300/40 hover:bg-red-500/20" disabled={reviewPending} size="sm" variant="ghost" onClick={() => runBulkDecision("reject")}>批量驳回</Button>
-            <Button className="bg-white text-ink hover:bg-white/90" disabled={reviewPending} size="sm" onClick={() => runBulkDecision("approve")}><Check size={14} />批量批准</Button>
+            <Button className="bg-white text-toolbar hover:bg-white/90" disabled={reviewPending} size="sm" onClick={() => runBulkDecision("approve")}><Check size={14} />批量批准</Button>
           </div>
         </div>
       ) : null}

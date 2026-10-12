@@ -1,6 +1,4 @@
-// Self-contained visual vocabulary for the knowledge map. Colours are chosen to
-// stay distinguishable on the light canvas token and to harmonise with the
-// brand teal; tweak here if global tokens are refined later.
+// Sigma needs resolved colours, not CSS variable expressions.
 
 export const TYPE_ORDER = ["Paper", "Method", "Concept", "Task", "Dataset", "Metric", "Finding", "Topic"];
 
@@ -42,13 +40,32 @@ export const RELATION_LABELS: Record<string, string> = {
   EVIDENCE: "证据支撑",
 };
 
+export function mapColor(token: string, fallback: string) {
+  return getComputedStyle(document.documentElement).getPropertyValue(`--color-${token}`).trim() || fallback;
+}
+export function mapPalette() {
+  return {
+    panel: mapColor("panel", "#ffffff"),
+    label: mapColor("ink", "#18212f"),
+    edgeLabel: mapColor("ink-soft", "#475569"),
+    edge: mapColor("map-edge", EDGE_COLOR),
+    evidence: mapColor("map-evidence", EVIDENCE_EDGE_COLOR),
+    dim: mapColor("map-dim", DIM_COLOR),
+    focus: mapColor("map-focus", "#526173"),
+    pending: mapColor("map-pending", PENDING_COLOR),
+  };
+}
 export const PENDING_COLOR = "#d97706";
 export const EDGE_COLOR = "#b8c2cf";
 export const EVIDENCE_EDGE_COLOR = "#dfe4ea";
 export const DIM_COLOR = "#eceef1";
 
+export function typeSwatch(type: string) {
+  return TYPE_COLORS[type] ? `var(--color-map-${type.toLowerCase()}, ${TYPE_COLORS[type]})` : typeColor(type);
+}
+
 export function typeColor(type: string) {
-  if (TYPE_COLORS[type]) return TYPE_COLORS[type];
+  if (TYPE_COLORS[type]) return mapColor(`map-${type.toLowerCase()}`, TYPE_COLORS[type]);
   let hash = 0;
   for (const char of type) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   return FALLBACK_COLORS[hash % FALLBACK_COLORS.length];

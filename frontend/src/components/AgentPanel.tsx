@@ -65,7 +65,7 @@ function SnapshotSummary({ snapshot }: { snapshot: ContextSnapshotSummary }) {
 function Step({ number, title, done, children }: { number: number; title: string; done?: boolean; children: ReactNode }) {
   return (
     <li className="relative pl-8">
-      <span className={cn("absolute left-0 top-0 grid size-5 place-items-center rounded-full text-[11px] font-semibold", done ? "bg-brand text-white" : "bg-subtle text-muted-ink ring-1 ring-line-strong")}>{number}</span>
+      <span className={cn("absolute left-0 top-0 grid size-5 place-items-center rounded-full text-[11px] font-semibold", done ? "bg-brand text-on-brand" : "bg-subtle text-muted-ink ring-1 ring-line-strong")}>{number}</span>
       <p className="text-[13px] font-medium leading-5 text-ink">{title}</p>
       <div className="mt-2">{children}</div>
     </li>

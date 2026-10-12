@@ -51,7 +51,7 @@ export function SourceSheet({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <SheetContent label="引用来源">
         <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-panel/95 px-5 py-3.5 pr-14 backdrop-blur">
-          <span className="grid size-7 place-items-center rounded-md bg-brand text-[13px] font-semibold text-white tabular-nums">{number}</span>
+          <span className="grid size-7 place-items-center rounded-md bg-brand text-[13px] font-semibold text-on-brand tabular-nums">{number}</span>
           <DialogPrimitive.Title className="text-[15px] font-semibold">引用来源</DialogPrimitive.Title>
           {onStep && total > 1 ? (
             <div className="ml-auto flex items-center gap-1">
