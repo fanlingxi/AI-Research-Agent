@@ -857,7 +857,7 @@ class KnowledgeRepository:
         offset: int = 0,
         limit: int = 25,
     ) -> dict[str, Any]:
-        return self.candidates.list_candidates_page(
+        page = self.candidates.list_candidates_page(
             ingestion_id,
             status=status,
             kind=kind,
@@ -866,6 +866,17 @@ class KnowledgeRepository:
             offset=offset,
             limit=limit,
         )
+        drafts = [
+            item["candidate"]
+            for item in page["items"]
+            if item["kind"] == "entity" and item["candidate"]["status"] == "draft"
+        ]
+        live = self.live_merge_suggestions(drafts)
+        for candidate in drafts:
+            candidate["merge_suggestions"] = [
+                item.model_dump() for item in live.get(candidate["id"], [])
+            ]
+        return page
 
     def get_candidate(self, candidate_id: str) -> dict[str, Any]:
         return self.candidates.get_candidate(candidate_id)
@@ -1000,46 +1011,126 @@ class KnowledgeRepository:
     def find_merge_suggestions(
         self, *, name: str, entity_type: str, aliases: list[str]
     ) -> list[MergeSuggestion]:
-        normalized = {_normalize(name), *(_normalize(alias) for alias in aliases)}
-        matches: list[MergeSuggestion] = []
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT payload_json FROM published_entities WHERE entity_type = ?",
                 (entity_type,),
             ).fetchall()
+        entities = [PublishedEntity.model_validate_json(row["payload_json"]) for row in rows]
+        return _merge_suggestions_against(name, aliases, entities)
+
+    def live_merge_suggestions(
+        self, candidates: list[dict[str, Any]]
+    ) -> dict[str, list[MergeSuggestion]]:
+        """Recompute suggestions for draft entity candidates against current knowledge.
+
+        Suggestions stored at extraction time go stale as soon as another
+        candidate is published, so review screens read them live.  Published
+        entities are loaded once per call rather than once per candidate.
+        """
+
+        if not candidates:
+            return {}
+        by_type: dict[str, list[PublishedEntity]] = {}
+        with self._connect() as connection:
+            rows = connection.execute("SELECT payload_json FROM published_entities").fetchall()
         for row in rows:
             entity = PublishedEntity.model_validate_json(row["payload_json"])
-            known = {_normalize(entity.name), *(_normalize(alias) for alias in entity.aliases)}
-            if normalized.intersection(known):
-                matches.append(
-                    MergeSuggestion(
-                        entity_id=entity.id,
-                        name=entity.name,
-                        type=entity.type,
-                        similarity=1.0,
-                        match_kind="exact",
-                    )
-                )
-                continue
-            similarity = max(
-                (
-                    SequenceMatcher(a=left, b=right).ratio()
-                    for left in normalized
-                    for right in known
-                ),
-                default=0.0,
+            by_type.setdefault(entity.type, []).append(entity)
+        return {
+            str(item["id"]): _merge_suggestions_against(
+                str(item["name"]),
+                list(item.get("aliases") or []),
+                by_type.get(str(item["type"]), []),
             )
-            if similarity >= 0.82:
-                matches.append(
-                    MergeSuggestion(
-                        entity_id=entity.id,
-                        name=entity.name,
-                        type=entity.type,
-                        similarity=round(similarity, 3),
-                        match_kind="similar",
-                    )
-                )
-        return sorted(matches, key=lambda item: (-item.similarity, item.name.casefold()))
+            for item in candidates
+        }
+
+    def duplicate_groups(self, ingestion_id: str) -> dict[str, Any]:
+        """Group draft entity candidates that likely denote an existing or shared entity.
+
+        A group either points at a published entity (exact or similar name of
+        the same type) or collects drafts that share a normalized name/alias
+        while nothing is published yet.  This is read-only: every merge still
+        goes through an explicit per-candidate review decision.
+        """
+
+        drafts = [
+            item["candidate"]
+            for item in self.list_candidates(ingestion_id, status="draft")
+            if item["kind"] == "entity" and item["candidate"]["type"] != "Paper"
+        ]
+        suggestions = self.live_merge_suggestions(drafts)
+        groups: dict[str, dict[str, Any]] = {}
+        unmatched: list[dict[str, Any]] = []
+        for candidate in drafts:
+            matches = suggestions.get(candidate["id"], [])
+            candidate["merge_suggestions"] = [item.model_dump() for item in matches]
+            if not matches:
+                unmatched.append(candidate)
+                continue
+            target = matches[0]
+            group = groups.setdefault(
+                f"entity:{target.entity_id}",
+                {
+                    "key": f"entity:{target.entity_id}",
+                    "name": target.name,
+                    "type": target.type,
+                    "target": target.model_dump(),
+                    "candidates": [],
+                },
+            )
+            group["candidates"].append(candidate)
+
+        # Drafts without any published counterpart: union them by any shared
+        # normalized name or alias within the same type.
+        parent = list(range(len(unmatched)))
+
+        def find(index: int) -> int:
+            while parent[index] != index:
+                parent[index] = parent[parent[index]]
+                index = parent[index]
+            return index
+
+        seen: dict[tuple[str, str], int] = {}
+        for index, candidate in enumerate(unmatched):
+            for label in [candidate["name"], *(candidate.get("aliases") or [])]:
+                key = (str(candidate["type"]), _normalize(str(label)))
+                if not key[1]:
+                    continue
+                if key in seen:
+                    parent[find(index)] = find(seen[key])
+                else:
+                    seen[key] = index
+        clusters: dict[int, list[dict[str, Any]]] = {}
+        for index, candidate in enumerate(unmatched):
+            clusters.setdefault(find(index), []).append(candidate)
+        for members in clusters.values():
+            if len(members) < 2:
+                continue
+            first = members[0]
+            key = f"draft:{first['type']}:{_normalize(first['name'])}"
+            groups[key] = {
+                "key": key,
+                "name": first["name"],
+                "type": first["type"],
+                "target": None,
+                "candidates": members,
+            }
+
+        ordered = sorted(
+            groups.values(),
+            key=lambda group: (
+                group["target"] is None,
+                -(group["target"] or {}).get("similarity", 0.0),
+                -len(group["candidates"]),
+                str(group["name"]).casefold(),
+            ),
+        )
+        return {
+            "groups": ordered,
+            "candidate_count": sum(len(group["candidates"]) for group in ordered),
+        }
 
     def get_published_entity(self, entity_id: str) -> PublishedEntity:
         with self._connect() as connection:
@@ -1483,6 +1574,47 @@ class KnowledgeRepository:
 def slugify(value: str) -> str:
     normalized = re.sub(r"[^\w\u4e00-\u9fff]+", "-", value.strip().lower())
     return normalized.strip("-")[:80] or "untitled-topic"
+
+
+def _merge_suggestions_against(
+    name: str, aliases: list[str], entities: list[PublishedEntity]
+) -> list[MergeSuggestion]:
+    """Match one candidate label set against same-type published entities."""
+
+    normalized = {_normalize(name), *(_normalize(alias) for alias in aliases)}
+    matches: list[MergeSuggestion] = []
+    for entity in entities:
+        known = {_normalize(entity.name), *(_normalize(alias) for alias in entity.aliases)}
+        if normalized.intersection(known):
+            matches.append(
+                MergeSuggestion(
+                    entity_id=entity.id,
+                    name=entity.name,
+                    type=entity.type,
+                    similarity=1.0,
+                    match_kind="exact",
+                )
+            )
+            continue
+        similarity = max(
+            (
+                SequenceMatcher(a=left, b=right).ratio()
+                for left in normalized
+                for right in known
+            ),
+            default=0.0,
+        )
+        if similarity >= 0.82:
+            matches.append(
+                MergeSuggestion(
+                    entity_id=entity.id,
+                    name=entity.name,
+                    type=entity.type,
+                    similarity=round(similarity, 3),
+                    match_kind="similar",
+                )
+            )
+    return sorted(matches, key=lambda item: (-item.similarity, item.name.casefold()))
 
 
 def _normalized_sources(values: list[str]) -> list[str]:

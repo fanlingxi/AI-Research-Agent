@@ -281,22 +281,42 @@ class CandidateRepository:
                 "SELECT * FROM candidates WHERE ingestion_id = ? AND kind = 'entity'",
                 (ingestion_id,),
             ).fetchall()
+            canonical_ids = sorted(
+                {str(row["canonical_id"]) for row in entity_rows if row["canonical_id"]}
+            )
+            canonical_names = {
+                str(row["id"]): str(json.loads(row["payload_json"]).get("name") or "")
+                for row in (
+                    connection.execute(
+                        "SELECT id, payload_json FROM published_entities WHERE id IN ({})".format(
+                            ",".join("?" for _ in canonical_ids)
+                        ),
+                        canonical_ids,
+                    ).fetchall()
+                    if canonical_ids
+                    else []
+                )
+            }
 
-        names = {
-            item["candidate"]["id"]: item["candidate"].get("name", "未命名实体")
-            for item in (candidate_from_row(row) for row in entity_rows)
+        entity_candidates = [candidate_from_row(row)["candidate"] for row in entity_rows]
+        names = {item["id"]: item.get("name", "未命名实体") for item in entity_candidates}
+        # A merged endpoint attaches the relation to its canonical entity; show
+        # that name so the reviewer sees where the edge will actually land.
+        endpoint_canonical = {
+            item["id"]: canonical_names.get(item.get("canonical_id") or "")
+            for item in entity_candidates
         }
         items = [candidate_from_row(row) for row in rows]
         for item in items:
             if item["kind"] != "relation":
                 continue
             candidate = item["candidate"]
-            candidate["source_name"] = names.get(
-                candidate["source_candidate_id"], "未解析实体"
-            )
-            candidate["target_name"] = names.get(
-                candidate["target_candidate_id"], "未解析实体"
-            )
+            for side in ("source", "target"):
+                endpoint_id = candidate[f"{side}_candidate_id"]
+                candidate[f"{side}_name"] = names.get(endpoint_id, "未解析实体")
+                canonical_name = endpoint_canonical.get(endpoint_id)
+                if canonical_name and canonical_name != candidate[f"{side}_name"]:
+                    candidate[f"{side}_canonical_name"] = canonical_name
         return {
             "items": items,
             "total": total,
@@ -500,7 +520,7 @@ class CandidateRepository:
                     "SELECT payload_json FROM published_entities WHERE id = ?", (target_id,)
                 ).fetchone()
                 if existing_row is None:
-                    raise ValueError("canonical entity not found")
+                    raise ValueError("合并目标实体不存在，请刷新后重新选择。")
                 existing = PublishedEntity.model_validate_json(existing_row["payload_json"])
                 entity = existing.model_copy(
                     update={
@@ -634,7 +654,9 @@ class CandidateRepository:
                 candidate_from_row(target_row)["candidate"]
             )
             if not source.canonical_id or not target.canonical_id:
-                raise ValueError("approve both endpoint entities before publishing a relation")
+                raise ValueError("请先批准或合并关系两端的实体，再发布这条关系。")
+            if source.canonical_id == target.canonical_id:
+                raise ValueError("关系两端已合并为同一个实体，无法发布为关系，请驳回或搁置。")
             relation = PublishedRelation(
                 id=f"relation-{uuid4().hex}",
                 source_entity_id=source.canonical_id,

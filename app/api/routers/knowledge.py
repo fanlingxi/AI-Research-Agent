@@ -120,6 +120,11 @@ def build_knowledge_router(
             limit=limit,
         )
 
+    @router.get("/api/knowledge/ingestions/{ingestion_id}/duplicate-groups")
+    def list_knowledge_duplicate_groups(ingestion_id: str) -> dict[str, Any]:
+        _require_ingestion(repository, ingestion_id)
+        return repository.duplicate_groups(ingestion_id)
+
     @router.patch("/api/knowledge/candidates/{candidate_id}")
     def patch_knowledge_candidate(
         candidate_id: str, payload: KnowledgeCandidatePatch
