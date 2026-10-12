@@ -8,11 +8,11 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-brand text-white shadow-[var(--shadow-card)] hover:bg-brand-strong",
-        secondary: "bg-brand-soft text-brand-strong hover:bg-[#d8ebe6]",
+        default: "bg-brand text-on-brand shadow-[var(--shadow-card)] hover:bg-brand-strong",
+        secondary: "bg-brand-soft text-brand-strong hover:bg-brand-hover",
         outline: "border border-line-strong bg-panel text-ink-soft hover:bg-subtle hover:text-ink",
         ghost: "text-ink-soft hover:bg-subtle hover:text-ink",
-        danger: "bg-red-700 text-white hover:bg-red-800",
+        danger: "bg-danger-solid text-white hover:bg-danger-hover",
         "danger-outline": "border border-red-200 bg-panel text-red-700 hover:bg-danger-soft",
         link: "h-auto px-0 py-0 text-brand underline-offset-4 hover:underline",
       },

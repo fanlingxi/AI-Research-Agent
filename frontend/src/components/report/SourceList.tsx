@@ -29,7 +29,7 @@ export function SourceList({ items, activeId, onSelect, emptyText = "这份报�
           >
             <span className={cn(
               "mt-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-[5px] px-1 text-[11px] font-semibold tabular-nums",
-              activeId === item.id ? "bg-brand text-white" : "bg-brand-soft text-brand-strong",
+              activeId === item.id ? "bg-brand text-on-brand" : "bg-brand-soft text-brand-strong",
             )}>{index + 1}</span>
             <span className="min-w-0">
               <span className="line-clamp-2 text-[13px] font-medium leading-5 text-ink">{item.title}</span>

@@ -9,7 +9,7 @@ import { EdgeArrowProgram, EdgeLineProgram } from "sigma/rendering";
 import type { EdgeDisplayData, NodeDisplayData } from "sigma/types";
 
 import type { KnowledgeMapGraph } from "./api";
-import { DIM_COLOR, EDGE_COLOR, EVIDENCE_EDGE_COLOR, PENDING_COLOR, relationLabel, typeColor } from "./palette";
+import { EDGE_COLOR, EVIDENCE_EDGE_COLOR, PENDING_COLOR, mapPalette, relationLabel, typeColor } from "./palette";
 
 export interface GraphCanvasHandle {
   focus: (nodeId: string) => void;
@@ -35,7 +35,7 @@ interface EdgeTip {
 const PendingNodeProgram = createNodeBorderProgram({
   borders: [
     { size: { value: 0.32 }, color: { attribute: "borderColor" } },
-    { size: { fill: true }, color: { value: "#ffffff" } },
+    { size: { fill: true }, color: { attribute: "fillColor" } },
   ],
 });
 
@@ -55,6 +55,7 @@ function shortLabel(label: string) {
 }
 
 function buildGraph(data: KnowledgeMapGraph) {
+  const palette = mapPalette();
   const graph = new Graph({ multi: true, type: "directed", allowSelfLoops: false });
   // Shrink nodes as the graph grows so thousands of nodes do not paint a solid blob.
   const scale = data.nodes.length > 1500 ? 0.45 : data.nodes.length > 400 ? 0.7 : 1;
@@ -71,6 +72,7 @@ function buildGraph(data: KnowledgeMapGraph) {
       fullLabel: node.label,
       color,
       borderColor: color,
+      fillColor: palette.panel,
       type: pending ? "pending" : "circle",
       nodeType: node.type,
       pending,
@@ -169,6 +171,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    let palette = mapPalette();
     const graph = buildGraph(data);
     graphRef.current = graph;
 
@@ -189,23 +192,32 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       edgeProgramClasses: { arrow: EdgeArrowProgram, line: EdgeLineProgram },
       labelFont: 'Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif',
       labelSize: 12,
+      defaultDrawNodeHover: (context, node, settings) => {
+        if (!node.label) return;
+        context.font = `${settings.labelWeight} ${settings.labelSize}px ${settings.labelFont}`;
+        const width = context.measureText(node.label).width;
+        context.fillStyle = palette.panel;
+        context.fillRect(node.x + node.size + 1, node.y - 12, width + 12, 24);
+        context.fillStyle = palette.label;
+        context.fillText(node.label, node.x + node.size + 7, node.y + 4);
+      },
       labelWeight: "500",
-      labelColor: { color: "#18212f" },
+      labelColor: { color: palette.label },
       labelDensity: graph.order < 250 ? 0.8 : 0.5,
       labelGridCellSize: graph.order < 250 ? 100 : 120,
       labelRenderedSizeThreshold: container.clientWidth < 520 ? 9 : graph.order < 250 ? 5 : 8,
       stagePadding: 48,
       edgeLabelFont: 'Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif',
       edgeLabelSize: 11,
-      edgeLabelColor: { color: "#475569" },
+      edgeLabelColor: { color: palette.edgeLabel },
       minCameraRatio: 0.05,
       maxCameraRatio: 4,
       nodeReducer: (node, attributes) => {
         const result: Partial<NodeDisplayData> & Record<string, unknown> = { ...attributes };
         if (cachedFocus) {
           if (!cachedFocus.neighbours.has(node)) {
-            result.color = DIM_COLOR;
-            result.borderColor = DIM_COLOR;
+            result.color = palette.dim;
+            result.borderColor = palette.dim;
             result.label = "";
             result.zIndex = 0;
           } else {
@@ -229,7 +241,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           if (source !== cachedFocus.focus && target !== cachedFocus.focus) {
             result.hidden = true;
           } else {
-            result.color = attributes.pending ? PENDING_COLOR : attributes.evidence ? "#9aa7b6" : "#526173";
+            result.color = attributes.pending ? palette.pending : palette.focus;
             result.size = (attributes.size as number) + 0.6;
             result.label = relationLabel(attributes.relation as string) + (attributes.pending ? " · 待审核" : "");
             result.zIndex = 2;
@@ -239,6 +251,22 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       },
     });
     sigmaRef.current = sigma;
+    const updateColors = () => {
+      palette = mapPalette();
+      graph.forEachNode((node, attrs) => graph.mergeNodeAttributes(node, {
+        color: typeColor(attrs.nodeType as string),
+        borderColor: typeColor(attrs.nodeType as string),
+        fillColor: palette.panel,
+      }));
+      graph.forEachEdge((edge, attrs) => graph.setEdgeAttribute(edge, "color",
+        attrs.pending ? palette.pending : attrs.evidence ? palette.evidence : palette.edge));
+      sigma.setSetting("labelColor", { color: palette.label });
+      sigma.setSetting("edgeLabelColor", { color: palette.edgeLabel });
+      sigma.refresh();
+    };
+    updateColors();
+    const themeObserver = new MutationObserver(updateColors);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
     const refresh = () => {
       cachedFocus = focusSet();
@@ -305,6 +333,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       window.clearTimeout(timer);
       supervisor?.kill();
       observer?.disconnect();
+      themeObserver.disconnect();
       sigma.kill();
       sigmaRef.current = null;
       graphRef.current = null;
@@ -324,27 +353,27 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   return (
     <div className="relative h-full w-full">
       <div aria-label="知识关系图" className="absolute inset-0" ref={containerRef} role="img" />
-      <div className="absolute right-3 top-3 flex flex-col overflow-hidden rounded-lg border bg-white/95 shadow-sm">
-        <button aria-label="放大" className="grid size-8 place-items-center text-slate-600 hover:bg-slate-100" onClick={() => camera()?.animatedZoom({ duration: 250 })} type="button"><Plus size={15} /></button>
-        <button aria-label="缩小" className="grid size-8 place-items-center border-t text-slate-600 hover:bg-slate-100" onClick={() => camera()?.animatedUnzoom({ duration: 250 })} type="button"><Minus size={15} /></button>
-        <button aria-label="适应画布" className="grid size-8 place-items-center border-t text-slate-600 hover:bg-slate-100" onClick={() => camera()?.animatedReset({ duration: 300 })} type="button"><Maximize2 size={14} /></button>
+      <div className="absolute right-3 top-3 flex flex-col overflow-hidden rounded-lg border bg-panel/95 shadow-sm">
+        <button aria-label="放大" className="grid size-8 place-items-center text-ink-soft hover:bg-subtle" onClick={() => camera()?.animatedZoom({ duration: 250 })} type="button"><Plus size={15} /></button>
+        <button aria-label="缩小" className="grid size-8 place-items-center border-t text-ink-soft hover:bg-subtle" onClick={() => camera()?.animatedUnzoom({ duration: 250 })} type="button"><Minus size={15} /></button>
+        <button aria-label="适应画布" className="grid size-8 place-items-center border-t text-ink-soft hover:bg-subtle" onClick={() => camera()?.animatedReset({ duration: 300 })} type="button"><Maximize2 size={14} /></button>
       </div>
       {laying ? (
-        <div className="absolute left-3 top-3 rounded-full border bg-white/95 px-3 py-1 text-xs text-muted-ink shadow-sm" role="status">
+        <div className="absolute left-3 top-3 rounded-full border bg-panel/95 px-3 py-1 text-xs text-muted-ink shadow-sm" role="status">
           正在计算布局…
         </div>
       ) : null}
       {tip ? (
         <div
-          className="pointer-events-none absolute z-10 max-w-72 rounded-lg border bg-white px-3 py-2 text-xs shadow-lg"
+          className="pointer-events-none absolute z-10 max-w-72 rounded-lg border bg-panel px-3 py-2 text-xs shadow-lg"
           style={{ left: Math.min(tip.x + 12, (containerRef.current?.clientWidth ?? 400) - 290), top: tip.y + 12 }}
         >
           <p className="font-semibold text-ink">
             {relationLabel(tip.type)}
             {tip.pending ? <span className="ml-1.5 rounded bg-amber-100 px-1 py-px font-medium text-amber-900">待审核</span> : null}
           </p>
-          <p className="mt-1 text-slate-600">{tip.source} → {tip.target}</p>
-          {tip.label ? <p className="mt-1 leading-5 text-slate-500">{tip.label}</p> : null}
+          <p className="mt-1 text-ink-soft">{tip.source} → {tip.target}</p>
+          {tip.label ? <p className="mt-1 leading-5 text-muted-ink">{tip.label}</p> : null}
         </div>
       ) : null}
     </div>

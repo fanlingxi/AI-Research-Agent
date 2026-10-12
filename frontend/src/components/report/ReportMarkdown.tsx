@@ -69,7 +69,7 @@ export function CitationChip({ id, children, onClick, active }: { id: string; ch
       aria-label={`查看引用 ${String(children)} 的原文`}
       className={cn(
         "relative -top-[0.35em] mx-[1px] inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[5px] px-1 align-baseline text-[11px] font-semibold leading-none tabular-nums no-underline transition-colors",
-        active ? "bg-brand text-white" : "bg-brand-soft text-brand-strong hover:bg-brand hover:text-white",
+        active ? "bg-brand text-on-brand" : "bg-brand-soft text-brand-strong hover:bg-brand hover:text-on-brand",
       )}
       data-citation={id}
       onClick={onClick}

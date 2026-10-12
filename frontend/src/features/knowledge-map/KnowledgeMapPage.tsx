@@ -9,7 +9,7 @@ import { cn } from "../../lib/utils";
 import { type KnowledgeMapGraph, knowledgeMapApi, type MapFilters, type MapNode } from "./api";
 import type { GraphCanvasHandle } from "./GraphCanvas";
 import { NodeDetailPanel } from "./NodeDetailPanel";
-import { PENDING_COLOR, sortTypes, typeColor, typeLabel } from "./palette";
+import { PENDING_COLOR, sortTypes, typeSwatch, typeLabel } from "./palette";
 
 // sigma + graphology are only fetched when the map is actually rendered.
 const GraphCanvas = lazy(() => import("./GraphCanvas"));
@@ -72,26 +72,26 @@ function Legend({
             aria-pressed={activeTypes.includes(type)}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition",
-              active ? "bg-white text-slate-700" : "border-transparent bg-transparent text-slate-400",
-              activeTypes.includes(type) && "border-slate-400",
+              active ? "bg-panel text-ink-soft" : "border-transparent bg-transparent text-muted-ink",
+              activeTypes.includes(type) && "border-line-strong",
             )}
             key={type}
             onClick={() => onToggle(type)}
             title={activeTypes.includes(type) ? "取消仅显示此类型" : "只看此类型（可多选）"}
             type="button"
           >
-            <span className="size-2.5 rounded-full" style={{ background: active ? typeColor(type) : "#cbd5e1" }} />
+            <span className="size-2.5 rounded-full" style={{ background: active ? typeSwatch(type) : "var(--color-line-strong)" }} />
             {typeLabel(type)}
-            <span className="text-slate-400">{typeCounts[type]}</span>
+            <span className="text-muted-ink">{typeCounts[type]}</span>
           </button>
         );
       })}
       <span className="ml-1 hidden items-center gap-3 text-xs text-muted-ink sm:inline-flex">
-        <span className="inline-flex items-center gap-1"><span className="inline-block h-px w-5 bg-slate-400" />关系</span>
-        <span className="inline-flex items-center gap-1"><span className="inline-block h-px w-5 bg-slate-200" />证据来源</span>
+        <span className="inline-flex items-center gap-1"><span className="inline-block h-px w-5 bg-line-strong" />关系</span>
+        <span className="inline-flex items-center gap-1"><span className="inline-block h-px w-5 bg-line-strong" />证据来源</span>
         {showPending ? (
           <span className="inline-flex items-center gap-1">
-            <span className="size-2.5 rounded-full bg-white" style={{ boxShadow: `inset 0 0 0 2px ${PENDING_COLOR}` }} />空心 = 待审核
+            <span className="size-2.5 rounded-full bg-panel" style={{ boxShadow: `inset 0 0 0 2px ${PENDING_COLOR}` }} />空心 = 待审核
           </span>
         ) : null}
       </span>
@@ -126,7 +126,7 @@ function PaperView({ data, onSelect, selectedId }: { data: KnowledgeMapGraph; on
   return (
     <div className="grid gap-3 p-3 md:grid-cols-2 2xl:grid-cols-3">
       {papers.map(({ paper, total, groups }) => (
-        <article className={cn("rounded-xl border bg-white p-4", selectedId === paper.id && "border-brand ring-1 ring-brand/30")} key={paper.id}>
+        <article className={cn("rounded-xl border bg-panel p-4", selectedId === paper.id && "border-brand ring-1 ring-brand/30")} key={paper.id}>
           <button className="flex w-full items-start gap-2 text-left" onClick={() => onSelect(paper.id)} type="button">
             <BookOpen className="mt-0.5 shrink-0 text-brand" size={16} />
             <span className="font-medium leading-snug hover:text-brand">{paper.label}</span>
@@ -140,7 +140,7 @@ function PaperView({ data, onSelect, selectedId }: { data: KnowledgeMapGraph; on
                   {nodes.map((node) => (
                     <button
                       className={cn(
-                        "inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-0.5 text-xs text-slate-700 hover:border-brand/50",
+                        "inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-0.5 text-xs text-ink-soft hover:border-brand/50",
                         node.status === "pending" && "border-dashed border-amber-300 bg-amber-50/50",
                         selectedId === node.id && "border-brand bg-brand-soft text-brand",
                       )}
@@ -148,7 +148,7 @@ function PaperView({ data, onSelect, selectedId }: { data: KnowledgeMapGraph; on
                       onClick={() => onSelect(node.id)}
                       type="button"
                     >
-                      <span className="size-2 shrink-0 rounded-full" style={{ background: typeColor(node.type) }} />
+                      <span className="size-2 shrink-0 rounded-full" style={{ background: typeSwatch(node.type) }} />
                       <span className="truncate">{node.label}</span>
                       {node.status === "pending" ? <span className="text-amber-700">待审核</span> : null}
                     </button>
@@ -167,7 +167,7 @@ function GraphFallback({ label = "加载图谱组件…" }: { label?: string }) 
   return (
     <div className="grid h-full place-items-center text-sm text-muted-ink" role="status">
       <div className="flex flex-col items-center gap-3">
-        <Network className="animate-pulse text-slate-300" size={36} />
+        <Network className="animate-pulse text-muted-ink" size={36} />
         {label}
       </div>
     </div>
@@ -245,7 +245,7 @@ export function KnowledgeMapPage() {
     <div className={cn("flex-wrap items-center gap-2", filtersOpen ? "flex" : "hidden md:flex")}>
       <label className="sr-only" htmlFor="knowledge-map-collection">知识集合</label>
       <select
-        className="h-9 min-w-0 max-w-full rounded-lg border bg-white px-2.5 text-sm outline-none focus:border-brand sm:max-w-56"
+        className="h-9 min-w-0 max-w-full rounded-lg border bg-panel px-2.5 text-sm outline-none focus:border-brand sm:max-w-56"
         id="knowledge-map-collection"
         onChange={(event) => update({ collection: event.target.value, node: null })}
         value={filters.collection}
@@ -253,7 +253,7 @@ export function KnowledgeMapPage() {
         <option value="">全部知识集合</option>
         {collections.data?.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
       </select>
-      <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border bg-white px-3 text-sm text-slate-700">
+      <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border bg-panel px-3 text-sm text-ink-soft">
         <input
           checked={filters.includePending}
           className="size-4 accent-amber-600"
@@ -264,7 +264,7 @@ export function KnowledgeMapPage() {
       </label>
       <label className="sr-only" htmlFor="knowledge-map-limit">节点上限</label>
       <select
-        className="h-9 rounded-lg border bg-white px-2.5 text-sm outline-none focus:border-brand"
+        className="h-9 rounded-lg border bg-panel px-2.5 text-sm outline-none focus:border-brand"
         id="knowledge-map-limit"
         onChange={(event) => update({ limit: Number(event.target.value) })}
         value={filters.limit}
@@ -297,10 +297,10 @@ export function KnowledgeMapPage() {
       <div className="flex flex-col gap-2 rounded-xl border bg-panel p-3 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           <form className="relative min-w-0 flex-1 basis-60" onSubmit={submitSearch} role="search">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-ink" size={15} />
             <input
               aria-label="搜索并定位节点"
-              className="h-9 w-full rounded-lg border bg-white pl-9 pr-3 text-sm outline-none focus:border-brand"
+              className="h-9 w-full rounded-lg border bg-panel pl-9 pr-3 text-sm outline-none focus:border-brand"
               onBlur={() => window.setTimeout(() => setShowSuggestions(false), 150)}
               onChange={(event) => {
                 setSearchText(event.target.value);
@@ -311,18 +311,18 @@ export function KnowledgeMapPage() {
               value={searchText}
             />
             {showSuggestions && suggestions.length ? (
-              <ul className="absolute left-0 right-0 top-10 z-30 max-h-72 overflow-y-auto rounded-lg border bg-white py-1 shadow-lg" role="listbox">
+              <ul className="absolute left-0 right-0 top-10 z-30 max-h-72 overflow-y-auto rounded-lg border bg-panel py-1 shadow-lg" role="listbox">
                 {suggestions.map((node) => (
                   <li key={node.id}>
                     <button
-                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-slate-50"
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-subtle"
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => pick(node)}
                       role="option"
                       aria-selected={selected === node.id}
                       type="button"
                     >
-                      <span className="size-2.5 shrink-0 rounded-full" style={{ background: typeColor(node.type) }} />
+                      <span className="size-2.5 shrink-0 rounded-full" style={{ background: typeSwatch(node.type) }} />
                       <span className="min-w-0 flex-1 truncate">{node.label}</span>
                       <span className="shrink-0 text-xs text-muted-ink">{typeLabel(node.type)}{node.status === "pending" ? " · 待审核" : ""}</span>
                     </button>
@@ -331,9 +331,9 @@ export function KnowledgeMapPage() {
               </ul>
             ) : null}
           </form>
-          <div className="flex rounded-lg border bg-white p-0.5 text-sm" role="tablist" aria-label="视图">
-            <button aria-selected={view === "graph"} className={cn("inline-flex h-8 items-center gap-1.5 rounded-md px-3", view === "graph" ? "bg-brand-soft font-medium text-brand" : "text-slate-600")} onClick={() => update({ view: "graph" })} role="tab" type="button"><Network size={14} />关系图</button>
-            <button aria-selected={view === "papers"} className={cn("inline-flex h-8 items-center gap-1.5 rounded-md px-3", view === "papers" ? "bg-brand-soft font-medium text-brand" : "text-slate-600")} onClick={() => update({ view: "papers" })} role="tab" type="button"><BookOpen size={14} />按论文</button>
+          <div className="flex rounded-lg border bg-panel p-0.5 text-sm" role="tablist" aria-label="视图">
+            <button aria-selected={view === "graph"} className={cn("inline-flex h-8 items-center gap-1.5 rounded-md px-3", view === "graph" ? "bg-brand-soft font-medium text-brand" : "text-ink-soft")} onClick={() => update({ view: "graph" })} role="tab" type="button"><Network size={14} />关系图</button>
+            <button aria-selected={view === "papers"} className={cn("inline-flex h-8 items-center gap-1.5 rounded-md px-3", view === "papers" ? "bg-brand-soft font-medium text-brand" : "text-ink-soft")} onClick={() => update({ view: "papers" })} role="tab" type="button"><BookOpen size={14} />按论文</button>
           </div>
           <Button className="md:hidden" onClick={() => setFiltersOpen((value) => !value)} size="sm" variant="outline"><Filter size={14} />筛选</Button>
           {controls}
@@ -364,7 +364,7 @@ export function KnowledgeMapPage() {
         <section
           ref={graphSectionRef}
           className={cn(
-            "relative overflow-hidden rounded-xl border bg-white shadow-sm",
+            "relative overflow-hidden rounded-xl border bg-panel shadow-sm",
             view === "graph" ? "h-[62vh] min-h-[380px] lg:h-[calc(100vh-260px)] lg:min-h-[520px]" : "min-h-[380px]",
           )}
           aria-busy={graph.isFetching}
@@ -415,7 +415,7 @@ export function KnowledgeMapPage() {
               </button>
             ) : null}
             <div className={cn("h-full max-h-[72vh] flex-col lg:flex lg:max-h-none", sheetCollapsed ? "hidden" : "flex")}>
-              <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-slate-300 lg:hidden" />
+              <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-line-strong lg:hidden" />
               <NodeDetailPanel
                 includePending={filters.includePending}
                 nodeId={selected}
@@ -427,7 +427,7 @@ export function KnowledgeMapPage() {
             </>
           ) : (
             <div className="flex h-full flex-col justify-center gap-3 p-6 text-sm text-muted-ink">
-              <Network className="text-slate-300" size={32} />
+              <Network className="text-muted-ink" size={32} />
               <p className="font-medium text-ink">点击节点查看证据</p>
               <ul className="list-disc space-y-1.5 pl-4 leading-6">
                 <li>节点大小表示连接数与证据数，颜色表示实体类型。</li>

@@ -18,6 +18,7 @@ import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-
 import { api } from "../lib/api";
 import { usePendingCandidates, useSystemStatus } from "../lib/hooks";
 import { cn } from "../lib/utils";
+import { ThemeToggle } from "./ThemeToggle";
 import { ErrorBlock } from "./AsyncState";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, SheetContent } from "./ui/dialog";
@@ -76,7 +77,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full min-h-0 flex-col" onClick={(event) => { if ((event.target as HTMLElement).closest("a")) onNavigate?.(); }}>
       <Link to="/" className="flex h-14 shrink-0 items-center gap-2.5 px-4">
-        <span className="grid size-8 place-items-center rounded-lg bg-brand text-white shadow-[var(--shadow-card)]">
+        <span className="grid size-8 place-items-center rounded-lg bg-brand text-on-brand shadow-[var(--shadow-card)]">
           <Telescope size={17} />
         </span>
         <span className="text-[15px] font-semibold tracking-tight text-ink">研究工作台</span>
@@ -116,6 +117,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="shrink-0 border-t px-3 py-2">
+        <ThemeToggle />
         <SystemStatus />
       </div>
     </div>
@@ -173,7 +175,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-panel/95 px-4 backdrop-blur lg:hidden">
         <Link to="/" className="flex items-center gap-2 text-[15px] font-semibold">
-          <span className="grid size-7 place-items-center rounded-lg bg-brand text-white"><Telescope size={15} /></span>
+          <span className="grid size-7 place-items-center rounded-lg bg-brand text-on-brand"><Telescope size={15} /></span>
           研究工作台
         </Link>
         <DialogPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>

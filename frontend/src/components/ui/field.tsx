@@ -3,7 +3,7 @@ import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTML
 import { cn } from "../../lib/utils";
 
 export const controlClass =
-  "w-full min-w-0 rounded-lg border border-line-strong bg-panel px-3 text-sm text-ink outline-none transition-colors placeholder:text-muted-ink/70 hover:border-[#c3c6bd] focus:border-brand focus:ring-3 focus:ring-brand/12 disabled:cursor-not-allowed disabled:bg-subtle disabled:opacity-70";
+  "w-full min-w-0 rounded-lg border border-line-strong bg-panel px-3 text-sm text-ink outline-none transition-colors placeholder:text-muted-ink/70 hover:border-muted-ink focus:border-brand focus:ring-3 focus:ring-brand/12 disabled:cursor-not-allowed disabled:bg-subtle disabled:opacity-70";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(controlClass, "h-9", className)} {...props} />;

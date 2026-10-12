@@ -7,7 +7,7 @@ import { ErrorBlock } from "../../components/AsyncState";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { knowledgeMapApi, type MapEvidence, type MapNodeDetail, type MapNodeRef } from "./api";
-import { relationLabel, typeColor, typeLabel } from "./palette";
+import { relationLabel, typeSwatch, typeLabel } from "./palette";
 
 interface NodeDetailPanelProps {
   nodeId: string;
@@ -18,12 +18,12 @@ interface NodeDetailPanelProps {
 }
 
 function TypeDot({ type, hollow = false }: { type: string; hollow?: boolean }) {
-  const color = typeColor(type);
+  const color = typeSwatch(type);
   return (
     <span
       aria-hidden
       className="inline-block size-2.5 shrink-0 rounded-full"
-      style={hollow ? { boxShadow: `inset 0 0 0 2px ${color}`, background: "#fff" } : { background: color }}
+      style={hollow ? { boxShadow: `inset 0 0 0 2px ${color}`, background: "var(--color-panel)" } : { background: color }}
     />
   );
 }
@@ -40,8 +40,8 @@ function EvidenceQuote({ evidence, onSelect }: { evidence: MapEvidence; onSelect
   const text = evidence.quote.replace(/\s+/g, " ").trim();
   const long = text.length > 160;
   return (
-    <figure className="rounded-lg border-l-2 border-brand/40 bg-slate-50 px-3 py-2">
-      <blockquote className={`text-[13px] leading-6 text-slate-700 ${open ? "" : "line-clamp-3"}`}>{text}</blockquote>
+    <figure className="rounded-lg border-l-2 border-brand/40 bg-subtle px-3 py-2">
+      <blockquote className={`text-[13px] leading-6 text-ink-soft ${open ? "" : "line-clamp-3"}`}>{text}</blockquote>
       <figcaption className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-ink">
         {evidence.paper_title ? (
           evidence.paper_node_id ? (
@@ -55,7 +55,7 @@ function EvidenceQuote({ evidence, onSelect }: { evidence: MapEvidence; onSelect
         ) : null}
         {pageLabel(evidence) ? <span>{pageLabel(evidence)}</span> : null}
         {long ? (
-          <button className="ml-auto text-xs text-slate-500 hover:text-ink" onClick={() => setOpen((value) => !value)} type="button">
+          <button className="ml-auto text-xs text-muted-ink hover:text-ink" onClick={() => setOpen((value) => !value)} type="button">
             {open ? "收起" : "展开全文"}
           </button>
         ) : null}
@@ -94,7 +94,7 @@ function DetailBody({ detail, onSelect, onLocate }: { detail: MapNodeDetail; onS
     <>
       <div className="px-5 pb-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border bg-white px-2 py-0.5 text-xs font-medium text-slate-700">
+          <span className="inline-flex items-center gap-1.5 rounded-full border bg-panel px-2 py-0.5 text-xs font-medium text-ink-soft">
             <TypeDot hollow={pending} type={node.type} />
             {typeLabel(node.type)}
           </span>
@@ -102,7 +102,7 @@ function DetailBody({ detail, onSelect, onLocate }: { detail: MapNodeDetail; onS
         </div>
         <h2 className="mt-2 text-lg font-semibold leading-snug tracking-tight">{node.label}</h2>
         {node.aliases.length ? <p className="mt-1 text-xs text-muted-ink">别名：{node.aliases.join("、")}</p> : null}
-        {node.summary ? <p className="mt-3 text-sm leading-6 text-slate-700">{node.summary}</p> : null}
+        {node.summary ? <p className="mt-3 text-sm leading-6 text-ink-soft">{node.summary}</p> : null}
         <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={() => onLocate(node.id)} size="sm" variant="outline"><LocateFixed size={14} /> 在图中定位</Button>
           {pending ? (
@@ -135,14 +135,14 @@ function DetailBody({ detail, onSelect, onLocate }: { detail: MapNodeDetail; onS
         <Section count={detail.relations.length} title="关联实体">
           <ul className="space-y-2.5">
             {relations.map((relation) => (
-              <li className={`rounded-lg border bg-white p-2.5 ${relation.status === "pending" ? "border-dashed border-amber-300" : ""}`} key={relation.id}>
+              <li className={`rounded-lg border bg-panel p-2.5 ${relation.status === "pending" ? "border-dashed border-amber-300" : ""}`} key={relation.id}>
                 <div className="flex items-center gap-1.5 text-xs text-muted-ink">
                   {relation.direction === "out" ? <ArrowRight size={12} /> : <ArrowLeft size={12} />}
-                  <span className="font-medium text-slate-600">{relationLabel(relation.type)}</span>
+                  <span className="font-medium text-ink-soft">{relationLabel(relation.type)}</span>
                   {relation.status === "pending" ? <span className="rounded bg-amber-100 px-1 text-amber-900">待审核</span> : null}
                 </div>
                 <div className="mt-1"><NodeChip node={relation.other} onSelect={onSelect} /></div>
-                {relation.statement ? <p className="mt-1 text-xs leading-5 text-slate-500">{relation.statement}</p> : null}
+                {relation.statement ? <p className="mt-1 text-xs leading-5 text-muted-ink">{relation.statement}</p> : null}
               </li>
             ))}
           </ul>
@@ -160,7 +160,7 @@ function DetailBody({ detail, onSelect, onLocate }: { detail: MapNodeDetail; onS
             {detail.claims.map((claim) => (
               <li key={claim.id}>
                 <p className="flex gap-2 text-sm leading-6 text-ink">
-                  <Quote className="mt-1 shrink-0 text-slate-300" size={13} />
+                  <Quote className="mt-1 shrink-0 text-muted-ink" size={13} />
                   <span>{claim.statement || "（无陈述）"}</span>
                 </p>
                 <div className="mt-2 space-y-2">
@@ -187,14 +187,14 @@ export function NodeDetailPanel({ nodeId, includePending, onSelect, onLocate, on
     <div className="flex h-full flex-col" data-testid="knowledge-map-detail">
       <div className="flex items-center justify-between px-5 pb-2 pt-4">
         <p className="text-xs font-semibold tracking-[0.1em] text-muted-ink">节点详情</p>
-        <button aria-label="关闭详情" className="grid size-7 place-items-center rounded-md text-slate-500 hover:bg-slate-100" onClick={onClose} type="button"><X size={16} /></button>
+        <button aria-label="关闭详情" className="grid size-7 place-items-center rounded-md text-muted-ink hover:bg-subtle" onClick={onClose} type="button"><X size={16} /></button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto pb-4">
         {detail.isPending ? (
           <div className="space-y-3 px-5 py-2" role="status" aria-label="读取节点详情">
-            <div className="h-4 w-24 animate-pulse rounded bg-slate-100" />
-            <div className="h-6 w-3/4 animate-pulse rounded bg-slate-100" />
-            <div className="h-16 animate-pulse rounded bg-slate-100" />
+            <div className="h-4 w-24 animate-pulse rounded bg-subtle" />
+            <div className="h-6 w-3/4 animate-pulse rounded bg-subtle" />
+            <div className="h-16 animate-pulse rounded bg-subtle" />
           </div>
         ) : null}
         {detail.error instanceof Error ? <div className="px-5"><ErrorBlock error={detail.error} onRetry={() => void detail.refetch()} /></div> : null}
