@@ -196,7 +196,14 @@ export function KnowledgeMapPage() {
     if (!needle || !data) return [];
     return data.nodes
       .filter((node) => node.label.toLocaleLowerCase().includes(needle))
-      .sort((a, b) => Number(b.label.toLocaleLowerCase().startsWith(needle)) - Number(a.label.toLocaleLowerCase().startsWith(needle)) || b.score - a.score)
+      .map((node) => {
+        const label = node.label.toLocaleLowerCase();
+        // exact > prefix > contains; approved before pending; then importance.
+        const rank = (label === needle ? 0 : label.startsWith(needle) ? 1 : 2) * 2 + (node.status === "pending" ? 1 : 0);
+        return { node, rank };
+      })
+      .sort((a, b) => a.rank - b.rank || b.node.score - a.node.score)
+      .map(({ node }) => node)
       .slice(0, 8);
   }, [data, searchText]);
 
