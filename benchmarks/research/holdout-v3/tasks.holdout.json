@@ -1,0 +1,1864 @@
+{
+  "protocol_version": "research-holdout-v3-task",
+  "dataset_version": "research-holdout-v3",
+  "split": "holdout",
+  "tasks": [
+    {
+      "id": "expansion-q1",
+      "family_id": "expansion",
+      "split": "holdout",
+      "kind": "single_fact",
+      "difficulty": "easy",
+      "question": "Query2doc 对 BM25 与稠密检索分别如何拼接原始查询和伪文档？BM25 中原查询重复几次，这个数是否针对每个数据集单独调优？",
+      "allowed_source_ids": [
+        "query2doc"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "expansion-q1-c1",
+            "statement": "BM25 使用原查询重复 n 次后拼接伪文档，以平衡短查询和较长伪文档的权重。",
+            "evidence_span_ids": [
+              "qd-01"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "expansion-q1-c2",
+            "statement": "论文使用 n = 5，未按数据集单独调优。",
+            "evidence_span_ids": [
+              "qd-02"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "expansion-q1-c3",
+            "statement": "稠密检索把原查询与伪文档通过 [SEP] 分隔后直接拼接。",
+            "evidence_span_ids": [
+              "qd-03"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "BM25 只使用生成的伪文档。",
+          "两类检索都把原查询固定重复五次。",
+          "n 按各测试集调到最优。"
+        ],
+        "missing_information": [],
+        "rationale": "方法细节由公式及参数说明直接决定。",
+        "required_evidence_span_ids": [
+          "qd-01",
+          "qd-02",
+          "qd-03"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "iter-retgen"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "expansion-q2",
+      "family_id": "expansion",
+      "split": "holdout",
+      "kind": "synthesis",
+      "difficulty": "hard",
+      "question": "综合 Query2doc 和 ITER-RETGEN，生成文本分别在何时、以什么形式参与检索？为什么两篇论文都不支持把生成的检索线索直接当作已经核验的事实？",
+      "allowed_source_ids": [
+        "query2doc",
+        "iter-retgen"
+      ],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "expansion-q2-c1",
+            "statement": "Query2doc 先通过少样本提示生成伪文档，再与原查询拼接以进行检索。",
+            "evidence_span_ids": [
+              "qd-04"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "expansion-q2-c2",
+            "statement": "ITER-RETGEN 首轮仅用问题检索，后续把上一轮生成结果与问题拼接检索，再结合检索段落和问题生成新输出。",
+            "evidence_span_ids": [
+              "it-01",
+              "it-02"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "expansion-q2-c3",
+            "statement": "Query2doc 明确展示生成内容的事实错误；ITER-RETGEN 明确不保证上一轮输出正确，因此检索线索的用途不能等同于事实已被核验。",
+            "evidence_span_ids": [
+              "qd-05",
+              "it-03"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "ITER-RETGEN 每轮生成结果都经外部证据核验，保证正确。",
+          "Query2doc 的伪文档可直接充当原始事实证据。"
+        ],
+        "missing_information": [],
+        "rationale": "综合两种生成增强检索的流程，并保留作者对生成正确性的限制。",
+        "required_evidence_span_ids": [
+          "it-01",
+          "it-02",
+          "it-03",
+          "qd-04",
+          "qd-05"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "expansion-q3",
+      "family_id": "expansion",
+      "split": "holdout",
+      "kind": "comparison",
+      "difficulty": "medium",
+      "question": "Query2doc 的检索评测与 ITER-RETGEN 的任务输出评测使用哪些指标？能否直接拿两篇论文的 nDCG@10 和 Acc† 数值比较哪种方法效果更好？",
+      "allowed_source_ids": [
+        "query2doc",
+        "iter-retgen"
+      ],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "expansion-q3-c1",
+            "statement": "Query2doc 的指标包含 MRR@10、R@k（k 为 50 或 1k）和 nDCG@10，用于检索评测。",
+            "evidence_span_ids": [
+              "qd-07"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "expansion-q3-c2",
+            "statement": "ITER-RETGEN 在多跳问答上使用 EM、F1，在事实核查和常识推理上使用准确率，并用 text-davinci-003 判断输出正确性得到 Acc†。",
+            "evidence_span_ids": [
+              "it-04",
+              "it-05"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "expansion-q3-c3",
+            "statement": "nDCG@10 和 Acc† 的被评对象与度量含义不同，不能仅按两个数值的大小形成方法优劣排名。",
+            "evidence_span_ids": [
+              "qd-07",
+              "it-04",
+              "it-05"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "nDCG@10 与 Acc† 都写成百分数就能直接比较。",
+          "Acc† 是检索相关性的人工逐条标注指标。"
+        ],
+        "missing_information": [],
+        "rationale": "要求依据实验指标作可比性判断，而非混合检索排序与最终回答质量。",
+        "required_evidence_span_ids": [
+          "it-04",
+          "it-05",
+          "qd-07"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "expansion-q4",
+      "family_id": "expansion",
+      "split": "holdout",
+      "kind": "overclaim_trap",
+      "difficulty": "hard",
+      "question": "根据 Query2doc 的域外实验，是否可以宣称“查询扩展对所有检索器、所有域外数据集都只会提升，不会下降”？请用表 2 中 BM25 和 SimLM 在 NFCorpus、Scifact 上的 nDCG@10 给出判断。",
+      "allowed_source_ids": [
+        "query2doc"
+      ],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "expansion-q4-c1",
+            "statement": "这些是 BEIR 五个低资源数据集上的零样本域外 nDCG@10 结果。",
+            "evidence_span_ids": [
+              "qd-11"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "expansion-q4-c2",
+            "statement": "BM25 在 NFCorpus 从 32.5 升至 34.9，在 Scifact 从 66.5 升至 68.6。",
+            "evidence_span_ids": [
+              "qd-08",
+              "qd-09"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "expansion-q4-c3",
+            "statement": "SimLM 在 NFCorpus 从 32.7 降至 32.1，在 Scifact 从 62.4 降至 59.5；因此不能宣称所有组合必然改善。",
+            "evidence_span_ids": [
+              "qd-08",
+              "qd-10"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "把 SimLM 的下降结果说成 BM25 的下降结果。",
+          "所有域外数据集和检索器都获得正收益。"
+        ],
+        "missing_information": [],
+        "rationale": "同一数据集上不同检索器的趋势不同，必须保留检索器与数据集条件。",
+        "required_evidence_span_ids": [
+          "qd-08",
+          "qd-09",
+          "qd-10",
+          "qd-11"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "iter-retgen"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "expansion-q5",
+      "family_id": "expansion",
+      "split": "holdout",
+      "kind": "limitation",
+      "difficulty": "medium",
+      "question": "Query2doc 是否展示了伪文档中的具体事实错误？请说明错误和论文给出的纠正，并据论文计算全部评测查询中伪文档含事实错误的比例。",
+      "allowed_source_ids": [
+        "query2doc"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "id": "expansion-q5-c1",
+            "statement": "论文指出 Monk 主题曲 “It’s a Jungle Out There” 从 2003 年第二季起使用，而不是生成内容声称的 2002 年。",
+            "evidence_span_ids": [
+              "qd-05"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "expansion-q5-c2",
+            "statement": "文中该处展示的是两条查询的案例分析。",
+            "evidence_span_ids": [
+              "qd-12"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "expansion-q5-c3",
+            "statement": "案例不足以计算全部评测查询的伪文档事实错误率，所求总体比例无法确定。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "以两条示例中的一个错误推算总体错误率为 50%。",
+          "检索指标提升证明伪文档事实错误率为零。"
+        ],
+        "missing_information": [
+          "全部评测查询伪文档的事实核验结果。",
+          "事实错误判定口径及完整统计分母。"
+        ],
+        "rationale": "具体错误可答，总体发生率缺少系统标注，只能部分回答。",
+        "required_evidence_span_ids": [
+          "qd-05",
+          "qd-12"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span",
+        "insufficient"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "iter-retgen"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "partially_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "partially_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "expansion-q6",
+      "family_id": "expansion",
+      "split": "holdout",
+      "kind": "insufficient_evidence",
+      "difficulty": "medium",
+      "question": "ITER-RETGEN 论文所学习的“逐题自适应停止迭代阈值”具体是多少，它用什么损失函数训练？请只报告论文实际提出的阈值和训练目标。",
+      "allowed_source_ids": [
+        "iter-retgen"
+      ],
+      "expectation": {
+        "outcome": "abstain",
+        "required_conclusions": [
+          {
+            "id": "expansion-q6-c1",
+            "statement": "允许材料没有提出题干所说的逐题自适应停止阈值及其训练目标，无法报告这些值。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          },
+          {
+            "id": "expansion-q6-c2",
+            "statement": "方法描述为执行 T 次迭代并将最后的 yT 作为最终响应。",
+            "evidence_span_ids": [
+              "it-06",
+              "it-07"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "将预设迭代次数 T 当作学习到的停止阈值。",
+          "将检索器蒸馏的 KL 损失误称为停止控制器的训练目标。"
+        ],
+        "missing_information": [
+          "论文实际定义的逐题停止控制器、阈值及训练目标；当前材料未提供。"
+        ],
+        "rationale": "问题预设了不存在于所给方法中的控制器，不能借用检索器训练公式填空。",
+        "required_evidence_span_ids": [
+          "it-06",
+          "it-07"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span",
+        "no_answer"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "query2doc"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "not_answerable",
+            "answerability_agrees": true,
+            "points": "none",
+            "quote_overlap": "none"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "not_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "expansion-q7",
+      "family_id": "expansion",
+      "split": "holdout",
+      "kind": "out_of_scope",
+      "difficulty": "easy",
+      "question": "当前只允许使用 Query2doc 和 ITER-RETGEN 论文。请报告 PRP 论文表 4 中 PRP-Sliding-10 在反转 BM25 初始顺序前后的 TREC-DL2019 NDCG@10 数值。",
+      "allowed_source_ids": [
+        "query2doc",
+        "iter-retgen"
+      ],
+      "expectation": {
+        "outcome": "scope_refusal",
+        "required_conclusions": [
+          {
+            "id": "expansion-q7-c1",
+            "statement": "所问 PRP 表 4 的结果来自允许范围之外，应拒绝提供该表数值，并说明需要允许使用 PRP 论文。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "读取 PRP 表格或凭记忆填入数值。",
+          "拿 Query2doc 的 TREC 数值替代 PRP 的结果。"
+        ],
+        "missing_information": [
+          "获得使用 PRP 论文的范围授权。"
+        ],
+        "rationale": "明确问另一篇论文的特定表格，不可越界取证。",
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "out_of_scope"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "aar",
+        "m3-embedding",
+        "prp",
+        "rankgpt",
+        "replug",
+        "skr"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "retriever-q1",
+      "family_id": "retriever",
+      "split": "holdout",
+      "kind": "single_fact",
+      "difficulty": "medium",
+      "question": "REPLUG LSR 的训练如何避免检索到训练查询的原始文档而形成平凡答案？为什么训练时要更新文档索引，实际多久重算一次文档嵌入、共训练多少步？",
+      "allowed_source_ids": [
+        "replug"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "retriever-q1-c1",
+            "statement": "外部语料的文档与训练查询所采样自的文档不重叠，以避免平凡检索。",
+            "evidence_span_ids": [
+              "rp-01"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "retriever-q1-c2",
+            "statement": "检索器参数持续更新会使预计算的文档嵌入过时，因此需要更新嵌入和检索索引。",
+            "evidence_span_ids": [
+              "rp-02",
+              "rp-11"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "retriever-q1-c3",
+            "statement": "实现中每 3k 步重算文档嵌入，检索器总共微调 25k 步。",
+            "evidence_span_ids": [
+              "rp-03"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "允许直接检索到训练查询所属的原始文档。",
+          "文档嵌入在检索器训练期间始终不更新。"
+        ],
+        "missing_information": [],
+        "rationale": "训练数据隔离和索引一致性均是可核验的实现细节。",
+        "required_evidence_span_ids": [
+          "rp-01",
+          "rp-02",
+          "rp-03",
+          "rp-11"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "aar"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "retriever-q2",
+      "family_id": "retriever",
+      "split": "holdout",
+      "kind": "comparison",
+      "difficulty": "hard",
+      "question": "REPLUG LSR 与 AAR 如何从语言模型获取用于检索器训练的监督？请区分 LM 输出似然分布的匹配与 FiD 注意力产生正例的做法，并说明 AAR 是否抛弃人工正例。",
+      "allowed_source_ids": [
+        "replug",
+        "aar"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "retriever-q2-c1",
+            "statement": "REPLUG LSR 用给定文档和上下文时真实后续文本的 LM 概率衡量文档帮助，并最小化 LM 似然分布与检索似然分布间的 KL 散度。",
+            "evidence_span_ids": [
+              "rp-04",
+              "rp-05"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "retriever-q2-c2",
+            "statement": "REPLUG LSR 只更新检索器，LM 参数保持固定。",
+            "evidence_span_ids": [
+              "rp-06"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "retriever-q2-c3",
+            "statement": "AAR 汇总源 LM 第一个解码 token 在所有层、头和输入 token 上的 FiD 交叉注意力，得到文档分数。",
+            "evidence_span_ids": [
+              "aa-01"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "retriever-q2-c4",
+            "statement": "AAR 将注意力分数最高的 Top-K 文档与人工正例取并集，形成离散正例集合，并未抛弃人工正例。",
+            "evidence_span_ids": [
+              "aa-02",
+              "aa-03"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "AAR 只用人工相关性标签，不使用 LM 偏好。",
+          "AAR 原文只是对完整 FiD 分布做 KL 蒸馏。",
+          "REPLUG LSR 联合更新黑盒 LM 参数。"
+        ],
+        "missing_information": [],
+        "rationale": "两者都适配检索器，但监督接口、软分布与离散标签的使用方式不同。",
+        "required_evidence_span_ids": [
+          "aa-01",
+          "aa-02",
+          "aa-03",
+          "rp-04",
+          "rp-05",
+          "rp-06"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "retriever-q3",
+      "family_id": "retriever",
+      "split": "holdout",
+      "kind": "synthesis",
+      "difficulty": "hard",
+      "question": "综合 REPLUG 和 AAR：“把检索器作为可插拔组件”是否意味着多文档在目标 LM 中必须采用相同的融合方式？请分别描述 REPLUG、AAR 对 decoder-only LM 的接入，以及 AAR 采用的 FiD 多文档接入思路。",
+      "allowed_source_ids": [
+        "replug",
+        "aar"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "retriever-q3-c1",
+            "statement": "REPLUG 把每篇检索文档分别前置到输入，分别通过 LM，再集成各次输出概率。",
+            "evidence_span_ids": [
+              "rp-07"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "retriever-q3-c2",
+            "statement": "AAR 对 decoder-only LM 可将查询和全部增强文档直接拼接，由 LM 自回归生成答案。",
+            "evidence_span_ids": [
+              "aa-04"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "retriever-q3-c3",
+            "statement": "FiD 则分别编码每个文档与查询的拼接，解码器关注所有编码部分；可插拔并不意味着这三种文档融合方式相同。",
+            "evidence_span_ids": [
+              "aa-05",
+              "rp-07",
+              "aa-04"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "REPLUG 把所有文档编码到一个 FiD 解码器。",
+          "AAR 的 decoder-only 接入必须集成多次输出概率。"
+        ],
+        "missing_information": [],
+        "rationale": "跨文献区分模块化目标与实际融合接口，要求综合而不把可插拔误解为统一架构。",
+        "required_evidence_span_ids": [
+          "aa-04",
+          "aa-05",
+          "rp-07"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "retriever-q4",
+      "family_id": "retriever",
+      "split": "holdout",
+      "kind": "overclaim_trap",
+      "difficulty": "hard",
+      "question": "AAR 既然声称是通用检索插件，是否已经证明“任意 decoder-only 模型都能不改动地充当源模型，而且所有规模的目标模型均已验证有效”？请用源模型选择和未评估模型范围反驳或支持。",
+      "allowed_source_ids": [
+        "aar"
+      ],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "retriever-q4-c1",
+            "statement": "AAR 的流程使用 encoder-decoder 源 LM 提供偏好信号，再迁移到源任务之外的目标任务和未见目标 LM。",
+            "evidence_span_ids": [
+              "aa-06"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "retriever-q4-c2",
+            "statement": "由于 OPT、GPT-neo 的零样本表现及 decoder-only 文档注意力拆分的困难，作者没有选择它们作为源 LM；可增强 decoder-only 目标 LM 不等于已验证它们都可作源 LM。",
+            "evidence_span_ids": [
+              "aa-08",
+              "aa-09"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "retriever-q4-c3",
+            "statement": "论文明确未评估 11B 的 Flan-T5XXL，以及参数量大于 1.3B 的 OPT，因此不能说所有规模均已验证。",
+            "evidence_span_ids": [
+              "aa-07"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "只要目标模型是 decoder-only，任意 decoder-only 模型就可直接替换源 LM。",
+          "论文已覆盖所有目标模型规模。"
+        ],
+        "missing_information": [],
+        "rationale": "通用插件的经验迁移不能扩大为任意源架构和全部模型规模的保证。",
+        "required_evidence_span_ids": [
+          "aa-06",
+          "aa-07",
+          "aa-08",
+          "aa-09"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "replug"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "adjudicated",
+        "adjudication": "DeepSeek 要点与草稿一致（否定强主张、给出可支持的弱版本），仅因需同时反驳而标为部分可答；保留 qualified_answer。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "partially_answerable",
+            "answerability_agrees": false,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "retriever-q5",
+      "family_id": "retriever",
+      "split": "holdout",
+      "kind": "limitation",
+      "difficulty": "medium",
+      "question": "REPLUG 能否逐条判定生成答案来自检索文档还是模型参数知识？请说明论文承认的来源归因局限，并报告其评测中依赖检索知识的答案所占比例。",
+      "allowed_source_ids": [
+        "replug"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "id": "retriever-q5-c1",
+            "statement": "作者明确说尚不清楚模型何时依赖检索知识、何时依赖参数中的知识。",
+            "evidence_span_ids": [
+              "rp-09"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "retriever-q5-c2",
+            "statement": "能够追踪答案来自检索数据还是内部参数的可解释系统属于后续研究方向。",
+            "evidence_span_ids": [
+              "rp-10"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "retriever-q5-c3",
+            "statement": "文中没有提供所求逐答案来源归因统计，不能计算依赖检索知识的答案比例。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "只要输入中包含检索文档，就能断定答案来自该文档。",
+          "把语言建模性能提升比例当作来源归因比例。"
+        ],
+        "missing_information": [
+          "逐答案知识来源判定方法与标注。",
+          "依赖检索知识的答案计数及评测总数。"
+        ],
+        "rationale": "局限可直接报告，所求归因比例没有可用统计，只能部分回答。",
+        "required_evidence_span_ids": [
+          "rp-09",
+          "rp-10"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span",
+        "insufficient"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "aar"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "partially_answerable",
+            "answerability_agrees": true,
+            "points": "partial",
+            "quote_overlap": "none"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "partially_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "retriever-q6",
+      "family_id": "retriever",
+      "split": "holdout",
+      "kind": "insufficient_evidence",
+      "difficulty": "easy",
+      "question": "仅根据 AAR 论文，Flan-T5XXL（11B）接入 AAR 后在 MMLU 上的实际测得准确率是多少？请给出原文报告值，不接受按其他规模外推。",
+      "allowed_source_ids": [
+        "aar"
+      ],
+      "expectation": {
+        "outcome": "abstain",
+        "required_conclusions": [
+          {
+            "id": "retriever-q6-c1",
+            "statement": "允许材料无法提供该模型的实测准确率。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          },
+          {
+            "id": "retriever-q6-c2",
+            "statement": "作者明确表示受计算资源限制，没有评估参数量为 11B 的 Flan-T5XXL。",
+            "evidence_span_ids": [
+              "aa-07"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "用 Flan-T5XL 或 InstructGPT 的准确率冒充 Flan-T5XXL。",
+          "按模型规模外推出一个数字并称为实测。"
+        ],
+        "missing_information": [
+          "Flan-T5XXL 接入 AAR 后在 MMLU 上的实际评测结果。"
+        ],
+        "rationale": "论文明确缺少该实验，不应从其他模型推算所求实测值。",
+        "required_evidence_span_ids": [
+          "aa-07"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "no_answer"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "replug"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "adjudicated",
+        "adjudication": "DeepSeek 同样认定论文未评测 Flan-T5XXL、无实测值，只是附带了其他规模数字而标为部分可答；保留 abstain。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "partially_answerable",
+            "answerability_agrees": false,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "not_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "retriever-q7",
+      "family_id": "retriever",
+      "split": "holdout",
+      "kind": "out_of_scope",
+      "difficulty": "easy",
+      "question": "当前只允许使用 REPLUG 和 AAR 论文。请还原 Query2doc 表 4 中仅用查询、仅用伪文档及二者拼接在 TREC 19 与 TREC 20 上的全部数值。",
+      "allowed_source_ids": [
+        "replug",
+        "aar"
+      ],
+      "expectation": {
+        "outcome": "scope_refusal",
+        "required_conclusions": [
+          {
+            "id": "retriever-q7-c1",
+            "statement": "所求 Query2doc 消融表来自当前允许范围之外，应拒绝给出表中数值，并说明需将 Query2doc 纳入允许来源。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "读取或凭记忆复述 Query2doc 的表 4 数值。",
+          "以 REPLUG 的消融数据替换 Query2doc 的消融数据。"
+        ],
+        "missing_information": [
+          "获得使用 Query2doc 论文的范围授权。"
+        ],
+        "rationale": "题干明确将请求定位于范围外的另一篇论文。",
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "out_of_scope"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "iter-retgen",
+        "m3-embedding",
+        "prp",
+        "query2doc",
+        "rankgpt",
+        "skr"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "need-q1",
+      "family_id": "need",
+      "split": "holdout",
+      "kind": "single_fact",
+      "difficulty": "medium",
+      "question": "SKR 收集训练问题的“自知识”标签时，如何根据有检索和无检索的回答划分 D+ 与 D−？两种方式都回答错误的问题，以及两种方式都正确的问题，分别如何处理？",
+      "allowed_source_ids": [
+        "skr"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "need-q1-c1",
+            "statement": "依据评价指标 E，无检索表现不低于有检索时归入 D+，否则归入 D−。",
+            "evidence_span_ids": [
+              "sk-01"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "need-q1-c2",
+            "statement": "两种方式都回答错误的问题被丢弃；在准确率或 EM 的二值判定下，两者都正确的保留问题归入 D+。",
+            "evidence_span_ids": [
+              "sk-01",
+              "sk-02"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "need-q1-c3",
+            "statement": "D+ 对应可不借助外部信息直接答对的 LLM knowns；D− 对应外部信息带来更准确回答的 LLM unknowns。",
+            "evidence_span_ids": [
+              "sk-03"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "无检索和有检索都错误的问题一律归为 D−。",
+          "两种方式都正确的问题一律归为需要检索。"
+        ],
+        "missing_information": [],
+        "rationale": "同时检查公式和丢弃规则，避免只看大于等于号而错误保留双错样本。",
+        "required_evidence_span_ids": [
+          "sk-01",
+          "sk-02",
+          "sk-03"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "m3-embedding"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "partial",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "need-q2",
+      "family_id": "need",
+      "split": "holdout",
+      "kind": "comparison",
+      "difficulty": "hard",
+      "question": "M3-Embedding 的 self-knowledge distillation 与 SKR 的 self-knowledge 指的是同一件事吗？请分别说明它们的信号来自哪里，以及用于训练检索表示还是决定是否调用检索。",
+      "allowed_source_ids": [
+        "m3-embedding",
+        "skr"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "need-q2-c1",
+            "statement": "M3 将 dense、lexical、multi-vector 的预测分数加权融合，并把融合分数作为蒸馏教师，改进各检索功能的训练。",
+            "evidence_span_ids": [
+              "m3-01",
+              "m3-02"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "need-q2-c2",
+            "statement": "SKR 从同一问题有检索与无检索时的答题表现差异收集已知或未知标签。",
+            "evidence_span_ids": [
+              "sk-01",
+              "sk-02",
+              "sk-03"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "need-q2-c3",
+            "statement": "SKR 利用提示或小模型预测当前问题是否需要外部知识，已知时直接回答，未知时调用检索；这不同于 M3 的检索表示训练。",
+            "evidence_span_ids": [
+              "sk-04",
+              "sk-05"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "M3 的融合分数就是 LLM 是否知道答案的概率。",
+          "SKR 通过融合三种检索得分来蒸馏 M3。"
+        ],
+        "missing_information": [],
+        "rationale": "区分两个同名术语的监督来源与作用环节，需要两篇论文共同支撑。",
+        "required_evidence_span_ids": [
+          "m3-01",
+          "m3-02",
+          "sk-01",
+          "sk-02",
+          "sk-03",
+          "sk-04",
+          "sk-05"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "need-q3",
+      "family_id": "need",
+      "split": "holdout",
+      "kind": "synthesis",
+      "difficulty": "hard",
+      "question": "若要构建一个按需调用长文档检索的问答系统，SKR 和 M3-Embedding 在方法层面可分别承担什么职责？请给出由两文支持的组合思路，说明 M3 的文档长度边界，并保留“这种组合是否已实验证实”的证据边界。",
+      "allowed_source_ids": [
+        "m3-embedding",
+        "skr"
+      ],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "need-q3-c1",
+            "statement": "可由 SKR 判断问题属于已知还是未知；已知时直接回答，未知时进入检索增强流程。",
+            "evidence_span_ids": [
+              "sk-04",
+              "sk-05"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "need-q3-c2",
+            "statement": "需要检索时，可考虑用 M3 提供 dense、multi-vector 或 sparse 检索，并在其所述最多 8,192 tokens 的文档输入范围内处理长文档。",
+            "evidence_span_ids": [
+              "m3-03",
+              "m3-04"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "need-q3-c3",
+            "statement": "上述分工是由两文机制推导的候选组合，而非已有的联合系统实验证明；材料未提供 M3 与 SKR 联用的质量或成本增益。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "两篇论文已验证 M3 与 SKR 联用能显著提高准确率。",
+          "M3 的长文档能力本身已经解决何时检索的判断。",
+          "组合后可无条件保证所有回答正确。"
+        ],
+        "missing_information": [
+          "M3 与 SKR 联合系统的对照评测结果。"
+        ],
+        "rationale": "方法可支持清晰的组合提案，但必须标为推导，不能冒充已验证的联合结果。",
+        "required_evidence_span_ids": [
+          "m3-03",
+          "m3-04",
+          "sk-04",
+          "sk-05"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "need-q4",
+      "family_id": "need",
+      "split": "holdout",
+      "kind": "overclaim_trap",
+      "difficulty": "hard",
+      "question": "M3 的 MLDR 表 3 中 All 的平均 nDCG@10 高于 Dense+Sparse，是否因此能说“加入 multi-vector 后每一种语言都会更好”？请至少核对平均值、英语和中文三处结果，并说明该结论的边界。",
+      "allowed_source_ids": [
+        "m3-embedding"
+      ],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "need-q4-c1",
+            "statement": "表 3 评估 MLDR 多语言长文档检索，指标是 nDCG@10。",
+            "evidence_span_ids": [
+              "m3-08"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "need-q4-c2",
+            "statement": "Dense+Sparse 平均值为 64.8，All 为 65.0，平均值略高。",
+            "evidence_span_ids": [
+              "m3-05",
+              "m3-06",
+              "m3-07"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "need-q4-c3",
+            "statement": "英语从 Dense+Sparse 的 64.2 降到 All 的 63.8，中文从 42.0 降到 40.0，因此平均提升不表示每种语言都提升。",
+            "evidence_span_ids": [
+              "m3-05",
+              "m3-06",
+              "m3-07"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "need-q4-c4",
+            "statement": "原文将三种相关性得分加权融合，权重取决于下游场景；表中结果不能转化为任意权重或任意语言下的必然优势。",
+            "evidence_span_ids": [
+              "m3-09"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "need-q4-c5",
+            "statement": "Dense+Sparse 的权重为 (0.2, 0.8, 0)，All 为 (0.15, 0.5, 0.35)；两配置同时改变融合权重，不能把差异解释为保持其他因素不变时增加 multi-vector 的纯因果效果。",
+            "evidence_span_ids": [
+              "m3-11"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "All 在 MLDR 的每种语言上都优于 Dense+Sparse。",
+          "平均提升意味着中文也提升。",
+          "所有融合权重均能产生同样结果。",
+          "把两组不同融合权重的比较称为只改变 multi-vector 开关的受控消融。"
+        ],
+        "missing_information": [],
+        "rationale": "用具体反例限制平均数的解释范围，并保留融合配置条件。",
+        "required_evidence_span_ids": [
+          "m3-05",
+          "m3-06",
+          "m3-07",
+          "m3-08",
+          "m3-09",
+          "m3-11"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "skr"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "partial",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "need-q5",
+      "family_id": "need",
+      "split": "holdout",
+      "kind": "limitation",
+      "difficulty": "medium",
+      "question": "SKR 为什么没有只采用 direct prompting 与 in-context learning 判断是否需要检索？请列出论文对这两类方法的具体限制，以及随后提出的两种小模型替代方案。",
+      "allowed_source_ids": [
+        "skr"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "need-q5-c1",
+            "statement": "两者都需设计提示并对每个新问题调用 LLM。",
+            "evidence_span_ids": [
+              "sk-07"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "need-q5-c2",
+            "statement": "in-context learning 还受上下文偏差和敏感性影响；最大 token 数限制也使其无法利用全部训练问题。",
+            "evidence_span_ids": [
+              "sk-08",
+              "sk-09"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "need-q5-c3",
+            "statement": "论文另外提出训练分类器和最近邻搜索，两者借助显式较小模型完成自知识判断。",
+            "evidence_span_ids": [
+              "sk-10",
+              "sk-11"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "所有 SKR 变体都要求对每个新问题额外调用 LLM 判断。",
+          "最近邻方案必须额外微调整个 LLM。"
+        ],
+        "missing_information": [],
+        "rationale": "要求具体归纳作者的方法选择依据，不用笼统的成本或效果常识替代。",
+        "required_evidence_span_ids": [
+          "sk-07",
+          "sk-08",
+          "sk-09",
+          "sk-10",
+          "sk-11"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "m3-embedding"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "need-q6",
+      "family_id": "need",
+      "split": "holdout",
+      "kind": "insufficient_evidence",
+      "difficulty": "medium",
+      "question": "仅根据 M3-Embedding 论文，请给出原模型在保持全文、不截断也不分块的 16,384-token 文档输入下，已经实测并报告的 nDCG@10。",
+      "allowed_source_ids": [
+        "m3-embedding"
+      ],
+      "expectation": {
+        "outcome": "abstain",
+        "required_conclusions": [
+          {
+            "id": "need-q6-c1",
+            "statement": "材料未报告题目指定的 16,384-token 全文输入实验，不能给出其 nDCG@10。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          },
+          {
+            "id": "need-q6-c2",
+            "statement": "论文明确的输入支持范围为最多 8,192 tokens，超出指定长度上限的文档表现仍需研究。",
+            "evidence_span_ids": [
+              "m3-04",
+              "m3-10"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "把 8,192-token 配置的指标直接当作 16,384-token 的实测指标。",
+          "从长度翻倍外推准确率并称为论文结果。"
+        ],
+        "missing_information": [
+          "原模型在不截断、不分块的 16,384-token 输入条件下的实际实验与指标。"
+        ],
+        "rationale": "不能将已测长度范围外的表现推算成报告值。",
+        "required_evidence_span_ids": [
+          "m3-04",
+          "m3-10"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span",
+        "no_answer"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "skr"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "not_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "not_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "need-q7",
+      "family_id": "need",
+      "split": "holdout",
+      "kind": "out_of_scope",
+      "difficulty": "easy",
+      "question": "当前只允许使用 M3-Embedding 和 SKR 论文。请给出 REPLUG LSR 论文中检索器训练查询的数量、每条查询的 token 切分方式和索引更新步数。",
+      "allowed_source_ids": [
+        "m3-embedding",
+        "skr"
+      ],
+      "expectation": {
+        "outcome": "scope_refusal",
+        "required_conclusions": [
+          {
+            "id": "need-q7-c1",
+            "statement": "所求 REPLUG LSR 的训练配置不在允许来源范围内，应拒绝越界提供，并说明需允许使用 REPLUG 论文。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "调用 REPLUG 原文或凭记忆补齐配置。",
+          "用 M3 的训练配置代替 REPLUG LSR 的配置。"
+        ],
+        "missing_information": [
+          "获得使用 REPLUG 论文的范围授权。"
+        ],
+        "rationale": "题干明确限制来源，所求另一篇论文的实现配置不能越界回答。",
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "out_of_scope"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "aar",
+        "iter-retgen",
+        "prp",
+        "query2doc",
+        "rankgpt",
+        "replug"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    }
+  ]
+}

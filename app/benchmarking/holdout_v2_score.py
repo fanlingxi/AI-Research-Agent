@@ -19,7 +19,7 @@ import json
 import re
 from pathlib import Path
 
-from scripts.validate_holdout_v2 import DATASET
+from scripts.validate_holdout_v2 import DATASET, dataset_path
 
 REFUSAL_OUTCOMES = {"scope_refusal", "abstain"}
 JUDGE_SYSTEM = (
@@ -28,10 +28,14 @@ JUDGE_SYSTEM = (
 )
 
 
-def _tasks() -> dict[str, dict]:
+def _tasks(run_dir: Path | None = None) -> dict[str, dict]:
+    root = DATASET
+    if run_dir is not None and (run_dir / "config.json").is_file():
+        config = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
+        root = dataset_path(config.get("dataset", "v2"))
     tasks = {}
     for name in ("tasks.dev.json", "tasks.holdout.json"):
-        for task in json.loads((DATASET / name).read_text(encoding="utf-8"))["tasks"]:
+        for task in json.loads((root / name).read_text(encoding="utf-8"))["tasks"]:
             tasks[task["id"]] = task
     return tasks
 
@@ -74,7 +78,7 @@ def packet(task: dict, report: str) -> dict:
 
 
 def write_packets(run_dir: Path) -> int:
-    tasks, out = _tasks(), run_dir / "judge-packets"
+    tasks, out = _tasks(run_dir), run_dir / "judge-packets"
     out.mkdir(exist_ok=True)
     count = 0
     for row in _rows(run_dir):
@@ -138,7 +142,7 @@ def _verdicts(run_dir: Path, key: str) -> list[dict]:
 
 
 def summary(run_dir: Path) -> dict:
-    tasks = _tasks()
+    tasks = _tasks(run_dir)
     arms: dict[str, dict] = {}
     per_run = []
     for row in _rows(run_dir):
@@ -181,21 +185,28 @@ def summary(run_dir: Path) -> dict:
         arm["refusal_correctness"] = (
             arm["refusal_ok"] / arm["refusal_tasks"] if arm["refusal_tasks"] else None
         )
-    gate = None
-    if {"A-default", "B-candidate"} <= arms.keys():
-        a, b = arms["A-default"], arms["B-candidate"]
+    gates = {"gate_D029": None, "gate_D030": None}
+    for candidate, gate_name in (("B-candidate", "gate_D029"), ("C-candidate", "gate_D030")):
+        if not {"A-default", candidate} <= arms.keys():
+            continue
+        a, b = arms["A-default"], arms[candidate]
         checks = {
             "completion_not_worse": b["completion_rate"] >= a["completion_rate"],
-            "coverage_plus_10pp": b["point_coverage"] >= a["point_coverage"] + 0.10,
+            "coverage_plus_10pp": (
+                a["point_coverage"] is not None and b["point_coverage"] is not None
+                and b["point_coverage"] >= a["point_coverage"] + 0.10
+            ),
             "overclaim_not_worse": b["overclaim_rate"] <= a["overclaim_rate"],
             "refusal_not_worse": (b["refusal_correctness"] or 0) >= (a["refusal_correctness"] or 0),
         }
-        gate = {"checks": checks, "switch_default_to_B": all(checks.values())}
+        gates[gate_name] = {
+            "checks": checks, f"switch_default_to_{candidate[0]}": all(checks.values()),
+        }
     return {
         "label_provenance": "ai-consensus (not human-verified)",
         "judging": "conservative merge of all available judges",
         "arms": arms,
-        "gate_D029": gate,
+        **gates,
         "runs": per_run,
     }
 

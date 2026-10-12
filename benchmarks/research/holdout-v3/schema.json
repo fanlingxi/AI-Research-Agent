@@ -1,0 +1,878 @@
+{
+  "V3HoldoutManifest": {
+    "$defs": {
+      "HoldoutFamily": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "split": {
+            "enum": [
+              "dev",
+              "holdout"
+            ],
+            "title": "Split",
+            "type": "string"
+          },
+          "task_count": {
+            "minimum": 1,
+            "title": "Task Count",
+            "type": "integer"
+          },
+          "source_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Source Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "split",
+          "task_count",
+          "source_ids"
+        ],
+        "title": "HoldoutFamily",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "protocol_version": {
+        "const": "research-holdout-v3-task",
+        "title": "Protocol Version",
+        "type": "string"
+      },
+      "dataset_version": {
+        "const": "research-holdout-v3",
+        "title": "Dataset Version",
+        "type": "string"
+      },
+      "corpus_version": {
+        "const": "research-holdout-v3-corpus",
+        "title": "Corpus Version",
+        "type": "string"
+      },
+      "status": {
+        "const": "frozen_ai_consensus",
+        "title": "Status",
+        "type": "string"
+      },
+      "label_provenance": {
+        "const": "ai-consensus",
+        "title": "Label Provenance",
+        "type": "string"
+      },
+      "human_verified": {
+        "const": false,
+        "title": "Human Verified",
+        "type": "boolean"
+      },
+      "language": {
+        "const": "zh_questions_en_sources",
+        "title": "Language",
+        "type": "string"
+      },
+      "created_at": {
+        "minLength": 1,
+        "title": "Created At",
+        "type": "string"
+      },
+      "labelers": {
+        "items": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "minItems": 3,
+        "title": "Labelers",
+        "type": "array"
+      },
+      "families": {
+        "items": {
+          "$ref": "#/$defs/HoldoutFamily"
+        },
+        "minItems": 2,
+        "title": "Families",
+        "type": "array"
+      },
+      "split_counts": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "propertyNames": {
+          "enum": [
+            "dev",
+            "holdout"
+          ]
+        },
+        "title": "Split Counts",
+        "type": "object"
+      },
+      "dropped_tasks": {
+        "items": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "title": "Dropped Tasks",
+        "type": "array"
+      },
+      "decision_use": {
+        "minLength": 1,
+        "title": "Decision Use",
+        "type": "string"
+      },
+      "coverage_note": {
+        "minLength": 1,
+        "title": "Coverage Note",
+        "type": "string"
+      },
+      "raw_papers_are_evaluation_input": {
+        "const": true,
+        "title": "Raw Papers Are Evaluation Input",
+        "type": "boolean"
+      },
+      "annotations_are_model_input": {
+        "const": false,
+        "title": "Annotations Are Model Input",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "protocol_version",
+      "dataset_version",
+      "corpus_version",
+      "status",
+      "label_provenance",
+      "human_verified",
+      "language",
+      "created_at",
+      "labelers",
+      "families",
+      "split_counts",
+      "dropped_tasks",
+      "decision_use",
+      "coverage_note",
+      "raw_papers_are_evaluation_input",
+      "annotations_are_model_input"
+    ],
+    "title": "V3HoldoutManifest",
+    "type": "object"
+  },
+  "V3HoldoutCorpus": {
+    "$defs": {
+      "HoldoutPaper": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "family_id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Family Id",
+            "type": "string"
+          },
+          "split": {
+            "enum": [
+              "dev",
+              "holdout"
+            ],
+            "title": "Split",
+            "type": "string"
+          },
+          "version": {
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "authors": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Authors",
+            "type": "array"
+          },
+          "landing_url": {
+            "minLength": 1,
+            "title": "Landing Url",
+            "type": "string"
+          },
+          "pdf_url": {
+            "minLength": 1,
+            "title": "Pdf Url",
+            "type": "string"
+          },
+          "doi": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doi"
+          },
+          "fetched_at": {
+            "minLength": 1,
+            "title": "Fetched At",
+            "type": "string"
+          },
+          "pdf_path": {
+            "minLength": 1,
+            "title": "Pdf Path",
+            "type": "string"
+          },
+          "pdf_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Pdf Sha256",
+            "type": "string"
+          },
+          "pdf_pages": {
+            "minimum": 1,
+            "title": "Pdf Pages",
+            "type": "integer"
+          },
+          "license": {
+            "const": "CC-BY-4.0",
+            "title": "License",
+            "type": "string"
+          },
+          "license_url": {
+            "const": "https://creativecommons.org/licenses/by/4.0/",
+            "title": "License Url",
+            "type": "string"
+          },
+          "license_evidence_url": {
+            "minLength": 1,
+            "title": "License Evidence Url",
+            "type": "string"
+          },
+          "license_evidence": {
+            "minLength": 1,
+            "title": "License Evidence",
+            "type": "string"
+          },
+          "landing_page_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Landing Page Sha256",
+            "type": "string"
+          },
+          "attribution": {
+            "minLength": 1,
+            "title": "Attribution",
+            "type": "string"
+          },
+          "transformations": {
+            "minLength": 1,
+            "title": "Transformations",
+            "type": "string"
+          },
+          "extractor": {
+            "minLength": 1,
+            "title": "Extractor",
+            "type": "string"
+          },
+          "text_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Text Sha256",
+            "type": "string"
+          },
+          "text_chars": {
+            "minimum": 1,
+            "title": "Text Chars",
+            "type": "integer"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/$defs/Page"
+            },
+            "minItems": 1,
+            "title": "Pages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "family_id",
+          "split",
+          "version",
+          "title",
+          "authors",
+          "landing_url",
+          "pdf_url",
+          "doi",
+          "fetched_at",
+          "pdf_path",
+          "pdf_sha256",
+          "pdf_pages",
+          "license",
+          "license_url",
+          "license_evidence_url",
+          "license_evidence",
+          "landing_page_sha256",
+          "attribution",
+          "transformations",
+          "extractor",
+          "text_sha256",
+          "text_chars",
+          "pages"
+        ],
+        "title": "HoldoutPaper",
+        "type": "object"
+      },
+      "Page": {
+        "additionalProperties": false,
+        "properties": {
+          "pdf_page": {
+            "minimum": 1,
+            "title": "Pdf Page",
+            "type": "integer"
+          },
+          "start": {
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "end": {
+            "exclusiveMinimum": 0,
+            "title": "End",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pdf_page",
+          "start",
+          "end"
+        ],
+        "title": "Page",
+        "type": "object"
+      },
+      "PaperSpan": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "source_id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_version": {
+            "minLength": 1,
+            "title": "Source Version",
+            "type": "string"
+          },
+          "pdf_page": {
+            "minimum": 1,
+            "title": "Pdf Page",
+            "type": "integer"
+          },
+          "start": {
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "end": {
+            "exclusiveMinimum": 0,
+            "title": "End",
+            "type": "integer"
+          },
+          "quote": {
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_id",
+          "source_version",
+          "pdf_page",
+          "start",
+          "end",
+          "quote"
+        ],
+        "title": "PaperSpan",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "version": {
+        "const": "research-holdout-v3-corpus",
+        "title": "Version",
+        "type": "string"
+      },
+      "full_text_tracked": {
+        "const": false,
+        "title": "Full Text Tracked",
+        "type": "boolean"
+      },
+      "sources": {
+        "items": {
+          "$ref": "#/$defs/HoldoutPaper"
+        },
+        "maxItems": 10,
+        "minItems": 6,
+        "title": "Sources",
+        "type": "array"
+      },
+      "spans": {
+        "items": {
+          "$ref": "#/$defs/PaperSpan"
+        },
+        "minItems": 1,
+        "title": "Spans",
+        "type": "array"
+      }
+    },
+    "required": [
+      "version",
+      "full_text_tracked",
+      "sources",
+      "spans"
+    ],
+    "title": "V3HoldoutCorpus",
+    "type": "object"
+  },
+  "V3HoldoutTasks": {
+    "$defs": {
+      "Conclusion": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "statement": {
+            "minLength": 1,
+            "title": "Statement",
+            "type": "string"
+          },
+          "evidence_span_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Evidence Span Ids",
+            "type": "array"
+          },
+          "basis": {
+            "enum": [
+              "source",
+              "scope_absence",
+              "missing_information",
+              "scope_boundary"
+            ],
+            "title": "Basis",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "statement",
+          "evidence_span_ids",
+          "basis"
+        ],
+        "title": "Conclusion",
+        "type": "object"
+      },
+      "Expectation": {
+        "additionalProperties": false,
+        "properties": {
+          "outcome": {
+            "enum": [
+              "answer",
+              "qualified_answer",
+              "abstain",
+              "needs_review",
+              "scope_refusal"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "required_conclusions": {
+            "items": {
+              "$ref": "#/$defs/Conclusion"
+            },
+            "minItems": 1,
+            "title": "Required Conclusions",
+            "type": "array"
+          },
+          "forbidden_conclusions": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Forbidden Conclusions",
+            "type": "array"
+          },
+          "required_evidence_span_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Required Evidence Span Ids",
+            "type": "array"
+          },
+          "conflict_span_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Conflict Span Ids",
+            "type": "array"
+          },
+          "missing_information": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Missing Information",
+            "type": "array"
+          },
+          "rationale": {
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "required_conclusions",
+          "forbidden_conclusions",
+          "required_evidence_span_ids",
+          "conflict_span_ids",
+          "missing_information",
+          "rationale"
+        ],
+        "title": "Expectation",
+        "type": "object"
+      },
+      "LabelerVerdict": {
+        "additionalProperties": false,
+        "properties": {
+          "labeler": {
+            "minLength": 1,
+            "title": "Labeler",
+            "type": "string"
+          },
+          "answerability": {
+            "anyOf": [
+              {
+                "enum": [
+                  "answerable",
+                  "partially_answerable",
+                  "not_answerable",
+                  "out_of_scope"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answerability"
+          },
+          "answerability_agrees": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answerability Agrees"
+          },
+          "points": {
+            "enum": [
+              "full",
+              "partial",
+              "none",
+              "missing"
+            ],
+            "title": "Points",
+            "type": "string"
+          },
+          "quote_overlap": {
+            "enum": [
+              "all",
+              "some",
+              "none",
+              "not_applicable",
+              "missing"
+            ],
+            "title": "Quote Overlap",
+            "type": "string"
+          }
+        },
+        "required": [
+          "labeler",
+          "answerability",
+          "answerability_agrees",
+          "points",
+          "quote_overlap"
+        ],
+        "title": "LabelerVerdict",
+        "type": "object"
+      },
+      "V3ConsensusAnnotation": {
+        "additionalProperties": false,
+        "properties": {
+          "label_provenance": {
+            "const": "ai-consensus",
+            "title": "Label Provenance",
+            "type": "string"
+          },
+          "human_verified": {
+            "const": false,
+            "title": "Human Verified",
+            "type": "boolean"
+          },
+          "drafted_by": {
+            "minLength": 1,
+            "title": "Drafted By",
+            "type": "string"
+          },
+          "verdicts": {
+            "items": {
+              "$ref": "#/$defs/LabelerVerdict"
+            },
+            "minItems": 2,
+            "title": "Verdicts",
+            "type": "array"
+          },
+          "tie_breaker": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LabelerVerdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "consensus",
+              "adjudicated"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "adjudication": {
+            "minLength": 1,
+            "title": "Adjudication",
+            "type": "string"
+          },
+          "record_path": {
+            "minLength": 1,
+            "title": "Record Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label_provenance",
+          "human_verified",
+          "drafted_by",
+          "verdicts",
+          "tie_breaker",
+          "status",
+          "adjudication",
+          "record_path"
+        ],
+        "title": "V3ConsensusAnnotation",
+        "type": "object"
+      },
+      "V3HoldoutTask": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "version": {
+            "const": "v1",
+            "title": "Version",
+            "type": "string"
+          },
+          "family_id": {
+            "pattern": "^[a-z][a-z0-9_-]+$",
+            "title": "Family Id",
+            "type": "string"
+          },
+          "split": {
+            "enum": [
+              "dev",
+              "holdout"
+            ],
+            "title": "Split",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "enum": [
+                "exact_name",
+                "synonym",
+                "multi_source",
+                "cross_span",
+                "conflict",
+                "no_answer",
+                "insufficient",
+                "out_of_scope"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Tags",
+            "type": "array"
+          },
+          "target": {
+            "const": "project_run",
+            "title": "Target",
+            "type": "string"
+          },
+          "question": {
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "report_requirements": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Report Requirements",
+            "type": "array"
+          },
+          "allowed_source_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Source Ids",
+            "type": "array"
+          },
+          "forbidden_source_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Forbidden Source Ids",
+            "type": "array"
+          },
+          "expectation": {
+            "$ref": "#/$defs/Expectation"
+          },
+          "annotation": {
+            "$ref": "#/$defs/V3ConsensusAnnotation"
+          },
+          "kind": {
+            "enum": [
+              "single_fact",
+              "synthesis",
+              "comparison",
+              "limitation",
+              "insufficient_evidence",
+              "out_of_scope",
+              "overclaim_trap"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "difficulty": {
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Difficulty",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "family_id",
+          "split",
+          "tags",
+          "target",
+          "question",
+          "report_requirements",
+          "allowed_source_ids",
+          "forbidden_source_ids",
+          "expectation",
+          "annotation",
+          "kind",
+          "difficulty"
+        ],
+        "title": "V3HoldoutTask",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "protocol_version": {
+        "const": "research-holdout-v3-task",
+        "title": "Protocol Version",
+        "type": "string"
+      },
+      "dataset_version": {
+        "const": "research-holdout-v3",
+        "title": "Dataset Version",
+        "type": "string"
+      },
+      "split": {
+        "enum": [
+          "dev",
+          "holdout"
+        ],
+        "title": "Split",
+        "type": "string"
+      },
+      "tasks": {
+        "items": {
+          "$ref": "#/$defs/V3HoldoutTask"
+        },
+        "minItems": 1,
+        "title": "Tasks",
+        "type": "array"
+      }
+    },
+    "required": [
+      "protocol_version",
+      "dataset_version",
+      "split",
+      "tasks"
+    ],
+    "title": "V3HoldoutTasks",
+    "type": "object"
+  }
+}

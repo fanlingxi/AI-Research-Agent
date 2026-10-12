@@ -32,6 +32,25 @@ from scripts.validate_research_dataset import (
 ROOT = Path(__file__).resolve().parents[1]
 DATASET = ROOT / "benchmarks/research/holdout-v2"
 DATA = ROOT / "data/evaluation/holdout-v2"
+DATA_V3 = Path("D:/AI-Research-Agent/data/evaluation/holdout-v3")
+DatasetVersion = Literal["research-holdout-v2", "research-holdout-v3"]
+
+
+def dataset_version(dataset: str = "v2") -> DatasetVersion:
+    version = dataset if dataset.startswith("research-holdout-") else f"research-holdout-{dataset}"
+    if version not in ("research-holdout-v2", "research-holdout-v3"):
+        raise ValueError(f"Unsupported dataset: {dataset}")
+    return version
+
+
+def dataset_path(dataset: str = "v2") -> Path:
+    return DATASET.parent / dataset_version(dataset).removeprefix("research-")
+
+
+def data_path(dataset: str = "v2") -> Path:
+    return DATA if dataset_version(dataset) == "research-holdout-v2" else DATA_V3
+
+
 Answerability = Literal["answerable", "partially_answerable", "not_answerable", "out_of_scope"]
 OUTCOME_ANSWERABILITY = {
     "answer": "answerable", "qualified_answer": "answerable",
@@ -142,8 +161,55 @@ class HoldoutManifest(Record):
     annotations_are_model_input: Literal[False]
 
 
-def schemas() -> dict:
-    models = (HoldoutManifest, HoldoutCorpus, HoldoutTasks)
+class V3ConsensusAnnotation(ConsensusAnnotation):
+    @model_validator(mode="after")
+    def consensus_means_agreement(self):
+        # The bootstrap dataset explicitly records missing reviews, never invented agreement.
+        if self.adjudication.startswith("待仲裁") and all(
+            v.answerability is None and v.answerability_agrees is None
+            and v.points == "missing" and v.quote_overlap == "missing"
+            for v in self.verdicts
+        ):
+            return self
+        return super().consensus_means_agreement()
+
+
+class V3HoldoutTask(HoldoutTask):
+    annotation: V3ConsensusAnnotation
+
+
+class V3HoldoutTasks(HoldoutTasks):
+    protocol_version: Literal["research-holdout-v3-task"]
+    dataset_version: Literal["research-holdout-v3"]
+    tasks: Annotated[list[V3HoldoutTask], Field(min_length=1)]
+
+
+class V3HoldoutCorpus(HoldoutCorpus):
+    version: Literal["research-holdout-v3-corpus"]
+
+
+class V3HoldoutManifest(HoldoutManifest):
+    protocol_version: Literal["research-holdout-v3-task"]
+    dataset_version: Literal["research-holdout-v3"]
+    corpus_version: Literal["research-holdout-v3-corpus"]
+
+
+def models_for(version: str):
+    if dataset_version(version) == "research-holdout-v3":
+        return V3HoldoutManifest, V3HoldoutCorpus, V3HoldoutTasks
+    return HoldoutManifest, HoldoutCorpus, HoldoutTasks
+
+
+def infer_version(root: Path, version: str | None = None) -> DatasetVersion:
+    actual = dataset_version(json.loads(
+        (root / "manifest.json").read_text(encoding="utf-8")
+    )["dataset_version"])
+    _require(version is None or dataset_version(version) == actual, "dataset version mismatch")
+    return actual
+
+
+def schemas(version: str = "v2") -> dict:
+    models = models_for(version)
     return {c.__name__: c.model_json_schema() for c in models}
 
 
@@ -164,9 +230,10 @@ def extract_pages(pdf: Path) -> tuple[str, list[dict]]:
     return text, pages
 
 
-def load_tasks(root: Path = DATASET) -> list[HoldoutTask]:
+def load_tasks(root: Path = DATASET, *, version: str | None = None) -> list[HoldoutTask]:
+    _, _, task_model = models_for(infer_version(root, version))
     files = [
-        HoldoutTasks.model_validate_json((root / f"tasks.{split}.json").read_bytes())
+        task_model.model_validate_json((root / f"tasks.{split}.json").read_bytes())
         for split in ("dev", "holdout")
     ]
     for split, tf in zip(("dev", "holdout"), files, strict=True):
@@ -174,10 +241,17 @@ def load_tasks(root: Path = DATASET) -> list[HoldoutTask]:
     return [t for tf in files for t in tf.tasks]
 
 
-def validate_dataset(root: Path = DATASET, *, data: Path | None = DATA, verify_freeze=True):
-    manifest = HoldoutManifest.model_validate_json((root / "manifest.json").read_bytes())
-    corpus = HoldoutCorpus.model_validate_json((root / "corpus.json").read_bytes())
-    tasks = load_tasks(root)
+def validate_dataset(
+    root: Path = DATASET, *, data: Path | None | Literal["auto"] = "auto", verify_freeze=True,
+    version: str | None = None,
+):
+    version = infer_version(root, version)
+    if data == "auto":
+        data = data_path(version)
+    manifest_model, corpus_model, _ = models_for(version)
+    manifest = manifest_model.model_validate_json((root / "manifest.json").read_bytes())
+    corpus = corpus_model.model_validate_json((root / "corpus.json").read_bytes())
+    tasks = load_tasks(root, version=version)
     for values, name in [
         ([s.id for s in corpus.sources], "papers"),
         ([s.pdf_sha256 for s in corpus.sources], "paper contents"),
@@ -231,7 +305,13 @@ def validate_dataset(root: Path = DATASET, *, data: Path | None = DATA, verify_f
         _require(family is not None and t.split == family.split, "task split leakage")
         allowed, denied = set(t.allowed_source_ids), set(t.forbidden_source_ids)
         _require(not allowed & denied, "scope overlap")
-        _require(allowed | denied <= set(family.source_ids), "cross-family scope")
+        if version == "research-holdout-v3":
+            # A v3 refusal can ask about a paper belonging to another family;
+            # only the allowed papers can enter the model's context.
+            _require(allowed <= set(family.source_ids), "cross-family scope")
+            _require(denied <= set(sources), "unknown forbidden source")
+        else:
+            _require(allowed | denied <= set(family.source_ids), "cross-family scope")
         e = t.expectation
         required = set(e.required_evidence_span_ids)
         _require(required <= set(spans), "unknown evidence")
@@ -248,7 +328,13 @@ def validate_dataset(root: Path = DATASET, *, data: Path | None = DATA, verify_f
         if "cross_span" in t.tags:
             _require(len(required) >= 2, "cross-span evidence")
         if "no_answer" in t.tags:
-            _require(e.outcome == "abstain" and not required, "no-answer contract")
+            if version == "research-holdout-v3":
+                # Evidence can support WHY the requested result is unavailable.
+                _require(e.outcome == "abstain" and bool(e.missing_information)
+                         and any(c.basis in {"missing_information", "scope_absence"}
+                                 for c in e.required_conclusions), "no-answer contract")
+            else:
+                _require(e.outcome == "abstain" and not required, "no-answer contract")
         if "insufficient" in t.tags:
             _require(e.outcome == "needs_review" and bool(e.missing_information), "missing info")
         if "out_of_scope" in t.tags:
@@ -264,7 +350,7 @@ def validate_dataset(root: Path = DATASET, *, data: Path | None = DATA, verify_f
         for name, digest in freeze.items():
             _require(file_digest(root / name) == digest, f"freeze hash: {name}")
         _require(
-            json.loads((root / "schema.json").read_text(encoding="utf-8")) == schemas(),
+            json.loads((root / "schema.json").read_text(encoding="utf-8")) == schemas(version),
             "schema mismatch",
         )
     return {
@@ -286,9 +372,12 @@ def validate_dataset(root: Path = DATASET, *, data: Path | None = DATA, verify_f
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, default=DATASET)
-    parser.add_argument("--data", type=Path, default=DATA)
+    parser.add_argument("--version", choices=["v2", "v3"])
+    parser.add_argument("--data", type=Path)
     args = parser.parse_args()
-    print(json.dumps(validate_dataset(args.dataset, data=args.data), ensure_ascii=False, indent=2))
+    version = infer_version(args.dataset, args.version)
+    print(json.dumps(validate_dataset(args.dataset, data=args.data or data_path(version),
+                                      version=version), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

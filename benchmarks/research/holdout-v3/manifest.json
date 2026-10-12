@@ -1,0 +1,62 @@
+{
+  "protocol_version": "research-holdout-v3-task",
+  "dataset_version": "research-holdout-v3",
+  "corpus_version": "research-holdout-v3-corpus",
+  "status": "frozen_ai_consensus",
+  "label_provenance": "ai-consensus",
+  "human_verified": false,
+  "language": "zh_questions_en_sources",
+  "created_at": "2026-10-12",
+  "labelers": [
+    "Codex (GPT): 出题者",
+    "DeepSeek: 独立标注者",
+    "Claude: 仲裁者"
+  ],
+  "families": [
+    {
+      "id": "rerank",
+      "split": "dev",
+      "source_ids": [
+        "rankgpt",
+        "prp"
+      ],
+      "task_count": 10
+    },
+    {
+      "id": "expansion",
+      "split": "holdout",
+      "source_ids": [
+        "query2doc",
+        "iter-retgen"
+      ],
+      "task_count": 7
+    },
+    {
+      "id": "retriever",
+      "split": "holdout",
+      "source_ids": [
+        "replug",
+        "aar"
+      ],
+      "task_count": 7
+    },
+    {
+      "id": "need",
+      "split": "holdout",
+      "source_ids": [
+        "m3-embedding",
+        "skr"
+      ],
+      "task_count": 7
+    }
+  ],
+  "split_counts": {
+    "dev": 10,
+    "holdout": 21
+  },
+  "dropped_tasks": [],
+  "decision_use": "已载入 AI 共识/仲裁记录；非人工核验。 仅供研究评估；不得称为人工金标。保留集用于调优后失去保留性质。",
+  "coverage_note": "4 个论文家族、8 篇 ACL 论文；中文题目、英文来源；家族间论文身份不重叠。",
+  "raw_papers_are_evaluation_input": true,
+  "annotations_are_model_input": false
+}
