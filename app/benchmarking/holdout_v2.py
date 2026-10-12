@@ -24,7 +24,16 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data/evaluation/holdout-v2"
 OUTPUT = DATA / "runs"
 FREEZE = DATASET / "freeze.json"
-WORKFLOWS = ("research_v4", "research_v7")  # current default first, candidate second
+WORKFLOWS = ("research_v4", "research_v7")  # same-snapshot generation comparison
+# D029 pre-registered pipeline comparison: current default vs candidate end to end.
+ARMS = (
+    {"name": "A-default", "workflow": "research", "context": {}},
+    {
+        "name": "B-candidate",
+        "workflow": "research_v7",
+        "context": resume_closeout.SHARED_CONTEXT,
+    },
+)
 PER_RUN_CALLS = 4
 
 
@@ -101,7 +110,9 @@ def verify_corpus(split: str = "holdout", data: Path = DATA) -> dict:
             "passages": len(mapping["chunks"]), "projection_chunks": chunks, "model_calls": 0}
 
 
-def prepare(split: str = "holdout", workflows=WORKFLOWS, data: Path = DATA, download=False):
+def prepare(
+    split: str = "holdout", workflows=WORKFLOWS, data: Path = DATA, download=False, arms=False
+):
     resume_closeout.guard("RUN_STORE_INTEGRATION")
     from app.benchmarking.passage_dataset import import_passages
     from app.benchmarking.store_validation import settings_for
@@ -127,6 +138,7 @@ def prepare(split: str = "holdout", workflows=WORKFLOWS, data: Path = DATA, down
         "context_tokens": 16000,
         "run_tokens": 1048576,
         "workflows": list(workflows),
+        "arms": list(ARMS) if arms else None,
         "cases": selected,
         "human_labels": None,
         "semantic_success_rate": None,
@@ -163,6 +175,7 @@ if __name__ == "__main__":
     parser.add_argument("--workflows", nargs=2, default=list(WORKFLOWS))
     parser.add_argument("--data", type=Path, default=DATA)
     parser.add_argument("--download", action="store_true")
+    parser.add_argument("--arms", action="store_true", help="D029 default-vs-candidate arms")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--verify-corpus", action="store_true")
     group.add_argument("--prepare", action="store_true")
@@ -171,7 +184,7 @@ if __name__ == "__main__":
     if args.verify_corpus:
         result = verify_corpus(args.split, args.data)
     elif args.prepare:
-        result = prepare(args.split, args.workflows, args.data, args.download)
+        result = prepare(args.split, args.workflows, args.data, args.download, args.arms)
     elif args.execute:
         result = execute(args.execute)
     else:
