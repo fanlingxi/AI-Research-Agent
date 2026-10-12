@@ -23,7 +23,7 @@ export function SemanticObservation() {
           <p className="whitespace-pre-wrap break-words text-sm font-medium">{finding.assertion}</p>
           <div className="grid min-w-0 gap-3 md:grid-cols-2"><div className="rounded-lg bg-slate-50 p-3 text-sm"><p className="font-medium">模型观察：{verdictNames[finding.verdict ?? ""] ?? "未评分"}</p><p className="mt-2 break-words">{finding.reason || "无可用判断"}</p></div><div className="rounded-lg bg-brand-soft/40 p-3 text-sm"><p className="font-medium">监督审核：{verdictNames[finding.human_label ?? ""] ?? "未标注"}</p><p className="mt-2 break-words">{finding.human_note || "等待人工判断"}</p></div></div>
           {finding.human_label && finding.verdict !== finding.human_label && <p className="text-sm font-semibold text-amber-900">存在分歧，请对照本条引用。</p>}
-          {finding.citations.map((citation) => <blockquote key={citation.evidence_id} className="min-w-0 rounded-lg border-l-4 border-brand bg-white p-3 text-sm"><p className="whitespace-pre-wrap break-words leading-6">{citation.quote}</p><p className="mt-2 break-words text-xs text-muted-ink">{citation.title} · 第 {citation.page_start}–{citation.page_end} 页 · 版本 {citation.source_version}</p></blockquote>)}
+          {finding.citations.map((citation) => <blockquote key={citation.evidence_id} className="min-w-0 rounded-lg border-l-4 border-brand bg-panel p-3 text-sm"><p className="whitespace-pre-wrap break-words leading-6">{citation.quote}</p><p className="mt-2 break-words text-xs text-muted-ink">{citation.title} · 第 {citation.page_start}–{citation.page_end} 页 · 版本 {citation.source_version}</p></blockquote>)}
         </article>)}
       </details>)}
     </>}

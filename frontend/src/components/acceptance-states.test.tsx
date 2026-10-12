@@ -24,6 +24,7 @@ import { AgentRunPage } from "../pages/AgentRunPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { KnowledgePage } from "../pages/KnowledgePage";
 import { ProjectWorkspacePage } from "../pages/ProjectWorkspacePage";
+import { QuickReportPage } from "../pages/QuickReportPage";
 import { ReportsPage } from "../pages/ReportsPage";
 import { ReviewPage } from "../pages/ReviewPage";
 import { RuntimePage } from "../pages/RuntimePage";
@@ -189,10 +190,10 @@ describe("browser acceptance states", () => {
   it("does not show a candidate loading state when no ingestion is selected", async () => {
     vi.spyOn(api, "ingestions").mockResolvedValue([]);
 
-    renderWithQuery(<CandidateReviewPanel />);
+    renderWithQuery(<MemoryRouter><CandidateReviewPanel /></MemoryRouter>);
 
-    expect(await screen.findByText("没有 Knowledge ingestion")).toBeInTheDocument();
-    expect(screen.queryByText("读取 draft candidates…")).not.toBeInTheDocument();
+    expect(await screen.findByText("还没有可审核的资料")).toBeInTheDocument();
+    expect(screen.queryByText("读取候选…")).not.toBeInTheDocument();
   });
 
   it("keeps committed Proposal deep links reviewable", async () => {
@@ -203,8 +204,8 @@ describe("browser acceptance states", () => {
 
     renderWithQuery(<MemoryRouter initialEntries={["/review?proposal=proposal-1"]}><Routes><Route path="/review" element={<ReviewPage />} /></Routes></MemoryRouter>);
 
-    expect(await screen.findByRole("dialog", { name: "Review MemoryProposal" })).toBeInTheDocument();
-    expect(screen.getByText("committed")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "审核记忆提案" })).toBeInTheDocument();
+    expect(screen.getByText("已提交")).toBeInTheDocument();
   });
 
   it("shows a terminal failed Run without an output loading spinner or raw error", async () => {
@@ -240,7 +241,7 @@ describe("browser acceptance states", () => {
     renderWithQuery(<MemoryRouter initialEntries={["/agent-runs/run-1"]}><Routes><Route path="/agent-runs/:runId" element={<AgentRunPage />} /></Routes></MemoryRouter>);
 
     expect(await screen.findByText("evidence-7 does not support claim-2")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "新建 Snapshot 并重跑" }));
+    await user.click(screen.getByRole("button", { name: "用新快照重新运行" }));
     expect(review).toHaveBeenCalledWith("run-1", "rerun");
     expect(screen.queryByRole("button", { name: /绕过|接受无效/ })).not.toBeInTheDocument();
   });
@@ -256,7 +257,7 @@ describe("browser acceptance states", () => {
 
   it("starts one queued report directly from the report page", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "reports").mockResolvedValue([queuedReport]);
+    vi.spyOn(api, "report").mockResolvedValue(queuedReport);
     vi.spyOn(api, "collections").mockResolvedValue([]);
     vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
     const execute = vi.spyOn(api, "executeReport").mockResolvedValue({
@@ -265,7 +266,7 @@ describe("browser acceptance states", () => {
       run_metadata: { current_stage: "scheduled" },
     });
 
-    renderWithQuery(<MemoryRouter><ReportsPage /></MemoryRouter>);
+    renderWithQuery(<MemoryRouter initialEntries={["/reports/report-queued"]}><Routes><Route path="/reports/:reportId" element={<QuickReportPage />} /></Routes></MemoryRouter>);
 
     await user.click(await screen.findByRole("button", { name: "立即执行" }));
     expect(execute).toHaveBeenCalledTimes(1);
@@ -280,7 +281,7 @@ describe("browser acceptance states", () => {
       status: "failed",
       error: "引用覆盖不足",
     };
-    vi.spyOn(api, "reports").mockResolvedValue([failedReport]);
+    vi.spyOn(api, "report").mockResolvedValue(failedReport);
     vi.spyOn(api, "collections").mockResolvedValue([]);
     vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
     const retry = vi.spyOn(api, "retryReport").mockResolvedValue({
@@ -289,31 +290,44 @@ describe("browser acceptance states", () => {
       error: null,
     });
 
-    renderWithQuery(<MemoryRouter><ReportsPage /></MemoryRouter>);
+    renderWithQuery(<MemoryRouter initialEntries={["/reports/report-failed"]}><Routes><Route path="/reports/:reportId" element={<QuickReportPage />} /></Routes></MemoryRouter>);
 
     await user.click(await screen.findByRole("button", { name: "清理失败结果并重新执行" }));
     expect(retry).toHaveBeenCalledTimes(1);
     expect(retry).toHaveBeenCalledWith(failedReport.id);
   });
 
-  it("submits a three-character research question and starts it immediately", async () => {
-    const user = userEvent.setup();
-    vi.spyOn(api, "reports").mockResolvedValue([]);
-    vi.spyOn(api, "collections").mockResolvedValue([]);
-    vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
-    const submit = vi.spyOn(api, "submitAndExecuteReport").mockResolvedValue({
-      ...queuedReport,
-      status: "running",
-    });
+  it("lists quick reports and project reports together in the library", async () => {
+    vi.spyOn(api, "reports").mockResolvedValue([{ ...queuedReport, status: "completed" }]);
+    vi.spyOn(api, "projects").mockResolvedValue([project]);
+    vi.spyOn(api, "tasks").mockResolvedValue(workspaceTasks);
+    vi.spyOn(api, "artifacts").mockResolvedValue([{
+      id: "artifact-1", project_id: project.id, task_id: "task-1", type: "research_report", reference: "ref", version: 1,
+      status: "ready", supersedes_artifact_id: null, metadata: {}, revision: 1, created_at: project.created_at, updated_at: project.updated_at,
+    }]);
 
     renderWithQuery(<MemoryRouter><ReportsPage /></MemoryRouter>);
-    const input = await screen.findByRole("textbox", { name: "研究问题" });
-    expect(input).toHaveAttribute("minlength", "3");
-    await user.type(input, "研究题");
-    await user.click(screen.getByRole("button", { name: "提交并开始生成" }));
 
-    expect(submit).toHaveBeenCalledTimes(1);
-    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ query: "研究题" }));
+    expect(await screen.findByRole("link", { name: /如何提高研究智能体的可靠性/ })).toHaveAttribute("href", "/reports/report-queued");
+    expect(await screen.findByRole("link", { name: /First task/ })).toHaveAttribute("href", "/artifacts/artifact-1");
+  });
+
+  it("redirects legacy report links to the reader and opens a cited passage", async () => {
+    vi.spyOn(api, "report").mockResolvedValue({
+      ...queuedReport,
+      status: "completed",
+      content: "## 结论\n\n可靠性来自证据 [E1]。",
+      evidence: [{ id: "E1", paper_id: "p1", chunk_id: "c1", title: "论文甲", text: "原文段落", page_start: 3, page_end: 3, score: 0.9 }],
+    });
+    vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    const user = userEvent.setup();
+
+    renderWithQuery(<MemoryRouter initialEntries={["/reports?report=report-queued"]}><Routes><Route path="/reports" element={<ReportsPage />} /><Route path="/reports/:reportId" element={<QuickReportPage />} /></Routes></MemoryRouter>);
+
+    await user.click(await screen.findByRole("button", { name: "查看引用 1 的原文" }));
+    expect(await screen.findByText("原文段落")).toBeInTheDocument();
+    expect(screen.getAllByText("第 3 页").length).toBeGreaterThan(0);
   });
 
   it("offers an in-place recovery action when the unified worker is offline", async () => {
@@ -322,7 +336,7 @@ describe("browser acceptance states", () => {
       ...queuedReport,
       run_metadata: { current_stage: "queued_for_dispatch" },
     };
-    vi.spyOn(api, "reports").mockResolvedValue([awaitingReport]);
+    vi.spyOn(api, "report").mockResolvedValue(awaitingReport);
     vi.spyOn(api, "collections").mockResolvedValue([]);
     vi.spyOn(api, "knowledgeHealth").mockResolvedValue({
       ...healthyKnowledge,
@@ -334,7 +348,7 @@ describe("browser acceptance states", () => {
       run_metadata: { current_stage: "scheduled" },
     });
 
-    renderWithQuery(<MemoryRouter><ReportsPage /></MemoryRouter>);
+    renderWithQuery(<MemoryRouter initialEntries={["/reports/report-queued"]}><Routes><Route path="/reports/:reportId" element={<QuickReportPage />} /></Routes></MemoryRouter>);
 
     await user.click(await screen.findByRole("button", { name: "重新启动报告执行器" }));
     expect(execute).toHaveBeenCalledWith(awaitingReport.id);
@@ -403,7 +417,7 @@ describe("browser acceptance states", () => {
 
     await user.click(await screen.findByRole("button", { name: "项目研究" }));
     const instruction = screen.getByRole("textbox", { name: "研究指令" });
-    const projectSelect = await screen.findByRole("combobox", { name: /Project/ });
+    const projectSelect = await screen.findByRole("combobox", { name: "项目" });
     const submitButton = screen.getByRole("button", { name: "提交并开始研究" });
     await user.type(instruction, "研究项目运行");
     expect(submitButton).toBeDisabled();
@@ -451,26 +465,18 @@ describe("browser acceptance states", () => {
     expect(retry).toHaveBeenCalledWith(failedCommand.id);
   });
 
-  it("collapses an empty MemoryProposal queue so candidate review uses the workspace", async () => {
+  it("opens on knowledge candidates and keeps memory proposals one tab away", async () => {
+    const user = userEvent.setup();
     vi.spyOn(api, "projects").mockResolvedValue([project]);
-    vi.spyOn(api, "proposals").mockResolvedValue([]);
+    vi.spyOn(api, "proposals").mockResolvedValue([{ ...committedProposal, status: "proposed", revision: 1, payload: { summary: "采用混合检索" } }]);
     vi.spyOn(api, "ingestions").mockResolvedValue([]);
 
     renderWithQuery(<MemoryRouter><ReviewPage /></MemoryRouter>);
 
-    expect(await screen.findByTestId("memory-proposal-empty-banner")).toHaveTextContent("当前没有待审核的记忆提案");
-    expect(screen.getByRole("heading", { name: "知识候选审核" })).toBeInTheDocument();
-    expect(screen.queryByTestId("review-split-layout")).not.toBeInTheDocument();
-  });
-
-  it("uses a bounded proposal rail when proposals need review", async () => {
-    vi.spyOn(api, "projects").mockResolvedValue([project]);
-    vi.spyOn(api, "proposals").mockResolvedValue([{ ...committedProposal, status: "proposed", revision: 1 }]);
-    vi.spyOn(api, "ingestions").mockResolvedValue([]);
-
-    renderWithQuery(<MemoryRouter><ReviewPage /></MemoryRouter>);
-
-    expect(await screen.findByTestId("review-split-layout")).toHaveClass("xl:grid-cols-[320px_minmax(0,1fr)]");
+    expect(await screen.findByText("还没有可审核的资料")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /记忆提案/ }));
+    await user.click(await screen.findByRole("button", { name: /采用混合检索/ }));
+    expect(await screen.findByRole("dialog", { name: "审核记忆提案" })).toBeInTheDocument();
   });
 
   it("hides system collections from Project knowledge scopes", async () => {
@@ -513,29 +519,26 @@ describe("browser acceptance states", () => {
 
     renderWithQuery(<MemoryRouter initialEntries={["/projects/project-1/overview"]}><Routes><Route path="/projects/:projectId/:section" element={<ProjectWorkspacePage />} /></Routes></MemoryRouter>);
 
-    const selector = await screen.findByRole("combobox", { name: "选择本次运行的 WorkspaceTask" });
+    const selector = await screen.findByRole("combobox", { name: "选择任务" });
     expect(selector).toHaveValue("");
-    expect(screen.getByText("选择一个 WorkspaceTask 后，才能预览 Context 或发起 AgentRun。")).toBeInTheDocument();
+    expect(screen.getByText(/选择一个任务后，才能准备上下文并开始研究/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "开始研究" })).toBeDisabled();
     await user.selectOptions(selector, "task-2");
-    expect(await screen.findByText("Current task")).toBeInTheDocument();
+    expect(await screen.findByText("当前任务")).toBeInTheDocument();
     expect(taskRuns).toHaveBeenCalledWith(project.id, "task-2");
   });
 
-  it("bounds long Knowledge, report, and Runtime lists inside their cards", async () => {
+  it("bounds long Knowledge and Runtime lists inside their cards", async () => {
     vi.spyOn(api, "ingestions").mockResolvedValue([]);
     vi.spyOn(api, "collections").mockResolvedValue([]);
     vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
-    vi.spyOn(api, "reports").mockResolvedValue([]);
     vi.spyOn(api, "runtimeOverview").mockResolvedValue(healthyRuntime);
     vi.spyOn(api, "runtimeWork").mockResolvedValue({ items: [], next_cursor: null });
 
-    const knowledge = renderWithQuery(<KnowledgePage />);
+    const knowledge = renderWithQuery(<MemoryRouter><KnowledgePage /></MemoryRouter>);
     expect(await screen.findByTestId("ingestion-history-list")).toHaveClass("overflow-y-auto");
     knowledge.unmount();
 
-    const reports = renderWithQuery(<MemoryRouter><ReportsPage /></MemoryRouter>);
-    expect(await screen.findByTestId("report-history-list")).toHaveClass("overflow-y-auto");
-    reports.unmount();
 
     renderWithQuery(<MemoryRouter><RuntimePage /></MemoryRouter>);
     expect(await screen.findByTestId("runtime-work-list")).toHaveClass("overflow-y-auto");
@@ -605,8 +608,9 @@ describe("browser acceptance states", () => {
       error: null,
     });
 
-    renderWithQuery(<KnowledgePage />);
+    renderWithQuery(<MemoryRouter><KnowledgePage /></MemoryRouter>);
 
+    await user.click(await screen.findByRole("button", { name: "导入资料" }));
     await user.type(await screen.findByRole("textbox", { name: /PDF 路径或 URL/ }), "paper.pdf");
     await user.click(screen.getByRole("button", { name: "提交并开始入库" }));
     expect(submit).toHaveBeenCalledWith(expect.objectContaining({
@@ -626,7 +630,7 @@ describe("browser acceptance states", () => {
       error: null,
     });
 
-    renderWithQuery(<KnowledgePage />);
+    renderWithQuery(<MemoryRouter><KnowledgePage /></MemoryRouter>);
 
     await user.click(await screen.findByRole("button", { name: "重新执行" }));
     expect(retry).toHaveBeenCalledWith(failedIngestion.id);
@@ -658,7 +662,7 @@ describe("browser acceptance states", () => {
       collection_slug: "papers",
     });
 
-    renderWithQuery(<KnowledgePage />);
+    renderWithQuery(<MemoryRouter><KnowledgePage /></MemoryRouter>);
 
     await user.selectOptions(
       await screen.findByRole("combobox", { name: "移动 收件箱 到正式知识集合" }),
