@@ -53,7 +53,66 @@ def refresh_placeholder_titles(db_path: str, *, dry_run: bool = False) -> list[d
                     (title, now, row["source_id"], row["title"]),
                 )
             connection.commit()
+    if not dry_run:
+        _repair_templated_statements(database)
     return changes
+
+
+def _repair_templated_statements(database: SQLiteDatabase) -> None:
+    """Swap the placeholder book title in generated "《untitled》提出了…" summaries.
+
+    Only the quoted title token changes, and only when the claim's own evidence (or the
+    relation's evidence papers) resolves to exactly one real title.
+    """
+
+    with database.connect() as connection:
+        claims = connection.execute(
+            "SELECT id, statement FROM claims WHERE statement LIKE '《%》%'"
+        ).fetchall()
+        for claim in claims:
+            token = _placeholder_token(str(claim["statement"]))
+            if not token:
+                continue
+            titles = {
+                str(row["title"])
+                for row in connection.execute(
+                    "SELECT s.title FROM claim_evidence_links l"
+                    " JOIN evidences e ON e.id = l.evidence_id"
+                    " JOIN sources s ON s.id = e.source_id WHERE l.claim_id = ?",
+                    (claim["id"],),
+                )
+            }
+            if len(titles) == 1 and _usable_title(next(iter(titles))):
+                connection.execute(
+                    "UPDATE claims SET statement = ? WHERE id = ?",
+                    (str(claim["statement"]).replace(token, f"《{titles.pop()}》", 1), claim["id"]),
+                )
+        relations = connection.execute(
+            "SELECT id, payload_json FROM published_relations WHERE payload_json LIKE '%《%》%'"
+        ).fetchall()
+        for relation in relations:
+            payload = json.loads(relation["payload_json"])
+            token = _placeholder_token(str(payload.get("summary") or ""))
+            papers = {e.get("paper_id") for e in payload.get("evidence") or []} - {None}
+            if not token or len(papers) != 1:
+                continue
+            row = connection.execute(
+                "SELECT title FROM documents WHERE id = ?", (papers.pop(),)
+            ).fetchone()
+            if row and _usable_title(str(row["title"])):
+                payload["summary"] = payload["summary"].replace(token, f"《{row['title']}》", 1)
+                connection.execute(
+                    "UPDATE published_relations SET payload_json = ? WHERE id = ?",
+                    (json.dumps(payload, ensure_ascii=False), relation["id"]),
+                )
+        connection.commit()
+
+
+def _placeholder_token(statement: str) -> str | None:
+    if not statement.startswith("《") or "》" not in statement:
+        return None
+    token = statement[: statement.index("》") + 1]
+    return token if _usable_title(token[1:-1]) is None else None
 
 
 def main(argv: list[str] | None = None) -> None:
