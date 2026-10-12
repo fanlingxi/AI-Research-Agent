@@ -21,6 +21,7 @@ from app.agent.research_workflow import (
 )
 from app.context.models import runtime_context_token_count
 from app.llms.provider import LangChainChatClient
+from app.retrieval.anchors import contains_quote
 
 
 class ConciseFinding(ResearchFinding):
@@ -320,7 +321,7 @@ def prepare_covered_report(report, package):
     question = "\n".join((package.task.title, package.task.goal))
     parts, used = set(), []
     for part in report.answer_parts:
-        if (part.question_part not in question or part.question_part in parts
+        if (not contains_quote(part.question_part, question) or part.question_part in parts
                 or not part.finding_indices and not part.gap.strip()):
             raise ReportContractError(
                 "Every answer part needs a unique verbatim task span and findings or a gap"
@@ -346,7 +347,8 @@ def prepare_covered_report(report, package):
             raise ReportContractError("Every cited evidence ID needs its own exact support anchor")
         for anchor in finding.support:
             saved = evidence.get(anchor.evidence_id)
-            if (not saved or saved[0] != finding.claim_bundle_id or anchor.quote not in saved[1]):
+            if (not saved or saved[0] != finding.claim_bundle_id
+                    or not contains_quote(anchor.quote, saved[1])):
                 raise ReportContractError(
                     "Support must be an exact contiguous quote from cited evidence "
                     "in its own bundle"

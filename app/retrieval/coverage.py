@@ -10,6 +10,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.llms.provider import MockLLMClient
+from app.retrieval.anchors import contains_quote
 from app.retrieval.reranking import EvidenceReranker, input_digest
 
 
@@ -34,14 +35,17 @@ def coverage_indices(payload, parts):
     parsed = CoverageOrder.model_validate({"parts": parts})
     seen_parts = set()
     for part in parsed.parts:
-        if part.question_part not in payload["question"] or part.question_part in seen_parts:
+        if (
+            not contains_quote(part.question_part, payload["question"])
+            or part.question_part in seen_parts
+        ):
             raise ValueError("Question parts must be unique verbatim task spans")
         seen_parts.add(part.question_part)
         for anchor in part.anchors:
             if (
                 anchor.index >= len(payload["candidates"])
                 or not any(
-                    anchor.quote in passage
+                    contains_quote(anchor.quote, passage)
                     for passage in payload["candidates"][anchor.index]["passages"]
                 )
             ):
