@@ -103,12 +103,14 @@ class WorkspaceProjectionService:
         request: ContextProjectionRequest,
     ) -> ContextPreviewProjection:
         self._require_project_task(project_id, task_id)
-        package = self.context_builder.preview_context(
+        package = self.context_builder.build_research_context(
             ContextBuildRequest(
                 project_id=project_id,
                 task_id=task_id,
-                max_tokens=request.max_tokens,
-            )
+                **request.model_dump(exclude_unset=True),
+            ),
+            profile=self.agent_run_service.settings.research_default_profile,
+            persist=False,
         )
         return ContextPreviewProjection(snapshot=_snapshot_summary(package, persisted=False))
 
@@ -119,12 +121,13 @@ class WorkspaceProjectionService:
         request: ContextProjectionRequest,
     ) -> ContextSnapshotSummary:
         self._require_project_task(project_id, task_id)
-        package = self.context_builder.build_context(
+        package = self.context_builder.build_research_context(
             ContextBuildRequest(
                 project_id=project_id,
                 task_id=task_id,
-                max_tokens=request.max_tokens,
-            )
+                **request.model_dump(exclude_unset=True),
+            ),
+            profile=self.agent_run_service.settings.research_default_profile,
         )
         return _snapshot_summary(package, persisted=True)
 

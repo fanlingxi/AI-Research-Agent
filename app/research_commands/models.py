@@ -38,7 +38,8 @@ class ProjectRunCommand(BaseModel):
     create_memory_proposal: bool = False
     max_steps: int = Field(default=10, ge=3, le=16)
     max_tool_calls: int = Field(default=3, ge=0, le=8)
-    token_budget: int = Field(default=6000, ge=256, le=16000)
+    # None preserves automatic profile selection through durable serialization.
+    token_budget: int | None = Field(default=None, ge=256, le=1048576)
 
 
 CommandPayload = Annotated[

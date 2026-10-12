@@ -39,7 +39,7 @@ export function ResearchCommandLauncher({ className }: { className?: string }) {
   const [taskId, setTaskId] = useState("");
   const [taskTitle, setTaskTitle] = useState("");
   const [createProposal, setCreateProposal] = useState(false);
-  const [tokenBudget, setTokenBudget] = useState(6000);
+  const [tokenBudget, setTokenBudget] = useState("");
   const [activeCommandId, setActiveCommandId] = useState<string | null>(
     () => pendingCommandState()?.commandId ?? null,
   );
@@ -117,7 +117,7 @@ export function ResearchCommandLauncher({ className }: { className?: string }) {
       create_memory_proposal: createProposal,
       max_steps: 10,
       max_tool_calls: 3,
-      token_budget: tokenBudget,
+      ...(tokenBudget ? { token_budget: Number(tokenBudget) } : {}),
     };
   };
   const canSubmit = instruction.trim().length >= 3 && (mode === "quick_report"
@@ -236,7 +236,7 @@ export function ResearchCommandLauncher({ className }: { className?: string }) {
               <Disclosure className="sm:col-span-2" summary="运行设置">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="flex items-start gap-2 text-[13px] text-ink-soft"><input checked={createProposal} className="mt-1 accent-brand" type="checkbox" onChange={(event) => setCreateProposal(event.target.checked)} /><span>允许智能体提出项目记忆<span className="block text-xs text-muted-ink">只会生成待审核的提案，需要你批准后才会写入。</span></span></label>
-                  <Field label="上下文 Token 预算"><Input max={16000} min={256} type="number" value={tokenBudget} onChange={(event) => setTokenBudget(Number(event.target.value))} /></Field>
+                  <Field label="生成 Token 上限（可选）"><Input max={1048576} min={256} type="number" placeholder="使用默认策略" value={tokenBudget} onChange={(event) => setTokenBudget(event.target.value)} /></Field>
                 </div>
               </Disclosure>
             </div>
