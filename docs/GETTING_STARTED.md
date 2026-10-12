@@ -30,6 +30,8 @@ powershell -ExecutionPolicy Bypass -File scripts/local.ps1 stop
 
 首次启动从 `.env.example` 创建被忽略的 `.env`，保留已有配置。工作台在 `http://127.0.0.1:5173`，API 文档在 `http://127.0.0.1:8000/docs`。左侧导航按主路径排列：首页提问、知识库导入、知识图谱、审核、报告、项目；运行记录和实验对比在“高级”分组。脚本在后台启动 API、Worker、React 前端，记录位于 `data/runtime/local/`。
 
+项目研究默认使用“标准”配置（向量检索 + 覆盖选材 + `research_v8`），因此需要 Qdrant 和本地向量模型；不可用时会自动降级为“经典”配置，并在快照中记录原因。在 `.env` 中设置 `RESEARCH_DEFAULT_PROFILE=classic` 可整体回退，修改后需重启 API 和 Worker。
+
 无模型和检索服务时可检查项目管理、运行状态及确定性演示；真实抽取和报告需要配置模型提供方、模型名及对应密钥。完整知识投影还需要 Qdrant、Neo4j；可使用现有 `docker compose up -d qdrant neo4j`，先设置本地 Neo4j 密码。缺依赖时页面显示降级。`.env` 不进入版本控制。
 
 ## 投影维护与诊断
