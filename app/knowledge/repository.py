@@ -1011,13 +1011,16 @@ class KnowledgeRepository:
     def find_merge_suggestions(
         self, *, name: str, entity_type: str, aliases: list[str]
     ) -> list[MergeSuggestion]:
+        types = sorted(merge_compatible_types(entity_type))
+        placeholders = ", ".join("?" for _ in types)
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT payload_json FROM published_entities WHERE entity_type = ?",
-                (entity_type,),
+                "SELECT payload_json FROM published_entities "
+                f"WHERE entity_type IN ({placeholders})",
+                types,
             ).fetchall()
         entities = [PublishedEntity.model_validate_json(row["payload_json"]) for row in rows]
-        return _merge_suggestions_against(name, aliases, entities)
+        return _merge_suggestions_against(name, aliases, entities, entity_type)
 
     def live_merge_suggestions(
         self, candidates: list[dict[str, Any]]
@@ -1041,7 +1044,12 @@ class KnowledgeRepository:
             str(item["id"]): _merge_suggestions_against(
                 str(item["name"]),
                 list(item.get("aliases") or []),
-                by_type.get(str(item["type"]), []),
+                [
+                    entity
+                    for entity_type in sorted(merge_compatible_types(str(item["type"])))
+                    for entity in by_type.get(entity_type, [])
+                ],
+                str(item["type"]),
             )
             for item in candidates
         }
@@ -1083,7 +1091,7 @@ class KnowledgeRepository:
             group["candidates"].append(candidate)
 
         # Drafts without any published counterpart: union them by any shared
-        # normalized name or alias within the same type.
+        # normalized name or alias within the same (or an interchangeable) type.
         parent = list(range(len(unmatched)))
 
         def find(index: int) -> int:
@@ -1095,7 +1103,7 @@ class KnowledgeRepository:
         seen: dict[tuple[str, str], int] = {}
         for index, candidate in enumerate(unmatched):
             for label in [candidate["name"], *(candidate.get("aliases") or [])]:
-                key = (str(candidate["type"]), _normalize(str(label)))
+                key = (_merge_type_family(str(candidate["type"])), _normalize(str(label)))
                 if not key[1]:
                     continue
                 if key in seen:
@@ -1576,14 +1584,40 @@ def slugify(value: str) -> str:
     return normalized.strip("-")[:80] or "untitled-topic"
 
 
+# Extraction often labels the same idea as a concept in one paper and a method
+# or task in another.  These types may be offered as merge targets for each
+# other (clearly flagged); Paper/Dataset/Metric and the rest stay strict.
+_INTERCHANGEABLE_TYPES = frozenset({"Concept", "Method", "Task"})
+
+
+def merge_compatible_types(entity_type: str) -> frozenset[str]:
+    """Entity types whose published entities may be suggested as merge targets."""
+
+    if entity_type in _INTERCHANGEABLE_TYPES:
+        return _INTERCHANGEABLE_TYPES
+    return frozenset({entity_type})
+
+
+def _merge_type_family(entity_type: str) -> str:
+    return "Concept|Method|Task" if entity_type in _INTERCHANGEABLE_TYPES else entity_type
+
+
 def _merge_suggestions_against(
-    name: str, aliases: list[str], entities: list[PublishedEntity]
+    name: str,
+    aliases: list[str],
+    entities: list[PublishedEntity],
+    candidate_type: str | None = None,
 ) -> list[MergeSuggestion]:
-    """Match one candidate label set against same-type published entities."""
+    """Match one candidate label set against compatible published entities.
+
+    Entities of a different (interchangeable) type are flagged with
+    ``type_differs`` and rank after same-type matches of equal similarity.
+    """
 
     normalized = {_normalize(name), *(_normalize(alias) for alias in aliases)}
     matches: list[MergeSuggestion] = []
     for entity in entities:
+        type_differs = candidate_type is not None and entity.type != candidate_type
         known = {_normalize(entity.name), *(_normalize(alias) for alias in entity.aliases)}
         if normalized.intersection(known):
             matches.append(
@@ -1593,6 +1627,7 @@ def _merge_suggestions_against(
                     type=entity.type,
                     similarity=1.0,
                     match_kind="exact",
+                    type_differs=type_differs,
                 )
             )
             continue
@@ -1612,9 +1647,13 @@ def _merge_suggestions_against(
                     type=entity.type,
                     similarity=round(similarity, 3),
                     match_kind="similar",
+                    type_differs=type_differs,
                 )
             )
-    return sorted(matches, key=lambda item: (-item.similarity, item.name.casefold()))
+    return sorted(
+        matches,
+        key=lambda item: (-item.similarity, item.type_differs, item.name.casefold()),
+    )
 
 
 def _normalized_sources(values: list[str]) -> list[str]:

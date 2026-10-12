@@ -293,6 +293,8 @@ export interface MergeSuggestion {
   type: string;
   similarity: number;
   match_kind: "exact" | "similar" | string;
+  /** Existing entity has a different but interchangeable type (概念/方法/任务). */
+  type_differs?: boolean;
 }
 
 export interface DuplicateGroup {

@@ -79,6 +79,24 @@ describe("candidate merge review", () => {
     expect(await screen.findByText(/已合并到已有实体/)).toBeInTheDocument();
   });
 
+  it("labels a suggestion of a different but interchangeable type and still requires an explicit merge", async () => {
+    const methodTarget = { ...target, type_differs: true };
+    const candidate = entity("candidate-c", "paper:c", { type: "Concept", merge_suggestions: [methodTarget] });
+    vi.spyOn(api, "ingestions").mockResolvedValue([ingestion]);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "candidatePage").mockResolvedValue({ items: [{ kind: "entity", candidate }], total: 1, offset: 0, limit: 25, next_offset: null });
+    vi.spyOn(api, "duplicateGroups").mockResolvedValue({ groups: [], candidate_count: 0 });
+    const decide = vi.spyOn(api, "decideCandidate").mockResolvedValue({} as CandidateDecisionResult);
+
+    renderPanel();
+
+    expect(await screen.findByText("类型不同（概念/方法）")).toBeInTheDocument();
+    expect(screen.getByText(/所选实体类型为「方法」，合并后保留这个类型/)).toBeInTheDocument();
+    expect(decide).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: /合并到「检索增强生成」/ }));
+    await waitFor(() => expect(decide).toHaveBeenCalledWith("candidate-c", "merge", "entity-rag"));
+  });
+
   it("works through a duplicate group from the 疑似重复 view", async () => {
     const groups: DuplicateGroups = {
       candidate_count: 3,

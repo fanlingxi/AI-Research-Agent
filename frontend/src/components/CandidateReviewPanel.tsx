@@ -76,7 +76,7 @@ function CandidateCard({ record, onDecide, onSelect, pending, selected, titles }
             </p>
           ) : <p className="mt-2 break-words text-[15px] font-medium leading-6 text-ink">{title}</p>}
           <p className="mt-1 text-[13.5px] leading-6 text-ink-soft">{candidate.summary}</p>
-          {target ? <MergeSuggestions candidateId={candidate.id} disabled={pending} onChange={setMergeTarget} suggestions={suggestions} value={target.entity_id} /> : null}
+          {target ? <MergeSuggestions candidateId={candidate.id} candidateType={candidate.type} disabled={pending} onChange={setMergeTarget} suggestions={suggestions} value={target.entity_id} /> : null}
           <details className="group mt-2.5">
             <summary className="list-none">
               <blockquote className="rounded-md border-l-2 border-brand/50 bg-subtle/70 px-3 py-2 text-[13px] leading-6 text-ink-soft">

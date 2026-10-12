@@ -154,6 +154,9 @@ class MergeSuggestion(BaseModel):
     type: KnowledgeNodeType
     similarity: float = Field(ge=0.0, le=1.0)
     match_kind: Literal["exact", "similar"]
+    # True when the existing entity has a different but interchangeable type
+    # (Concept/Method/Task).  Merging keeps the existing entity's type.
+    type_differs: bool = False
 
 
 class PublishedEntity(BaseModel):

@@ -11,7 +11,7 @@ from app.api.main import create_app
 from app.config.settings import Settings
 from app.knowledge.extractor import ExtractionResult
 from app.knowledge.obsidian import KnowledgeVaultExporter
-from app.knowledge.repository import KnowledgeRepository
+from app.knowledge.repository import KnowledgeRepository, merge_compatible_types
 from app.knowledge.schemas import (
     BulkCandidateDecision,
     EvidenceSpan,
@@ -33,7 +33,11 @@ QUOTE = "Retrieval augmented generation grounds answers in retrieved evidence."
 class _SharedConceptExtractor:
     """Every paper mentions the same concept, as real cross-paper corpora do."""
 
+    def __init__(self, rag_type_in_paper_b: str = "Method") -> None:
+        self.rag_type_in_paper_b = rag_type_in_paper_b
+
     def extract(self, paper, chunks):
+        rag_type = self.rag_type_in_paper_b if paper.title.endswith("paper-b") else "Method"
         evidence = EvidenceSpan(
             paper_id=paper.id, chunk_id=chunks[0].id, page_start=1, page_end=1, quote=QUOTE
         )
@@ -55,7 +59,7 @@ class _SharedConceptExtractor:
                     method_summary="先检索证据，再基于证据生成回答。",
                     evidence=evidence,
                 ),
-                entities=[entity("检索增强生成", "Method"), entity("开放域问答", "Task")],
+                entities=[entity("检索增强生成", rag_type), entity("开放域问答", "Task")],
                 relations=[
                     ExtractedRelation(
                         source_name="检索增强生成",
@@ -81,7 +85,7 @@ def _parser(*, source: str, max_pages: int) -> ParsedDocument:
     )
 
 
-def _build(tmp_path):
+def _build(tmp_path, extractor: _SharedConceptExtractor | None = None):
     settings = Settings(
         knowledge_db_path=str(tmp_path / "knowledge.db"),
         knowledge_vault_path=str(tmp_path / "vault"),
@@ -92,7 +96,7 @@ def _build(tmp_path):
     service = KnowledgeIngestionService(
         repository,
         settings=settings,
-        extractor=_SharedConceptExtractor(),
+        extractor=extractor or _SharedConceptExtractor(),
         parser=_parser,
         indexer=NoopChunkIndexer(),
         projector=NoopKnowledgeProjector(),
@@ -274,6 +278,60 @@ def test_relation_from_merged_endpoint_attaches_to_canonical_and_links_papers(tm
     }
     assert linked_to_rag == paper_ids
     assert len([node for node in graph["nodes"] if node["label"] == "检索增强生成"]) == 1
+
+
+def test_cross_type_suggestion_is_flagged_and_merge_keeps_target_type(tmp_path) -> None:
+    """The same idea published as a Method is offered to a Concept draft, flagged."""
+
+    app, repository, ingestion_id = _build(
+        tmp_path, _SharedConceptExtractor(rag_type_in_paper_b="Concept")
+    )
+    ids = _entities(repository, ingestion_id)
+    method_draft, concept_draft = ids[("a", "检索增强生成")], ids[("b", "检索增强生成")]
+
+    with TestClient(app) as client:
+        # Before publication the two drafts of interchangeable types share a group.
+        groups = client.get(f"/api/knowledge/ingestions/{ingestion_id}/duplicate-groups").json()
+        rag_group = next(group for group in groups["groups"] if group["name"] == "检索增强生成")
+        assert {item["id"] for item in rag_group["candidates"]} == {method_draft, concept_draft}
+
+        approved = client.post(
+            f"/api/knowledge/candidates/{method_draft}/decision", json={"decision": "approve"}
+        )
+        method_id = approved.json()["candidate"]["candidate"]["canonical_id"]
+        page = client.get(
+            f"/api/knowledge/ingestions/{ingestion_id}/candidate-page?kind=entity&limit=100"
+        ).json()
+        live = next(item for item in page["items"] if item["candidate"]["id"] == concept_draft)
+        suggestion = live["candidate"]["merge_suggestions"][0]
+        assert suggestion["entity_id"] == method_id
+        assert suggestion["type"] == "Method"
+        assert suggestion["match_kind"] == "exact"
+        assert suggestion["type_differs"] is True
+        # Strict types (Paper/Dataset/Metric) never see cross-type matches.
+        assert repository.find_merge_suggestions(
+            name="检索增强生成", entity_type="Dataset", aliases=[]
+        ) == []
+
+        # Nothing auto-merges: bulk approval leaves the cross-type duplicate for review.
+        ready = client.post(f"/api/knowledge/ingestions/{ingestion_id}/approve-ready")
+        assert ready.status_code == 200, ready.text
+        assert repository.get_candidate(concept_draft)["candidate"]["status"] == "draft"
+
+        merged = client.post(
+            f"/api/knowledge/candidates/{concept_draft}/decision",
+            json={"decision": "merge", "canonical_id": method_id},
+        )
+        assert merged.status_code == 200, merged.text
+
+    rag = [e for e in repository.list_published_entities() if e.name == "检索增强生成"]
+    assert [(entity.id, entity.type) for entity in rag] == [(method_id, "Method")]
+
+
+def test_merge_type_compatibility() -> None:
+    assert merge_compatible_types("Dataset") == {"Dataset"}
+    assert merge_compatible_types("Paper") == {"Paper"}
+    assert merge_compatible_types("Task") == {"Concept", "Method", "Task"}
 
 
 def test_bulk_merge_requires_target() -> None:
