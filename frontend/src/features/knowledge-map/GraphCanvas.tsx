@@ -9,7 +9,7 @@ import { EdgeArrowProgram, EdgeLineProgram } from "sigma/rendering";
 import type { EdgeDisplayData, NodeDisplayData } from "sigma/types";
 
 import type { KnowledgeMapGraph } from "./api";
-import { EDGE_COLOR, EVIDENCE_EDGE_COLOR, PENDING_COLOR, mapPalette, relationLabel, typeColor } from "./palette";
+import { mapPalette, relationLabel, typeColor } from "./palette";
 
 export interface GraphCanvasHandle {
   focus: (nodeId: string) => void;
@@ -40,6 +40,7 @@ const PendingNodeProgram = createNodeBorderProgram({
 });
 
 const SYNC_LAYOUT_LIMIT = 450;
+const DETAIL_LABEL_RATIO = 0.55;
 
 function hashUnit(value: string, salt: number) {
   let hash = 2166136261 ^ salt;
@@ -57,6 +58,11 @@ function shortLabel(label: string) {
 function buildGraph(data: KnowledgeMapGraph) {
   const palette = mapPalette();
   const graph = new Graph({ multi: true, type: "directed", allowSelfLoops: false });
+  // Only a small, deterministic set competes for label space in the overview.
+  const importantIds = new Set([...data.nodes]
+    .sort((a, b) => b.score - a.score || b.degree - a.degree || a.id.localeCompare(b.id))
+    .slice(0, Math.min(20, Math.max(5, Math.ceil(Math.sqrt(data.nodes.length)))))
+    .map((node) => node.id));
   // Shrink nodes as the graph grows so thousands of nodes do not paint a solid blob.
   const scale = data.nodes.length > 1500 ? 0.45 : data.nodes.length > 400 ? 0.7 : 1;
   for (const node of data.nodes) {
@@ -77,6 +83,7 @@ function buildGraph(data: KnowledgeMapGraph) {
       nodeType: node.type,
       pending,
       matched: node.matched,
+      important: importantIds.has(node.id),
       forceLabel: node.matched,
     });
   }
@@ -87,8 +94,8 @@ function buildGraph(data: KnowledgeMapGraph) {
     const evidence = edge.kind === "evidence";
     graph.addDirectedEdgeWithKey(edge.id, edge.source, edge.target, {
       type: evidence ? "line" : "arrow",
-      color: pending ? `${PENDING_COLOR}99` : evidence ? EVIDENCE_EDGE_COLOR : EDGE_COLOR,
-      size: evidence ? 0.8 : Math.min(3.2, 1.1 + Math.log2(edge.weight + 1) * 0.5),
+      color: pending ? palette.pending : evidence ? palette.evidence : palette.edge,
+      size: pending ? 0.6 : evidence ? 0.8 : Math.min(3.2, 1.1 + Math.log2(edge.weight + 1) * 0.5),
       relation: edge.type,
       statement: edge.label,
       pending,
@@ -181,6 +188,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       return { focus, neighbours: new Set<string>([focus, ...graph.neighbors(focus)]) };
     };
     let cachedFocus = focusSet();
+    let showDetailLabels = false;
 
     const sigma = new Sigma(graph, container, {
       allowInvalidContainer: true,
@@ -203,9 +211,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       },
       labelWeight: "500",
       labelColor: { color: palette.label },
-      labelDensity: graph.order < 250 ? 0.8 : 0.5,
-      labelGridCellSize: graph.order < 250 ? 100 : 120,
-      labelRenderedSizeThreshold: container.clientWidth < 520 ? 9 : graph.order < 250 ? 5 : 8,
+      labelDensity: 0.5,
+      labelGridCellSize: 180,
+      labelRenderedSizeThreshold: 0,
       stagePadding: 48,
       edgeLabelFont: 'Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif',
       edgeLabelSize: 11,
@@ -214,15 +222,22 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       maxCameraRatio: 4,
       nodeReducer: (node, attributes) => {
         const result: Partial<NodeDisplayData> & Record<string, unknown> = { ...attributes };
+        const selected = selectedRef.current;
+        const selectedNeighbour = selected && graph.hasNode(selected) && graph.areNeighbors(node, selected);
+        const explicit = Boolean(attributes.matched || node === selected || node === hoveredRef.current);
+        result.forceLabel = explicit;
+        if (!showDetailLabels && !attributes.important && !explicit && !selectedNeighbour && !cachedFocus?.neighbours.has(node)) {
+          result.label = "";
+        }
         if (cachedFocus) {
           if (!cachedFocus.neighbours.has(node)) {
             result.color = palette.dim;
             result.borderColor = palette.dim;
-            result.label = "";
+            if (!explicit && !selectedNeighbour) result.label = "";
             result.zIndex = 0;
           } else {
             result.zIndex = 2;
-            result.forceLabel = cachedFocus.neighbours.size <= 40 || node === cachedFocus.focus;
+            // Neighbours still use Sigma's collision grid; forcing all of them overlaps labels.
             if (node === cachedFocus.focus) {
               result.highlighted = true;
               result.label = `${attributes.fullLabel}${attributes.pending ? "（待审核）" : ""}`;
@@ -238,11 +253,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         const result: Partial<EdgeDisplayData> & Record<string, unknown> = { ...attributes, label: "" };
         if (cachedFocus) {
           const [source, target] = graph.extremities(edge);
-          if (source !== cachedFocus.focus && target !== cachedFocus.focus) {
+          if (source !== cachedFocus.focus && target !== cachedFocus.focus && source !== selectedRef.current && target !== selectedRef.current) {
             result.hidden = true;
           } else {
             result.color = attributes.pending ? palette.pending : palette.focus;
-            result.size = (attributes.size as number) + 0.6;
+            result.size = attributes.pending ? 1.8 : (attributes.size as number) + 0.6;
             result.label = relationLabel(attributes.relation as string) + (attributes.pending ? " · 待审核" : "");
             result.zIndex = 2;
           }
@@ -270,7 +285,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
     const refresh = () => {
       cachedFocus = focusSet();
-      sigma.refresh({ skipIndexation: true });
+      sigma.refresh();
     };
     refreshRef.current = refresh;
 
@@ -300,7 +315,15 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       });
     });
     sigma.on("leaveEdge", () => setTip(null));
-    sigma.getCamera().on("updated", () => setTip(null));
+    sigma.getCamera().on("updated", () => {
+      setTip(null);
+      const next = sigma.getCamera().getState().ratio < DETAIL_LABEL_RATIO;
+      if (next !== showDetailLabels) {
+        showDetailLabels = next;
+        // Rebuild the label grid when the set of eligible labels changes.
+        sigma.refresh();
+      }
+    });
 
     // Layout: synchronous for small graphs, web-worker for large ones so the UI stays responsive.
     let supervisor: FA2LayoutSupervisor | null = null;

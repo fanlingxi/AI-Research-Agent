@@ -56,6 +56,7 @@ export function mapPalette() {
   };
 }
 export const PENDING_COLOR = "#d97706";
+export const PENDING_SWATCH = `var(--color-map-pending, ${PENDING_COLOR})`;
 export const EDGE_COLOR = "#b8c2cf";
 export const EVIDENCE_EDGE_COLOR = "#dfe4ea";
 export const DIM_COLOR = "#eceef1";
