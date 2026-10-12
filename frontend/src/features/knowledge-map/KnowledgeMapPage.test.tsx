@@ -104,4 +104,20 @@ describe("KnowledgeMapPage", () => {
     renderPage();
     expect(await screen.findByText("知识库中还没有已审核的知识")).toBeInTheDocument();
   });
+
+  it("explains pending nodes and edges when pending knowledge is enabled", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
+      respond(String(input).startsWith("/api/knowledge/collections") ? [] : graph));
+    renderPage();
+    await screen.findByTestId("graph-canvas");
+    const legend = screen.getByLabelText("实体类型图例");
+    expect(legend).not.toHaveTextContent("空心环节点");
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "显示待审核" }));
+    expect(legend).toHaveTextContent("空心环节点 = 待审核（环色表示实体类型）");
+    expect(legend).toHaveTextContent("琥珀色细线 = 待审核关系");
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "显示待审核" }));
+    expect(legend).not.toHaveTextContent("琥珀色细线");
+  });
 });

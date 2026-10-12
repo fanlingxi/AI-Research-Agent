@@ -9,7 +9,7 @@ import { cn } from "../../lib/utils";
 import { type KnowledgeMapGraph, knowledgeMapApi, type MapFilters, type MapNode } from "./api";
 import type { GraphCanvasHandle } from "./GraphCanvas";
 import { NodeDetailPanel } from "./NodeDetailPanel";
-import { PENDING_COLOR, sortTypes, typeSwatch, typeLabel } from "./palette";
+import { PENDING_SWATCH, sortTypes, typeSwatch, typeLabel } from "./palette";
 
 // sigma + graphology are only fetched when the map is actually rendered.
 const GraphCanvas = lazy(() => import("./GraphCanvas"));
@@ -86,13 +86,18 @@ function Legend({
           </button>
         );
       })}
-      <span className="ml-1 hidden items-center gap-3 text-xs text-muted-ink sm:inline-flex">
+      <span className="ml-1 inline-flex flex-wrap items-center gap-3 text-xs text-muted-ink">
         <span className="inline-flex items-center gap-1"><span className="inline-block h-px w-5 bg-line-strong" />关系</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block h-px w-5 bg-line-strong" />证据来源</span>
         {showPending ? (
-          <span className="inline-flex items-center gap-1">
-            <span className="size-2.5 rounded-full bg-panel" style={{ boxShadow: `inset 0 0 0 2px ${PENDING_COLOR}` }} />空心 = 待审核
-          </span>
+          <>
+            <span className="inline-flex items-center gap-1">
+              <span aria-hidden="true" className="size-2.5 rounded-full bg-panel" style={{ boxShadow: "inset 0 0 0 2px var(--color-ink-soft)" }} />空心环节点 = 待审核（环色表示实体类型）
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span aria-hidden="true" className="inline-block h-px w-5" style={{ background: PENDING_SWATCH }} />琥珀色细线 = 待审核关系（悬停或选中节点时突出）
+            </span>
+          </>
         ) : null}
       </span>
     </div>
