@@ -39,7 +39,7 @@ function ReviewForm({ detail, onSave, onSkip, onBusy }: {
   const locked = useRef(false);
   const complete = outcome !== null && Object.values(covered).every((v) => v !== null) && violated.every((v) => v !== null);
   const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { heading.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => { heading.current?.focus(); }, []);
 
   async function submit() {
     if (locked.current) return;

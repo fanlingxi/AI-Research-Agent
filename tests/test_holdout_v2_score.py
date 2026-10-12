@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 
 from app.benchmarking.holdout_v2_score import summary, write_packets
 
@@ -43,3 +45,12 @@ def test_conservative_merge_and_gate(tmp_path) -> None:
     assert summary(tmp_path, judges=["human", "api"])["arms"]["A-default"]["covered"] == 2
     assert summary(tmp_path)["runs"][0]["judges"] == 3
     assert summary(tmp_path, judges=[])["arms"]["A-default"]["judged_runs"] == 0
+    cli = subprocess.run(
+        [sys.executable, "-m", "app.benchmarking.holdout_v2_score", str(tmp_path),
+         "--summary", "--judges", "human,api"],
+        capture_output=True, check=True,
+    )
+    assert json.loads(cli.stdout)["arms"]["A-default"]["covered"] == 2
+    assert json.loads((tmp_path / "score.json").read_text(encoding="utf-8"))["runs"][0][
+        "judges"
+    ] == 2
