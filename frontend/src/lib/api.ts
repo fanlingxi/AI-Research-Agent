@@ -306,6 +306,14 @@ export interface DuplicateGroup {
   candidates: EntityCandidate[];
 }
 
+export interface DocumentSource {
+  document_id: string;
+  title: string;
+  local_path: string | null;
+  source_url: string | null;
+  pages: number;
+}
+
 export interface DuplicateGroups {
   groups: DuplicateGroup[];
   candidate_count: number;
@@ -848,6 +856,8 @@ export const api = {
       ),
     },
   ),
+  documentSource: (documentId: string) =>
+    request<DocumentSource>(`/api/knowledge/documents/${path(documentId)}/source`),
   duplicateGroups: (ingestionId: string) =>
     request<DuplicateGroups>(`/api/knowledge/ingestions/${path(ingestionId)}/duplicate-groups`),
   autoApproveHighConfidence: (ingestionId: string) =>

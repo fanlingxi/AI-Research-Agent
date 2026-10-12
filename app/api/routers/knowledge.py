@@ -253,6 +253,24 @@ def build_knowledge_router(
             filename=path.name,
         )
 
+    @router.get("/api/knowledge/documents/{document_id}/source")
+    def get_document_source(document_id: str) -> dict[str, Any]:
+        """Read-only lookup of where a parsed document came from (e.g. its local PDF)."""
+        with repository.database.connect() as connection:
+            row = connection.execute(
+                "SELECT id, title, source_url, local_path, pages FROM documents WHERE id = ?",
+                (document_id,),
+            ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="文献不存在。")
+        return {
+            "document_id": row["id"],
+            "title": row["title"],
+            "local_path": row["local_path"] or None,
+            "source_url": row["source_url"] or None,
+            "pages": row["pages"],
+        }
+
     @router.get("/api/knowledge/entities/{entity_id}")
     def get_knowledge_entity_detail(entity_id: str) -> dict[str, Any]:
         try:

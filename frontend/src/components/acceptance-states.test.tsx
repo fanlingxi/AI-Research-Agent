@@ -321,6 +321,9 @@ describe("browser acceptance states", () => {
     });
     vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
     vi.spyOn(api, "collections").mockResolvedValue([]);
+    const documentSource = vi.spyOn(api, "documentSource").mockResolvedValue({
+      document_id: "p1", title: "论文甲", local_path: "D:\\papers\\a.pdf", source_url: null, pages: 9,
+    });
     const user = userEvent.setup();
 
     renderWithQuery(<MemoryRouter initialEntries={["/reports?report=report-queued"]}><Routes><Route path="/reports" element={<ReportsPage />} /><Route path="/reports/:reportId" element={<QuickReportPage />} /></Routes></MemoryRouter>);
@@ -328,6 +331,9 @@ describe("browser acceptance states", () => {
     await user.click(await screen.findByRole("button", { name: "查看引用 1 的原文" }));
     expect(await screen.findByText("原文段落")).toBeInTheDocument();
     expect(screen.getAllByText("第 3 页").length).toBeGreaterThan(0);
+    const pdfLink = await screen.findByRole("link", { name: /打开原文 PDF（第 3 页）/ });
+    expect(pdfLink).toHaveAttribute("href", `/api/knowledge/source-file?uri=${encodeURIComponent("D:\\papers\\a.pdf")}#page=3`);
+    expect(documentSource).toHaveBeenCalledWith("p1");
   });
 
   it("offers an in-place recovery action when the unified worker is offline", async () => {

@@ -131,6 +131,16 @@ export function QuickReportPage() {
   const citations = useMemo(() => extractCitations(data?.content ?? ""), [data?.content]);
   const evidenceById = useMemo(() => new Map((data?.evidence ?? []).map((item) => [item.id, item])), [data?.evidence]);
   const onCite = useCallback((id: string) => setActive(id), []);
+  const activePaperId = active ? evidenceById.get(active)?.paper_id : undefined;
+  // Quick report evidence only carries the paper id; look up its registered file
+  // so the drawer can offer the same "open the PDF at this page" link.
+  const activeSource = useQuery({
+    queryKey: ["document-source", activePaperId],
+    queryFn: () => api.documentSource(activePaperId!),
+    enabled: Boolean(activePaperId),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
   if (report.isPending) return <Page><LoadingBlock label="读取报告…" /></Page>;
   if (report.error instanceof Error || !data) {
     return <Page><ErrorBlock error={report.error ?? new Error("找不到这份报告。")} onRetry={() => void report.refetch()} title="无法打开这份报告" /></Page>;
@@ -148,6 +158,7 @@ export function QuickReportPage() {
     };
   };
   const activeEvidence = active ? evidenceById.get(active) : undefined;
+  const activeUri = activeSource.data?.local_path ?? activeSource.data?.source_url ?? null;
   const activeIndex = active ? citations.indexOf(active) : -1;
   const meta = data.run_metadata as Record<string, unknown>;
   return (
@@ -218,6 +229,8 @@ export function QuickReportPage() {
           title: documentTitle(activeEvidence.title, activeEvidence.paper_id, titles),
           page: pageLabel(activeEvidence.page_start, activeEvidence.page_end),
           passage: activeEvidence.text,
+          uri: activeUri,
+          pageNumber: activeEvidence.page_start,
           meta: <>相关度 {Math.round(activeEvidence.score * 100)}% · 引用编号 {activeEvidence.id}</>,
         } : undefined}
       />

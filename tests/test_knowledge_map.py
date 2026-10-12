@@ -275,3 +275,33 @@ def test_source_file_serves_only_registered_local_pdfs(tmp_path) -> None:
     assert served.content[:4] == b"%PDF"
     for uri in (str(stray), str(Path("pyproject.toml").resolve())):
         assert client.get("/api/knowledge/source-file", params={"uri": uri}).status_code == 404
+
+
+def test_document_source_lookup_resolves_registered_pdf_for_quick_reports(tmp_path) -> None:
+    import sqlite3
+    from pathlib import Path
+
+    from fastapi.testclient import TestClient
+
+    from app.api.main import create_app
+    from app.knowledge.repository import KnowledgeRepository
+
+    pdf = tmp_path / "paper.pdf"
+    pdf.write_bytes(Path("benchmarks/research/papers-v1/papers/alce.pdf").read_bytes())
+    repository = KnowledgeRepository(str(tmp_path / "knowledge.db"))
+    with sqlite3.connect(tmp_path / "knowledge.db") as connection:
+        connection.execute(
+            "INSERT INTO documents (id, ingestion_id, title, source, source_url, local_path,"
+            " pages, metadata_json) VALUES ('paper:abc', 'ing-1', 'ALCE', 'pdf', NULL, ?, 3, '{}')",
+            (str(pdf),),
+        )
+    client = TestClient(create_app(knowledge_repository=repository))
+
+    found = client.get("/api/knowledge/documents/paper:abc/source")
+    assert found.status_code == 200
+    assert found.json()["local_path"] == str(pdf)
+    assert client.get("/api/knowledge/documents/paper:missing/source").status_code == 404
+    # The returned path is exactly what the registration-checked endpoint serves.
+    served = client.get("/api/knowledge/source-file", params={"uri": found.json()["local_path"]})
+    assert served.status_code == 200
+    assert served.content[:4] == b"%PDF"
