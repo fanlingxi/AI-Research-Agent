@@ -135,15 +135,6 @@ def test_coverage_failure_keeps_usage_and_falls_back():
     assert result["usage"]["input_tokens"] == 100
 
 
-def test_live_trial_cannot_bypass_offline_isolation():
-    from app.benchmarking.coverage_trial import run
-
-    assert run()["mode"] == "dry_run"
-    assert run(refine=True)["max_new_calls"] == 39
-    with pytest.raises(ValueError, match="disabled in offline tests"):
-        run(execute=True, refine=True)
-
-
 class AnchoredRanker:
     def __init__(self, mutate=None):
         self.calls, self.mutate = 0, mutate

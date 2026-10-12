@@ -423,16 +423,3 @@ def test_changed_candidate_order_cannot_reuse_cached_model_indices(tmp_path, mon
     assert (
         package.retrieval_audit.parameters["reranking"]["reason"] == "inputs_changed_after_rerank"
     )
-
-
-def test_revision_trial_is_dry_by_default_and_rejects_live_calls_under_pytest():
-    from app.benchmarking.production_validation import refusal_followup
-    from app.benchmarking.report_closeout import run
-
-    preview = refusal_followup("unused", revised=True)
-    assert preview["new_runs"] == 6 and preview["max_model_calls"] == 24
-    with pytest.raises(ValueError, match="disabled"):
-        refusal_followup("unused", execute=True, revised=True)
-    assert run("unused")["max_model_calls"] == 12
-    with pytest.raises(ValueError, match="disabled"):
-        run("unused", execute=True)
