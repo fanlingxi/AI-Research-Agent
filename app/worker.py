@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import os
 import socket
 import threading
@@ -278,7 +279,14 @@ def build_worker() -> KnowledgeWorker:
     )
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Run the Knowledge Core worker.")
+    parser.add_argument("--once", action="store_true", help="Process one task, then exit.")
+    args = parser.parse_args(argv)
+    if args.once:
+        processed = build_worker().run_once()
+        print(f"Processed task: {processed}")
+        return
     settings = get_settings()
     build_worker().run_forever(settings.knowledge_worker_poll_seconds)
 
