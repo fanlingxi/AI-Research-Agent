@@ -12,15 +12,17 @@ import {
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { EmptyBlock, ErrorBlock, LoadingBlock } from "../components/AsyncState";
-import { StatusBadge } from "../components/StatusBadge";
-import { Button } from "../components/ui/button";
-import { Card, CardContent, CardHeader } from "../components/ui/card";
-import { api, type RuntimeWorkItem } from "../lib/api";
+import { EmptyBlock, ErrorBlock, LoadingBlock, Notice } from "../components/AsyncState";
 import { ProjectionMaintenance } from "../components/ProjectionMaintenance";
-import { formatDate } from "../lib/utils";
+import { StatusBadge } from "../components/StatusBadge";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Select } from "../components/ui/field";
+import { Page, PageHeader, Stat } from "../components/ui/page";
+import { api, type RuntimeWorkItem } from "../lib/api";
 import { statusLabel } from "../lib/labels";
-import { Page, PageHeader } from "../components/ui/page";
+import { cn, formatDate } from "../lib/utils";
 
 const SERVICE_LABELS: Record<string, string> = {
   api: "API 编排服务",
@@ -28,15 +30,15 @@ const SERVICE_LABELS: Record<string, string> = {
   llm: "语言模型",
   neo4j: "图关系数据库",
   qdrant: "向量检索服务",
-  vault: "Vault 知识投影",
+  vault: "知识文档投影（Vault）",
 };
 
 const KIND_LABELS: Record<string, string> = {
   ingestion: "PDF 入库",
   report: "研究报告",
-  agent_run: "项目 AgentRun",
+  agent_run: "项目研究运行",
   research_command: "研究指令",
-  collection_sync: "Collection 同步",
+  collection_sync: "资料集合同步",
   projection: "外部投影",
   projection_rebuild: "投影重建",
 };
@@ -48,7 +50,7 @@ const STAGE_LABELS: Record<string, string> = {
   drafting: "生成初稿",
   evaluation: "引用与质量校验",
   revision: "受控修订",
-  collection_sync: "同步 Collection 投影",
+  collection_sync: "同步资料集合投影",
   projection_rebuild: "重建派生投影",
   entity_projection: "投影知识实体",
   relation_projection: "投影图关系",
@@ -109,24 +111,26 @@ export function RuntimePage() {
   });
 
   if (overview.isPending || work.isPending) {
-    return <div className="p-6 lg:p-8"><LoadingBlock label="读取运行记录…" /></div>;
+    return <Page width="wide"><LoadingBlock label="读取运行记录…" /></Page>;
   }
   if (overview.error instanceof Error || work.error instanceof Error) {
     return (
-      <div className="p-6 lg:p-8">
+      <Page width="wide">
         <ErrorBlock
           error={(overview.error ?? work.error) as Error}
           onRetry={() => { void overview.refetch(); void work.refetch(); }}
+          title="无法读取运行记录"
         />
-      </div>
+      </Page>
     );
   }
   if (!overview.data || !work.data) {
-    return <div className="p-6 lg:p-8"><LoadingBlock label="读取运行记录…" /></div>;
+    return <Page width="wide"><LoadingBlock label="读取运行记录…" /></Page>;
   }
   const overviewData = overview.data;
   const workData = work.data;
   const services = Object.entries(overviewData.services);
+  const workKinds = Object.entries(overviewData.work_counts).filter(([, counts]) => Object.keys(counts).length > 0);
   const queued = queueTotal(overviewData.work_counts);
   const workerOnline = overviewData.services.worker?.available === true;
   const llmReady = overviewData.services.llm?.available === true;
@@ -153,127 +157,133 @@ export function RuntimePage() {
         actions={<Button variant="outline" onClick={() => { void overview.refetch(); void work.refetch(); }}><RefreshCw size={15} />刷新</Button>}
       />
 
-      {!workerOnline && queued > 0 ? (
-        <div className="mt-5 flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950" role="alert">
-          <AlertTriangle className="shrink-0" size={19} />
-          <div>
-            <p className="font-medium">{queued} 个任务在排队，但 Worker 离线</p>
-            <p className="mt-1">请运行 <code className="rounded bg-white px-1.5 py-0.5">python -m app.worker</code>，或使用 <code className="rounded bg-white px-1.5 py-0.5">make up</code> 启动完整栈。</p>
-          </div>
+      {(!workerOnline && queued > 0) || !llmReady ? (
+        <div className="mb-5 space-y-2">
+          {!workerOnline && queued > 0 ? (
+            <Notice tone="warning" icon={<AlertTriangle size={15} />} title={`${queued} 个任务在排队，但 Worker 离线`}>
+              请运行 <code className="rounded bg-panel px-1.5 py-0.5 font-mono text-xs">python -m app.worker</code>，或使用 <code className="rounded bg-panel px-1.5 py-0.5 font-mono text-xs">make up</code> 启动完整栈。
+            </Notice>
+          ) : null}
+          {!llmReady ? <Notice>未配置真实语言模型：PDF 抽取和研究报告会在产生数据副作用前失败；其他确定性功能仍可使用。</Notice> : null}
         </div>
       ) : null}
-      {!llmReady ? (
-        <div className="mt-3 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700">真实 LLM 未配置：PDF 抽取和研究报告会在产生数据副作用前失败；其他确定性功能仍可使用。</div>
-      ) : null}
 
-      <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {services.map(([name, service]) => (
-          <Card key={name}>
-            <CardContent>
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium">{SERVICE_LABELS[name] ?? name}</p>
-                <span className={`size-2 rounded-full ${service.available ? "bg-emerald-500" : "bg-red-500"}`} />
+      <Card>
+        <CardHeader><CardTitle icon={<ServerCog size={16} />} title="服务状态" description={`更新于 ${formatDate(overviewData.generated_at)}`} /></CardHeader>
+        <CardContent className="grid gap-x-6 gap-y-3 pt-3 sm:grid-cols-2 xl:grid-cols-3">
+          {services.map(([name, service]) => (
+            <div className="flex min-w-0 items-start gap-2.5" key={name}>
+              <span aria-hidden="true" className={cn("mt-1.5 size-2 shrink-0 rounded-full", service.available ? "bg-emerald-500" : "bg-red-500")} />
+              <div className="min-w-0">
+                <p className="text-[13.5px] font-medium text-ink">{SERVICE_LABELS[name] ?? name}<span className="sr-only">：{service.available ? "可用" : "不可用"}</span></p>
+                <p className="break-words text-xs leading-5 text-muted-ink">{service.detail}</p>
               </div>
-              <p className="mt-2 text-xs leading-5 text-muted-ink">{service.detail}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-
-      <section className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <Card className="flex min-w-0 flex-col">
-          <CardHeader>
-            <div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">统一任务流</p><h2 className="mt-1 text-lg font-semibold">任务时间线</h2></div>
-            <FileClock className="text-brand" size={20} />
-          </CardHeader>
-          <CardContent className="flex min-h-0 flex-1 flex-col xl:basis-0">
-            <div className="mb-4 flex shrink-0 flex-wrap gap-3">
-              <label className="text-xs font-medium text-muted-ink">类型
-                <select className="mt-1 block min-w-40 rounded-lg border bg-panel px-3 py-2 text-sm text-ink" value={kind} onChange={(event) => { setKind(event.target.value); resetPage(); }}>
-                  <option value="">全部类型</option>
-                  {Object.entries(KIND_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
-              </label>
-              <label className="text-xs font-medium text-muted-ink">状态
-                <select className="mt-1 block min-w-36 rounded-lg border bg-panel px-3 py-2 text-sm text-ink" value={status} onChange={(event) => { setStatus(event.target.value); resetPage(); }}>
-                  <option value="">全部状态</option>
-                  {["queued", "running", "failed", "completed", "needs_review", "stale_context"].map((value) => <option key={value} value={value}>{statusLabel(value)}</option>)}
-                </select>
-              </label>
             </div>
-            <div className="max-h-[42rem] min-w-0 space-y-3 overflow-y-auto overscroll-contain pr-2 xl:h-0 xl:min-h-64 xl:max-h-none xl:flex-1 xl:basis-0" data-testid="runtime-work-list">
+          ))}
+        </CardContent>
+      </Card>
+
+      <section className="mt-5 grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <Card className="flex min-w-0 flex-col">
+          <CardHeader><CardTitle icon={<FileClock size={16} />} title="任务时间线" description="入库、报告、研究运行与投影任务，按最近更新排列。" /></CardHeader>
+          <CardContent className="flex min-h-0 flex-1 flex-col pt-3 xl:basis-0">
+            <div className="mb-3 flex shrink-0 flex-wrap gap-2">
+              <Select aria-label="任务类型" className="w-auto min-w-36" value={kind} onChange={(event) => { setKind(event.target.value); resetPage(); }}>
+                <option value="">全部类型</option>
+                {Object.entries(KIND_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </Select>
+              <Select aria-label="任务状态" className="w-auto min-w-32" value={status} onChange={(event) => { setStatus(event.target.value); resetPage(); }}>
+                <option value="">全部状态</option>
+                {["queued", "running", "failed", "completed", "needs_review", "stale_context"].map((value) => <option key={value} value={value}>{statusLabel(value)}</option>)}
+              </Select>
+            </div>
+            <div className="max-h-[42rem] min-w-0 divide-y divide-line overflow-y-auto overscroll-contain rounded-lg border xl:h-0 xl:min-h-64 xl:max-h-none xl:flex-1 xl:basis-0" data-testid="runtime-work-list">
               {workData.items.map((item) => (
-                <article className="min-w-0 rounded-lg border bg-panel p-4" key={item.id}>
-                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                <article className="min-w-0 px-3.5 py-3" key={item.id}>
+                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
                     <div className="min-w-0 flex-1">
-                      <Link className="break-words font-medium hover:text-brand hover:underline" to={item.detail_route}>{item.title}</Link>
-                      <p className="mt-1 text-xs text-muted-ink">{KIND_LABELS[item.kind] ?? item.kind} · {item.current_stage ? (STAGE_LABELS[item.current_stage] ?? item.current_stage) : "未记录阶段"}</p>
+                      <Link className="break-words text-[13.5px] font-medium text-ink hover:text-brand hover:underline" to={item.detail_route}>{item.title}</Link>
+                      <p className="mt-0.5 text-xs text-muted-ink">{KIND_LABELS[item.kind] ?? item.kind} · {item.current_stage ? (STAGE_LABELS[item.current_stage] ?? item.current_stage) : "未记录阶段"}</p>
                     </div>
-                    <div className="flex gap-2"><StatusBadge status={item.business_status} />{item.job_status !== item.business_status ? <StatusBadge status={item.job_status} /> : null}</div>
+                    <div className="flex shrink-0 flex-wrap gap-1.5"><StatusBadge status={item.business_status} />{item.job_status !== item.business_status ? <StatusBadge status={item.job_status} /> : null}</div>
                   </div>
-                  <div className="mt-3 grid gap-2 text-xs text-muted-ink sm:grid-cols-2 xl:grid-cols-4">
+                  <p className="mt-1.5 flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-ink">
                     <span>尝试 {item.attempt}</span>
-                    <span>{item.queue_position ? `队列第 ${item.queue_position} 位` : "不在等待队列"}</span>
-                    <span className="truncate" title={item.executor ?? ""}>执行器 {item.executor ?? "未领取"}</span>
+                    {item.queue_position ? <span>队列第 {item.queue_position} 位</span> : null}
+                    <span className="min-w-0 max-w-full truncate" title={item.executor ?? ""}>执行器 {item.executor ?? "未领取"}</span>
                     <span>更新 {formatDate(item.updated_at)}</span>
-                  </div>
-                  {item.lease_until ? <p className="mt-2 text-xs text-muted-ink">租约到期 {formatDate(item.lease_until)}</p> : null}
-                  {item.last_error ? <p className="mt-3 max-h-28 overflow-auto break-words rounded bg-danger-soft p-2 text-xs leading-5 text-red-900">{item.last_error}</p> : null}
+                    {item.lease_until ? <span>租约到期 {formatDate(item.lease_until)}</span> : null}
+                  </p>
+                  {item.last_error ? <p className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap break-words rounded-md bg-danger-soft px-2.5 py-2 text-xs leading-5 text-red-900">{item.last_error}</p> : null}
                   {(item.can_retry || item.can_cancel) ? (
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-2 flex gap-2">
                       {item.can_retry ? <Button disabled={retry.isPending} size="sm" variant="outline" onClick={() => retry.mutate(item)}><RefreshCw size={13} />安全重试</Button> : null}
-                      {item.can_cancel ? <Button disabled={cancel.isPending} size="sm" variant="danger" onClick={() => cancel.mutate(item)}>取消任务</Button> : null}
+                      {item.can_cancel ? <Button disabled={cancel.isPending} size="sm" variant="danger-outline" onClick={() => cancel.mutate(item)}>取消任务</Button> : null}
                     </div>
                   ) : null}
                 </article>
               ))}
-              {!workData.items.length ? <EmptyBlock title="没有匹配的任务">调整类型或状态筛选。</EmptyBlock> : null}
+              {!workData.items.length ? <EmptyBlock className="m-3 border-0 py-8" title="没有匹配的任务">{kind || status ? "调整类型或状态筛选。" : "后台任务出现后会显示在这里。"}</EmptyBlock> : null}
             </div>
             {(cursorHistory.length > 0 || workData.next_cursor) ? (
-              <div className="mt-4 flex shrink-0 items-center justify-between border-t pt-4">
+              <div className="mt-3 flex shrink-0 items-center justify-between">
                 <Button disabled={!cursorHistory.length} size="sm" variant="outline" onClick={goBack}><ChevronLeft size={14} />上一页</Button>
-                <span className="text-xs text-muted-ink">第 {cursorHistory.length + 1} 页</span>
+                <span className="text-xs tabular-nums text-muted-ink">第 {cursorHistory.length + 1} 页</span>
                 <Button disabled={!workData.next_cursor} size="sm" variant="outline" onClick={goNext}>下一页<ChevronRight size={14} /></Button>
               </div>
             ) : null}
-            {retry.error instanceof Error ? <div className="mt-4"><ErrorBlock error={retry.error} /></div> : null}
-            {cancel.error instanceof Error ? <div className="mt-4"><ErrorBlock error={cancel.error} /></div> : null}
+            {retry.error instanceof Error ? <div className="mt-3"><ErrorBlock error={retry.error} /></div> : null}
+            {cancel.error instanceof Error ? <div className="mt-3"><ErrorBlock error={cancel.error} /></div> : null}
           </CardContent>
         </Card>
 
         <aside className="min-w-0 space-y-5">
           <Card>
-            <CardHeader><div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">执行器</p><h2 className="mt-1 font-semibold">Worker 心跳</h2></div><ServerCog className="text-brand" size={20} /></CardHeader>
-            <CardContent className="space-y-3">
+            <CardHeader><CardTitle icon={<ServerCog size={16} />} title="执行器心跳" /></CardHeader>
+            <CardContent className="space-y-2.5 pt-3">
               {overviewData.executors.map((executor) => (
-                <div className="rounded-lg border bg-panel p-3" key={executor.id}>
-                  <div className="flex justify-between gap-2"><p className="truncate text-sm font-medium" title={executor.id}>{executor.id}</p><StatusBadge status={executor.online ? "active" : "failed"} /></div>
-                  <p className="mt-2 text-xs text-muted-ink">{executor.version} · 最后心跳 {formatDate(executor.last_heartbeat_at)}</p>
-                  <p className="mt-1 truncate text-xs text-muted-ink">当前任务：{executor.current_job_id ?? "空闲"}</p>
+                <div className="min-w-0 rounded-lg border px-3 py-2.5" key={executor.id}>
+                  <div className="flex min-w-0 items-center justify-between gap-2"><p className="truncate font-mono text-xs text-ink" title={executor.id}>{executor.id}</p><StatusBadge status={executor.online ? "online" : "offline"} /></div>
+                  <p className="mt-1 text-xs text-muted-ink">{executor.version} · 最后心跳 {formatDate(executor.last_heartbeat_at)}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-ink" title={executor.current_job_id ?? ""}>当前任务：{executor.current_job_id ?? "空闲"}</p>
                 </div>
               ))}
-              {!overviewData.executors.length ? <p className="text-sm text-muted-ink">尚未收到 Worker 心跳。</p> : null}
+              {!overviewData.executors.length ? <p className="text-[13px] text-muted-ink">尚未收到执行器心跳。</p> : null}
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">队列</p><h2 className="mt-1 font-semibold">各类工作</h2></div><Database className="text-brand" size={20} /></CardHeader>
-            <CardContent className="space-y-3">
-              {Object.entries(overviewData.work_counts).flatMap(([workKind, counts]) =>
-                Object.entries(counts).map(([workStatus, count]) => (
-                  <div className="flex items-center justify-between rounded-lg border bg-panel px-3 py-2" key={`${workKind}-${workStatus}`}>
-                    <div><p className="text-xs font-medium">{KIND_LABELS[workKind] ?? workKind}</p><StatusBadge status={workStatus} /></div><span className="font-semibold">{count}</span>
-                  </div>
-                )),
-              )}
+            <CardHeader><CardTitle icon={<Database size={16} />} title="各类工作" /></CardHeader>
+            <CardContent className="pt-3">
+              {workKinds.length ? (
+                <table className="w-full table-fixed text-[13px]">
+                  <thead className="sr-only"><tr><th>类型</th><th>各状态数量</th></tr></thead>
+                  <tbody className="divide-y divide-line">
+                    {workKinds.map(([workKind, counts]) => (
+                      <tr key={workKind}>
+                        <th className="w-[40%] py-2 pr-2 text-left align-top font-medium text-ink-soft" scope="row">{KIND_LABELS[workKind] ?? workKind}</th>
+                        <td className="py-2">
+                          <div className="flex flex-wrap justify-end gap-1">
+                            {Object.entries(counts).map(([workStatus, count]) => (
+                              <Badge key={workStatus} tone={workStatus === "failed" ? "danger" : workStatus === "queued" || workStatus === "running" ? "info" : "neutral"}>{statusLabel(workStatus)} <span className="tabular-nums">{count}</span></Badge>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <p className="text-[13px] text-muted-ink">还没有后台工作记录。</p>}
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><div><p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-ink">投影 backlog</p><h2 className="mt-1 font-semibold">图关系与 Vault</h2></div><Activity className="text-brand" size={20} /></CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2 text-center text-sm">
-                {(["queued", "running", "failed", "completed"] as const).map((value) => <div className="rounded-lg border bg-panel p-2" key={value}><p className="text-lg font-semibold">{overviewData.projection_backlog[value]}</p><p className="text-xs text-muted-ink">{statusLabel(value)}</p></div>)}
+            <CardHeader><CardTitle icon={<Activity size={16} />} title="投影积压" description="向量索引、图谱与文档投影的同步队列。" /></CardHeader>
+            <CardContent className="pt-3">
+              <div className="grid grid-cols-4 gap-2">
+                {(["queued", "running", "failed", "completed"] as const).map((value) => (
+                  <Stat key={value} label={statusLabel(value)} tone={value === "failed" && overviewData.projection_backlog.failed > 0 ? "warning" : "default"} value={overviewData.projection_backlog[value]} />
+                ))}
               </div>
-              {overviewData.projection_backlog.failed > 0 ? <p className="mt-3 text-xs leading-5 text-red-800">投影失败时，正式知识已保存，但图谱或文档投影暂未同步。在左侧筛选“外部投影 + 失败”可逐条重试。</p> : null}
+              {overviewData.projection_backlog.failed > 0 ? <p className="mt-3 text-xs leading-5 text-amber-800">投影失败时，正式知识已保存，只是图谱或文档投影暂未同步。在时间线筛选“外部投影 + 失败”可逐条重试。</p> : null}
             </CardContent>
           </Card>
           <ProjectionMaintenance />

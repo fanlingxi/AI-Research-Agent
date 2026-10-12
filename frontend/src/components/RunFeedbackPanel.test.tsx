@@ -117,7 +117,7 @@ it("shows history read failure and supports explicit retry", async () => {
 it("keeps semantic missing scores and supervised disagreement visible", async () => {
   vi.spyOn(api, "semanticObservation").mockResolvedValue({ available: true, annotation_mode: "user_supervised_ai_assisted", summary: { planned_runs: 2, total_findings: 1, human_labeled: 1, unlabeled: 0, judge_unavailable_on_labeled: 1, agreement_on_labeled: 0, uncovered_categories: ["contradicted"] }, records: [{ task_id: "case", run_id: "archived", status: "failed", snapshot_sha256: "hash", output_sha256: "hash", findings: [{ id: "1", assertion: "Claim", verdict: null, reason: "", human_label: "insufficient_evidence", human_note: "Missing direction", citations: [{ evidence_id: "e", quote: "Original citation", title: "Paper", source_version: "v1", page_start: "1", page_end: "1" }] }] }] });
   wrap(<SemanticObservation />);
-  await userEvent.click(await screen.findByText("case · failed · 1 条结论"));
+  await userEvent.click(await screen.findByText("case · 失败 · 1 条结论"));
   expect(screen.getByText("模型观察：未评分")).toBeInTheDocument();
   expect(screen.getByText("监督审核：证据不足")).toBeInTheDocument();
   expect(screen.getByText("Original citation")).toBeInTheDocument();
