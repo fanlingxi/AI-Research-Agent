@@ -550,7 +550,8 @@ class AgentRunService:
                     reading_format=(request.reading_format if request.reading_format != 'legacy'
                                     else 'research-v1' if request.workflow in {
                                         'research_v2', 'research_v3', 'research_v4',
-                                        'research_v5', 'research_v6', 'research_v7'
+                                        'research_v5', 'research_v6', 'research_v7',
+                                        'research_v8'
                                     }
                                     else 'legacy'),
                     max_tokens=(request.context_max_tokens if request.context_max_tokens is not None
@@ -562,7 +563,8 @@ class AgentRunService:
                 "ContextSnapshot does not belong to the requested Project and Task."
             )
         if request.workflow in {
-            'research_v2', 'research_v3', 'research_v4', 'research_v5', 'research_v6', 'research_v7'
+            'research_v2', 'research_v3', 'research_v4', 'research_v5', 'research_v6',
+            'research_v7', 'research_v8'
         }:
             if context.reading_format == 'legacy':
                 raise AgentRunConflictError(

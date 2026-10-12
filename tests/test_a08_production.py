@@ -255,7 +255,8 @@ def test_exhausted_repair_or_timeout_stops_without_output(tmp_path, responses, a
 
 @pytest.mark.parametrize(
     "workflow",
-    ["research_v2", "research_v3", "research_v4", "research_v5", "research_v6", "research_v7"]
+    ["research_v2", "research_v3", "research_v4", "research_v5", "research_v6", "research_v7",
+     "research_v8"]
 )
 def test_pending_generation_recovery_moves_to_review_without_second_call(tmp_path, workflow):
     _, service, worker, project, task, _, _, llm = _research_stack(tmp_path, [_analysis(), _plan()])
@@ -303,7 +304,8 @@ def test_repair_explains_refusal_rule_without_reflecting_bad_output(tmp_path):
 
 @pytest.mark.parametrize(
     "workflow",
-    ["research_v2", "research_v3", "research_v4", "research_v5", "research_v6", "research_v7"]
+    ["research_v2", "research_v3", "research_v4", "research_v5", "research_v6", "research_v7",
+     "research_v8"]
 )
 def test_generation_attempt_settlement_is_fenced_and_atomic(tmp_path, workflow):
     repo, service, _, project, task, _, _, _ = _research_stack(tmp_path, [])
@@ -363,7 +365,8 @@ def test_bad_rerank_indices_fall_back_with_attempt_usage():
 
 @pytest.mark.parametrize(
     "workflow",
-    ["research_v2", "research_v3", "research_v4", "research_v5", "research_v6", "research_v7"]
+    ["research_v2", "research_v3", "research_v4", "research_v5", "research_v6", "research_v7",
+     "research_v8"]
 )
 def test_structured_run_rejects_legacy_snapshot_and_missing_scope_before_call(tmp_path, workflow):
     repo, service, _, project, task, legacy, _, llm = _research_stack(tmp_path, [])

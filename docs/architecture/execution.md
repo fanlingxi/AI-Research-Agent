@@ -34,7 +34,7 @@ LangGraph 按运行和工作流命名空间保存检查点。恢复沿用原工�
 
 用户反馈可以修订任务并发起新的研究，旧快照、旧报告和生成尝试继续保留。人工编辑稿被接受，不会自动证明其对应生成原件正确。
 
-`research` 与 `research_v2` 至 `research_v7` 等版本由[研究插件](../../app/domain_plugins/research/plugin.py)注册。候选版本不是默认效果提升的承诺；保留它们也用于既有运行兼容和实验追溯。
+`research` 与 `research_v2` 至 `research_v8` 等版本由[研究插件](../../app/domain_plugins/research/plugin.py)注册。候选版本不是默认效果提升的承诺；保留它们也用于既有运行兼容和实验追溯。
 
 ## 插件和页面边界
 

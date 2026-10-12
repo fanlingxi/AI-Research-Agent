@@ -74,6 +74,15 @@ def test_model_facing_cases_never_carry_expectations_or_labels():
     assert plan["runs"] == 2 * len(cases) and plan["workflows"] == ["research_v4", "research_v7"]
 
 
+def test_v7_vs_v8_preset_shares_one_candidate_context():
+    plan = holdout_v2.plan("dev", arms="v7-vs-v8")
+    assert plan["workflows"] == ["research_v7", "research_v8"]
+    assert plan["runs"] == 2 * len(holdout_v2.cases("dev"))
+    preset = holdout_v2.ARM_PRESETS["v7-vs-v8"]
+    assert all(a["context"] == holdout_v2.resume_closeout.SHARED_CONTEXT for a in preset)
+    assert holdout_v2.arm_preset(True) == holdout_v2.ARMS
+
+
 def test_real_runner_stays_disabled_inside_offline_tests():
     with pytest.raises(ValueError, match="offline"):
         holdout_v2.prepare()

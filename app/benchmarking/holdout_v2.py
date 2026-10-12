@@ -34,7 +34,23 @@ ARMS = (
         "context": resume_closeout.SHARED_CONTEXT,
     },
 )
+# v7-vs-v8: identical candidate snapshot, only the final-report workflow differs (dev tuning).
+ARM_PRESETS = {
+    "d029": ARMS,
+    "v7-vs-v8": (
+        {"name": "v7-direct", "workflow": "research_v7", "context": resume_closeout.SHARED_CONTEXT},
+        {"name": "v8-anchored", "workflow": "research_v8",
+         "context": resume_closeout.SHARED_CONTEXT},
+    ),
+}
 PER_RUN_CALLS = 4
+
+
+def arm_preset(arms) -> tuple | None:
+    """``True`` keeps the original D029 flag meaning; a string selects a named preset."""
+    if not arms:
+        return None
+    return ARM_PRESETS["d029" if arms is True else arms]
 
 
 def cases(split: str = "holdout") -> list[dict]:
@@ -46,8 +62,11 @@ def cases(split: str = "holdout") -> list[dict]:
     ]
 
 
-def plan(split: str = "holdout", workflows=WORKFLOWS) -> dict:
+def plan(split: str = "holdout", workflows=WORKFLOWS, arms=False) -> dict:
     selected = cases(split)
+    preset = arm_preset(arms)
+    if preset:
+        workflows = [a["workflow"] for a in preset]
     runs = len(selected) * len(workflows)
     return {
         "mode": "dry_run",
@@ -56,6 +75,7 @@ def plan(split: str = "holdout", workflows=WORKFLOWS) -> dict:
         "split": split,
         "cases": len(selected),
         "workflows": list(workflows),
+        "arms": [a["name"] for a in preset] if preset else None,
         "runs": runs,
         "max_model_calls": runs * PER_RUN_CALLS + len(selected),
     }
@@ -120,6 +140,9 @@ def prepare(
     from app.knowledge.repository import KnowledgeRepository
 
     validate_dataset(DATASET, data=data)
+    preset = arm_preset(arms)
+    if preset:
+        workflows = [a["workflow"] for a in preset]
     selected = cases(split)
     corpus = load_corpus(data, {s for c in selected for s in c["source_ids"]}, download=download)
     output = OUTPUT / f"{split}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}-{uuid4().hex[:8]}"
@@ -133,12 +156,12 @@ def prepare(
         "production_code": resume_closeout.fingerprints(),
         "collection": f"holdout_v2_{uuid4().hex}",
         "prepared": False,
-        "max_calls": plan(split, workflows)["max_model_calls"],
+        "max_calls": plan(split, workflows, arms)["max_model_calls"],
         "per_run_calls": PER_RUN_CALLS,
         "context_tokens": 16000,
         "run_tokens": 1048576,
         "workflows": list(workflows),
-        "arms": list(ARMS) if arms else None,
+        "arms": list(preset) if preset else None,
         "cases": selected,
         "human_labels": None,
         "semantic_success_rate": None,
@@ -175,18 +198,22 @@ if __name__ == "__main__":
     parser.add_argument("--workflows", nargs=2, default=list(WORKFLOWS))
     parser.add_argument("--data", type=Path, default=DATA)
     parser.add_argument("--download", action="store_true")
-    parser.add_argument("--arms", action="store_true", help="D029 default-vs-candidate arms")
+    arm_group = parser.add_mutually_exclusive_group()
+    arm_group.add_argument("--arms", action="store_true", help="D029 default-vs-candidate arms")
+    arm_group.add_argument("--arms-preset", choices=sorted(ARM_PRESETS),
+                           help="named arms; v7-vs-v8 shares one candidate snapshot")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--verify-corpus", action="store_true")
     group.add_argument("--prepare", action="store_true")
     group.add_argument("--execute", type=Path)
     args = parser.parse_args()
+    arms = args.arms_preset or args.arms
     if args.verify_corpus:
         result = verify_corpus(args.split, args.data)
     elif args.prepare:
-        result = prepare(args.split, args.workflows, args.data, args.download, args.arms)
+        result = prepare(args.split, args.workflows, args.data, args.download, arms)
     elif args.execute:
         result = execute(args.execute)
     else:
-        result = plan(args.split, args.workflows)
+        result = plan(args.split, args.workflows, arms)
     print(json.dumps(result, ensure_ascii=False, indent=2))
