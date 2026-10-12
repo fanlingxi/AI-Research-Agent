@@ -1,0 +1,1980 @@
+{
+  "protocol_version": "research-holdout-v2-task",
+  "dataset_version": "research-holdout-v2",
+  "split": "holdout",
+  "tasks": [
+    {
+      "id": "multistep-q1",
+      "version": "v1",
+      "family_id": "multistep",
+      "split": "holdout",
+      "tags": [
+        "exact_name",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "IRCoT 如何交替进行推理与检索？过程在什么条件下终止？实验中最大步数和最多收集段落数设为多少？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "ircot"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "multistep-q1-c1",
+            "statement": "先用问题检索初始段落；之后交替：用问题、已收集段落和已生成 CoT 句子生成下一句 CoT，再以最后一句 CoT 作为查询检索更多段落加入集合。",
+            "evidence_span_ids": [
+              "i-steps"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "multistep-q1-c2",
+            "statement": "当生成的 CoT 句子包含“answer is:”或达到最大步数时终止，并返回所有已收集段落。",
+            "evidence_span_ids": [
+              "i-stop"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "multistep-q1-c3",
+            "statement": "实验中最大步数设为 8，收集段落总数上限为 15。",
+            "evidence_span_ids": [
+              "i-max8"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "IRCoT 每一步使用原始问题而非最新 CoT 句子作为检索查询。",
+          "最大步数为 4。"
+        ],
+        "required_evidence_span_ids": [
+          "i-max8",
+          "i-steps",
+          "i-stop"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "脚注数字与正文粘连（“4set to 8”），考查精确定位。"
+      },
+      "kind": "single_fact",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#multistep-q1"
+      }
+    },
+    {
+      "id": "multistep-q2",
+      "version": "v1",
+      "family_id": "multistep",
+      "split": "holdout",
+      "tags": [
+        "exact_name",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "Rewrite-Retrieve-Read 的可训练改写器用什么模型初始化？分几个阶段训练，强化学习采用什么算法？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "rewrite"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "multistep-q2-c1",
+            "statement": "可训练改写器以预训练 T5-large（770M）初始化。",
+            "evidence_span_ids": [
+              "w-t5"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "multistep-q2-c2",
+            "statement": "先在 LLM 生成的伪数据上预热（warm-up），再用强化学习继续训练，算法为 PPO。",
+            "evidence_span_ids": [
+              "w-stages",
+              "w-ppo"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "改写器由 ChatGPT 微调而来。",
+          "强化学习使用 DPO 或监督微调代替 PPO。"
+        ],
+        "required_evidence_span_ids": [
+          "w-ppo",
+          "w-stages",
+          "w-t5"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "单篇事实。"
+      },
+      "kind": "single_fact",
+      "difficulty": "easy",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#multistep-q2"
+      }
+    },
+    {
+      "id": "multistep-q3",
+      "version": "v1",
+      "family_id": "multistep",
+      "split": "holdout",
+      "tags": [
+        "multi_source",
+        "insufficient"
+      ],
+      "target": "project_run",
+      "question": "比较 IRCoT 与 Rewrite-Retrieve-Read：两者的检索查询由什么产生、检索是单轮还是多轮、是否需要训练？能否据此判断二者谁更好或能否互相替代？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "ircot",
+        "rewrite"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "id": "multistep-q3-c1",
+            "statement": "IRCoT 以每一步最新生成的 CoT 句子作为查询，多轮交替检索与推理，且无需训练即可用于大模型和较小 Flan-T5 模型。",
+            "evidence_span_ids": [
+              "i-steps",
+              "i-notrain"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "multistep-q3-c2",
+            "statement": "Rewrite-Retrieve-Read 在检索前改写查询，目标是增强单轮 retrieve-then-read 流程；其可训练方案用 T5-large 作为改写器。",
+            "evidence_span_ids": [
+              "w-oneturn",
+              "w-t5"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "multistep-q3-c3",
+            "statement": "两篇论文没有在相同设置下直接对比两种方法，因此不能断言谁更好，也不能从“作用阶段不同”推出二者不可互相替代或必须组合。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "论文证明 IRCoT 优于（或劣于）Rewrite-Retrieve-Read。",
+          "因为二者作用阶段不同，所以它们不能互相替代/必须组合使用。"
+        ],
+        "required_evidence_span_ids": [
+          "i-notrain",
+          "i-steps",
+          "w-oneturn",
+          "w-t5"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "同一数据集与模型下的直接对比"
+        ],
+        "rationale": "比较 + 过度推断陷阱（“阶段不同→不可替代”）。"
+      },
+      "kind": "comparison",
+      "difficulty": "hard",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": false,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "partially_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          }
+        ],
+        "tie_breaker": {
+          "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+          "answerability": "partially_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        },
+        "status": "adjudicated",
+        "adjudication": "可答性分歧：起草为 qualified_answer，Codex 判 answerable，DeepSeek 与第三意见判 partially_answerable。三方对机制差异与“两文未直接比较、不能判断优劣或可否替代”的要点完全一致，分歧只在问题后半句能否由原文回答。采纳多数（2/3 独立标注者）：改为 needs_review（insufficient），要求回答必须明确说明缺少同条件直接比较，机制部分仍须引用原文。",
+        "record_path": "consensus.json#multistep-q3"
+      }
+    },
+    {
+      "id": "multistep-q4",
+      "version": "v1",
+      "family_id": "multistep",
+      "split": "holdout",
+      "tags": [
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "IRCoT 是否在所有数据集和所有模型规模上都提升了问答（QA）F1？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "ircot"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "multistep-q4-c1",
+            "statement": "不是。对 GPT3，IRCoT 在 IIRC 上没有提升 QA 分数，尽管检索提升了约 21 点。",
+            "evidence_span_ids": [
+              "i-iirc"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "multistep-q4-c2",
+            "statement": "在模型规模实验中，除最小模型（0.2B）外 IRCoT QA 才优于 OneR QA。",
+            "evidence_span_ids": [
+              "i-small"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "IRCoT 在所有数据集与所有模型规模上都提升了 QA 表现。",
+          "检索召回提升必然带来 QA 提升。"
+        ],
+        "required_evidence_span_ids": [
+          "i-iirc",
+          "i-small"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "过度概括陷阱：检索提升普遍、QA 提升有例外。"
+      },
+      "kind": "overclaim_trap",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#multistep-q4"
+      }
+    },
+    {
+      "id": "multistep-q5",
+      "version": "v1",
+      "family_id": "multistep",
+      "split": "holdout",
+      "tags": [
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "Rewrite-Retrieve-Read 论文承认了哪些局限？可训练改写器在哪个数据集上仍不如 LLM 改写器？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "rewrite"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "multistep-q5-c1",
+            "statement": "下游任务之间存在泛化与专门化的权衡，加入训练会削弱直接迁移的可扩展性。",
+            "evidence_span_ids": [
+              "w-limit-tradeoff"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "multistep-q5-c2",
+            "statement": "使用网络搜索引擎作为检索器也带来局限。",
+            "evidence_span_ids": [
+              "w-limit-web"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "multistep-q5-c3",
+            "statement": "在 PopQA 上，可训练改写器仍不如 LLM 改写器。",
+            "evidence_span_ids": [
+              "w-popqa-inferior"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "可训练改写器在所有数据集上都优于 LLM 改写器。",
+          "论文声称网络搜索没有缺点。"
+        ],
+        "required_evidence_span_ids": [
+          "w-limit-tradeoff",
+          "w-limit-web",
+          "w-popqa-inferior"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "局限题。"
+      },
+      "kind": "limitation",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "none"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#multistep-q5"
+      }
+    },
+    {
+      "id": "multistep-q6",
+      "version": "v1",
+      "family_id": "multistep",
+      "split": "holdout",
+      "tags": [
+        "no_answer"
+      ],
+      "target": "project_run",
+      "question": "在 MMLU 上，以 ChatGPT 作为阅读器并使用可训练改写器（trainable rewriter）时的 EM 是多少？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "rewrite"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "abstain",
+        "required_conclusions": [
+          {
+            "id": "multistep-q6-c1",
+            "statement": "论文没有报告 ChatGPT 阅读器 + 可训练改写器在 MMLU 上的 EM，无法给出该数值；表3中 ChatGPT 组只有 Direct、Retrieve-then-read 和 LLM rewriter 三种设置。",
+            "evidence_span_ids": [],
+            "basis": "scope_absence"
+          },
+          {
+            "id": "multistep-q6-c2",
+            "statement": "可训练改写器的 MMLU 结果只在 Vicuna-13B 阅读器下报告（论文称因 ChatGPT 速率限制另用 Vicuna-13B），不能把它当作 ChatGPT 的结果。",
+            "evidence_span_ids": [],
+            "basis": "scope_absence"
+          }
+        ],
+        "forbidden_conclusions": [
+          "给出 ChatGPT+可训练改写器在 MMLU 上的具体 EM 数值。",
+          "把 Vicuna-13B 的可训练改写器结果当作 ChatGPT 的结果。"
+        ],
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "ChatGPT 阅读器 + 可训练改写器的 MMLU 结果"
+        ],
+        "rationale": "表格缺行导致证据不足。"
+      },
+      "kind": "insufficient_evidence",
+      "difficulty": "hard",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "not_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "partially_answerable",
+            "answerability_agrees": false,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": {
+          "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+          "answerability": "not_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "not_applicable"
+        },
+        "status": "adjudicated",
+        "adjudication": "可答性分歧：起草与 DeepSeek 判 partially_answerable（needs_review），Codex 与第三意见判 not_answerable。四方对内容一致：表3的 ChatGPT 组只有 Direct/Retrieve-then-read/LLM rewriter 三行，可训练改写器只在 Vicuna-13B 组报告，所问数值不存在，不能借用 Vicuna 数字。分歧仅在类别；采纳两名独立标注者中的多数（Codex+第三意见）改为 abstain（no_answer），不再要求证据跨度，但保留“说明表中缺行、不得借用 Vicuna 数字”的必需结论与禁止结论。",
+        "record_path": "consensus.json#multistep-q6"
+      }
+    },
+    {
+      "id": "multistep-q7",
+      "version": "v1",
+      "family_id": "multistep",
+      "split": "holdout",
+      "tags": [
+        "out_of_scope"
+      ],
+      "target": "project_run",
+      "question": "当前只允许使用 IRCoT 论文。请根据 Rewrite-Retrieve-Read 论文说明其强化学习奖励中 Hit 指标的定义。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "ircot"
+      ],
+      "forbidden_source_ids": [
+        "rewrite"
+      ],
+      "expectation": {
+        "outcome": "scope_refusal",
+        "required_conclusions": [
+          {
+            "id": "multistep-q7-c1",
+            "statement": "Rewrite-Retrieve-Read 不在允许范围内，应拒绝越界读取并说明需扩大授权。",
+            "evidence_span_ids": [],
+            "basis": "scope_boundary"
+          }
+        ],
+        "forbidden_conclusions": [
+          "给出 Hit 奖励的具体定义或取值。",
+          "用模型记忆补充未授权论文内容。"
+        ],
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "Rewrite-Retrieve-Read 资料范围授权"
+        ],
+        "rationale": "越界请求。"
+      },
+      "kind": "out_of_scope",
+      "difficulty": "easy",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#multistep-q7"
+      }
+    },
+    {
+      "id": "multistep-q8",
+      "version": "v1",
+      "family_id": "multistep",
+      "split": "holdout",
+      "tags": [
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "综合两篇论文：直接把复杂多跳问题本身作为检索查询会有什么问题？各给出原文证据。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "ircot",
+        "rewrite"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "multistep-q8-c1",
+            "statement": "IRCoT 观察到仅用问题做一次检索再阅读的方式不足以应对多步问答。",
+            "evidence_span_ids": [
+              "i-onestep"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "multistep-q8-c2",
+            "statement": "Rewrite-Retrieve-Read 发现在 HotpotQA 上标准检索反而损害阅读器，并认为多跳问题不适合作为网络搜索查询。",
+            "evidence_span_ids": [
+              "w-hotpot-hurt",
+              "w-multihop"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "两篇论文都认为检索对多跳问答没有帮助。",
+          "两篇论文在同一实验中联合验证了该结论。"
+        ],
+        "required_evidence_span_ids": [
+          "i-onestep",
+          "w-hotpot-hurt",
+          "w-multihop"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "跨论文综合。"
+      },
+      "kind": "synthesis",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#multistep-q8"
+      }
+    },
+    {
+      "id": "noise-q1",
+      "version": "v1",
+      "family_id": "noise",
+      "split": "holdout",
+      "tags": [
+        "exact_name",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "Chain-of-Note 设计了哪三类阅读笔记？每类对应模型如何作答？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "chain-of-note"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "noise-q1-c1",
+            "statement": "第一类：文档直接回答问题时，基于该相关信息形成最终答案。",
+            "evidence_span_ids": [
+              "c-type1"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "noise-q1-c2",
+            "statement": "第二类：文档不直接回答但提供有用上下文时，结合模型自身知识推断答案；第三类：文档无关且模型缺乏知识时，回答“unknown”。",
+            "evidence_span_ids": [
+              "c-type23"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "文档无关时模型总是拒答而不使用自身知识。",
+          "Chain-of-Note 只有两类笔记。"
+        ],
+        "required_evidence_span_ids": [
+          "c-type1",
+          "c-type23"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "单篇事实。"
+      },
+      "kind": "single_fact",
+      "difficulty": "easy",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#noise-q1"
+      }
+    },
+    {
+      "id": "noise-q2",
+      "version": "v1",
+      "family_id": "noise",
+      "split": "holdout",
+      "tags": [
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "在 RealTimeQA 的未知问题鲁棒性评测中，Chain-of-Note 的拒答率（RR）从多少变为多少？论文正文所说的提升幅度与表格是否一致？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "chain-of-note"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "noise-q2-c1",
+            "statement": "表4中 Retrieve-Read 的 RR 为 6.1，加 Chain-of-Note 后为 13.0（EM 15.6→15.7）。",
+            "evidence_span_ids": [
+              "c-rr-table"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "noise-q2-c2",
+            "statement": "正文称拒答率提升 +10.5，但按表4数值差约为 6.9 个点，二者不一致；回答应指出这一差异，不应只复述 +10.5。",
+            "evidence_span_ids": [
+              "c-rr-text"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "拒答率确定提升了 10.5 个百分点且与表格一致。",
+          "Chain-of-Note 大幅提升了 RealTimeQA 的 EM。"
+        ],
+        "required_evidence_span_ids": [
+          "c-rr-table",
+          "c-rr-text"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "正文与表格数值不一致，考查精确引用。"
+      },
+      "kind": "overclaim_trap",
+      "difficulty": "hard",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#noise-q2"
+      }
+    },
+    {
+      "id": "noise-q3",
+      "version": "v1",
+      "family_id": "noise",
+      "split": "holdout",
+      "tags": [
+        "exact_name",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "LongLLMLingua 针对长上下文场景的哪三个挑战？为此提出了哪些组件？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "longllmlingua"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "noise-q3-c1",
+            "statement": "三大挑战：更高的计算成本、性能下降和位置偏差。",
+            "evidence_span_ids": [
+              "g-challenges"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "noise-q3-c2",
+            "statement": "组件包括问题感知的由粗到细压缩、文档重排序机制、动态压缩比以及子序列恢复策略。",
+            "evidence_span_ids": [
+              "g-components"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "LongLLMLingua 通过扩展模型上下文窗口来解决这些问题。",
+          "LongLLMLingua 需要微调目标大模型。"
+        ],
+        "required_evidence_span_ids": [
+          "g-challenges",
+          "g-components"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "单篇事实。"
+      },
+      "kind": "single_fact",
+      "difficulty": "easy",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "none"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#noise-q3"
+      }
+    },
+    {
+      "id": "noise-q4",
+      "version": "v1",
+      "family_id": "noise",
+      "split": "holdout",
+      "tags": [
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "Chain-of-Note 与 LongLLMLingua 都试图减轻检索/长上下文中的噪声。比较二者对推理时间或成本的影响，以及各自承认的代价。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "chain-of-note",
+        "longllmlingua"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "noise-q4-c1",
+            "statement": "Chain-of-Note 逐文档生成阅读笔记，平均解码时间由 0.6104 秒增至 12.0192 秒（混合训练版本为 0.6074 秒）；作者承认推理成本上升是主要局限。",
+            "evidence_span_ids": [
+              "c-time",
+              "c-limit"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "noise-q4-c2",
+            "statement": "LongLLMLingua 通过压缩提示降低成本，可将端到端延迟加速 1.4x–2.6x；但它是问题感知的，同一上下文换问题需重新压缩，无法缓存。",
+            "evidence_span_ids": [
+              "g-latency",
+              "g-recompress"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "noise-q4-c3",
+            "statement": "两文未在同一基准下直接比较，也未测试组合使用，不能据此判断谁更好或二者能否互相替代。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "论文直接比较过二者并给出了优劣。",
+          "因为一个增加成本、一个降低成本，所以二者不能组合使用/不能互相替代。"
+        ],
+        "required_evidence_span_ids": [
+          "c-limit",
+          "c-time",
+          "g-latency",
+          "g-recompress"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "同一基准下的对比或组合实验"
+        ],
+        "rationale": "比较题 + 过度推断陷阱。"
+      },
+      "kind": "comparison",
+      "difficulty": "hard",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#noise-q4"
+      }
+    },
+    {
+      "id": "noise-q5",
+      "version": "v1",
+      "family_id": "noise",
+      "split": "holdout",
+      "tags": [
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "LongLLMLingua 论文是否表明，在任何压缩比和关键信息位置下，压缩后的提示都比原始提示效果更好？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "longllmlingua"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "noise-q5-c1",
+            "statement": "不能这样概括。在 NaturalQuestions 表1中，GPT-3.5-Turbo 在 4x 约束下、答案位于第1位时 LongLLMLingua 为 75.0，低于原始提示的 75.7。",
+            "evidence_span_ids": [
+              "g-4x-row",
+              "g-orig-row"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "noise-q5-c2",
+            "statement": "是否优于原始提示依赖压缩比、关键信息位置与任务：例如同一第1位在 2x 约束下为 77.2（高于原始提示 75.7），表格中也有其他持平或略低的情形；论文的总体改进只是所测条件下的趋势，不是普遍保证。",
+            "evidence_span_ids": [
+              "g-2x-row"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "LongLLMLingua 在所有压缩比和所有位置都优于原始提示。",
+          "LongLLMLingua 的效果与任务复杂度无关。"
+        ],
+        "required_evidence_span_ids": [
+          "g-2x-row",
+          "g-4x-row",
+          "g-orig-row"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "表格中的反例；考查是否过度概括“compressed prompts outperform original prompts”。"
+      },
+      "kind": "overclaim_trap",
+      "difficulty": "hard",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          }
+        ],
+        "tie_breaker": {
+          "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        },
+        "status": "adjudicated",
+        "adjudication": "两名独立标注者都给出 75.0<75.7 反例，但都没有把作者局限声明列为要点；该局限对回答本题并非必需，改为不要求。新增必需结论：同一位置在 2x 约束下为 77.2，结果依赖压缩比与位置（两名标注者均有类似表述）。 第三意见给出同一 75.0<75.7 反例及 LongChat 持平、ZeroSCROLLS/LongBench 个别任务低于原始提示等其他反例，并提及局限声明；据此把第二条结论写成“依赖压缩比、位置与任务”，接受任一原文反例。",
+        "record_path": "consensus.json#noise-q5"
+      }
+    },
+    {
+      "id": "noise-q6",
+      "version": "v1",
+      "family_id": "noise",
+      "split": "holdout",
+      "tags": [
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "综合两篇论文，有哪些证据表明提示中的无关/噪声文档会损害大模型表现？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "chain-of-note",
+        "longllmlingua"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "noise-q6-c1",
+            "statement": "Chain-of-Note 表3：标准 Retrieve-Read 在三个数据集上的平均 EM 由 0% 噪声时的 64.93 降至 100% 噪声时的 39.72，噪声越多表现越差。",
+            "evidence_span_ids": [
+              "c-t3-0",
+              "c-t3-100"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "noise-q6-c2",
+            "statement": "LongLLMLingua 报告：下游任务表现随提示中噪声增加而下降。",
+            "evidence_span_ids": [
+              "g-noise"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "两篇论文认为检索或额外上下文总是有害。",
+          "把不同评测集合（全量测试集与含相关文档的子集）上的数字直接相减，当作同条件对比结论。"
+        ],
+        "required_evidence_span_ids": [
+          "c-t3-0",
+          "c-t3-100",
+          "g-noise"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "跨论文综合。"
+      },
+      "kind": "synthesis",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          }
+        ],
+        "tie_breaker": {
+          "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "all"
+        },
+        "status": "adjudicated",
+        "adjudication": "Codex 指出 Chain-of-Note 正文“全噪声时不如不检索”与表格数值无法同条件核对（无检索 NQ EM 28.80 来自全量测试集，噪声实验来自含相关文档的子集，100% 噪声 Retrieve-Read 为 34.28）。改以两名标注者都引用的表3趋势作为必需证据，删除依赖该正文说法的禁止结论。 第三意见独立给出相同的表3趋势与相同的数值不一致提醒，支持修订。",
+        "record_path": "consensus.json#noise-q6"
+      }
+    },
+    {
+      "id": "noise-q7",
+      "version": "v1",
+      "family_id": "noise",
+      "split": "holdout",
+      "tags": [
+        "multi_source",
+        "insufficient"
+      ],
+      "target": "project_run",
+      "question": "能否根据这两篇论文得出“先用 LongLLMLingua 压缩、再用 Chain-of-Note 做阅读笔记”的组合效果？请说明论文能支持什么、还缺什么。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "chain-of-note",
+        "longllmlingua"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "id": "noise-q7-c1",
+            "statement": "Chain-of-Note 的结论来自其单独评测（例如在 NQ、TriviaQA、WebQ 和 RealTimeQA 上与标准 RALM 对比），未涉及提示压缩。",
+            "evidence_span_ids": [
+              "c-datasets"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "noise-q7-c2",
+            "statement": "LongLLMLingua 的结论来自其单独评测（例如以 GPT-3.5-Turbo 和 LongChat-13B-16k 为目标模型），未涉及阅读笔记。",
+            "evidence_span_ids": [
+              "g-llms"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "noise-q7-c3",
+            "statement": "两文都没有测试二者的组合，评测模型与设置也不同，因此不能给出组合效果结论，也不能把两边的收益相加，需要另做实验。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "组合使用必然叠加两者的提升。",
+          "论文报告了组合使用的实验结果。"
+        ],
+        "required_evidence_span_ids": [
+          "c-datasets",
+          "g-llms"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "组合流程在同一数据集上的实验"
+        ],
+        "rationale": "证据不足题。"
+      },
+      "kind": "insufficient_evidence",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "partially_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "none"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "partially_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "none"
+          }
+        ],
+        "tie_breaker": {
+          "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+          "answerability": "partially_answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        },
+        "status": "adjudicated",
+        "adjudication": "两名标注者都给出核心缺口（无组合实验、不能外推），但用以说明“各自单独评测”的证据与起草不同（机制与各自收益）。把来源侧结论放宽为“各自只单独评测（举例）”，接受任何说明两文单独评测的原文证据。 第三意见同样判为部分可答，并以模型/输入形式不同说明两文单独评测，支持放宽后的结论。",
+        "record_path": "consensus.json#noise-q7"
+      }
+    },
+    {
+      "id": "noise-q8",
+      "version": "v1",
+      "family_id": "noise",
+      "split": "holdout",
+      "tags": [
+        "out_of_scope"
+      ],
+      "target": "project_run",
+      "question": "当前只允许使用 LongLLMLingua 论文。请依据 Chain-of-Note 论文说明其混合训练（hybrid training）如何分配训练时间。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "longllmlingua"
+      ],
+      "forbidden_source_ids": [
+        "chain-of-note"
+      ],
+      "expectation": {
+        "outcome": "scope_refusal",
+        "required_conclusions": [
+          {
+            "id": "noise-q8-c1",
+            "statement": "Chain-of-Note 不在允许范围内，应拒绝越界读取并说明需扩大授权。",
+            "evidence_span_ids": [],
+            "basis": "scope_boundary"
+          }
+        ],
+        "forbidden_conclusions": [
+          "给出混合训练的时间分配比例。",
+          "用模型记忆补充未授权论文内容。"
+        ],
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "Chain-of-Note 资料范围授权"
+        ],
+        "rationale": "越界请求。"
+      },
+      "kind": "out_of_scope",
+      "difficulty": "easy",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#noise-q8"
+      }
+    },
+    {
+      "id": "longtail-q1",
+      "version": "v1",
+      "family_id": "longtail",
+      "split": "holdout",
+      "tags": [
+        "exact_name",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "PopQA 论文提出的 Adaptive Retrieval 如何决定是否检索？阈值按什么粒度确定？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "popqa"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "longtail-q1-c1",
+            "statement": "对流行度低于阈值的问题使用检索，对更流行实体的问题完全不检索。",
+            "evidence_span_ids": [
+              "p-threshold"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "longtail-q1-c2",
+            "statement": "流行度阈值针对每种关系类型分别确定。",
+            "evidence_span_ids": [
+              "p-per-rel"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "Adaptive Retrieval 根据模型输出置信度决定是否检索。",
+          "所有关系类型共用同一个全局阈值。"
+        ],
+        "required_evidence_span_ids": [
+          "p-per-rel",
+          "p-threshold"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "单篇事实。"
+      },
+      "kind": "single_fact",
+      "difficulty": "easy",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#longtail-q1"
+      }
+    },
+    {
+      "id": "longtail-q2",
+      "version": "v1",
+      "family_id": "longtail",
+      "split": "holdout",
+      "tags": [
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "PopQA 论文是否表明检索增强总能提高大模型的问答准确率？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "popqa"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "longtail-q2-c1",
+            "statement": "不能。检索增强对流行实体的问题可能损害大模型表现，因为检索内容可能误导。",
+            "evidence_span_ids": [
+              "p-hurt"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "longtail-q2-c2",
+            "statement": "约 10% 的问题中，检索增强使模型答错了它原本能答对的问题。",
+            "evidence_span_ids": [
+              "p-10pct"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "检索增强在所有问题上都提升了准确率。",
+          "检索对长尾问题没有帮助。"
+        ],
+        "required_evidence_span_ids": [
+          "p-10pct",
+          "p-hurt"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "过度概括陷阱。"
+      },
+      "kind": "overclaim_trap",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#longtail-q2"
+      }
+    },
+    {
+      "id": "longtail-q3",
+      "version": "v1",
+      "family_id": "longtail",
+      "split": "holdout",
+      "tags": [
+        "exact_name",
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "Dense X Retrieval 对“命题（proposition）”提出了哪三条定义原则？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "densex"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "longtail-q3-c1",
+            "statement": "每个命题对应文本中一个独立的意义片段，所有命题合起来表示全文语义。",
+            "evidence_span_ids": [
+              "d-p1"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "longtail-q3-c2",
+            "statement": "命题应是最小的，不能再拆分；命题应上下文化、自包含。",
+            "evidence_span_ids": [
+              "d-p2",
+              "d-p3"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "命题就是句子。",
+          "命题需要保留原文中的代词指代而不补全上下文。"
+        ],
+        "required_evidence_span_ids": [
+          "d-p1",
+          "d-p2",
+          "d-p3"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "单篇事实。"
+      },
+      "kind": "single_fact",
+      "difficulty": "easy",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#longtail-q3"
+      }
+    },
+    {
+      "id": "longtail-q4",
+      "version": "v1",
+      "family_id": "longtail",
+      "split": "holdout",
+      "tags": [
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "Dense X Retrieval 是否表明命题级索引对所有检索器和所有数据集的召回都优于段落级索引？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "densex"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "longtail-q4-c1",
+            "statement": "不是。对 DPR，在其训练过的四个数据集中有三个（SQuAD 除外）命题级和句子级检索略差于段落级。",
+            "evidence_span_ids": [
+              "d-dpr"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "longtail-q4-c2",
+            "statement": "对有监督检索器，命题级检索平均仍有优势，但提升幅度较小。",
+            "evidence_span_ids": [
+              "d-supervised"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "命题级索引在所有检索器和数据集上都优于段落级。",
+          "命题级索引对有监督检索器没有任何平均优势。"
+        ],
+        "required_evidence_span_ids": [
+          "d-dpr",
+          "d-supervised"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "过度概括陷阱。"
+      },
+      "kind": "overclaim_trap",
+      "difficulty": "hard",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "partial",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          }
+        ],
+        "tie_breaker": {
+          "labeler": "fresh Claude general-purpose subagent (same model family as drafter), blind, disputed items only",
+          "answerability": "answerable",
+          "answerability_agrees": true,
+          "points": "full",
+          "quote_overlap": "some"
+        },
+        "status": "consensus",
+        "adjudication": "Codex 以 DPR-NQ 具体数值说明反例并指出“平均更好≠每组合更好”，未明说有监督检索器提升幅度较小（partial）；Codex 另指出 DPR 在 WebQ 的 R@20 略升，正文“略差”是概括。保留原标签。 第三意见覆盖 DPR 例外与有监督检索器提升较小，支持原标签。",
+        "record_path": "consensus.json#longtail-q4"
+      }
+    },
+    {
+      "id": "longtail-q5",
+      "version": "v1",
+      "family_id": "longtail",
+      "split": "holdout",
+      "tags": [
+        "multi_source"
+      ],
+      "target": "project_run",
+      "question": "综合两篇论文：关于长尾（低流行度/低频）实体，二者分别发现了什么？",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "popqa",
+        "densex"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "longtail-q5-c1",
+            "statement": "PopQA 论文发现语言模型难以掌握低流行度事实知识，而检索增强在这些情况下帮助显著。",
+            "evidence_span_ids": [
+              "p-longtail"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "longtail-q5-c2",
+            "statement": "Dense X 发现命题级检索的性能增益主要来自针对长尾信息的查询。",
+            "evidence_span_ids": [
+              "d-longtail"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "两篇论文在同一实验中联合验证了命题检索与自适应检索的组合。",
+          "命题级检索能够替代模型参数记忆。"
+        ],
+        "required_evidence_span_ids": [
+          "d-longtail",
+          "p-longtail"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "跨论文综合，但不得虚构联合实验。"
+      },
+      "kind": "synthesis",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#longtail-q5"
+      }
+    },
+    {
+      "id": "longtail-q6",
+      "version": "v1",
+      "family_id": "longtail",
+      "split": "holdout",
+      "tags": [
+        "insufficient"
+      ],
+      "target": "project_run",
+      "question": "命题级检索在中文语料上是否同样有效？依据 Dense X Retrieval 论文说明。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "densex"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "id": "longtail-q6-c1",
+            "statement": "论文明确说明其研究仅限于英文维基百科。",
+            "evidence_span_ids": [
+              "d-english"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "longtail-q6-c2",
+            "statement": "论文没有中文实验，不能据此判断中文语料上的效果，需要另行验证。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "论文证明命题级检索在中文上同样有效。",
+          "论文证明命题级检索在中文上无效。"
+        ],
+        "required_evidence_span_ids": [
+          "d-english"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "中文语料上的实验结果"
+        ],
+        "rationale": "证据不足题。"
+      },
+      "kind": "insufficient_evidence",
+      "difficulty": "medium",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "partially_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "partially_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#longtail-q6"
+      }
+    },
+    {
+      "id": "longtail-q7",
+      "version": "v1",
+      "family_id": "longtail",
+      "split": "holdout",
+      "tags": [
+        "out_of_scope"
+      ],
+      "target": "project_run",
+      "question": "当前只允许使用 PopQA 论文（When Not to Trust Language Models）。请给出 Dense X Retrieval 论文中 FactoidWiki 的命题总数。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "popqa"
+      ],
+      "forbidden_source_ids": [
+        "densex"
+      ],
+      "expectation": {
+        "outcome": "scope_refusal",
+        "required_conclusions": [
+          {
+            "id": "longtail-q7-c1",
+            "statement": "Dense X Retrieval 不在允许范围内，应拒绝越界读取并说明需扩大授权。",
+            "evidence_span_ids": [],
+            "basis": "scope_boundary"
+          }
+        ],
+        "forbidden_conclusions": [
+          "给出 FactoidWiki 的命题数量。",
+          "用模型记忆补充未授权论文内容。"
+        ],
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": [],
+        "missing_information": [
+          "Dense X Retrieval 资料范围授权"
+        ],
+        "rationale": "越界请求。"
+      },
+      "kind": "out_of_scope",
+      "difficulty": "easy",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#longtail-q7"
+      }
+    },
+    {
+      "id": "longtail-q8",
+      "version": "v1",
+      "family_id": "longtail",
+      "split": "holdout",
+      "tags": [
+        "cross_span"
+      ],
+      "target": "project_run",
+      "question": "Dense X Retrieval 实验中一共比较了几种稠密检索器？请依据原文回答，并注意原文各处表述是否一致。",
+      "report_requirements": [
+        "用中文作答，保留论文中的方法名、实验条件及必要数字；每个事实引用原文证据。",
+        "区分论文作者报告、本项目实测和你的推论；不得把论文结果当作本项目已取得的改善。",
+        "仅使用允许论文，不以模型已有知识、论文参考文献中的外部全文或未授权资料补证。"
+      ],
+      "allowed_source_ids": [
+        "densex"
+      ],
+      "forbidden_source_ids": [],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "longtail-q8-c1",
+            "statement": "实验设置部分写明比较四种有监督或无监督稠密检索器（SimCSE、Contriever、DPR、GTR）。",
+            "evidence_span_ids": [
+              "d-four"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "longtail-q8-c2",
+            "statement": "局限部分却写“评测了 6 种流行的稠密检索器”，与实验部分不一致；回答应指出差异而不是只取其一。",
+            "evidence_span_ids": [
+              "d-six"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "论文各处一致地报告了 6 种检索器的结果。",
+          "自行补出未出现在实验表中的检索器名称。"
+        ],
+        "required_evidence_span_ids": [
+          "d-four",
+          "d-six"
+        ],
+        "conflict_span_ids": [],
+        "missing_information": [],
+        "rationale": "原文内部不一致；考查精确引用与不过度归纳。"
+      },
+      "kind": "overclaim_trap",
+      "difficulty": "hard",
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "claude-opus-5.5 (orchestrating agent)",
+        "verdicts": [
+          {
+            "labeler": "codex-cli 0.159.2 exec, read-only sandbox (self-reported model: GPT-6)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          }
+        ],
+        "tie_breaker": null,
+        "status": "consensus",
+        "adjudication": "两名独立标注者答案可答性一致，要点覆盖 full/partial，无需裁决。",
+        "record_path": "consensus.json#longtail-q8"
+      }
+    }
+  ]
+}

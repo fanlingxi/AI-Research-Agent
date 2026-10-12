@@ -32,7 +32,19 @@ describe("workspace API client", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/projects/project%20one/workspace-tasks/task%20one/context-snapshots/preview",
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({ method: "POST", body: "{}" }),
+    );
+  });
+
+  it("preserves an explicit snapshot budget", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.createSnapshot("project", "task", 8000);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/projects/project/workspace-tasks/task/context-snapshots",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ max_tokens: 8000 }) }),
     );
   });
 
@@ -48,11 +60,7 @@ describe("workspace API client", () => {
         method: "POST",
         body: JSON.stringify({
           context_snapshot_id: "snapshot",
-          workflow: "research",
           create_memory_proposal: false,
-          max_steps: 10,
-          max_tool_calls: 3,
-          token_budget: 6000,
         }),
       }),
     );

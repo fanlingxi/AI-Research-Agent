@@ -33,6 +33,8 @@ from app.execution import ExecutionFence
 from app.knowledge.repository import KnowledgeRepository
 from app.llms.provider import LLMClient, MockLLMClient, get_llm_client
 from app.memory.models import MemoryProposal
+from app.research_profiles import RETRIEVAL_FIELDS, resolve_research_profile
+from app.retrieval.coverage import CoreCoverageReranker
 from app.retrieval.query_planning import QueryPlanner
 from app.retrieval.reranking import EvidenceReranker
 
@@ -66,7 +68,8 @@ class AgentRunService:
         self.llm = llm or get_llm_client(self.settings)
         self.context_builder = context_builder or ContextBuilderService(
             knowledge_repository, query_planner=QueryPlanner(self.llm),
-            evidence_reranker=EvidenceReranker(self.llm)
+            evidence_reranker=EvidenceReranker(self.llm),
+            coverage_reranker=CoreCoverageReranker(self.llm),
         )
         self.plugin_registry = plugin_registry or create_builtin_plugin_registry()
         self.feedback = RunFeedbackService(self)
@@ -113,6 +116,41 @@ class AgentRunService:
                 f"Domain Plugin {task.domain_plugin_key} is not enabled for this Project."
             )
         plugin = self.plugin_registry.get(task.domain_plugin_key)
+        profile_metadata = {}
+        if (task.domain_plugin_key == "research" and request.workflow is None
+                and not request.model_fields_set & RETRIEVAL_FIELDS):
+            if request.context_snapshot_id:
+                context = self._resolve_context(project_id, task_id, request)
+            else:
+                context_options = {}
+                if request.context_max_tokens is not None:
+                    context_options["max_tokens"] = request.context_max_tokens
+                elif "token_budget" in request.model_fields_set:
+                    context_options["max_tokens"] = min(request.token_budget, 16000)
+                context = self.context_builder.build_research_context(
+                    ContextBuildRequest(
+                        project_id=project_id, task_id=task_id, **context_options,
+                    ),
+                    profile=self.settings.research_default_profile,
+                )
+            profile, reason = resolve_research_profile(
+                self.settings.research_default_profile,
+                has_scope=bool(context.project.knowledge_scopes),
+                reading_format=context.reading_format, notices=context.diagnostics.notices,
+            )
+            for notice in context.diagnostics.notices:
+                if notice.startswith("profile_fallback_reason:"):
+                    reason = notice.split(":", 1)[1]
+            values = request.model_dump(exclude_unset=True)
+            for key, value in profile.run_defaults().items():
+                if key not in request.model_fields_set or key == "workflow":
+                    values[key] = value
+            values.pop("context_max_tokens", None)
+            values["context_snapshot_id"] = context.snapshot_id
+            request = AgentRunCreateRequest(**values)
+            profile_metadata = {
+                "research_profile": profile.name, "profile_fallback_reason": reason,
+            }
         workflow_key = request.workflow or plugin.manifest.default_workflow_key
         plugin.validate_run_request(
             workflow_key,
@@ -127,6 +165,7 @@ class AgentRunService:
         options = AgentRunOptions(
             workflow=workflow_key,
             create_memory_proposal=request.create_memory_proposal,
+            **profile_metadata,
         )
         with self.knowledge_repository._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -550,7 +589,8 @@ class AgentRunService:
                     reading_format=(request.reading_format if request.reading_format != 'legacy'
                                     else 'research-v1' if request.workflow in {
                                         'research_v2', 'research_v3', 'research_v4',
-                                        'research_v5', 'research_v6', 'research_v7'
+                                        'research_v5', 'research_v6', 'research_v7',
+                                        'research_v8'
                                     }
                                     else 'legacy'),
                     max_tokens=(request.context_max_tokens if request.context_max_tokens is not None
@@ -562,7 +602,8 @@ class AgentRunService:
                 "ContextSnapshot does not belong to the requested Project and Task."
             )
         if request.workflow in {
-            'research_v2', 'research_v3', 'research_v4', 'research_v5', 'research_v6', 'research_v7'
+            'research_v2', 'research_v3', 'research_v4', 'research_v5', 'research_v6',
+            'research_v7', 'research_v8'
         }:
             if context.reading_format == 'legacy':
                 raise AgentRunConflictError(

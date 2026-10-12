@@ -40,6 +40,12 @@ from app.worker import KnowledgeWorker
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "data/evaluation/resume-closeout"
 CASES = ROOT / "benchmarks/research/closeout-v1/cases.json"
+SHARED_CONTEXT = {
+    "reading_format": "inline-v1",
+    "enable_vector_candidates": True,
+    "retrieval_strategy": "dense-v1",
+    "evidence_reranking": "coverage-v2",
+}
 
 
 def read(path):
@@ -152,14 +158,15 @@ def prepare():
     return {"output": str(output), "chunks": len(chunks)}
 
 
-def execute(output):
+def execute(output, *, cases_path=CASES, output_root=OUTPUT):
+    """Run each prepared case once per workflow; other frozen sets pass their own paths."""
     guard("RUN_LIVE_LLM_INTEGRATION")
     guard("RUN_STORE_INTEGRATION")
     output = Path(output).resolve(strict=True)
-    if output.parent != OUTPUT.resolve():
+    if output.parent != Path(output_root).resolve():
         raise ValueError("Execution requires this tool's prepared archive")
     config = read(output / "config.json")
-    if not config["prepared"] or config["cases_sha256"] != digest(CASES):
+    if not config["prepared"] or config["cases_sha256"] != digest(Path(cases_path)):
         raise ValueError("Preparation is incomplete or questions changed")
     if config["production_code"] != fingerprints():
         raise ValueError(
@@ -177,7 +184,7 @@ def execute(output):
         {
             "provider": client.provider_name,
             "model": client.model,
-            "max_calls": 180,
+            "max_calls": config["max_calls"],
             "output_tokens": 8192,
             "timeout": 120,
             "ranking_timeout": 90,
@@ -192,10 +199,15 @@ def execute(output):
     if real_db.exists():
         protected[real_db] = digest(real_db)
     mapping = read(seed / "source-map.json")
+    # Optional arms give each workflow its own snapshot settings (e.g. default vs candidate
+    # retrieval); without them every workflow shares the dense/coverage snapshot below.
+    arms = {a["name"]: a for a in config.get("arms") or []} or {
+        w: {"name": w, "workflow": w, "context": SHARED_CONTEXT} for w in config["workflows"]
+    }
     rows = [
-        {"case": c["id"], "workflow": w, "status": "not_attempted", "human_review": None}
+        {"case": c["id"], "workflow": name, "status": "not_attempted", "human_review": None}
         for c in config["cases"]
-        for w in config["workflows"]
+        for name in arms
     ]
     write(output / "results.json", rows)
     try:
@@ -236,31 +248,36 @@ def execute(output):
                     ),
                     coverage_reranker=CoreCoverageReranker(ranker),
                 )
-                package = builder.build_context(
-                    ContextBuildRequest(
-                        task_id=task.id,
-                        max_tokens=16000,
-                        reading_format="inline-v1",
-                        enable_vector_candidates=True,
-                        retrieval_strategy="dense-v1",
-                        evidence_reranking="coverage-v2",
+                packages = {}
+                for spec in {json.dumps(a["context"], sort_keys=True) for a in arms.values()}:
+                    context = json.loads(spec)
+                    package = builder.build_context(
+                        ContextBuildRequest(task_id=task.id, max_tokens=16000, **context)
                     )
-                )
-                if any("vector_unavailable" in n for n in package.diagnostics.notices):
-                    raise ValueError("Real vector retrieval unavailable")
-                for bundle in package.knowledge.claim_bundles:
-                    for chunk in bundle.chunks:
-                        entry = mapping["chunks"][chunk.chunk_id]
-                        if (
-                            entry["source_id"] not in case["source_ids"]
-                            or entry["text_sha256"] != chunk.content_sha256
-                            or entry["claim_id"] != bundle.claim.claim_id
-                        ):
-                            raise ValueError("Snapshot identity or scope violation")
-                write(folder / "snapshot.json", package.model_dump(mode="json"))
+                    if context.get("enable_vector_candidates") and any(
+                        "vector_unavailable" in n for n in package.diagnostics.notices
+                    ):
+                        raise ValueError("Real vector retrieval unavailable")
+                    for bundle in package.knowledge.claim_bundles:
+                        for chunk in bundle.chunks:
+                            entry = mapping["chunks"][chunk.chunk_id]
+                            if (
+                                entry["source_id"] not in case["source_ids"]
+                                or entry["text_sha256"] != chunk.content_sha256
+                                or entry["claim_id"] != bundle.claim.claim_id
+                            ):
+                                raise ValueError("Snapshot identity or scope violation")
+                    packages[spec] = package
+                for name, arm_spec in arms.items():
+                    package = packages[json.dumps(arm_spec["context"], sort_keys=True)]
+                    single = len(packages) == 1
+                    snapshot_name = "snapshot.json" if single else f"snapshot-{name}.json"
+                    write(folder / snapshot_name, package.model_dump(mode="json"))
                 cache = {}
                 for row in affected[:: 1 if index % 2 == 0 else -1]:
                     arm = folder / row["workflow"]
+                    arm_spec = arms[row["workflow"]]
+                    package = packages[json.dumps(arm_spec["context"], sort_keys=True)]
                     arm.mkdir()
                     current, service, recorded = None, None, None
                     started = time.perf_counter()
@@ -275,7 +292,7 @@ def execute(output):
                             task.id,
                             AgentRunCreateRequest(
                                 context_snapshot_id=package.snapshot_id,
-                                workflow=row["workflow"],
+                                workflow=arm_spec["workflow"],
                                 max_steps=10,
                                 max_tool_calls=3,
                                 token_budget=1048576,

@@ -1,19 +1,22 @@
-import { SemanticObservation } from "../components/SemanticObservation";
-import { MetricHelp } from "../components/MetricHelp";
 import { useQuery } from "@tanstack/react-query";
-import { FlaskConical, Search } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle, Search } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import { useSearchParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 
-import { EmptyBlock, ErrorBlock, LoadingBlock } from "../components/AsyncState";
+import { EmptyBlock, ErrorBlock, LoadingBlock, Notice } from "../components/AsyncState";
+import { MetricHelp } from "../components/MetricHelp";
+import { SemanticObservation } from "../components/SemanticObservation";
+import { Badge } from "../components/ui/badge";
+import { Card, CardContent } from "../components/ui/card";
+import { Field, Input, Select } from "../components/ui/field";
+import { Disclosure, Page, PageHeader, Stat } from "../components/ui/page";
 import { api, type ExperimentSummary, type ExperimentVariant } from "../lib/api";
 import { cn } from "../lib/utils";
 
 const STRATEGIES: Record<string, string> = { legacy: "旧策略", "bm25-v1": "BM25 单路", "hybrid-v1": "混合 RRF" };
 const STATUSES: Record<string, string> = { completed: "完成", failed: "失败", missing: "记录缺失", not_attempted: "未尝试", running: "进行中", preparing: "准备中" };
-const selectClass = "mt-1 w-full min-w-0 rounded-lg border bg-white px-3 py-2 text-sm";
 const percent = (value: number | null | undefined) => value == null ? "未评分" : `${(value * 100).toFixed(1)}%`;
 const money = (value: number | null) => value == null ? "未知" : `¥${value.toFixed(6)}`;
 const splitLabel = (split: string) => ({ dev: "开发集 dev", holdout: "历史保留集 holdout" })[split] ?? split;
@@ -21,15 +24,15 @@ const splitLabel = (split: string) => ({ dev: "开发集 dev", holdout: "历史�
 function BatchContext({ experiment }: { experiment: ExperimentSummary }) {
   const retrieval = experiment.kind === "retrieval";
   return (
-    <section aria-label="当前批次说明" className="space-y-3 rounded-xl border bg-panel p-4 text-sm">
-      <h2 className="font-semibold">{retrieval ? "历史检索对照" : "历史真实生成"} · {experiment.splits.map(splitLabel).join(" / ")} · {experiment.task_count} 题</h2>
-      <p className="break-all text-xs text-muted-ink">批次：{experiment.id}</p>
+    <section aria-label="当前批次说明" className="min-w-0 space-y-2 rounded-xl border bg-panel p-4 text-[13px] leading-6 text-ink-soft shadow-[var(--shadow-card)]">
+      <h2 className="text-[15px] font-semibold text-ink">{retrieval ? "历史检索对照" : "历史真实生成"} · {experiment.splits.map(splitLabel).join(" / ")} · {experiment.task_count} 题</h2>
+      <p className="break-all font-mono text-xs text-muted-ink">批次：{experiment.id}</p>
       <p>{retrieval
         ? "计分对象是本批次最终选中的原文证据：跨度覆盖、Recall、Hit、MRR 与 nDCG 均为检索指标。本批次没有生成报告，完成表示检索流程完成。"
         : "本批次运行了真实模型并归档报告；跨度覆盖衡量输入证据，不能作为报告正确率。完成表示运行完成，完整报告语义质量仍以另行核验为准。"}</p>
       {experiment.splits.includes("dev") && <p>开发集用于分析问题和调整方案，结果不能作为独立泛化验证。</p>}
       {experiment.splits.includes("holdout") && <p>这是当时冻结的保留集结果；历史记录不会随代码更新而重跑。后续改进需要新运行与独立验证，不能将这批结果理解为最新系统表现。</p>}
-      <p className="text-muted-ink">0% 表示该项已评分且得分为零；“未评分”表示没有可用评分。两者都不直接说明完整报告的语义质量。</p>
+      <p className="text-xs text-muted-ink">0% 表示该项已评分且得分为零；“未评分”表示没有可用评分。两者都不直接说明完整报告的语义质量。</p>
     </section>
   );
 }
@@ -45,41 +48,59 @@ const METRIC_HELP = {
   upper: "按归档用量与计价政策估算的费用上界，不是最终账单；信息不足时显示“未知”。",
 };
 
-function Variant({ variant }: { variant: ExperimentVariant }) {
+function Metric({ label, help, children, strong }: { label: string; help: string; children: ReactNode; strong?: boolean }) {
   return (
-    <article className="min-w-0 rounded-xl border bg-panel" aria-label={`${STRATEGIES[variant.strategy] ?? variant.strategy}结果`}>
+    <div className="min-w-0">
+      <dt><MetricHelp label={label} description={help} /></dt>
+      <dd className={cn("mt-0.5 tabular-nums text-ink", strong ? "font-semibold" : "text-ink-soft")}>{children}</dd>
+    </div>
+  );
+}
+
+function Variant({ variant }: { variant: ExperimentVariant }) {
+  const name = STRATEGIES[variant.strategy] ?? variant.strategy;
+  return (
+    <article className="min-w-0 rounded-xl border bg-panel shadow-[var(--shadow-card)]" aria-label={`${name}结果`}>
       <div className="border-b p-4">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-semibold">{STRATEGIES[variant.strategy] ?? variant.strategy}</h3>
-          <span className={cn("rounded-full px-2 py-1 text-xs", variant.status === "completed" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900")}>
-            {STATUSES[variant.status] ?? variant.status}
-          </span>
+          <h3 className="text-[15px] font-semibold text-ink">{name}</h3>
+          <Badge tone={variant.status === "completed" ? "success" : variant.status === "failed" ? "danger" : "warning"}>{STATUSES[variant.status] ?? variant.status}</Badge>
         </div>
-        <p className="mt-2 break-words text-xs text-muted-ink">{variant.model}</p>
-        <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
-          <div><dt><MetricHelp label="已选证据跨度覆盖" description={METRIC_HELP.span} /></dt><dd className="mt-1 font-semibold">{percent(variant.span_recall)}</dd></div>
-          <div><dt><MetricHelp label="检索 Recall@10" description={METRIC_HELP.recall} /></dt><dd className="mt-1 font-semibold">{percent(variant.metrics["recall@10"])}</dd></div>
-          <div><dt><MetricHelp label="Hit@10" description={METRIC_HELP.hit} /></dt><dd>{percent(variant.metrics["hit@10"])}</dd></div>
-          <div><dt className="flex flex-wrap gap-1"><MetricHelp label="MRR@10" description={METRIC_HELP.mrr} /><span className="text-xs text-muted-ink">·</span><MetricHelp label="nDCG@10" description={METRIC_HELP.ndcg} /></dt><dd>{percent(variant.metrics["mrr@10"])} · {percent(variant.metrics["ndcg@10"])}</dd></div>
-          <div><dt><MetricHelp label="时延" description={METRIC_HELP.latency} /></dt><dd>{variant.latency_ms == null ? "未知" : `${(variant.latency_ms / 1000).toFixed(3)} 秒`}</dd></div>
-          <div><dt><MetricHelp label="模型调用" description={METRIC_HELP.calls} /></dt><dd>{variant.model_calls ?? "未知"}</dd></div>
-          <div><dt><MetricHelp label="实际费用" description={METRIC_HELP.cost} /></dt><dd>{money(variant.cost_cny)}</dd></div>
-          <div><dt><MetricHelp label="费用估计上界" description={METRIC_HELP.upper} /></dt><dd>{money(variant.cost_upper_cny)}</dd></div>
+        <p className="mt-1 break-words text-xs text-muted-ink">{variant.model}</p>
+        <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5 text-[13px]">
+          <Metric label="已选证据跨度覆盖" help={METRIC_HELP.span} strong>{percent(variant.span_recall)}</Metric>
+          <Metric label="检索 Recall@10" help={METRIC_HELP.recall} strong>{percent(variant.metrics["recall@10"])}</Metric>
+          <Metric label="Hit@10" help={METRIC_HELP.hit}>{percent(variant.metrics["hit@10"])}</Metric>
+          <div className="min-w-0"><dt className="flex flex-wrap gap-1"><MetricHelp label="MRR@10" description={METRIC_HELP.mrr} /><span className="text-xs text-muted-ink">·</span><MetricHelp label="nDCG@10" description={METRIC_HELP.ndcg} /></dt><dd className="mt-0.5 tabular-nums text-ink-soft">{percent(variant.metrics["mrr@10"])} · {percent(variant.metrics["ndcg@10"])}</dd></div>
+          <Metric label="时延" help={METRIC_HELP.latency}>{variant.latency_ms == null ? "未知" : `${(variant.latency_ms / 1000).toFixed(3)} 秒`}</Metric>
+          <Metric label="模型调用" help={METRIC_HELP.calls}>{variant.model_calls ?? "未知"}</Metric>
+          <Metric label="实际费用" help={METRIC_HELP.cost}>{money(variant.cost_cny)}</Metric>
+          <Metric label="费用估计上界" help={METRIC_HELP.upper}>{money(variant.cost_upper_cny)}</Metric>
         </dl>
         <p className="mt-3 text-xs text-muted-ink">语义正确性：{variant.semantic_review}</p>
       </div>
-      <div className="space-y-4 p-4">
-        {variant.error && <div className="break-words rounded-lg bg-danger-soft p-3 text-sm text-red-900" role="note"><p className="font-medium">失败原因</p><p className="mt-1">{variant.error}</p></div>}
-        {variant.issues.map((issue) => <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900" key={issue}>{issue}</p>)}
-        {variant.content ? <details><summary className="cursor-pointer text-sm font-medium text-brand">查看生成报告</summary><div className="prose-workspace mt-3 break-words"><ReactMarkdown remarkPlugins={[remarkGfm]}>{variant.content}</ReactMarkdown></div></details> : <p className="text-xs text-muted-ink">{variant.model === "未调用（仅检索）" ? "本次只测检索，没有生成报告。" : "无可用生成报告；失败记录仍计入分母。"}</p>}
-        <div><h4 className="text-sm font-medium">已选原文 · {variant.evidence.length} 段</h4><p className="mt-1 text-xs text-muted-ink">按实际选择顺序展示；检索证据不等于语义验收。</p></div>
-        {!variant.evidence.length && <p className="rounded-lg border border-dashed p-3 text-sm text-muted-ink">没有可核验的原文片段。</p>}
+      <div className="space-y-3 p-4">
+        {variant.error ? <Notice tone="danger" title="失败原因"><span className="break-words">{variant.error}</span></Notice> : null}
+        {variant.issues.map((issue) => <Notice key={issue} tone="warning">{issue}</Notice>)}
+        {variant.content ? (
+          <Disclosure summary="查看生成报告">
+            <div className="prose-compact break-words"><ReactMarkdown remarkPlugins={[remarkGfm]}>{variant.content}</ReactMarkdown></div>
+          </Disclosure>
+        ) : <p className="text-xs text-muted-ink">{variant.model === "未调用（仅检索）" ? "本次只测检索，没有生成报告。" : "无可用生成报告；失败记录仍计入分母。"}</p>}
+        <div>
+          <h4 className="text-[13px] font-medium text-ink">已选原文 · {variant.evidence.length} 段</h4>
+          <p className="mt-0.5 text-xs text-muted-ink">按实际选择顺序展示；检索证据不等于语义验收。</p>
+        </div>
+        {!variant.evidence.length && <p className="rounded-lg border border-dashed p-3 text-[13px] text-muted-ink">没有可核验的原文片段。</p>}
         {variant.evidence.map((evidence, index) => (
-          <details className="rounded-lg border p-3" key={`${evidence.source_id}-${evidence.start}-${index}`} open={index === 0}>
-            <summary className="cursor-pointer text-sm"><span className="font-medium">{index + 1}. {evidence.source_id} · 第 {evidence.page} 页</span><span className="mt-1 block break-words text-xs text-muted-ink">{evidence.title}</span></summary>
-            <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6">{evidence.text}</p>
-            <p className="mt-3 break-all border-t pt-2 text-xs text-muted-ink">版本 {evidence.version} · 字符区间 [{evidence.start}, {evidence.end})</p>
-          </details>
+          <Disclosure
+            defaultOpen={index === 0}
+            key={`${evidence.source_id}-${evidence.start}-${index}`}
+            summary={<><span className="text-ink">{index + 1}. {evidence.source_id} · 第 {evidence.page} 页</span><span className="mt-0.5 block break-words text-xs font-normal text-muted-ink">{evidence.title}</span></>}
+          >
+            <p className="whitespace-pre-wrap break-words text-[13px] leading-6 text-ink-soft">{evidence.text}</p>
+            <p className="mt-2 break-all border-t pt-2 text-xs text-muted-ink">版本 {evidence.version} · 字符区间 [{evidence.start}, {evidence.end})</p>
+          </Disclosure>
         ))}
       </div>
     </article>
@@ -109,48 +130,80 @@ export function ExperimentsPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-8">
-      <header><div className="flex items-center gap-2 text-brand"><FlaskConical size={20} /><span className="text-sm font-medium">研究质量与实验</span></div><h1 className="mt-2 text-2xl font-semibold tracking-tight">实验对比</h1><p className="mt-2 text-sm text-muted-ink">查看同题策略、原文证据与失败。本页只读，不会启动模型调用。</p></header>
-      <SemanticObservation />
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="note">
-        <p className="font-medium">下方展示 A02 / A04 历史实验归档</p>
-        <p className="mt-1">批次列表尚未接入 A08 后续实验与报告修订，不能据此判断当前系统质量。A05 语义观察在上方单独展示。</p>
-      </div>
+    <Page width="wide" className="space-y-5">
+      <PageHeader title="实验对比" description="面向开发与评估：查看不同检索策略在同一批题目上的证据与失败记录。本页只读，不会调用模型。" />
+      <Notice tone="warning" icon={<AlertTriangle size={15} />} title="下方展示 A02 / A04 历史实验归档">
+        批次列表尚未接入 A08 后续实验与报告修订，不能据此判断当前系统质量。A05 语义观察在页面底部单独展示。
+      </Notice>
       {catalog.isPending && <LoadingBlock label="正在读取实验目录…" />}
-      {catalog.isError && <ErrorBlock error={catalog.error} onRetry={() => void catalog.refetch()} />}
-      {catalog.data?.unavailable.map((item) => <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" key={item.id}>不可用记录：{item.id} · {item.reason}</p>)}
+      {catalog.isError && <ErrorBlock error={catalog.error} onRetry={() => void catalog.refetch()} title="无法读取实验目录" />}
+      {catalog.data?.unavailable.length ? (
+        <Disclosure summary={`不可用的归档记录 · ${catalog.data.unavailable.length}`}>
+          <ul className="space-y-1 text-xs leading-5 text-muted-ink">{catalog.data.unavailable.map((item) => <li className="break-all" key={item.id}><span className="font-mono">{item.id}</span> · {item.reason}</li>)}</ul>
+        </Disclosure>
+      ) : null}
       {catalog.data && !catalog.data.experiments.length && <EmptyBlock title="尚无可查看的实验">完成一次受管评测后，结果会显示在这里。缺失或损坏的归档会单独提示。</EmptyBlock>}
-      {!!catalog.data?.experiments.length && <section className="grid gap-4 rounded-xl border bg-panel p-4 md:grid-cols-[minmax(0,1fr)_220px]">
-        <label className="min-w-0 text-xs font-medium text-muted-ink">实验批次<select aria-label="实验批次" className={selectClass} value={selectedId} onChange={(e) => { choose({ experiment: e.target.value, task: null }); setFilter("all"); setSearch(""); }}>
-          {catalog.data.experiments.map((item) => <option key={item.id} value={item.id}>{item.kind === "retrieval" ? "历史检索对照" : "历史真实生成"} · {item.splits.map(splitLabel).join(" / ")} · {item.task_count} 题 · {item.name}</option>)}
-        </select></label>
-        <label className="text-xs font-medium text-muted-ink">检索路径<select aria-label="检索路径" className={selectClass} value={path} disabled={experiment?.kind === "generation"} onChange={(e) => choose({ path: e.target.value, task: null })}><option value="project_run">项目研究 · claim bundle</option><option value="quick_report">快速报告 · chunk</option></select></label>
-      </section>}
+      {!!catalog.data?.experiments.length && (
+        <Card>
+          <CardContent className="grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_240px]">
+            <Field label="实验批次">
+              <Select aria-label="实验批次" value={selectedId} onChange={(e) => { choose({ experiment: e.target.value, task: null }); setFilter("all"); setSearch(""); }}>
+                {catalog.data.experiments.map((item) => <option key={item.id} value={item.id}>{item.kind === "retrieval" ? "历史检索对照" : "历史真实生成"} · {item.splits.map(splitLabel).join(" / ")} · {item.task_count} 题 · {item.name}</option>)}
+              </Select>
+            </Field>
+            <Field label="检索路径">
+              <Select aria-label="检索路径" value={path} disabled={experiment?.kind === "generation"} onChange={(e) => choose({ path: e.target.value, task: null })}><option value="project_run">项目研究 · claim bundle</option><option value="quick_report">快速报告 · chunk</option></Select>
+            </Field>
+          </CardContent>
+        </Card>
+      )}
       {selectedId && detail.isPending && <LoadingBlock label="正在读取实验结果…" />}
-      {detail.isError && <ErrorBlock error={detail.error} onRetry={() => void detail.refetch()} />}
+      {detail.isError && <ErrorBlock error={detail.error} onRetry={() => void detail.refetch()} title="无法读取实验结果" />}
       {experiment && <>
         <BatchContext experiment={experiment} />
-        <section className="grid gap-3 sm:grid-cols-3" aria-label="实验分母">
-          {[ ["计划记录", `${experiment.planned} 次 · ${experiment.task_count} 题`], ["完成 / 失败", `${experiment.status_counts.completed ?? 0} / ${experiment.status_counts.failed ?? 0}`], ["记录缺失 / 未尝试", `${experiment.status_counts.missing ?? 0} / ${experiment.status_counts.not_attempted ?? 0}`] ].map(([label, value]) => <div className="rounded-xl border bg-panel p-4" key={label}><p className="text-xs text-muted-ink">{label}</p><p className="mt-2 text-lg font-semibold">{value}</p></div>)}
-        </section>
-        <div className="rounded-xl border bg-brand-soft/30 p-4 text-sm"><p className="font-medium">{experiment.decision}</p><p className="mt-1 text-muted-ink">{experiment.model}。{experiment.limitations.join(" ")} 上方分母包含所有策略和路径，不随下方筛选减少。</p></div>
-        <div className="grid items-start gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
-          <aside className="min-w-0 rounded-xl border bg-panel p-3">
-            <label className="flex items-center gap-2 rounded-lg border px-3 py-2"><Search size={15} className="shrink-0 text-muted-ink" /><input className="w-full min-w-0 bg-transparent text-sm outline-none" aria-label="搜索题目" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="题号或问题关键词" /></label>
-            <select aria-label="结果筛选" className={selectClass} value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">全部题目</option><option value="failed">失败或缺失记录</option><option value="unscored">缺少跨度评分</option></select>
-            <p className="my-3 px-1 text-xs text-muted-ink">当前显示 {tasks.length} / {detail.data?.tasks.length} 题</p>
-            <div className="max-h-[600px] space-y-1 overflow-y-auto">{tasks.map((task) => <button key={task.id} onClick={() => choose({ task: task.id })} aria-pressed={taskId === task.id} className={cn("w-full rounded-lg p-3 text-left text-sm hover:bg-slate-50", taskId === task.id && "bg-brand-soft text-brand")}><span className="block text-xs font-semibold">{task.id} · {splitLabel(task.split)}</span><span className="mt-1 block">{task.question}</span>{task.variants.some((v) => v.path === path && v.status === "failed") && <span className="mt-1 block text-xs text-red-800">包含失败</span>}</button>)}</div>
+        <Card aria-label="实验分母">
+          <CardContent className="grid gap-4 p-4 sm:grid-cols-3">
+            <Stat label="计划记录" value={`${experiment.planned} 次 · ${experiment.task_count} 题`} />
+            <Stat label="完成 / 失败" value={`${experiment.status_counts.completed ?? 0} / ${experiment.status_counts.failed ?? 0}`} />
+            <Stat label="记录缺失 / 未尝试" value={`${experiment.status_counts.missing ?? 0} / ${experiment.status_counts.not_attempted ?? 0}`} />
+          </CardContent>
+        </Card>
+        <Notice title={experiment.decision}>{experiment.model}。{experiment.limitations.join(" ")} 上方分母包含所有策略和路径，不随下方筛选减少。</Notice>
+        <div className="grid items-start gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="min-w-0 space-y-2 rounded-xl border bg-panel p-3 shadow-[var(--shadow-card)]">
+            <div className="relative">
+              <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-ink" size={15} />
+              <Input aria-label="搜索题目" className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="题号或问题关键词" />
+            </div>
+            <Select aria-label="结果筛选" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">全部题目</option><option value="failed">失败或缺失记录</option><option value="unscored">缺少跨度评分</option></Select>
+            <p className="px-1 pt-1 text-xs text-muted-ink">当前显示 {tasks.length} / {detail.data?.tasks.length} 题</p>
+            <div className="max-h-72 space-y-0.5 overflow-y-auto overscroll-contain xl:max-h-[600px]">
+              {tasks.map((task) => (
+                <button key={task.id} onClick={() => choose({ task: task.id })} aria-pressed={taskId === task.id} className={cn("w-full rounded-lg px-3 py-2 text-left text-[13px] text-ink-soft hover:bg-subtle", taskId === task.id && "bg-brand-tint text-ink ring-1 ring-inset ring-brand/25")}>
+                  <span className="block text-xs font-medium text-muted-ink">{task.id} · {splitLabel(task.split)}</span>
+                  <span className="mt-0.5 block break-words leading-5">{task.question}</span>
+                  {task.variants.some((v) => v.path === path && v.status === "failed") && <span className="mt-1 block text-xs text-red-800">包含失败</span>}
+                </button>
+              ))}
+            </div>
           </aside>
           <section className="min-w-0 space-y-4">
             {!taskId && <EmptyBlock title="没有匹配的题目">调整关键词或筛选条件；筛选不会改变实验统计分母。</EmptyBlock>}
             {taskId && taskDetail.isPending && <LoadingBlock label="正在读取同题证据…" />}
-            {taskDetail.isError && <ErrorBlock error={taskDetail.error} onRetry={() => void taskDetail.refetch()} />}
-            {taskId && taskDetail.data && <><header><h2 className="text-lg font-semibold">{taskDetail.data.question}</h2><p className="mt-1 text-xs text-muted-ink">{taskId} · {splitLabel(taskDetail.data.split)} · {path === "project_run" ? "完整 claim bundle，受上下文预算约束" : "chunk 证据，每篇最多两段"}</p></header><div className={cn("grid items-start gap-4", taskDetail.data.variants.length > 1 && "2xl:grid-cols-3 lg:grid-cols-2")}>
-              {taskDetail.data.variants.map((variant) => <Variant key={variant.strategy} variant={variant} />)}
-            </div></>}
+            {taskDetail.isError && <ErrorBlock error={taskDetail.error} onRetry={() => void taskDetail.refetch()} title="无法读取这道题的证据" />}
+            {taskId && taskDetail.data && <>
+              <header className="min-w-0">
+                <h2 className="break-words text-[17px] font-semibold leading-7 text-ink">{taskDetail.data.question}</h2>
+                <p className="mt-0.5 text-xs text-muted-ink">{taskId} · {splitLabel(taskDetail.data.split)} · {path === "project_run" ? "完整 claim bundle，受上下文预算约束" : "chunk 证据，每篇最多两段"}</p>
+              </header>
+              <div className={cn("grid items-start gap-4", taskDetail.data.variants.length > 1 && "2xl:grid-cols-3 lg:grid-cols-2")}>
+                {taskDetail.data.variants.map((variant) => <Variant key={variant.strategy} variant={variant} />)}
+              </div>
+            </>}
           </section>
         </div>
       </>}
-    </div>
+      <SemanticObservation />
+    </Page>
   );
 }

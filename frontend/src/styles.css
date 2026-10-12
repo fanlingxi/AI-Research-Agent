@@ -1,16 +1,125 @@
 @import "tailwindcss";
 
-@theme {
-  --font-sans: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  --color-canvas: #f5f5f3;
-  --color-panel: #fcfcfb;
-  --color-ink: #18212f;
-  --color-muted-ink: #697386;
-  --color-line: #e5e7eb;
-  --color-brand: #195f63;
-  --color-brand-soft: #e6f1f0;
-  --color-warning-soft: #fff4df;
-  --color-danger-soft: #fce8e6;
+/*
+ * Design tokens. Calm warm-neutral canvas, white surfaces,
+ * one deep teal brand colour, and soft semantic tints for status.
+ */
+@theme static {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+
+  --color-danger-solid: #b91c1c;
+  --color-danger-hover: #991b1b;
+  --color-map-edge: #b8c2cf;
+  --color-map-evidence: #dfe4ea;
+  --color-map-dim: #eceef1;
+  --color-map-focus: #526173;
+  --color-map-pending: #d97706;
+  --color-map-paper: #195f63;
+  --color-map-method: #2f72b8;
+  --color-map-concept: #7c5cc4;
+  --color-map-task: #c77d1e;
+  --color-map-dataset: #2f8a5b;
+  --color-map-metric: #c0506f;
+  --color-map-finding: #7d8a24;
+  --color-map-topic: #4f6177;
+  --color-toolbar: #1c2430;
+  --color-brand-hover: #d8ebe6;
+  --color-on-brand: #ffffff;
+  --color-canvas: #f6f6f3;
+  --color-panel: #ffffff;
+  --color-subtle: #f3f4f1;
+  --color-ink: #1c2430;
+  --color-ink-soft: #3d4756;
+  --color-muted-ink: #6b7380;
+  --color-line: #e6e7e2;
+  --color-line-strong: #d4d6cf;
+
+  --color-brand: #1d6b63;
+  --color-brand-strong: #14524b;
+  --color-brand-soft: #e7f2ef;
+  --color-brand-tint: #f2f8f6;
+
+  --color-success-soft: #e8f5ec;
+  --color-warning-soft: #fdf3dd;
+  --color-danger-soft: #fcebea;
+  --color-info-soft: #e9f1fb;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.03);
+  --shadow-pop: 0 12px 32px -8px rgb(16 24 40 / 0.18), 0 2px 6px rgb(16 24 40 / 0.06);
+}
+
+
+html { color-scheme: light; }
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --color-map-edge: #728391;
+  --color-map-evidence: #50616f;
+  --color-map-dim: #384550;
+  --color-map-focus: #c0d2df;
+  --color-map-pending: #e9b65d;
+  --color-map-paper: #7bd4c3;
+  --color-map-method: #7bb7ef;
+  --color-map-concept: #b79bea;
+  --color-map-task: #e9b65d;
+  --color-map-dataset: #83c99f;
+  --color-map-metric: #e893ad;
+  --color-map-finding: #c0c879;
+  --color-map-topic: #a9bbcf;
+
+  --color-canvas: #151c22;
+  --color-panel: #1d272f;
+  --color-subtle: #27333d;
+  --color-ink: #e6edf2;
+  --color-ink-soft: #c4cfd8;
+  --color-muted-ink: #9baab7;
+  --color-line: #36434e;
+  --color-line-strong: #50616f;
+  --color-brand: #7bd4c3;
+  --color-brand-strong: #a0e4d6;
+  --color-on-brand: #102d29;
+  --color-brand-soft: #24443f;
+  --color-brand-tint: #203732;
+  --color-brand-hover: #30564e;
+  --color-success-soft: #233e32;
+  --color-warning-soft: #413723;
+  --color-danger-soft: #462b30;
+  --color-info-soft: #263b51;
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.2);
+  --shadow-pop: 0 12px 32px -8px rgb(0 0 0 / 0.5);
+  --color-amber-700: #f1cd83;
+  --color-amber-800: #f1cd83;
+  --color-amber-900: #f1cd83;
+  --color-amber-950: #f1cd83;
+  --color-amber-50: #413723;
+  --color-amber-100: #413723;
+  --color-amber-200: #80683e;
+  --color-amber-300: #80683e;
+  --color-emerald-700: #90d6ad;
+  --color-emerald-800: #90d6ad;
+  --color-emerald-900: #90d6ad;
+  --color-emerald-950: #90d6ad;
+  --color-emerald-50: #233e32;
+  --color-emerald-100: #233e32;
+  --color-emerald-200: #436e55;
+  --color-emerald-300: #436e55;
+  --color-red-700: #f4a6ad;
+  --color-red-800: #f4a6ad;
+  --color-red-900: #f4a6ad;
+  --color-red-950: #f4a6ad;
+  --color-red-50: #462b30;
+  --color-red-100: #462b30;
+  --color-red-200: #815058;
+  --color-red-300: #815058;
+  --color-sky-700: #9bcdf5;
+  --color-sky-800: #9bcdf5;
+  --color-sky-900: #9bcdf5;
+  --color-sky-950: #9bcdf5;
+  --color-sky-50: #263b51;
+  --color-sky-100: #263b51;
+  --color-sky-200: #426587;
+  --color-sky-300: #426587;
 }
 
 @layer base {
@@ -18,8 +127,13 @@
     @apply border-line;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    @apply m-0 min-w-80 bg-canvas font-sans text-ink antialiased;
+    @apply m-0 min-w-80 bg-canvas font-sans text-[14px] leading-6 text-ink antialiased;
+    font-feature-settings: "tnum" 0;
   }
 
   button,
@@ -30,39 +144,140 @@
   }
 
   button:not(:disabled),
-  [role="button"]:not(:disabled) {
+  [role="button"]:not(:disabled),
+  summary {
     @apply cursor-pointer;
+  }
+
+  ::selection {
+    @apply bg-brand-soft text-brand-strong;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
   }
 }
 
-.prose-workspace {
-  @apply max-w-none text-[15px] leading-7 text-slate-700;
+/* Long-form reading: reports and artifacts. */
+.prose-report {
+  @apply max-w-none text-[15.5px] leading-[1.85] text-ink-soft;
+  overflow-wrap: anywhere;
 }
 
-.prose-workspace h1,
-.prose-workspace h2,
-.prose-workspace h3 {
-  @apply mt-7 text-ink;
+.prose-report > :first-child {
+  @apply mt-0;
 }
 
-.prose-workspace h1 {
-  @apply text-2xl font-semibold;
+.prose-report h1 {
+  @apply mb-4 mt-10 text-[22px] font-semibold leading-snug tracking-tight text-ink;
 }
 
-.prose-workspace h2 {
-  @apply text-xl font-semibold;
+.prose-report h2 {
+  @apply mb-3 mt-10 border-b pb-2 text-[19px] font-semibold leading-snug text-ink;
 }
 
-.prose-workspace h3 {
-  @apply text-lg font-semibold;
+.prose-report h3 {
+  @apply mb-2 mt-8 text-[16.5px] font-semibold text-ink;
 }
 
-.prose-workspace p,
-.prose-workspace ul,
-.prose-workspace ol {
+.prose-report p,
+.prose-report ul,
+.prose-report ol,
+.prose-report blockquote,
+.prose-report table {
   @apply my-4;
 }
 
-.prose-workspace code {
-  @apply rounded bg-slate-100 px-1.5 py-0.5 text-[0.9em];
+.prose-report ul {
+  @apply list-disc pl-6;
 }
+
+.prose-report ol {
+  @apply list-decimal pl-6;
+}
+
+.prose-report li {
+  @apply my-2 pl-1;
+}
+
+.prose-report li::marker {
+  @apply text-muted-ink;
+}
+
+.prose-report strong {
+  @apply font-semibold text-ink;
+}
+
+.prose-report a:not([data-citation]) {
+  @apply text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand;
+}
+
+.prose-report blockquote {
+  @apply border-l-[3px] border-brand/40 bg-brand-tint px-4 py-2 text-ink-soft;
+}
+
+.prose-report code {
+  @apply rounded bg-subtle px-1.5 py-0.5 font-mono text-[0.88em];
+}
+
+.prose-report hr {
+  @apply my-8 border-line;
+}
+
+.prose-report .table-scroll {
+  @apply my-5 overflow-x-auto rounded-lg border;
+}
+
+.prose-report table {
+  @apply my-0 w-full border-collapse text-[14px] leading-6;
+}
+
+.prose-report th {
+  @apply whitespace-nowrap bg-subtle px-3 py-2 text-left font-semibold text-ink;
+}
+
+.prose-report td {
+  @apply border-t px-3 py-2.5 align-top;
+  min-width: 8rem;
+}
+
+/* Compact markdown for previews inside cards. */
+.prose-compact {
+  @apply text-sm leading-7 text-ink-soft;
+  overflow-wrap: anywhere;
+}
+
+.prose-compact h1,
+.prose-compact h2,
+.prose-compact h3 {
+  @apply mt-5 font-semibold text-ink;
+}
+
+.prose-compact p,
+.prose-compact ul,
+.prose-compact ol {
+  @apply my-3;
+}
+
+.prose-compact ul {
+  @apply list-disc pl-5;
+}
+
+.prose-compact ol {
+  @apply list-decimal pl-5;
+}
+
+/* Thin, unobtrusive scrollbars for bounded lists. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+.prose-report pre {
+  @apply my-4 overflow-x-auto rounded-lg border bg-subtle p-4 text-ink-soft;
+}
+.prose-report pre code { padding: 0; background: transparent; }

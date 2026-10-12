@@ -28,7 +28,9 @@ powershell -ExecutionPolicy Bypass -File scripts/local.ps1 status
 powershell -ExecutionPolicy Bypass -File scripts/local.ps1 stop
 ```
 
-首次启动从 `.env.example` 创建被忽略的 `.env`，保留已有配置。工作台在 `http://127.0.0.1:5173`，API 文档在 `http://127.0.0.1:8000/docs`。脚本在后台启动 API、Worker、React 前端，记录位于 `data/runtime/local/`。
+首次启动从 `.env.example` 创建被忽略的 `.env`，保留已有配置。工作台在 `http://127.0.0.1:5173`，API 文档在 `http://127.0.0.1:8000/docs`。左侧导航按主路径排列：首页提问、知识库导入、知识图谱、审核、报告、项目；运行记录和实验对比在“高级”分组。脚本在后台启动 API、Worker、React 前端，记录位于 `data/runtime/local/`。
+
+项目研究默认使用“标准”配置（向量检索 + 覆盖选材 + `research_v8`），因此需要 Qdrant 和本地向量模型；不可用时会自动降级为“经典”配置，并在快照中记录原因。在 `.env` 中设置 `RESEARCH_DEFAULT_PROFILE=classic` 可整体回退，修改后需重启 API 和 Worker。
 
 无模型和检索服务时可检查项目管理、运行状态及确定性演示；真实抽取和报告需要配置模型提供方、模型名及对应密钥。完整知识投影还需要 Qdrant、Neo4j；可使用现有 `docker compose up -d qdrant neo4j`，先设置本地 Neo4j 密码。缺依赖时页面显示降级。`.env` 不进入版本控制。
 
@@ -44,6 +46,13 @@ powershell -ExecutionPolicy Bypass -File scripts/local.ps1 stop
 升级这一版本前先停止旧 API/Worker，再用当前代码启动。新任务使用 `unified-worker-v2`，检测到近期旧 Worker 心跳时拒绝提交。React 已覆盖原 Streamlit 运维功能，本地启动不再需要 8501 端口；已有 `.env` 的旧运维 URL 可移除，不影响当前配置。
 
 命令行维护入口继续保留，例如先用 `python -m app.knowledge.rebuild --help` 查看参数。网页与 CLI 复用相同的重建服务，不同时发起重建。
+
+旧版本导入的资料若标题显示为 “untitled”（中文论文的伪粗体标题和占位元数据），可从原 PDF 重新解析标题，并修正生成摘要中的占位书名；只改显示标题，不改正文、哈希、版本和既有快照：
+
+```powershell
+.\.venv\Scripts\python.exe -m app.knowledge.maintenance refresh-titles --dry-run
+.\.venv\Scripts\python.exe -m app.knowledge.maintenance refresh-titles
+```
 
 ## 可选本地向量服务
 

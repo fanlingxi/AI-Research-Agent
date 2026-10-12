@@ -26,7 +26,7 @@
 .\.venv\Scripts\python.exe -m app.benchmarking --manifest benchmarks/phase6/cases/v1/manifest.json --output data/reports/phase6
 ```
 
-基准使用历史版本标识，详见[评测说明](../../benchmarks/phase6/README.md)。结果表示这次确定性契约检查是否通过，不是人工批准的质量基线。以前的运行记录单独保存在[历史结果说明](../evaluation/phase6-history.md)。
+基准使用历史版本标识，详见[评测说明](../../benchmarks/phase6/README.md)。结果表示这次确定性契约检查是否通过，不是人工批准的质量基线。
 
 ## 体验实际工作台
 

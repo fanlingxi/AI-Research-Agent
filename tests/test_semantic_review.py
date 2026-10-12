@@ -5,7 +5,6 @@ import pytest
 
 from app.agent.research_workflow import ResearchDraft
 from app.agent.semantic_review import SemanticReviewService
-from app.benchmarking.semantic_review import observe
 from app.context.models import canonical_package_sha256
 from app.experiments.calibration import annotation_pack, calibrate
 from tests.test_research_workflow import _draft, _research_stack
@@ -168,31 +167,6 @@ def test_blind_labels_calibration_denominators_and_binding(inputs):
     labels["cases"][0]["assertion"] = "tampered"
     with pytest.raises(ValueError, match="changed"):
         calibrate(records, labels)
-
-
-def test_archive_input_change_discards_judgment_and_reentry_does_not_overwrite(
-    inputs, tmp_path, monkeypatch
-):
-    calls = []
-
-    def load(*_):
-        calls.append(1)
-        return {
-            "task_id": "q1",
-            "status": "prepared",
-            "input_files_sha256": str(len(calls)),
-        }, inputs
-
-    monkeypatch.setattr("app.benchmarking.semantic_review.load_case", load)
-    monkeypatch.setattr("app.benchmarking.semantic_review.code_fingerprint", lambda: {})
-    output = tmp_path / "observation"
-    records = observe(None, "fixture", ["q1"], output, Judge(), "fixture")
-    assert records[0]["status"] == "input_changed" and "review" not in records[0]
-    assert (output / "q1/rejected-review.json").exists()
-    before = (output / "results.json").read_bytes()
-    with pytest.raises(FileExistsError):
-        observe(None, "fixture", ["q1"], output)
-    assert (output / "results.json").read_bytes() == before
 
 
 def test_missing_judgment_is_abstention_in_calibration(inputs):

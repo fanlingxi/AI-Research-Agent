@@ -25,10 +25,14 @@ def parse_pdf_source(
 
     page_texts = []
     page_numbers = []
+    fallback_pages = []
     for page_index in range(page_limit):
         text = reader.pages[page_index].extract_text() or ""
+        if has_garbled_glyph_decoding(text):
+            text = decode_offset_glyphs(text)
+            fallback_pages.append(page_index + 1)
         if text.strip():
-            page_texts.append(sanitize_utf8_text(text.strip()))
+            page_texts.append(collapse_fake_bold(sanitize_utf8_text(text.strip())))
             page_numbers.append(page_index + 1)
 
     metadata_title = reader.metadata.title if reader.metadata and reader.metadata.title else None
@@ -47,8 +51,70 @@ def parse_pdf_source(
         metadata={
             "file_name": path.name,
             "original_source": source,
+            **(
+                {
+                    "glyph_offset_decoded_pages": fallback_pages,
+                    "glyph_offset_decoding": "U+5B00 offset, OT1 ligatures",
+                }
+                if fallback_pages
+                else {}
+            ),
         },
     )
+
+
+# Broken embedded Latin fonts in CCL PDFs map ASCII/ligatures into U+5B00-5B7F.
+# Allow adjacent glyphs in the surrounding blocks, but require rare core glyphs:
+# ordinary Chinese, names and fake-bold repetitions must not trigger a fallback.
+_GLYPH_RUN = re.compile(r"[\u5a00-\u5bff\s]+")
+_COMMON_CORE_GLYPHS = frozenset("子孔孕字存孙孝孟季孤孩孫")
+
+
+def has_garbled_glyph_decoding(text: str) -> bool:
+    """Detect clustered CCL font-decoding noise, not general Chinese mojibake.
+
+    A local run needs eight glyphs, four distinct glyphs and at least half rare
+    U+5B00-5B7F glyphs. Local evidence catches even small corrupt citations on
+    otherwise normal pages without relying on a page-wide Chinese percentage.
+    This deliberately conservative heuristic is not a language/word classifier.
+    """
+    for match in _GLYPH_RUN.finditer(text):
+        glyphs = "".join(match.group().split())
+        if len(glyphs) < 8 or len(set(glyphs)) < 4:
+            continue
+        rare_count = sum(
+            "\u5b00" <= char <= "\u5b7f" and char not in _COMMON_CORE_GLYPHS
+            for char in glyphs
+        )
+        if rare_count >= max(4, len(glyphs) / 2):
+            return True
+    return False
+
+
+# Their ToUnicode map shifts every code by U+5B00 ("孩孴" = "it"); codes 0x0B-0x0F are the
+# TeX OT1 ligatures. Any extractor that trusts the map returns the same noise.
+_OT1_LIGATURES = {0x0B: "ff", 0x0C: "fi", 0x0D: "fl", 0x0E: "ffi", 0x0F: "ffl"}
+
+
+def decode_offset_glyphs(text: str) -> str:
+    """Decode only the glyph runs the detector flags; ordinary Chinese is left alone."""
+
+    def decode(match: re.Match[str]) -> str:
+        run = match.group()
+        if not has_garbled_glyph_decoding(run):
+            return run
+        out = []
+        for char in run:
+            code = ord(char) - 0x5B00
+            if 0x20 <= code <= 0x7E:
+                out.append(chr(code))
+            elif code in _OT1_LIGATURES:
+                out.append(_OT1_LIGATURES[code])
+            else:
+                out.append(char)
+        return "".join(out)
+
+    return _GLYPH_RUN.sub(decode, text)
 
 
 def _resolve_pdf_source(source: str, download_dir: str) -> Path:
@@ -90,11 +156,42 @@ def _slugify(value: str) -> str:
     return slug or "downloaded-paper"
 
 
+_PLACEHOLDER_TITLES = {"untitled", "title", "untitled document", "no title", "document", "paper"}
+# Fake-bold PDFs draw each glyph several times; extractors emit "基 基 基于 于 于".
+_FAKE_BOLD = re.compile(r"([^\x00-\x7f\s]) \1 \1")
+
+
+# Running headers such as "Proceedings of ... pages 338–354" or "©2024 Association for ...".
+_VENUE_LINE = re.compile(
+    r"\bpages \d+\s*[–-]\s*\d+|©|\(v ?olume \d|association for computational linguistics"
+    r"|\b(?:january|february|march|april|may|june|july|august|september|october|november"
+    r"|december) \d{1,2}\s*[–-]\s*\d{1,2},? \d{4}|arxiv:\d",
+    re.IGNORECASE,
+)
+
+
+def collapse_fake_bold(text: str) -> str:
+    """Undo repeated-glyph stutter only on lines that clearly show the pattern."""
+
+    lines = []
+    for line in text.split("\n"):
+        if len(_FAKE_BOLD.findall(line)) >= 2:
+            line = _FAKE_BOLD.sub(r"\1", line)
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def _usable_title(value: str | None) -> str | None:
     if not value:
         return None
     normalized = re.sub(r"\s+", " ", value).strip()
-    if not normalized or normalized.lower().endswith(".pdf"):
+    lowered = normalized.lower()
+    if (
+        not normalized
+        or lowered.endswith((".pdf", ".doc", ".docx", ".tex"))
+        or lowered in _PLACEHOLDER_TITLES
+        or lowered.startswith("microsoft word - ")
+    ):
         return None
     return normalized
 
@@ -121,10 +218,12 @@ def _infer_title(page_texts: list[str]) -> str | None:
     for index, line in enumerate(lines):
         candidate = re.sub(r"\s+", " ", line).strip()
         lowered = candidate.lower()
+        cjk = sum("一" <= char <= "鿿" for char in candidate)
         if (
-            12 <= len(candidate) <= 220
+            (12 if cjk < 4 else 6) <= len(candidate) <= 220
             and any(char.isalpha() for char in candidate)
             and not lowered.startswith(blocked_prefixes)
+            and not _VENUE_LINE.search(candidate)
         ):
             continuation = _title_continuation(lines[index + 1 : index + 3])
             return f"{candidate} {continuation}".strip()
@@ -139,7 +238,15 @@ def _title_continuation(lines: list[str]) -> str:
         candidate = re.sub(r"\s+", " ", line).strip()
         if not candidate or len(candidate) > 140:
             break
-        if any(marker in candidate for marker in ("@", "∗", "*", "†", "‡")):
+        if any(marker in candidate for marker in ("@", "∗", "*", "†", "‡", "，", "、")):
+            break
+        words = candidate.split()
+        if candidate.count(",") >= 2 or (
+            len(words) >= 6 and all(w[:1].isupper() and w.isalpha() for w in words)
+        ):
+            break  # English author list
+        # A short all-CJK line under a Chinese title is an author name, not a wrap.
+        if len(candidate) <= 4 and all("一" <= char <= "鿿" for char in candidate):
             break
         if re.search(r"\d", candidate):
             break

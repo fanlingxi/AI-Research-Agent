@@ -38,6 +38,7 @@ data/processed/*
 data/reports/*
 data/runtime/*
 data/evaluation/*
+data/demos/*
 data/models/*
 data/tools/*
 data/backups/*
@@ -63,3 +64,6 @@ data/real_world_test/
 /docs/LOCAL_DEVELOPMENT.md
 /docs/changes/
 /docs/improvement/
+
+# Local agent worktrees and editor launch configs.
+.claude/

@@ -209,13 +209,15 @@ class ResearchCommandService:
         try:
             context = self.agent_service.context_builder.snapshot_repository.get(snapshot_id)
         except KeyError:
-            context = self.agent_service.context_builder.build_context(
+            context = self.agent_service.context_builder.build_research_context(
                 ContextBuildRequest(
                     task_id=task.id,
                     project_id=payload.project_id,
                     snapshot_id=snapshot_id,
-                    max_tokens=payload.token_budget,
-                )
+                    **({"max_tokens": min(payload.token_budget, 16000)}
+                       if payload.token_budget is not None else {}),
+                ),
+                profile=self.agent_service.settings.research_default_profile,
             )
         command = self.repository.update_progress(
             command.id,
@@ -234,11 +236,11 @@ class ResearchCommandService:
                 task.id,
                 AgentRunCreateRequest(
                     context_snapshot_id=context.snapshot_id,
-                    workflow="research",
                     create_memory_proposal=payload.create_memory_proposal,
                     max_steps=payload.max_steps,
                     max_tool_calls=payload.max_tool_calls,
-                    token_budget=payload.token_budget,
+                    **({"token_budget": payload.token_budget}
+                       if payload.token_budget is not None else {}),
                 ),
                 run_id=run_id,
             )

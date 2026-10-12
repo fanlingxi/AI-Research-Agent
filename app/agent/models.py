@@ -38,14 +38,16 @@ class AgentRunOptions(BaseModel):
 
     workflow: AgentWorkflow = Field(default="research", min_length=2, max_length=64)
     create_memory_proposal: bool = False
+    research_profile: Literal["standard", "classic"] | None = None
+    profile_fallback_reason: str | None = None
 
 
 class AgentRunCreateRequest(BaseModel):
     """Bounded request resolved against the WorkspaceTask's Domain Plugin."""
 
     context_snapshot_id: str | None = Field(default=None, min_length=1)
-    # Omitted requests retain the established Research default. A different
-    # Plugin may supply its own default workflow once it is bound to the task.
+    # Omitted Research workflows follow the configured profile and frozen context.
+    # Other Plugins retain their own manifest default.
     workflow: AgentWorkflow | None = Field(default=None, min_length=2, max_length=64)
     create_memory_proposal: bool = False
     # The deterministic foundation graph has three nodes.  A smaller bound

@@ -11,7 +11,6 @@
 | 本地修改与验证方式 | [开发说明](DEVELOPMENT.md) |
 | 一次可运行的离线演示 | [演示指南](demo/DEMO_GUIDE.md) |
 | 最新实测结果和已知局限 | [项目状态](PROJECT_STATUS.md) |
-| 较早阶段的确定性评测记录 | [Phase 6 历史结果](evaluation/phase6-history.md) |
 
 应用名称统一为“证据驱动的智能研究工作台”。Python 项目名 `research-knowledge-core` 保留兼容。
 

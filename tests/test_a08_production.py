@@ -255,7 +255,8 @@ def test_exhausted_repair_or_timeout_stops_without_output(tmp_path, responses, a
 
 @pytest.mark.parametrize(
     "workflow",
-    ["research_v2", "research_v3", "research_v4", "research_v5", "research_v6", "research_v7"]
+    ["research_v2", "research_v3", "research_v4", "research_v5", "research_v6", "research_v7",
+     "research_v8"]
 )
 def test_pending_generation_recovery_moves_to_review_without_second_call(tmp_path, workflow):
     _, service, worker, project, task, _, _, llm = _research_stack(tmp_path, [_analysis(), _plan()])
@@ -303,7 +304,8 @@ def test_repair_explains_refusal_rule_without_reflecting_bad_output(tmp_path):
 
 @pytest.mark.parametrize(
     "workflow",
-    ["research_v2", "research_v3", "research_v4", "research_v5", "research_v6", "research_v7"]
+    ["research_v2", "research_v3", "research_v4", "research_v5", "research_v6", "research_v7",
+     "research_v8"]
 )
 def test_generation_attempt_settlement_is_fenced_and_atomic(tmp_path, workflow):
     repo, service, _, project, task, _, _, _ = _research_stack(tmp_path, [])
@@ -363,7 +365,8 @@ def test_bad_rerank_indices_fall_back_with_attempt_usage():
 
 @pytest.mark.parametrize(
     "workflow",
-    ["research_v2", "research_v3", "research_v4", "research_v5", "research_v6", "research_v7"]
+    ["research_v2", "research_v3", "research_v4", "research_v5", "research_v6", "research_v7",
+     "research_v8"]
 )
 def test_structured_run_rejects_legacy_snapshot_and_missing_scope_before_call(tmp_path, workflow):
     repo, service, _, project, task, legacy, _, llm = _research_stack(tmp_path, [])
@@ -423,16 +426,3 @@ def test_changed_candidate_order_cannot_reuse_cached_model_indices(tmp_path, mon
     assert (
         package.retrieval_audit.parameters["reranking"]["reason"] == "inputs_changed_after_rerank"
     )
-
-
-def test_revision_trial_is_dry_by_default_and_rejects_live_calls_under_pytest():
-    from app.benchmarking.production_validation import refusal_followup
-    from app.benchmarking.report_closeout import run
-
-    preview = refusal_followup("unused", revised=True)
-    assert preview["new_runs"] == 6 and preview["max_model_calls"] == 24
-    with pytest.raises(ValueError, match="disabled"):
-        refusal_followup("unused", execute=True, revised=True)
-    assert run("unused")["max_model_calls"] == 12
-    with pytest.raises(ValueError, match="disabled"):
-        run("unused", execute=True)

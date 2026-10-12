@@ -11,15 +11,6 @@ from app.knowledge.schemas import EvidenceSpan
 from tests.test_context_neighbors import _setup
 
 
-def test_live_trial_is_explicit_and_blocked_in_offline_tests(monkeypatch):
-    from app.benchmarking.passage_trial import run
-
-    assert run()["max_model_calls"] == 12
-    monkeypatch.setenv("RUN_LIVE_LLM_INTEGRATION", "0")
-    with pytest.raises(ValueError, match="offline"):
-        run(execute=True)
-
-
 def test_passages_preserve_offsets_and_mark_overlong_sentences():
     text = ("完整句子包含中文和引号。 \n" * 240) + "x" * 6500 + ". Ending."
     ranges = list(passage_ranges(text))

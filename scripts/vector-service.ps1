@@ -18,10 +18,14 @@ function Get-ManagedProcess {
     if (!(Test-Path -LiteralPath $statePath)) { return $null }
     $record = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
     $process = Get-Process -Id $record.id -ErrorAction SilentlyContinue
-    if ($process -and $process.Path -eq $executable -and
-        $process.StartTime.ToUniversalTime().ToString('o') -eq $record.started) {
-        return $process
-    }
+    if (!$process -or !$process.Path) { return $null }
+    # Join-Path keeps the forward slashes above while Process.Path is canonical, and
+    # PowerShell 7 parses ISO timestamps from JSON; compare normalized values instead.
+    $samePath = [IO.Path]::GetFullPath($process.Path) -eq [IO.Path]::GetFullPath($executable)
+    $recorded = [datetime]::Parse([string]$record.started, $null,
+        [Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()
+    $sameStart = [math]::Abs(($process.StartTime.ToUniversalTime() - $recorded).TotalSeconds) -lt 1
+    if ($samePath -and $sameStart) { return $process }
     return $null
 }
 

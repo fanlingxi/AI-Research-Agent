@@ -283,13 +283,52 @@ interface CandidateBase {
 export interface EntityCandidate extends CandidateBase {
   name: string;
   type: string;
+  aliases?: string[];
+  merge_suggestions?: MergeSuggestion[];
 }
+
+export interface MergeSuggestion {
+  entity_id: string;
+  name: string;
+  type: string;
+  similarity: number;
+  match_kind: "exact" | "similar" | string;
+  /** Existing entity has a different but interchangeable type (概念/方法/任务). */
+  type_differs?: boolean;
+}
+
+export interface DuplicateGroup {
+  key: string;
+  name: string;
+  type: string;
+  /** Existing published entity the drafts most likely denote; null when only drafts share the name. */
+  target: MergeSuggestion | null;
+  candidates: EntityCandidate[];
+}
+
+export interface DocumentSource {
+  document_id: string;
+  title: string;
+  local_path: string | null;
+  source_url: string | null;
+  pages: number;
+}
+
+export interface DuplicateGroups {
+  groups: DuplicateGroup[];
+  candidate_count: number;
+}
+
+export type CandidateDecisionKind = "approve" | "reject" | "defer" | "merge";
 
 export interface RelationCandidate extends CandidateBase {
   source_candidate_id: string;
   target_candidate_id: string;
   source_name?: string;
   target_name?: string;
+  /** Name of the published entity a merged endpoint resolves to, when it differs. */
+  source_canonical_name?: string;
+  target_canonical_name?: string;
   type: string;
 }
 
@@ -314,9 +353,16 @@ export interface BulkApprovalResult {
   blocked_relations: number;
 }
 
+export interface CandidateDecisionResult {
+  candidate: KnowledgeCandidate & { candidate: { canonical_id?: string | null } };
+  applied: boolean;
+  replayed: boolean;
+  projection_status: string;
+}
+
 export interface BulkCandidateDecisionResult {
   ingestion: KnowledgeIngestion;
-  decision: "approve" | "reject" | "defer";
+  decision: CandidateDecisionKind;
   requested: number;
   applied: number;
   replayed: number;
@@ -465,7 +511,7 @@ export type ResearchCommandInput =
       create_memory_proposal: boolean;
       max_steps: number;
       max_tool_calls: number;
-      token_budget: number;
+      token_budget?: number;
     };
 
 export interface ResearchCommand {
@@ -483,6 +529,39 @@ export interface ResearchCommand {
   error: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface KnowledgeEvidenceRef {
+  paper_id: string;
+  chunk_id: string;
+  page_start: number;
+  page_end: number;
+  quote: string;
+}
+
+export interface KnowledgeEntity {
+  id: string;
+  name: string;
+  type: string;
+  summary: string;
+  aliases: string[];
+  evidence: KnowledgeEvidenceRef[];
+}
+
+export interface KnowledgeRelation {
+  id: string;
+  source_entity_id: string;
+  target_entity_id: string;
+  type: string;
+  summary: string;
+  confidence: number;
+  evidence: KnowledgeEvidenceRef[];
+}
+
+export interface KnowledgeCollectionDetail {
+  collection: KnowledgeCollection;
+  entities: KnowledgeEntity[];
+  relations: KnowledgeRelation[];
 }
 
 export interface KnowledgeSearchResult {
@@ -702,6 +781,7 @@ export const api = {
       `/api/projects/${path(projectId)}/knowledge-scopes`,
     ),
   collections: () => request<KnowledgeCollection[]>("/api/knowledge/collections"),
+  collection: (slug: string) => request<KnowledgeCollectionDetail>(`/api/knowledge/collections/${path(slug)}`),
   replaceScopes: (projectId: string, expectedProjectRevision: number, collectionSlugs: string[]) =>
     request<ProjectKnowledgeScope[]>(`/api/projects/${path(projectId)}/knowledge-scopes`, {
       method: "PUT",
@@ -755,19 +835,31 @@ export const api = {
         limit: options.limit ?? 25,
       })}`,
     ),
-  decideCandidate: (candidateId: string, decision: "approve" | "reject" | "defer") =>
-    request<unknown>(`/api/knowledge/candidates/${path(candidateId)}/decision`, {
+  decideCandidate: (candidateId: string, decision: CandidateDecisionKind, canonicalId?: string) =>
+    request<CandidateDecisionResult>(`/api/knowledge/candidates/${path(candidateId)}/decision`, {
       method: "POST",
-      body: JSON.stringify({ decision }),
+      body: JSON.stringify(decision === "merge" ? { decision, canonical_id: canonicalId } : { decision }),
     }),
   decideCandidatesBulk: (
     ingestionId: string,
     candidateIds: string[],
-    decision: "approve" | "reject" | "defer",
+    decision: CandidateDecisionKind,
+    canonicalId?: string,
   ) => request<BulkCandidateDecisionResult>(
     `/api/knowledge/ingestions/${path(ingestionId)}/candidates/bulk-decision`,
-    { method: "POST", body: JSON.stringify({ candidate_ids: candidateIds, decision }) },
+    {
+      method: "POST",
+      body: JSON.stringify(
+        decision === "merge"
+          ? { candidate_ids: candidateIds, decision, canonical_id: canonicalId }
+          : { candidate_ids: candidateIds, decision },
+      ),
+    },
   ),
+  documentSource: (documentId: string) =>
+    request<DocumentSource>(`/api/knowledge/documents/${path(documentId)}/source`),
+  duplicateGroups: (ingestionId: string) =>
+    request<DuplicateGroups>(`/api/knowledge/ingestions/${path(ingestionId)}/duplicate-groups`),
   autoApproveHighConfidence: (ingestionId: string) =>
     request<ConfidenceAutoApprovalResult>(
       `/api/knowledge/ingestions/${path(ingestionId)}/auto-approve-high-confidence`,
@@ -849,12 +941,12 @@ export const api = {
     request<{ proposal: MemoryProposal }>(`/api/memory-proposals/${path(proposalId)}/commit`, {
       method: "POST",
     }),
-  previewContext: (projectId: string, taskId: string, maxTokens = 6000) =>
+  previewContext: (projectId: string, taskId: string, maxTokens?: number) =>
     request<{ snapshot: ContextSnapshotSummary }>(
       `/api/v1/projects/${path(projectId)}/workspace-tasks/${path(taskId)}/context-snapshots/preview`,
       { method: "POST", body: JSON.stringify({ max_tokens: maxTokens }) },
     ),
-  createSnapshot: (projectId: string, taskId: string, maxTokens = 6000) =>
+  createSnapshot: (projectId: string, taskId: string, maxTokens?: number) =>
     request<ContextSnapshotSummary>(
       `/api/v1/projects/${path(projectId)}/workspace-tasks/${path(taskId)}/context-snapshots`,
       { method: "POST", body: JSON.stringify({ max_tokens: maxTokens }) },
@@ -873,13 +965,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({
         context_snapshot_id: snapshotId,
-        workflow: "research",
         create_memory_proposal: createProposal,
-        max_steps: 10,
-        // All available snapshot tools are local, read-only context views.
-        // Allow the bounded research planner to use the full three-tool set.
-        max_tool_calls: 3,
-        token_budget: 6000,
       }),
     }),
   projectRuns: (projectId: string) =>

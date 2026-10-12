@@ -1,0 +1,862 @@
+{
+  "protocol_version": "research-holdout-v3-task",
+  "dataset_version": "research-holdout-v3",
+  "split": "dev",
+  "tasks": [
+    {
+      "id": "rerank-q1",
+      "family_id": "rerank",
+      "split": "dev",
+      "kind": "single_fact",
+      "difficulty": "easy",
+      "question": "RankGPT 在常规基准实验中对哪一个检索器返回的多少篇候选段落重排？滑动窗口的大小、步长和移动方向分别是什么？",
+      "allowed_source_ids": [
+        "rankgpt"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "rerank-q1-c1",
+            "statement": "候选是 BM25 返回的前 100 篇段落。",
+            "evidence_span_ids": [
+              "rg-01"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q1-c2",
+            "statement": "窗口大小为 20、步长为 10，按从列表末端到前端的顺序重排。",
+            "evidence_span_ids": [
+              "rg-02",
+              "rg-03"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "直接对整个语料库排序。",
+          "窗口从列表前端向后端移动。"
+        ],
+        "missing_information": [],
+        "rationale": "考查实际配置，并区分候选检索与重排。",
+        "required_evidence_span_ids": [
+          "rg-01",
+          "rg-02",
+          "rg-03"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "prp"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "rerank-q2",
+      "family_id": "rerank",
+      "split": "dev",
+      "kind": "single_fact",
+      "difficulty": "medium",
+      "question": "PRP-Allpair 如何处理同一文档对在交换输入顺序后产生的冲突，以及汇总分数的平局？请说明每种情况下的计分或回退规则。",
+      "allowed_source_ids": [
+        "prp"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "rerank-q2-c1",
+            "statement": "每对文档交换输入顺序询问两次；判断一致时形成局部胜负，否则视为平局。",
+            "evidence_span_ids": [
+              "pr-01",
+              "pr-02"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q2-c2",
+            "statement": "一致获胜的文档得 1 分；冲突或无关输出时双方各得 0.5 分。",
+            "evidence_span_ids": [
+              "pr-03"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q2-c3",
+            "statement": "汇总分数相同时回退到初始排序。",
+            "evidence_span_ids": [
+              "pr-04"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "只调用一次即可消除位置偏差。",
+          "冲突时随机选胜者或双方计零分。"
+        ],
+        "missing_information": [],
+        "rationale": "冲突消解、计分、回退均有明确规则。",
+        "required_evidence_span_ids": [
+          "pr-01",
+          "pr-02",
+          "pr-03",
+          "pr-04"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "rankgpt"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "rerank-q3",
+      "family_id": "rerank",
+      "split": "dev",
+      "kind": "comparison",
+      "difficulty": "hard",
+      "question": "RankGPT 的滑动窗口与 PRP-Sliding-K 都从后向前处理候选，它们一次模型判断的对象、输出以及形成前 K 名结果的方式有何不同？",
+      "allowed_source_ids": [
+        "rankgpt",
+        "prp"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "rerank-q3-c1",
+            "statement": "RankGPT 对一组带标识符的段落直接生成按相关性降序排列的标识符序列。",
+            "evidence_span_ids": [
+              "rg-04"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q3-c2",
+            "statement": "RankGPT 通过有重叠的多段落窗口从后向前移动；实验窗口为 20、步长为 10。",
+            "evidence_span_ids": [
+              "rg-02",
+              "rg-03"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q3-c3",
+            "statement": "PRP 每次比较文档对并按结果交换，单遍从底部以步长 1 扫描，PRP-Sliding-K 执行 K 遍以关注 Top-K 指标。",
+            "evidence_span_ids": [
+              "pr-05",
+              "pr-06"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "两者每个窗口均直接生成 20 篇文档的排列。",
+          "PRP-Sliding-K 的 K 是窗口内文档数。"
+        ],
+        "missing_information": [],
+        "rationale": "比较计算单位和遍历方式，避免把两种窗口机制混同。",
+        "required_evidence_span_ids": [
+          "pr-05",
+          "pr-06",
+          "rg-02",
+          "rg-03",
+          "rg-04"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "adjudicated",
+        "adjudication": "DeepSeek 指出 RankGPT 未明说前 K 名的汇总方式；必答结论不依赖该点，保留 answer（dev 题）。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "partially_answerable",
+            "answerability_agrees": false,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "rerank-q4",
+      "family_id": "rerank",
+      "split": "dev",
+      "kind": "synthesis",
+      "difficulty": "hard",
+      "question": "综合两篇论文：RankGPT 的排列蒸馏和 PRP-Sorting 分别通过什么机制降低大模型重排的使用负担？分别需要什么监督或排序操作？不要把二者描述为同一种训练方法。",
+      "allowed_source_ids": [
+        "rankgpt",
+        "prp"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "rerank-q4-c1",
+            "statement": "RankGPT 以 ChatGPT 生成的排列为蒸馏目标，使用 10,000 个 MS MARCO 查询及每查询 20 个 BM25 候选。",
+            "evidence_span_ids": [
+              "rg-05",
+              "rg-06",
+              "rg-07"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q4-c2",
+            "statement": "学生通过基于 ChatGPT 排列的 RankNet 损失学习排序。",
+            "evidence_span_ids": [
+              "rg-07"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q4-c3",
+            "statement": "PRP-Sorting 把成对偏好用于 Heapsort，其排序计算复杂度为 O(N log N)。",
+            "evidence_span_ids": [
+              "pr-07"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "PRP-Sorting 必须以 ChatGPT 排列训练学生模型。",
+          "论文已报告蒸馏与 PRP-Sorting 联合使用的实测加速倍数。"
+        ],
+        "missing_information": [],
+        "rationale": "综合离线蒸馏与推理时减少比较次数两种效率路径。",
+        "required_evidence_span_ids": [
+          "pr-07",
+          "rg-05",
+          "rg-06",
+          "rg-07"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "multi_source",
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "rerank-q5",
+      "family_id": "rerank",
+      "split": "dev",
+      "kind": "limitation",
+      "difficulty": "medium",
+      "question": "RankGPT 的局限性部分如何约束重排效果的上限和稳定性？请分别解释首阶段召回与初始候选顺序的作用。",
+      "allowed_source_ids": [
+        "rankgpt"
+      ],
+      "expectation": {
+        "outcome": "answer",
+        "required_conclusions": [
+          {
+            "id": "rerank-q5-c1",
+            "statement": "研究仅处理重排，排序效果上限受初始段落检索的召回率制约。",
+            "evidence_span_ids": [
+              "rg-08"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q5-c2",
+            "statement": "LLM 重排效果对初始段落顺序高度敏感，该顺序通常由 BM25 等首阶段检索器决定。",
+            "evidence_span_ids": [
+              "rg-09"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "换成 GPT-4 就能找回首阶段遗漏的所有相关文档。",
+          "RankGPT 已证明对初始顺序完全不敏感。"
+        ],
+        "missing_information": [],
+        "rationale": "两项限制均由作者明确指出。",
+        "required_evidence_span_ids": [
+          "rg-08",
+          "rg-09"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "prp"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "rerank-q6",
+      "family_id": "rerank",
+      "split": "dev",
+      "kind": "overclaim_trap",
+      "difficulty": "hard",
+      "question": "有人据 PRP 表 2 宣称：“PRP-Sliding-10（FLAN-UL2 20B）在两个 TREC 数据集的 NDCG@10 都超过了 RankGPT（gpt-4），因此可全面替代后者。”这一说法成立吗？请给出两个数据集上的对应数值与可支持的结论。",
+      "allowed_source_ids": [
+        "prp"
+      ],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "rerank-q6-c1",
+            "statement": "表 2 是重排 BM25 前 100 个候选的 TREC-DL2019 与 TREC-DL2020 实验。",
+            "evidence_span_ids": [
+              "pr-10"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q6-c2",
+            "statement": "TREC-DL2019 的 NDCG@10：PRP-Sliding-10 为 72.65，RankGPT gpt-4 为 75.59，前者较低。",
+            "evidence_span_ids": [
+              "pr-08",
+              "pr-09",
+              "pr-12"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q6-c3",
+            "statement": "TREC-DL2020 的 NDCG@10：PRP-Sliding-10 为 70.46，RankGPT gpt-4 为 70.56，前者也较低；不支持所述全面替代结论。",
+            "evidence_span_ids": [
+              "pr-08",
+              "pr-09",
+              "pr-12"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "PRP-Sliding-10 在两个数据集的 NDCG@10 都更高。",
+          "将 NDCG@1 的优势当作 NDCG@10 的优势。"
+        ],
+        "missing_information": [],
+        "rationale": "保留具体变体、指标和候选条件，不把整体亮点套到所有表格单元。",
+        "required_evidence_span_ids": [
+          "pr-08",
+          "pr-09",
+          "pr-10",
+          "pr-12"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "rankgpt"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "adjudicated",
+        "adjudication": "DeepSeek 给出相同数值并否定该说法；保留 qualified_answer。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "partially_answerable",
+            "answerability_agrees": false,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "rerank-q7",
+      "family_id": "rerank",
+      "split": "dev",
+      "kind": "limitation",
+      "difficulty": "medium",
+      "question": "NovelEval-2306 为检验未知知识的重排能力采取了怎样的数据构造方式？它能否证明所有既有基准都没有训练数据污染？请明确其证据覆盖范围。",
+      "allowed_source_ids": [
+        "rankgpt"
+      ],
+      "expectation": {
+        "outcome": "qualified_answer",
+        "required_conclusions": [
+          {
+            "id": "rerank-q7-c1",
+            "statement": "NovelEval-2306 包含来自 4 个领域的 21 个新问题，问题和段落发布于 GPT-4 发布之后。",
+            "evidence_span_ids": [
+              "rg-10"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q7-c2",
+            "statement": "每题通过 Google 搜索获得 20 个候选段落，人工相关性标签为 0、1、2。",
+            "evidence_span_ids": [
+              "rg-11"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q7-c3",
+            "statement": "作者仍指出闭源模型训练数据未披露带来的既有基准污染风险；新测试集不能证明所有旧基准无污染。",
+            "evidence_span_ids": [
+              "rg-10",
+              "rg-12"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "NovelEval 对 GPT-4 的完整训练数据做过审计。",
+          "21 个问题证明所有历史基准均不存在污染。"
+        ],
+        "missing_information": [],
+        "rationale": "允许描述风险控制设计，不能扩展为对全部训练数据或基准的证明。",
+        "required_evidence_span_ids": [
+          "rg-10",
+          "rg-11",
+          "rg-12"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "prp"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "adjudicated",
+        "adjudication": "DeepSeek 要点与草稿一致；保留 qualified_answer。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "partially_answerable",
+            "answerability_agrees": false,
+            "points": "full",
+            "quote_overlap": "some"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "rerank-q8",
+      "family_id": "rerank",
+      "split": "dev",
+      "kind": "insufficient_evidence",
+      "difficulty": "hard",
+      "question": "准备将 RankGPT 原文的 GPT-4 在线重排方案用于一个要求端到端 P95 延迟不超过 1 秒的系统。论文报告了什么延迟证据？仅据这些证据能否给出该系统的实测 P95 与达标结论？",
+      "allowed_source_ids": [
+        "rankgpt"
+      ],
+      "expectation": {
+        "outcome": "needs_review",
+        "required_conclusions": [
+          {
+            "id": "rerank-q8-c1",
+            "statement": "作者测试条件下，gpt-4 平均每查询运行时间为 32 秒，gpt-3.5-turbo 为 11 秒。",
+            "evidence_span_ids": [
+              "rg-13"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q8-c2",
+            "statement": "运行时间受 OpenAI 服务、API 版本和网络环境影响。",
+            "evidence_span_ids": [
+              "rg-14"
+            ],
+            "basis": "source"
+          },
+          {
+            "id": "rerank-q8-c3",
+            "statement": "论文平均时间不能给出目标系统的实测端到端 P95；只能指出原方案有显著延迟风险，不能确认目标系统达标。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "把 32 秒直接当作 P95。",
+          "确认目标系统端到端 P95 不超过 1 秒。"
+        ],
+        "missing_information": [
+          "目标系统的端到端延迟样本及 P95 统计。",
+          "目标系统负载、API 版本、网络与运行配置。"
+        ],
+        "rationale": "已有均值可做风险判断，目标环境的尾延迟需另行测量。",
+        "required_evidence_span_ids": [
+          "rg-13",
+          "rg-14"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "cross_span",
+        "insufficient"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "prp"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "adjudicated",
+        "adjudication": "DeepSeek 称论文无任何延迟数据，但原文第页逐字有“average running time per query is 11 seconds for gpt-3.5-turbo and 32 seconds for gpt-4”，属漏读；保留 needs_review。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "not_answerable",
+            "answerability_agrees": false,
+            "points": "partial",
+            "quote_overlap": "none"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "partially_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "rerank-q9",
+      "family_id": "rerank",
+      "split": "dev",
+      "kind": "insufficient_evidence",
+      "difficulty": "easy",
+      "question": "请给出 PRP 表 2 中 gpt-4 模型由 OpenAI 正式披露的精确参数总数；不要采用公众估算值。",
+      "allowed_source_ids": [
+        "prp"
+      ],
+      "expectation": {
+        "outcome": "abstain",
+        "required_conclusions": [
+          {
+            "id": "rerank-q9-c1",
+            "statement": "允许材料未提供所要求的官方精确参数量，无法给出该数值。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          },
+          {
+            "id": "rerank-q9-c2",
+            "statement": "表 2 明确说 OpenAI 未公开模型参数量，相关数字来自公众估算。",
+            "evidence_span_ids": [
+              "pr-11"
+            ],
+            "basis": "source"
+          }
+        ],
+        "forbidden_conclusions": [
+          "把表中的 1T 当作 OpenAI 官方披露的精确参数总数。"
+        ],
+        "missing_information": [
+          "gpt-4 的官方精确参数披露。"
+        ],
+        "rationale": "估算不能替代所求官方精确值。",
+        "required_evidence_span_ids": [
+          "pr-11"
+        ],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "no_answer"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "rankgpt"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "not_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "all"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "not_answerable",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    },
+    {
+      "id": "rerank-q10",
+      "family_id": "rerank",
+      "split": "dev",
+      "kind": "out_of_scope",
+      "difficulty": "easy",
+      "question": "当前只允许使用 RankGPT 和 PRP 论文。请详细还原 Query2doc 论文的稀疏与稠密查询拼接公式，并给出该论文选用的查询重复次数。",
+      "allowed_source_ids": [
+        "rankgpt",
+        "prp"
+      ],
+      "expectation": {
+        "outcome": "scope_refusal",
+        "required_conclusions": [
+          {
+            "id": "rerank-q10-c1",
+            "statement": "请求的 Query2doc 方法细节属于当前允许论文之外，应拒绝越界作答，并说明需要将 Query2doc 纳入允许来源。",
+            "evidence_span_ids": [],
+            "basis": "missing_information"
+          }
+        ],
+        "forbidden_conclusions": [
+          "调用或引用 Query2doc 原文作答。",
+          "凭记忆提供 Query2doc 的公式与重复次数。"
+        ],
+        "missing_information": [
+          "获得使用 Query2doc 论文的范围授权。"
+        ],
+        "rationale": "指定另一篇论文的原始方法细节，不可把相关工作提及或外部记忆当成授权。",
+        "required_evidence_span_ids": [],
+        "conflict_span_ids": []
+      },
+      "tags": [
+        "out_of_scope"
+      ],
+      "version": "v1",
+      "target": "project_run",
+      "report_requirements": [
+        "用中文回答；引用允许范围内的论文证据并保留限定条件。"
+      ],
+      "forbidden_source_ids": [
+        "aar",
+        "iter-retgen",
+        "m3-embedding",
+        "query2doc",
+        "replug",
+        "skr"
+      ],
+      "annotation": {
+        "label_provenance": "ai-consensus",
+        "human_verified": false,
+        "drafted_by": "Codex",
+        "status": "consensus",
+        "adjudication": "Codex 起草与 DeepSeek 独立作答的可答性一致；Claude 复核草稿引文逐字可查，无需仲裁。",
+        "verdicts": [
+          {
+            "labeler": "DeepSeek Harness dsh headless (deepseek-flash), blind to draft answers",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          },
+          {
+            "labeler": "claude-opus-5.5 integrator review (not blind: compared draft and DeepSeek)",
+            "answerability": "out_of_scope",
+            "answerability_agrees": true,
+            "points": "full",
+            "quote_overlap": "not_applicable"
+          }
+        ],
+        "tie_breaker": null,
+        "record_path": "consensus.json"
+      }
+    }
+  ]
+}

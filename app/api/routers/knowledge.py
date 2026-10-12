@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse
 
 from app.api.schemas import CollectionRequest, KnowledgeCandidatePatch, KnowledgeIngestionRequest
 from app.knowledge.extractor import LiveLLMRequiredError
+from app.knowledge.map_view import KnowledgeMapReader
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import BulkCandidateDecision, CandidateDecision, CandidateStatus
@@ -25,6 +28,7 @@ def build_knowledge_router(
     reports: KnowledgeReportService,
 ) -> APIRouter:
     router = APIRouter(tags=["knowledge"])
+    knowledge_map = KnowledgeMapReader(repository.database)
 
     @router.post("/api/knowledge/ingestions", status_code=202)
     def submit_knowledge_ingestion(payload: KnowledgeIngestionRequest) -> dict[str, Any]:
@@ -116,6 +120,11 @@ def build_knowledge_router(
             limit=limit,
         )
 
+    @router.get("/api/knowledge/ingestions/{ingestion_id}/duplicate-groups")
+    def list_knowledge_duplicate_groups(ingestion_id: str) -> dict[str, Any]:
+        _require_ingestion(repository, ingestion_id)
+        return repository.duplicate_groups(ingestion_id)
+
     @router.patch("/api/knowledge/candidates/{candidate_id}")
     def patch_knowledge_candidate(
         candidate_id: str, payload: KnowledgeCandidatePatch
@@ -202,6 +211,65 @@ def build_knowledge_router(
         if topic_slug and collection_slug and topic_slug != collection_slug:
             raise HTTPException(status_code=422, detail="topic_slug 与 collection_slug 必须一致。")
         return service.graph(collection_slug or topic_slug)
+
+    @router.get("/api/knowledge/map")
+    def get_knowledge_map(
+        collection_slug: Annotated[str | None, Query(max_length=200)] = None,
+        entity_type: Annotated[list[str] | None, Query()] = None,
+        q: Annotated[str | None, Query(max_length=200)] = None,
+        include_pending: bool = False,
+        limit: Annotated[int, Query(ge=1, le=5000)] = 300,
+    ) -> dict[str, Any]:
+        """Read-only, bounded map of formal knowledge; drafts only when explicitly requested."""
+        return knowledge_map.graph(
+            collection=collection_slug or None,
+            entity_types=entity_type,
+            query=q,
+            include_pending=include_pending,
+            limit=limit,
+        ).model_dump()
+
+    @router.get("/api/knowledge/map/nodes/{node_id:path}")
+    def get_knowledge_map_node(node_id: str, include_pending: bool = False) -> dict[str, Any]:
+        try:
+            return knowledge_map.node_detail(node_id, include_pending=include_pending)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="知识节点不存在或未发布。") from exc
+
+    @router.get("/api/knowledge/source-file")
+    def get_source_file(uri: Annotated[str, Query(min_length=1, max_length=2000)]):
+        """Serve a local PDF only when that exact path is a registered source or document."""
+        with repository.database.connect() as connection:
+            registered = connection.execute(
+                "SELECT 1 FROM sources WHERE uri = ? OR canonical_uri = ?"
+                " UNION SELECT 1 FROM documents WHERE local_path = ? LIMIT 1",
+                (uri, uri, uri),
+            ).fetchone()
+        path = Path(uri)
+        if not registered or path.suffix.lower() != ".pdf" or not path.is_file():
+            raise HTTPException(status_code=404, detail="原文文件不存在或未登记。")
+        return FileResponse(
+            path, media_type="application/pdf", content_disposition_type="inline",
+            filename=path.name,
+        )
+
+    @router.get("/api/knowledge/documents/{document_id}/source")
+    def get_document_source(document_id: str) -> dict[str, Any]:
+        """Read-only lookup of where a parsed document came from (e.g. its local PDF)."""
+        with repository.database.connect() as connection:
+            row = connection.execute(
+                "SELECT id, title, source_url, local_path, pages FROM documents WHERE id = ?",
+                (document_id,),
+            ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="文献不存在。")
+        return {
+            "document_id": row["id"],
+            "title": row["title"],
+            "local_path": row["local_path"] or None,
+            "source_url": row["source_url"] or None,
+            "pages": row["pages"],
+        }
 
     @router.get("/api/knowledge/entities/{entity_id}")
     def get_knowledge_entity_detail(entity_id: str) -> dict[str, Any]:

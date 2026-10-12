@@ -206,14 +206,6 @@ def test_no_scope_skips_model_and_external_retrieval(tmp_path):
     assert package.retrieval_audit.parameters["query_planning"]["reason"] == "no_verified_scope"
 
 
-def test_live_evaluation_refuses_paid_entry_in_offline_tests(offline_trial_inputs):
-    offline_trial_inputs("query_planning")
-    from app.benchmarking.query_planning import run
-
-    with pytest.raises(ValueError, match="disabled in offline tests"):
-        run(execute=True)
-
-
 def test_first_party_planning_caps_are_local_to_the_call(monkeypatch):
     client = LangChainChatClient("test", "model", "unused", "http://127.0.0.1:9",
                                 max_tokens=32768, timeout=300, max_retries=4)

@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.agent.research_workflow import ResearchDraft, validate_research_draft
 from app.context.models import ContextPackage, canonical_package_sha256
 from app.llms.provider import LLMClient
+from app.retrieval.anchors import contains_quote
 
 Verdict = Literal["supported", "contradicted", "insufficient_evidence", "cannot_determine"]
 VERSION = "finding-support-v1"
@@ -189,7 +190,7 @@ class SemanticReviewService:
                 valid = all(
                     bool(p.quote.strip())
                     and p.evidence_id in cites
-                    and p.quote in cites[p.evidence_id]["quote"]
+                    and contains_quote(p.quote, cites[p.evidence_id]["quote"])
                     for p in judgment.proofs
                 )
                 if judgment.verdict in {"supported", "contradicted"} and not judgment.proofs:

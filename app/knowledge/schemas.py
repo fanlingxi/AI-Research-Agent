@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.retrieval.contracts import SourceIdentity
 
@@ -154,6 +154,9 @@ class MergeSuggestion(BaseModel):
     type: KnowledgeNodeType
     similarity: float = Field(ge=0.0, le=1.0)
     match_kind: Literal["exact", "similar"]
+    # True when the existing entity has a different but interchangeable type
+    # (Concept/Method/Task).  Merging keeps the existing entity's type.
+    type_differs: bool = False
 
 
 class PublishedEntity(BaseModel):
@@ -223,7 +226,8 @@ class BulkCandidateDecision(BaseModel):
     """One explicit review action applied to a bounded set of candidates."""
 
     candidate_ids: list[str] = Field(min_length=1, max_length=100)
-    decision: Literal["approve", "reject", "defer"]
+    decision: Literal["approve", "reject", "defer", "merge"]
+    canonical_id: str | None = None
     review_note: str | None = Field(default=None, max_length=1200)
 
     @field_validator("candidate_ids")
@@ -232,6 +236,14 @@ class BulkCandidateDecision(BaseModel):
         if len(value) != len(set(value)):
             raise ValueError("candidate_ids must not contain duplicates")
         return value
+
+    @model_validator(mode="after")
+    def merge_requires_canonical(self) -> BulkCandidateDecision:
+        if self.decision == "merge" and not self.canonical_id:
+            raise ValueError("canonical_id is required when merging")
+        if self.decision != "merge" and self.canonical_id:
+            raise ValueError("canonical_id is only accepted for merge decisions")
+        return self
 
 
 class DecisionResult(BaseModel):
@@ -256,7 +268,7 @@ class BulkCandidateDecisionIssue(BaseModel):
 
 class BulkCandidateDecisionResult(BaseModel):
     ingestion: KnowledgeIngestion
-    decision: Literal["approve", "reject", "defer"]
+    decision: Literal["approve", "reject", "defer", "merge"]
     requested: int
     applied: int = 0
     replayed: int = 0
