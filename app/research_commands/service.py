@@ -38,7 +38,11 @@ class ResearchCommandService:
         *,
         idempotency_key: str,
     ) -> ResearchCommand:
+        if isinstance(submission.root, ProjectRunCommand):
+            self._follow_up_metadata(submission.root)
         payload = submission.root.model_dump(mode="json")
+        if payload.get("follow_up_of") is None:
+            payload.pop("follow_up_of", None)
         command, _ = self.repository.create_or_get(
             idempotency_key=idempotency_key,
             normalized_request=payload,
@@ -180,6 +184,7 @@ class ResearchCommandService:
     ) -> ResearchCommand:
         memory = self.knowledge_repository.memory_repository
         memory.get_project(payload.project_id)
+        follow_up_metadata = self._follow_up_metadata(payload)
         if payload.task.kind == "existing":
             task = memory.get_workspace_task(payload.task.task_id)
             if task.project_id != payload.project_id:
@@ -190,12 +195,14 @@ class ResearchCommandService:
                 task = memory.get_workspace_task(task_id)
             except KeyError:
                 title = (payload.task.title or payload.instruction[:60]).strip()
+                if follow_up_metadata:
+                    title = payload.instruction
                 task = memory.create_workspace_task(
                     project_id=payload.project_id,
                     title=title,
                     goal=payload.instruction,
                     priority=payload.task.priority,
-                    metadata={"research_command_id": command.id},
+                    metadata={"research_command_id": command.id, **follow_up_metadata},
                     task_id=task_id,
                 )
         command = self.repository.update_progress(
@@ -266,6 +273,20 @@ class ResearchCommandService:
             target_resource_id=run.id,
             target_route=f"/agent-runs/{run.id}",
         )
+
+    def _follow_up_metadata(self, payload: ProjectRunCommand) -> dict:
+        if payload.follow_up_of is None:
+            return {}
+        parent, artifact, _ = self.agent_service.follow_up.parent_report(
+            payload.follow_up_of.run_id
+        )
+        if parent.project_id != payload.project_id:
+            raise ValueError("追问的父运行必须属于同一项目。")
+        if payload.follow_up_of.artifact_id not in {None, artifact.id}:
+            raise ValueError("父报告不属于指定的父运行。")
+        return {"follow_up_of": {
+            **payload.follow_up_of.model_dump(), "parent_task_id": parent.task_id,
+        }}
 
 
 def _target_id(prefix: str, command_id: str) -> str:

@@ -36,6 +36,24 @@ export interface WorkspaceTask {
   updated_at: string;
 }
 
+export interface FollowUpOf {
+  run_id: string;
+  artifact_id: string | null;
+  parent_task_id?: string;
+}
+
+export interface FollowUpDraft {
+  standalone_question: string;
+  suggestions: string[];
+  fallback: boolean;
+}
+
+export interface FollowUp {
+  task: WorkspaceTask;
+  latest_run: AgentRun | null;
+  artifact: Artifact | null;
+}
+
 export interface Decision {
   id: string;
   project_id: string;
@@ -503,6 +521,7 @@ export type ResearchCommandInput =
     }
   | {
       mode: "project_run";
+      follow_up_of?: FollowUpOf;
       instruction: string;
       project_id: string;
       task:
@@ -746,6 +765,11 @@ export type ProjectionRebuild = {
 };
 
 export const api = {
+  followUpDraft: (runId: string, question: string) =>
+    request<FollowUpDraft>(`/api/agent-runs/${path(runId)}/follow-up-draft`, {
+      method: "POST", body: JSON.stringify({ question }),
+    }),
+  followUps: (runId: string) => request<FollowUp[]>(`/api/agent-runs/${path(runId)}/follow-ups`),
   submitRebuild: (input: { target: ProjectionTarget; collection_slug: string | null; confirmed: true }, key: string) =>
     request<ProjectionRebuild>("/api/v1/runtime/rebuilds", {
       method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(input),
