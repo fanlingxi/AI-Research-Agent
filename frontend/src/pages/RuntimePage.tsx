@@ -54,6 +54,11 @@ const STAGE_LABELS: Record<string, string> = {
   projection_rebuild: "重建派生投影",
   entity_projection: "投影知识实体",
   relation_projection: "投影图关系",
+  scheduled: "执行器已接收",
+  retrieving_evidence: "检索证据",
+  generating_draft: "生成初稿",
+  validating_citations: "引用与质量校验",
+  revising_draft: "受控修订",
 };
 
 function queueTotal(workCounts: Record<string, Record<string, number>>) {
@@ -203,7 +208,7 @@ export function RuntimePage() {
                   <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
                     <div className="min-w-0 flex-1">
                       <Link className="break-words text-[13.5px] font-medium text-ink hover:text-brand hover:underline" to={item.detail_route}>{item.title}</Link>
-                      <p className="mt-0.5 text-xs text-muted-ink">{KIND_LABELS[item.kind] ?? item.kind} · {item.current_stage ? (STAGE_LABELS[item.current_stage] ?? item.current_stage) : "未记录阶段"}</p>
+                      <p className="mt-0.5 text-xs text-muted-ink">{KIND_LABELS[item.kind] ?? item.kind} · {item.current_stage ? (STAGE_LABELS[item.current_stage] ?? statusLabel(item.current_stage)) : "未记录阶段"}</p>
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-1.5"><StatusBadge status={item.business_status} />{item.job_status !== item.business_status ? <StatusBadge status={item.job_status} /> : null}</div>
                   </div>
