@@ -49,6 +49,13 @@ def build_knowledge_router(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    @router.get("/api/knowledge/sources/{source_id}/activation-preview")
+    def activation_preview(source_id: str) -> dict[str, Any]:
+        try:
+            return source_versions.activation_preview(source_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="来源版本不存在。") from exc
+
     @router.post("/api/knowledge/sources/{source_id}/activate")
     def activate_source(source_id: str) -> dict[str, Any]:
         try:

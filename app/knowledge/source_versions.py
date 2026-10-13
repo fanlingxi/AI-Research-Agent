@@ -18,9 +18,59 @@ PUBLISHED_SOURCE_SQL = """
 """
 
 
+REPLACED_SOURCE_SQL = f"""
+    SELECT id FROM sources WHERE canonical_uri = ? AND id != ?
+    AND id IN ({PUBLISHED_SOURCE_SQL})
+"""
+
+
 class SourceVersionRepository:
     def __init__(self, database: SQLiteDatabase) -> None:
         self.database = database
+
+    def activation_preview(self, source_id: str) -> dict:
+        with self.database.connect() as connection:
+            connection.execute("PRAGMA query_only = ON")
+            connection.execute("BEGIN")
+            source = connection.execute(
+                "SELECT canonical_uri FROM sources WHERE id = ?", (source_id,),
+            ).fetchone()
+            if source is None:
+                raise KeyError(source_id)
+            replaced = {row[0] for row in connection.execute(
+                REPLACED_SOURCE_SQL, (source["canonical_uri"], source_id),
+            )}
+            result = {"source_id": source_id, "replaced_version_count": len(replaced)}
+            for kind, table, label, joins in (
+                ("entity", "entities", "item.name", ""),
+                ("relation", "relations",
+                 "left_entity.name || ' — ' || item.relation_type || ' → ' || right_entity.name",
+                 "JOIN entities left_entity ON left_entity.id = item.source_entity_id "
+                 "JOIN entities right_entity ON right_entity.id = item.target_entity_id"),
+            ):
+                rows = connection.execute(f"""
+                    SELECT item.id, {label} AS name, ev.source_id, s.superseded_by_source_id
+                    FROM {table} item {joins}
+                    JOIN claims c ON c.{kind}_id = item.id AND c.status = 'published'
+                    JOIN claim_evidence_links link ON link.claim_id = c.id
+                    JOIN evidences ev ON ev.id = link.evidence_id
+                    JOIN sources s ON s.id = ev.source_id
+                    WHERE item.status = 'published'
+                """).fetchall()
+                current, surviving, names = set(), set(), {}
+                for row in rows:
+                    item_id = row["id"]
+                    names[item_id] = row["name"]
+                    if row["superseded_by_source_id"] is None:
+                        current.add(item_id)
+                        if row["source_id"] not in replaced:
+                            surviving.add(item_id)
+                    if row["source_id"] == source_id:
+                        surviving.add(item_id)
+                lost = sorted(current - surviving, key=lambda item_id: (names[item_id], item_id))
+                result[f"{kind}_count"] = len(lost)
+                result[f"{kind}_samples"] = [names[item_id] for item_id in lost[:20]]
+        return result
 
     def activate(self, source_id: str) -> dict:
         with self.database.connect() as connection:
@@ -38,8 +88,7 @@ class SourceVersionRepository:
             now = datetime.now(UTC).isoformat()
             connection.execute(
                 f"""UPDATE sources SET superseded_by_source_id = ?, superseded_at = ?
-                    WHERE canonical_uri = ? AND id != ?
-                      AND id IN ({PUBLISHED_SOURCE_SQL})""",
+                    WHERE id IN ({REPLACED_SOURCE_SQL})""",
                 (source_id, now, source["canonical_uri"], source_id),
             )
             connection.execute(

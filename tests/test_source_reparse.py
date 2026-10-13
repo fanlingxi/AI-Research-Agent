@@ -64,6 +64,52 @@ def _new_parse(old_parse):
     })
 
 
+def test_activation_preview_counts_only_disappearing_knowledge(tmp_path, monkeypatch):
+    repository, service, versions, old, parsed, client, worker = _setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(service, "parser", lambda **kwargs: _new_parse(parsed).model_copy(
+        update={"title": parsed.title},
+    ))
+    ingestion_id = service.reparse(old["document_id"])["ingestion_id"]
+    assert worker.run_once()
+    _publish(service, ingestion_id)
+    new = next(item for item in versions.documents() if item["source_id"] != old["source_id"])
+    # Retain one entity and one relation with old-only evidence. Other shared
+    # knowledge keeps both versions' evidence and must not be counted.
+    with repository.database.connect() as connection:
+        for kind in ("entity", "relation"):
+            item_id = connection.execute(f"""
+                SELECT c.{kind}_id FROM claims c
+                JOIN claim_evidence_links l ON l.claim_id = c.id
+                JOIN evidences e ON e.id = l.evidence_id
+                WHERE c.{kind}_id IS NOT NULL AND c.status = 'published'
+                GROUP BY c.{kind}_id HAVING COUNT(DISTINCT e.source_id) = 2
+                ORDER BY c.{kind}_id LIMIT 1
+            """).fetchone()[0]
+            connection.execute(f"""
+                DELETE FROM claim_evidence_links WHERE claim_id IN
+                (SELECT id FROM claims WHERE {kind}_id = ?)
+                AND evidence_id IN (SELECT id FROM evidences WHERE source_id = ?)
+            """, (item_id, new["source_id"]))
+        before = "\n".join(connection.iterdump())
+    response = client.get(f"/api/knowledge/sources/{new['source_id']}/activation-preview")
+    assert response.status_code == 200
+    preview = response.json()
+    assert preview["entity_count"] == 1
+    assert preview["relation_count"] == 1
+    assert preview["replaced_version_count"] == 1
+    assert len(preview["entity_samples"]) == 1
+    assert len(preview["relation_samples"]) == 1
+    with repository.database.connect() as connection:
+        assert "\n".join(connection.iterdump()) == before
+    versions.activate(new["source_id"])
+    assert versions.activation_preview(new["source_id"])["entity_count"] == 0
+    # On switching back, shared knowledge survives through the restored target.
+    restored = versions.activation_preview(old["source_id"])
+    assert restored["entity_count"] == 0
+    assert restored["relation_count"] == 0
+    assert client.get("/api/knowledge/sources/missing/activation-preview").status_code == 404
+
+
 def test_reparse_same_content_is_noop_and_local_pdf_is_required(tmp_path, monkeypatch):
     repository, service, versions, old, parsed, client, _ = _setup(tmp_path, monkeypatch)
     with repository.database.connect() as connection:

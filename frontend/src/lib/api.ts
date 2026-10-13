@@ -560,6 +560,15 @@ export interface KnowledgeEvidenceRef {
   quote: string;
 }
 
+export interface ActivationPreview {
+  source_id: string;
+  replaced_version_count: number;
+  entity_count: number;
+  relation_count: number;
+  entity_samples: string[];
+  relation_samples: string[];
+}
+
 export interface SourceVersion {
   document_id: string;
   title: string;
@@ -975,6 +984,8 @@ export const api = {
     request<ReparseResult>(`/api/knowledge/documents/${path(documentId)}/reparse`, { method: "POST" }),
   activateSource: (sourceId: string) =>
     request<{ source_id: string; status: string }>(`/api/knowledge/sources/${path(sourceId)}/activate`, { method: "POST" }),
+  activationPreview: (sourceId: string) =>
+    request<ActivationPreview>(`/api/knowledge/sources/${path(sourceId)}/activation-preview`),
   duplicateGroups: (ingestionId: string) =>
     request<DuplicateGroups>(`/api/knowledge/ingestions/${path(ingestionId)}/duplicate-groups`),
   autoApproveHighConfidence: (ingestionId: string) =>
