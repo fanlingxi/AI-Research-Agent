@@ -54,6 +54,11 @@ class KnowledgeContextReader:
                 JOIN legacy_record_map mapping
                   ON mapping.legacy_id = membership.aggregate_id
                 WHERE membership.collection_slug IN ({placeholders})
+                  AND EXISTS (
+                    SELECT 1 FROM ingestion_documents evidence_document
+                    WHERE evidence_document.ingestion_id = membership.ingestion_id
+                      AND evidence_document.document_id = document.id
+                  )
                   AND (
                     (
                       eligible_claims.entity_id IS NOT NULL
