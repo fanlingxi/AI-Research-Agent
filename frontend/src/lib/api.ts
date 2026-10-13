@@ -541,6 +541,31 @@ export interface KnowledgeEvidenceRef {
   quote: string;
 }
 
+export interface SourceVersion {
+  document_id: string;
+  title: string;
+  source_id: string;
+  version: string;
+  parser_version: string;
+  ingestion_id: string;
+  ingestion_ids: string[];
+  has_published_evidence: boolean;
+  is_active: boolean;
+  superseded_by_source_id: string | null;
+  created_at: string;
+}
+
+export interface KnowledgeDocument extends SourceVersion {
+  can_reparse: boolean;
+  versions: SourceVersion[];
+}
+
+export interface ReparseResult {
+  status: "unchanged" | "queued";
+  ingestion_id: string | null;
+  deduplicated?: boolean;
+}
+
 export interface KnowledgeEntity {
   id: string;
   name: string;
@@ -860,6 +885,11 @@ export const api = {
   ),
   documentSource: (documentId: string) =>
     request<DocumentSource>(`/api/knowledge/documents/${path(documentId)}/source`),
+  knowledgeDocuments: () => request<KnowledgeDocument[]>("/api/knowledge/documents"),
+  reparseDocument: (documentId: string) =>
+    request<ReparseResult>(`/api/knowledge/documents/${path(documentId)}/reparse`, { method: "POST" }),
+  activateSource: (sourceId: string) =>
+    request<{ source_id: string; status: string }>(`/api/knowledge/sources/${path(sourceId)}/activate`, { method: "POST" }),
   duplicateGroups: (ingestionId: string) =>
     request<DuplicateGroups>(`/api/knowledge/ingestions/${path(ingestionId)}/duplicate-groups`),
   autoApproveHighConfidence: (ingestionId: string) =>

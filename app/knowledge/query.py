@@ -190,7 +190,9 @@ class KnowledgeQueryService:
                 warnings.append("图关系服务暂时不可用，当前仅展示已定位的原文证据。")
 
             # Every authoritative value in the response comes from this one
-            # snapshot. Projection IO above has no open preparation connection.
+            # snapshot. Core reads exclude superseded sources, including stale
+            # vectors returned during activation. Projection IO above has no
+            # open preparation connection.
             with self.repository.database.connect() as connection:
                 connection.execute("PRAGMA query_only = ON")
                 connection.execute("BEGIN")

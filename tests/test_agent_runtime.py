@@ -22,6 +22,7 @@ from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.service import KnowledgeIngestionService
 from app.worker import KnowledgeWorker
+from tests.core_fixtures import remove_source_version_schema_tx
 
 
 def _foundation_request(**values) -> AgentRunCreateRequest:
@@ -383,6 +384,7 @@ def test_v12_to_v17_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         connection.execute("DROP TABLE agent_run_rechecks")
         connection.execute("DROP TABLE agent_run_feedback")
         connection.execute("DROP TABLE research_generation_attempts")
+        remove_source_version_schema_tx(connection)
         connection.execute("DELETE FROM schema_migrations WHERE version IN (19, 20)")
         connection.execute("DROP TABLE agent_runs")
         connection.execute("DROP TABLE project_domain_plugins")
@@ -402,7 +404,7 @@ def test_v12_to_v17_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 12
 
     upgraded = KnowledgeRepository(repository.path)
-    assert upgraded.schema_version() == 20
+    assert upgraded.schema_version() == 21
     with upgraded._connect() as connection:
         assert dict(
             connection.execute(
@@ -421,4 +423,4 @@ def test_v12_to_v17_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         }
         assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
-    assert KnowledgeRepository(repository.path).schema_version() == 20
+    assert KnowledgeRepository(repository.path).schema_version() == 21

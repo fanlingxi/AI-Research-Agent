@@ -5,6 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 
 import { EmptyBlock, ErrorBlock, LoadingBlock, Notice } from "../components/AsyncState";
 import { KnowledgeExplorer } from "../components/KnowledgeExplorer";
+import { DocumentVersions } from "../components/DocumentVersions";
 import { pageLabel } from "../components/report/SourceDrawer";
 import { StatusBadge } from "../components/StatusBadge";
 import { Badge } from "../components/ui/badge";
@@ -12,7 +13,7 @@ import { Button, buttonVariants } from "../components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../components/ui/dialog";
 import { Field, Input, Select, Textarea } from "../components/ui/field";
 import { Disclosure, Page, PageHeader, Segmented } from "../components/ui/page";
-import { api, type KnowledgeCollection, type KnowledgeIngestion } from "../lib/api";
+import { api, type KnowledgeCollection, type KnowledgeDocument, type KnowledgeIngestion } from "../lib/api";
 import { fileName, useIngestions, usePendingCandidates, useSystemStatus } from "../lib/hooks";
 import { entityTypeLabel } from "../lib/labels";
 import { cn, formatDate } from "../lib/utils";
@@ -125,7 +126,7 @@ function MoveInboxIngestion({ ingestion, collections }: { ingestion: KnowledgeIn
   );
 }
 
-function IngestionRecord({ item, collections, highlighted }: { item: KnowledgeIngestion; collections: KnowledgeCollection[]; highlighted: boolean }) {
+function IngestionRecord({ item, collections, highlighted, documents }: { item: KnowledgeIngestion; collections: KnowledgeCollection[]; highlighted: boolean; documents: KnowledgeDocument[] }) {
   const client = useQueryClient();
   const retry = useMutation({
     mutationFn: () => api.retryIngestion(item.id),
@@ -162,15 +163,28 @@ function IngestionRecord({ item, collections, highlighted }: { item: KnowledgeIn
       <details className="group mt-2">
         <summary className="list-none text-xs text-muted-ink hover:text-ink">文件列表（{item.sources.length}）· 每篇最多 {item.pdf_max_pages} 页</summary>
         <ul className="mt-1.5 space-y-0.5 text-xs text-ink-soft">{item.sources.map((source) => <li className="truncate" key={source} title={source}>{fileName(source)}</li>)}</ul>
+        {documents.map((document) => <div className="mt-3 border-t pt-3" key={document.document_id}><p className="mb-2 break-words text-xs font-medium">{document.title}</p><DocumentVersions document={document} /></div>)}
       </details>
       <MoveInboxIngestion collections={collections} ingestion={item} />
     </article>
   );
 }
 
-function CollectionBrowser({ collection, ingestions, pending }: { collection: KnowledgeCollection; ingestions: KnowledgeIngestion[]; pending: number }) {
+/** One row per source: every version of a document shares the same version list. */
+function documentFamilies(documents: KnowledgeDocument[]) {
+  const families = new Map<string, KnowledgeDocument>();
+  for (const document of documents) {
+    const key = document.versions.map((version) => version.source_id).sort().join("|") || document.document_id;
+    const current = families.get(key);
+    if (!current || (!current.is_active && document.is_active)) families.set(key, document);
+  }
+  return [...families.values()];
+}
+
+function CollectionBrowser({ collection, ingestions, pending, parsedDocuments }: { collection: KnowledgeCollection; ingestions: KnowledgeIngestion[]; pending: number; parsedDocuments: KnowledgeDocument[] }) {
   const detail = useQuery({ queryKey: ["knowledge-collection", collection.slug], queryFn: () => api.collection(collection.slug), staleTime: 60_000 });
   const [view, setView] = useState<"papers" | "entities">("papers");
+  const families = documentFamilies(parsedDocuments);
   const [type, setType] = useState("all");
   const [filter, setFilter] = useState("");
   const entities = detail.data?.entities ?? [];
@@ -209,6 +223,13 @@ function CollectionBrowser({ collection, ingestions, pending }: { collection: Kn
               </li>
             ))}
           </ul>
+        ) : null}
+        {detail.data && view === "papers" && families.length ? (
+          <Disclosure className="mt-3" summary={`资料版本与重新解析（${families.length}）`}>
+            <ul className="space-y-3 border-t px-3.5 py-3">
+              {families.map((document) => <li className="min-w-0 space-y-1.5" key={document.document_id}><p className="break-words text-[13px] font-medium">{document.title}</p><DocumentVersions document={document} /></li>)}
+            </ul>
+          </Disclosure>
         ) : null}
         {detail.data && view === "entities" ? (
           <div className="mt-3">
@@ -253,6 +274,7 @@ function CollectionBrowser({ collection, ingestions, pending }: { collection: Kn
 export function KnowledgePage() {
   const [params, setParams] = useSearchParams();
   const ingestions = useIngestions();
+  const parsedDocuments = useQuery({ queryKey: ["knowledge-documents"], queryFn: api.knowledgeDocuments, refetchInterval: 10_000 });
   const pending = usePendingCandidates();
   const collections = useQuery({ queryKey: ["knowledge-collections"], queryFn: api.collections });
   const health = useSystemStatus();
@@ -305,9 +327,11 @@ export function KnowledgePage() {
 
       <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
+          {parsedDocuments.error instanceof Error ? <ErrorBlock error={parsedDocuments.error} onRetry={() => void parsedDocuments.refetch()} /> : null}
           {formal.map((collection) => (
             <CollectionBrowser
               collection={collection}
+              parsedDocuments={(parsedDocuments.data ?? []).filter((document) => document.ingestion_ids.some((id) => items.some((item) => item.id === id && item.collection_slug === collection.slug)))}
               ingestions={items.filter((item) => item.collection_slug === collection.slug)}
               key={collection.slug}
               pending={items.filter((item) => item.collection_slug === collection.slug).reduce((sum, item) => sum + (pending.byIngestion.get(item.id) ?? 0), 0)}
@@ -321,7 +345,7 @@ export function KnowledgePage() {
         <aside className="min-w-0">
           <h2 className="mb-2.5 text-[15px] font-semibold">导入记录</h2>
           <div className="scroll-thin max-h-[40rem] space-y-2.5 overflow-y-auto overscroll-contain pr-1" data-testid="ingestion-history-list">
-            {items.map((item) => <IngestionRecord collections={collections.data ?? []} highlighted={highlighted === item.id} item={item} key={item.id} />)}
+            {items.map((item) => <IngestionRecord documents={(parsedDocuments.data ?? []).filter((document) => document.ingestion_ids.includes(item.id))} collections={collections.data ?? []} highlighted={highlighted === item.id} item={item} key={item.id} />)}
             {!items.length ? <EmptyBlock className="py-8" title="还没有导入记录">点击右上角「导入资料」开始。</EmptyBlock> : null}
           </div>
           <Disclosure className="mt-4" summary="导入流程说明">
