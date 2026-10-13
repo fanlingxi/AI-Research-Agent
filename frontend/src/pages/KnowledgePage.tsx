@@ -170,9 +170,21 @@ function IngestionRecord({ item, collections, highlighted, documents }: { item: 
   );
 }
 
+/** One row per source: every version of a document shares the same version list. */
+function documentFamilies(documents: KnowledgeDocument[]) {
+  const families = new Map<string, KnowledgeDocument>();
+  for (const document of documents) {
+    const key = document.versions.map((version) => version.source_id).sort().join("|") || document.document_id;
+    const current = families.get(key);
+    if (!current || (!current.is_active && document.is_active)) families.set(key, document);
+  }
+  return [...families.values()];
+}
+
 function CollectionBrowser({ collection, ingestions, pending, parsedDocuments }: { collection: KnowledgeCollection; ingestions: KnowledgeIngestion[]; pending: number; parsedDocuments: KnowledgeDocument[] }) {
   const detail = useQuery({ queryKey: ["knowledge-collection", collection.slug], queryFn: () => api.collection(collection.slug), staleTime: 60_000 });
   const [view, setView] = useState<"papers" | "entities">("papers");
+  const families = documentFamilies(parsedDocuments);
   const [type, setType] = useState("all");
   const [filter, setFilter] = useState("");
   const entities = detail.data?.entities ?? [];
@@ -204,14 +216,20 @@ function CollectionBrowser({ collection, ingestions, pending, parsedDocuments }:
         {detail.error instanceof Error ? <div className="mt-3"><ErrorBlock error={detail.error} onRetry={() => void detail.refetch()} /></div> : null}
         {detail.data && view === "papers" ? (
           <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {parsedDocuments.map((document) => <li className="min-w-0 space-y-2 rounded-lg border px-3 py-2.5" key={document.document_id}><p className="break-words text-[13.5px] font-medium">{document.title}</p><DocumentVersions document={document} /></li>)}
-            {!parsedDocuments.length ? (papers.length ? papers.map((paper) => ({ key: paper.id, title: paper.name, note: paper.summary })) : sources.map((source) => ({ key: source, title: fileName(source), note: "" }))).map((paper) => (
+            {(papers.length ? papers.map((paper) => ({ key: paper.id, title: paper.name, note: paper.summary })) : sources.map((source) => ({ key: source, title: fileName(source), note: "" }))).map((paper) => (
               <li className="flex min-w-0 gap-2.5 rounded-lg border px-3 py-2.5" key={paper.key}>
                 <FileText className="mt-0.5 shrink-0 text-muted-ink" size={15} />
                 <span className="min-w-0"><span className="block text-[13.5px] font-medium leading-5">{paper.title}</span>{paper.note ? <span className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-ink">{paper.note}</span> : null}</span>
               </li>
-            )) : null}
+            ))}
           </ul>
+        ) : null}
+        {detail.data && view === "papers" && families.length ? (
+          <Disclosure className="mt-3" summary={`资料版本与重新解析（${families.length}）`}>
+            <ul className="space-y-3 border-t px-3.5 py-3">
+              {families.map((document) => <li className="min-w-0 space-y-1.5" key={document.document_id}><p className="break-words text-[13px] font-medium">{document.title}</p><DocumentVersions document={document} /></li>)}
+            </ul>
+          </Disclosure>
         ) : null}
         {detail.data && view === "entities" ? (
           <div className="mt-3">
