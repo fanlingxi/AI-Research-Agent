@@ -4,6 +4,15 @@ from app.knowledge.schemas import ChunkSearchHit, EvidenceSpan
 from app.schemas.documents import DocumentChunk
 
 
+def remove_source_version_schema_tx(connection) -> None:
+    """Reduce only an isolated migration fixture to its pre-v21 structure."""
+    connection.execute("DROP INDEX idx_sources_superseded")
+    connection.execute("ALTER TABLE sources DROP COLUMN superseded_by_source_id")
+    connection.execute("ALTER TABLE sources DROP COLUMN superseded_at")
+    connection.execute("ALTER TABLE ingestions DROP COLUMN reparse_payload_json")
+    connection.execute("DELETE FROM schema_migrations WHERE version = 21")
+
+
 class SQLiteReportQuery(KnowledgeQueryService):
     """Replace external projections only; retain production hydration and commit inputs."""
 

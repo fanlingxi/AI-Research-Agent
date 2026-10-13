@@ -17,3 +17,21 @@ def test_paraphrase_ellipsis_and_reordering_still_fail():
     assert not contains_quote("The retriever is trained ... BM25 hard negatives", text)
     assert not contains_quote("The retriever uses in-batch negatives", text)
     assert not contains_quote("", text)
+
+
+def test_line_break_hyphen_may_be_dropped_or_kept():
+    text = "sparse retrieval. Be- sides, it handles pseudo- documents of up to 8,192 to- kens."
+    quote = "Besides, it handles pseudo-documents of up to 8,192 to- kens."
+    start, end = locate_quote(quote, text)
+    assert text[start:end] == "Be- sides, it handles pseudo- documents of up to 8,192 to- kens."
+    assert contains_quote("it handles pseudodocuments", text)
+    assert contains_quote("Be- sides, it handles", text)
+
+
+def test_line_break_hyphen_tolerance_stays_narrow():
+    text = "Scores rose 10- 20 points, State- Of the art - see Table 2. Well-known results."
+    assert not contains_quote("rose 1020 points", text)
+    assert not contains_quote("StateOf the art", text)
+    assert not contains_quote("art see Table", text)
+    assert not contains_quote("Wellknown results", text)
+    assert not contains_quote("Besides, it", "Be- sides it")

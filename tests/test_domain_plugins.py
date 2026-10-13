@@ -22,6 +22,7 @@ from app.domain_plugins.registry import DomainPluginRegistry, create_builtin_plu
 from app.domain_plugins.service import DomainPluginService
 from app.knowledge.repository import KnowledgeRepository
 from app.llms.provider import MockLLMClient
+from tests.core_fixtures import remove_source_version_schema_tx
 
 
 class _FixturePlugin:
@@ -289,12 +290,13 @@ def test_v14_to_current_plugin_migrations_preserve_existing_memory_rows(tmp_path
         connection.execute("DROP TABLE agent_run_rechecks")
         connection.execute("DROP TABLE agent_run_feedback")
         connection.execute("DROP TABLE research_generation_attempts")
+        remove_source_version_schema_tx(connection)
         connection.execute(
             "DELETE FROM schema_migrations WHERE version IN (15, 16, 17, 18, 19, 20)")
         assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 14
 
     upgraded = KnowledgeRepository(repository.path)
-    assert upgraded.schema_version() == 20
+    assert upgraded.schema_version() == 21
     with upgraded._connect() as connection:
         assert dict(
             connection.execute("SELECT * FROM projects WHERE id = ?", (project.id,)).fetchone()
@@ -321,7 +323,7 @@ def test_v14_to_current_plugin_migrations_preserve_existing_memory_rows(tmp_path
         ).fetchone()["domain_plugin_key"] == "research"
         assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
-    assert KnowledgeRepository(repository.path).schema_version() == 20
+    assert KnowledgeRepository(repository.path).schema_version() == 21
 
 
 def test_domain_plugin_api_is_versioned_and_never_exposes_implementation_objects(tmp_path) -> None:

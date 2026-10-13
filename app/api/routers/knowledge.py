@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import FileResponse
 
 from app.api.schemas import CollectionRequest, KnowledgeCandidatePatch, KnowledgeIngestionRequest
@@ -13,6 +13,7 @@ from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import BulkCandidateDecision, CandidateDecision, CandidateStatus
 from app.knowledge.service import KnowledgeIngestionService
+from app.knowledge.source_versions import SourceVersionRepository
 
 
 def _require_ingestion(repository: KnowledgeRepository, ingestion_id: str):
@@ -29,6 +30,33 @@ def build_knowledge_router(
 ) -> APIRouter:
     router = APIRouter(tags=["knowledge"])
     knowledge_map = KnowledgeMapReader(repository.database)
+    source_versions = SourceVersionRepository(repository.database)
+
+    @router.get("/api/knowledge/documents")
+    def list_documents(ingestion_id: str | None = None) -> list[dict[str, Any]]:
+        return source_versions.documents(ingestion_id)
+
+    @router.post("/api/knowledge/documents/{document_id}/reparse")
+    def reparse_document(document_id: str, response: Response) -> dict[str, Any]:
+        try:
+            result = service.reparse(document_id)
+            response.status_code = 200 if result["status"] == "unchanged" else 202
+            return result
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="文献或来源不存在。") from exc
+        except LiveLLMRequiredError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @router.post("/api/knowledge/sources/{source_id}/activate")
+    def activate_source(source_id: str) -> dict[str, Any]:
+        try:
+            return source_versions.activate(source_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="来源版本不存在。") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @router.post("/api/knowledge/ingestions", status_code=202)
     def submit_knowledge_ingestion(payload: KnowledgeIngestionRequest) -> dict[str, Any]:
