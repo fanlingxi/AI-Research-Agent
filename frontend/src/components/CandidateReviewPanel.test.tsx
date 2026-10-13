@@ -133,6 +133,36 @@ describe("candidate merge review", () => {
     await waitFor(() => expect(bulk).toHaveBeenLastCalledWith("ingestion-1", ["candidate-e"], "merge", "entity-llm"));
   });
 
+  it("merges every exact same-name, same-type group after one confirmation", async () => {
+    const tool = { entity_id: "entity-tool", name: "工具调用", type: "Method", similarity: 1, match_kind: "exact" };
+    const near = { entity_id: "entity-near", name: "检索增强", type: "Method", similarity: 0.9, match_kind: "similar" };
+    const groups: DuplicateGroups = {
+      candidate_count: 4,
+      groups: [
+        { key: "entity:entity-rag", name: "检索增强生成", type: "Method", target, candidates: [entity("c-rag", "paper:b")] },
+        { key: "entity:entity-tool", name: "工具调用", type: "Method", target: tool, candidates: [entity("c-tool", "paper:b", { name: "工具调用" })] },
+        { key: "entity:entity-near", name: "检索增强", type: "Method", target: near, candidates: [entity("c-near", "paper:b", { name: "检索增强方法" })] },
+        { key: "entity:cross", name: "工具调用", type: "Method", target: tool, candidates: [entity("c-cross", "paper:c", { name: "工具调用", type: "Concept" })] },
+      ],
+    };
+    vi.spyOn(api, "ingestions").mockResolvedValue([ingestion]);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "candidatePage").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 25, next_offset: null });
+    vi.spyOn(api, "duplicateGroups").mockResolvedValue(groups);
+    const bulk = vi.spyOn(api, "decideCandidatesBulk").mockResolvedValue({ ingestion, decision: "merge", requested: 1, applied: 1, replayed: 0, skipped: [] } as BulkCandidateDecisionResult);
+
+    renderPanel();
+
+    await userEvent.click(await screen.findByRole("button", { name: /疑似重复/ }));
+    await userEvent.click(await screen.findByRole("button", { name: "全部合并到同名实体" }));
+    expect(bulk).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "确认合并" }));
+    await waitFor(() => expect(bulk).toHaveBeenCalledTimes(2));
+    expect(bulk).toHaveBeenCalledWith("ingestion-1", ["c-rag"], "merge", "entity-rag");
+    expect(bulk).toHaveBeenCalledWith("ingestion-1", ["c-tool"], "merge", "entity-tool");
+    expect(await screen.findByText(/2 组同名候选中 2 条已合并/)).toBeInTheDocument();
+  });
+
   it("warns when the evidence is a chunk excerpt because the model quote was not found", async () => {
     const items: KnowledgeCandidatePage["items"] = [
       { kind: "entity", candidate: entity("located", "paper:a", { merge_suggestions: [] }) },
