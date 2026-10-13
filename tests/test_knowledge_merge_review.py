@@ -30,6 +30,31 @@ from app.schemas.documents import ParsedDocument
 QUOTE = "Retrieval augmented generation grounds answers in retrieved evidence."
 
 
+def test_nfkc_paper_duplicate_group_and_merge_suggestions(tmp_path):
+    app, repository, ingestion_id = _build(tmp_path)
+    papers = [item["candidate"] for item in repository.list_candidates(ingestion_id)
+              if item["kind"] == "entity" and item["candidate"]["type"] == "Paper"]
+    repository.update_candidate(papers[0]["id"], {"name": "检索增强：展望 Ａ"})
+    repository.update_candidate(papers[1]["id"], {"name": "  检索增强:展望 a  "})
+    draft_group = next(group for group in repository.duplicate_groups(ingestion_id)["groups"]
+                       if group["type"] == "Paper")
+    assert len(draft_group["candidates"]) == 2
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/knowledge/candidates/{papers[0]['id']}/decision",
+            json={"decision": "approve"},
+        )
+        assert response.status_code == 200
+    group = next(group for group in repository.duplicate_groups(ingestion_id)["groups"]
+                 if group["type"] == "Paper")
+    assert group["target"]["match_kind"] == "exact"
+    assert group["target"]["similarity"] == 1
+    assert group["candidates"][0]["id"] == papers[1]["id"]
+    assert repository.find_merge_suggestions(
+        name="检索增强:展望 a", entity_type="Paper", aliases=[],
+    )[0].match_kind == "exact"
+
+
 class _SharedConceptExtractor:
     """Every paper mentions the same concept, as real cross-paper corpora do."""
 

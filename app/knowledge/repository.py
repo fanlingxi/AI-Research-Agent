@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import unicodedata
 from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
 from hashlib import sha256
@@ -1115,7 +1116,7 @@ class KnowledgeRepository:
         drafts = [
             item["candidate"]
             for item in self.list_candidates(ingestion_id, status="draft")
-            if item["kind"] == "entity" and item["candidate"]["type"] != "Paper"
+            if item["kind"] == "entity"
         ]
         suggestions = self.live_merge_suggestions(drafts)
         groups: dict[str, dict[str, Any]] = {}
@@ -1152,7 +1153,9 @@ class KnowledgeRepository:
         seen: dict[tuple[str, str], int] = {}
         for index, candidate in enumerate(unmatched):
             for label in [candidate["name"], *(candidate.get("aliases") or [])]:
-                key = (_merge_type_family(str(candidate["type"])), _normalize(str(label)))
+                key = (
+                    _merge_type_family(str(candidate["type"])), _normalize_merge_name(str(label)),
+                )
                 if not key[1]:
                     continue
                 if key in seen:
@@ -1166,7 +1169,7 @@ class KnowledgeRepository:
             if len(members) < 2:
                 continue
             first = members[0]
-            key = f"draft:{first['type']}:{_normalize(first['name'])}"
+            key = f"draft:{first['type']}:{_normalize_merge_name(first['name'])}"
             groups[key] = {
                 "key": key,
                 "name": first["name"],
@@ -1677,6 +1680,10 @@ def _merge_type_family(entity_type: str) -> str:
     return "Concept|Method|Task" if entity_type in _INTERCHANGEABLE_TYPES else entity_type
 
 
+def _normalize_merge_name(value: str) -> str:
+    return _normalize(unicodedata.normalize("NFKC", value))
+
+
 def _merge_suggestions_against(
     name: str,
     aliases: list[str],
@@ -1689,11 +1696,14 @@ def _merge_suggestions_against(
     ``type_differs`` and rank after same-type matches of equal similarity.
     """
 
-    normalized = {_normalize(name), *(_normalize(alias) for alias in aliases)}
+    normalized = {_normalize_merge_name(name), *(_normalize_merge_name(alias) for alias in aliases)}
     matches: list[MergeSuggestion] = []
     for entity in entities:
         type_differs = candidate_type is not None and entity.type != candidate_type
-        known = {_normalize(entity.name), *(_normalize(alias) for alias in entity.aliases)}
+        known = {
+            _normalize_merge_name(entity.name),
+            *(_normalize_merge_name(alias) for alias in entity.aliases),
+        }
         if normalized.intersection(known):
             matches.append(
                 MergeSuggestion(

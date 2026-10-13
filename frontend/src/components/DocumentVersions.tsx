@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -14,6 +14,15 @@ function versionLabel(version: SourceVersion) {
 export function DocumentVersions({ document }: { document: KnowledgeDocument }) {
   const client = useQueryClient();
   const [confirm, setConfirm] = useState<"reparse" | SourceVersion | null>(null);
+  const previewSourceId = confirm && confirm !== "reparse" ? confirm.source_id : null;
+  const preview = useQuery({
+    queryKey: ["activation-preview", previewSourceId],
+    queryFn: () => api.activationPreview(previewSourceId!),
+    enabled: previewSourceId !== null,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
   const refresh = () => client.invalidateQueries();
   const reparse = useMutation({
     mutationFn: () => api.reparseDocument(document.document_id),
@@ -57,12 +66,22 @@ export function DocumentVersions({ document }: { document: KnowledgeDocument }) 
       {activate.isSuccess ? <p role="status">版本已启用，新检索和新快照将使用此版本的证据；旧报告不变。</p> : null}
       {!confirm && (reparse.error || activate.error) instanceof Error ? <ErrorBlock error={(reparse.error || activate.error) as Error} /> : null}
       <Dialog open={confirm !== null} onOpenChange={(open) => { if (!open && !busy) setConfirm(null); }}>
-        <DialogContent className="w-[min(520px,calc(100vw-2rem))]">
+        <DialogContent className="max-h-[85vh] w-[min(520px,calc(100vw-2rem))] overflow-y-auto">
           <DialogTitle>{confirm === "reparse" ? "重新解析资料" : "启用来源版本"}</DialogTitle>
           <DialogDescription>{confirm === "reparse"
             ? "使用当前解析器读取已登记的本地 PDF。内容发生变化时会生成新版本，放入原资料集合；抽取的实体和关系仍需要审核，可合并到已有实体。审核发布后可启用新版本。旧快照、旧运行和旧报告不变；内容相同则不创建任务。"
             : "此操作会在所有资料集合中启用所选版本，取代同一资料的其他已发布版本。新检索和新快照会排除被取代版本的证据，旧报告不变。之后可在版本记录中切回。"}</DialogDescription>
           {confirm && confirm !== "reparse" ? <p className="mt-3 text-sm">{versionLabel(confirm)}</p> : null}
+          {previewSourceId ? <div className="mt-3 space-y-2 text-sm" aria-live="polite">
+            {preview.isFetching ? <p>正在预览启用影响…</p> : preview.isError ? <p role="alert">影响预览加载失败，仍可启用；请留意旧版本独有的知识可能暂不显示。</p> : preview.data ? <>
+              <p>将取代 {preview.data.replaced_version_count} 个已发布版本。</p>
+              {preview.data.entity_count || preview.data.relation_count ? <div role="alert" className="rounded-lg border border-amber-300 bg-warning-soft p-3 text-amber-950">
+                <p>启用后将有 {preview.data.entity_count} 个实体、{preview.data.relation_count} 条关系暂不显示（只在将被取代的版本中有证据），可先在审核中处理对应候选</p>
+                {preview.data.entity_samples.length ? <p className="mt-2 break-words">实体样例：{preview.data.entity_samples.join("、")}</p> : null}
+                {preview.data.relation_samples.length ? <p className="mt-2 break-words">关系样例：{preview.data.relation_samples.join("、")}</p> : null}
+              </div> : <p>不会有已审核知识消失</p>}
+            </> : null}
+          </div> : null}
           {(reparse.error || activate.error) instanceof Error ? <div className="mt-3"><ErrorBlock error={(reparse.error || activate.error) as Error} /></div> : null}
           <div className="mt-5 flex justify-end gap-2">
             <Button variant="outline" disabled={busy} onClick={() => setConfirm(null)}>取消</Button>
