@@ -258,7 +258,8 @@ def test_relation_from_merged_endpoint_attaches_to_canonical_and_links_papers(tm
         for relation in repository.list_published_relations()
         if relation.type == "APPLIES_TO"
     ]
-    assert len(applies) == 2
+    assert len(applies) == 1
+    assert len(applies[0].evidence) == 2
     assert {(item.source_entity_id, item.target_entity_id) for item in applies} == {
         (rag_id, task_id)
     }

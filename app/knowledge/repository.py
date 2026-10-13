@@ -1150,13 +1150,25 @@ class KnowledgeRepository:
         return PublishedEntity.model_validate_json(row["payload_json"])
 
     def get_published_relation(self, relation_id: str) -> PublishedRelation:
+        """Return the relation with evidence merged from historical duplicates."""
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT payload_json FROM published_relations WHERE id = ?", (relation_id,)
+                "SELECT source_entity_id, target_entity_id, relation_type "
+                "FROM published_relations WHERE id = ?", (relation_id,)
             ).fetchone()
-        if row is None:
-            raise KeyError(relation_id)
-        return PublishedRelation.model_validate_json(row["payload_json"])
+            if row is None:
+                raise KeyError(relation_id)
+            rows = connection.execute(
+                """SELECT payload_json FROM published_relations
+                   WHERE source_entity_id = ? AND target_entity_id = ? AND relation_type = ?
+                   ORDER BY created_at, id""",
+                tuple(row),
+            ).fetchall()
+        relations = [PublishedRelation.model_validate_json(item[0]) for item in rows]
+        merged = relations[0]
+        for relation in relations[1:]:
+            merged = _merge_relations(merged, relation)
+        return merged.model_copy(update={"id": relation_id})
 
     def list_published_entities(self, topic_slug: str | None = None) -> list[PublishedEntity]:
         query = "SELECT payload_json FROM published_entities"
@@ -1186,7 +1198,21 @@ class KnowledgeRepository:
             params = (topic_slug,)
         with self._connect() as connection:
             rows = connection.execute(query, params).fetchall()
-        return [PublishedRelation.model_validate_json(row["payload_json"]) for row in rows]
+            allowed = None
+            if topic_slug:
+                allowed = {str(row[0]) for row in connection.execute(
+                    """SELECT DISTINCT d.document_id FROM ingestion_documents d
+                       JOIN ingestion_collections ic ON ic.ingestion_id = d.ingestion_id
+                       WHERE ic.collection_slug = ?""", (topic_slug,))}
+        grouped: dict[tuple[str, str, str], PublishedRelation] = {}
+        for row in rows:
+            item = PublishedRelation.model_validate_json(row["payload_json"])
+            if allowed is not None:
+                item = item.model_copy(update={
+                    "evidence": [e for e in item.evidence if e.paper_id in allowed]})
+            key = (item.source_entity_id, item.target_entity_id, item.type)
+            grouped[key] = _merge_relations(grouped[key], item) if key in grouped else item
+        return list(grouped.values())
 
     def list_topics(self) -> list[dict[str, Any]]:
         return [
@@ -1660,6 +1686,17 @@ def _normalized_sources(values: list[str]) -> list[str]:
     """Normalize a multi-PDF submission so URL order cannot create a duplicate job."""
 
     return sorted(_unique(values))
+
+
+def _merge_relations(first: PublishedRelation, other: PublishedRelation) -> PublishedRelation:
+    """Read-side merge of historical duplicates; stored publication records stay unchanged."""
+    return first.model_copy(update={
+        "evidence": list({(e.chunk_id, e.quote): e for e in first.evidence + other.evidence}
+                         .values()),
+        "topic_slugs": list(dict.fromkeys(first.topic_slugs + other.topic_slugs)),
+        "collection_slugs": list(dict.fromkeys(first.collection_slugs + other.collection_slugs)),
+        "confidence": max(first.confidence, other.confidence),
+    })
 
 
 def _dump(value: Any) -> str:

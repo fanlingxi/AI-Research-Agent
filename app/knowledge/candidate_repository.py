@@ -670,25 +670,48 @@ class CandidateRepository:
                 metadata=candidate.metadata,
             )
             now = _now()
+            # Types are the schema's canonical uppercase relation vocabulary.
+            existing_row = connection.execute(
+                """SELECT payload_json FROM published_relations
+                   WHERE source_entity_id = ? AND target_entity_id = ? AND relation_type = ?
+                   ORDER BY created_at, id LIMIT 1""",
+                (relation.source_entity_id, relation.target_entity_id, relation.type),
+            ).fetchone()
+            if existing_row:
+                existing = PublishedRelation.model_validate_json(existing_row["payload_json"])
+                relation = existing.model_copy(update={
+                    "evidence": list({(e.chunk_id, e.quote): e for e in
+                                      existing.evidence + relation.evidence}.values()),
+                    "topic_slugs": _unique(existing.topic_slugs + relation.topic_slugs),
+                    "collection_slugs": _unique(
+                        existing.collection_slugs + relation.collection_slugs),
+                    # Keep the existing summary and the strongest reviewed confidence.
+                    "confidence": max(existing.confidence, relation.confidence),
+                })
+                connection.execute(
+                    "UPDATE published_relations SET payload_json = ?, updated_at = ? WHERE id = ?",
+                    (_dump(relation.model_dump()), now, relation.id),
+                )
+            else:
+                connection.execute(
+                    """
+                    INSERT INTO published_relations (
+                        id, source_entity_id, target_entity_id, relation_type,
+                        payload_json, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        relation.id,
+                        relation.source_entity_id,
+                        relation.target_entity_id,
+                        relation.type,
+                        _dump(relation.model_dump()),
+                        now,
+                        now,
+                    ),
+                )
             connection.execute(
-                """
-                INSERT INTO published_relations (
-                    id, source_entity_id, target_entity_id, relation_type,
-                    payload_json, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    relation.id,
-                    relation.source_entity_id,
-                    relation.target_entity_id,
-                    relation.type,
-                    _dump(relation.model_dump()),
-                    now,
-                    now,
-                ),
-            )
-            connection.execute(
-                "INSERT INTO relation_topics (relation_id, topic_slug) VALUES (?, ?)",
+                "INSERT OR IGNORE INTO relation_topics (relation_id, topic_slug) VALUES (?, ?)",
                 (relation.id, candidate.topic_slug),
             )
             connection.execute(
@@ -712,7 +735,7 @@ class CandidateRepository:
                 payload=payload,
                 decision="approve",
                 status="published",
-                canonical_id=None,
+                canonical_id=relation.id,
                 review_note=None,
             )
             self.projections.enqueue_projection_tx(
