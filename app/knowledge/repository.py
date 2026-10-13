@@ -942,6 +942,9 @@ class KnowledgeRepository:
     ) -> dict[str, Any]:
         return self.candidates.set_merge_suggestions(candidate_id, suggestions)
 
+    def set_prereview(self, candidate_id: str, record: dict[str, Any]) -> None:
+        self.candidates.set_prereview(candidate_id, record)
+
     # Transactional review and outbox (CandidateRepository, ProjectionRepository) --
 
     def reject_candidate(

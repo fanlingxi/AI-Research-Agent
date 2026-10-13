@@ -180,4 +180,24 @@ describe("candidate merge review", () => {
     expect(notes[0]).toHaveTextContent("模型给出的引文未能在原文中找到");
     expect(notes[0].closest("article")).toHaveTextContent("未定位实体");
   });
+
+  it("runs AI pre-review in batches after confirmation and reports the outcome", async () => {
+    vi.spyOn(api, "ingestions").mockResolvedValue([ingestion]);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "candidatePage").mockResolvedValue({ items: [{ kind: "entity", candidate: entity("left", "paper:a", { merge_suggestions: [], metadata: { prereview: { verdict: "unsure", reason: "引文只提到名称" } } }) }], total: 1, offset: 0, limit: 25, next_offset: null });
+    vi.spyOn(api, "duplicateGroups").mockResolvedValue({ groups: [], candidate_count: 0 });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const prereview = vi.spyOn(api, "aiPrereview")
+      .mockResolvedValueOnce({ approved: 3, merged: 1, rejected: 2, unsure: 1, remaining: 4, llm_calls: 1, items: [{ candidate_id: "a", name: "a", verdict: "approved", reason: "" }] })
+      .mockResolvedValueOnce({ approved: 1, merged: 0, rejected: 1, unsure: 2, remaining: 0, llm_calls: 1, items: [{ candidate_id: "b", name: "b", verdict: "rejected", reason: "" }] });
+
+    renderPanel();
+
+    expect(await screen.findByText(/AI 预审未能确定：引文只提到名称/)).toBeInTheDocument();
+    await userEvent.click(screen.getByText("批量快捷处理"));
+    await userEvent.click(screen.getByRole("button", { name: "AI 预审" }));
+    expect(confirm).toHaveBeenCalled();
+    await waitFor(() => expect(prereview).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(/批准 4 条、合并到已有实体 1 条、驳回 3 条，3 条拿不准留给你审核/)).toBeInTheDocument();
+  });
 });

@@ -297,7 +297,7 @@ interface CandidateBase {
   evidence: CandidateEvidence;
   status: string;
   /** `evidence_located: false` means the model quote was not found; evidence is a chunk excerpt. */
-  metadata?: { evidence_located?: boolean } & Record<string, unknown>;
+  metadata?: { evidence_located?: boolean; prereview?: { verdict: string; reason: string } } & Record<string, unknown>;
 }
 
 export interface EntityCandidate extends CandidateBase {
@@ -387,6 +387,16 @@ export interface BulkCandidateDecisionResult {
   applied: number;
   replayed: number;
   skipped: Array<{ candidate_id: string; reason: string }>;
+}
+
+export interface AiPrereviewResult {
+  approved: number;
+  merged: number;
+  rejected: number;
+  unsure: number;
+  remaining: number;
+  llm_calls: number;
+  items: Array<{ candidate_id: string; name: string; verdict: string; reason: string }>;
 }
 
 export interface ConfidenceAutoApprovalResult extends BulkCandidateDecisionResult {
@@ -988,6 +998,10 @@ export const api = {
     request<ActivationPreview>(`/api/knowledge/sources/${path(sourceId)}/activation-preview`),
   duplicateGroups: (ingestionId: string) =>
     request<DuplicateGroups>(`/api/knowledge/ingestions/${path(ingestionId)}/duplicate-groups`),
+  aiPrereview: (ingestionId: string, limit = 30) =>
+    request<AiPrereviewResult>(`/api/knowledge/ingestions/${path(ingestionId)}/ai-prereview`, {
+      method: "POST", body: JSON.stringify({ limit }),
+    }),
   autoApproveHighConfidence: (ingestionId: string) =>
     request<ConfidenceAutoApprovalResult>(
       `/api/knowledge/ingestions/${path(ingestionId)}/auto-approve-high-confidence`,
