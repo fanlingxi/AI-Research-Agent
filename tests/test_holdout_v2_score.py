@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 
 from app.benchmarking.holdout_v2_score import summary, write_packets
 
@@ -33,3 +35,22 @@ def test_conservative_merge_and_gate(tmp_path) -> None:
     assert (a["violations"], b["violations"]) == (0, 1)  # any judge flags → violation
     assert result["gate_D029"]["switch_default_to_B"] is False
     assert result["label_provenance"].startswith("ai-consensus")
+
+    _write(tmp_path / "judge-human" / f"{case}__A-default.json", full)
+    human_only = summary(tmp_path, judges=["human"])
+    assert human_only["arms"]["A-default"]["covered"] == 3
+    assert human_only["arms"]["B-candidate"]["judged_runs"] == 0
+    assert human_only["runs"][0]["judges"] == 1
+    assert "selected judges: human" in human_only["judging"]
+    assert summary(tmp_path, judges=["human", "api"])["arms"]["A-default"]["covered"] == 2
+    assert summary(tmp_path)["runs"][0]["judges"] == 3
+    assert summary(tmp_path, judges=[])["arms"]["A-default"]["judged_runs"] == 0
+    cli = subprocess.run(
+        [sys.executable, "-m", "app.benchmarking.holdout_v2_score", str(tmp_path),
+         "--summary", "--judges", "human,api"],
+        capture_output=True, check=True,
+    )
+    assert json.loads(cli.stdout)["arms"]["A-default"]["covered"] == 2
+    assert json.loads((tmp_path / "score.json").read_text(encoding="utf-8"))["runs"][0][
+        "judges"
+    ] == 2
