@@ -103,6 +103,10 @@ def build_runtime_router(
             return research_commands.submit(payload, idempotency_key=idempotency_key).model_dump()
         except ResearchCommandConflictError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="父运行或报告不存在。") from exc
+        except (AgentRunConflictError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @router.get("/api/v1/research-commands/{command_id}")
     def get_research_command(command_id: str) -> dict[str, Any]:

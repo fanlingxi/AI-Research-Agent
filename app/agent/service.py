@@ -11,6 +11,7 @@ from uuid import uuid4
 from app.agent.errors import AgentRunConflictError
 from app.agent.feedback import RunFeedbackService
 from app.agent.feedback_models import FeedbackDecision, FeedbackRequest, FeedbackRerunRequest
+from app.agent.follow_up import RunFollowUpService
 from app.agent.models import (
     AgentRun,
     AgentRunCreateRequest,
@@ -73,6 +74,7 @@ class AgentRunService:
         )
         self.plugin_registry = plugin_registry or create_builtin_plugin_registry()
         self.feedback = RunFeedbackService(self)
+        self.follow_up = RunFollowUpService(self)
         self._current_execution: ContextVar[ExecutionFence | None] = ContextVar(
             f"agent_execution_fence_{id(self)}",
             default=None,

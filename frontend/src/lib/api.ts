@@ -36,6 +36,24 @@ export interface WorkspaceTask {
   updated_at: string;
 }
 
+export interface FollowUpOf {
+  run_id: string;
+  artifact_id: string | null;
+  parent_task_id?: string;
+}
+
+export interface FollowUpDraft {
+  standalone_question: string;
+  suggestions: string[];
+  fallback: boolean;
+}
+
+export interface FollowUp {
+  task: WorkspaceTask;
+  latest_run: AgentRun | null;
+  artifact: Artifact | null;
+}
+
 export interface Decision {
   id: string;
   project_id: string;
@@ -505,6 +523,7 @@ export type ResearchCommandInput =
     }
   | {
       mode: "project_run";
+      follow_up_of?: FollowUpOf;
       instruction: string;
       project_id: string;
       task:
@@ -829,6 +848,11 @@ export interface ReviewAgreement {
 const reviewPath = (run: string) => `/api/experiments/review/runs/${path(run)}`;
 
 export const api = {
+  followUpDraft: (runId: string, question: string) =>
+    request<FollowUpDraft>(`/api/agent-runs/${path(runId)}/follow-up-draft`, {
+      method: "POST", body: JSON.stringify({ question }),
+    }),
+  followUps: (runId: string) => request<FollowUp[]>(`/api/agent-runs/${path(runId)}/follow-ups`),
   reviewRuns: () => request<{ runs: ReviewRun[] }>("/api/experiments/review/runs"),
   reviewItems: (run: string) => request<{ items: ReviewItem[]; total: number; human_count: number }>(`${reviewPath(run)}/items`),
   reviewItem: (run: string, key: string) => request<ReviewDetail>(`${reviewPath(run)}/items/${path(key)}`),

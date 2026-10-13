@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { ErrorBlock, LoadingBlock, Notice } from "../components/AsyncState";
+import { FollowUpLinks, FollowUpPanel } from "../components/FollowUpPanel";
 import { ReportLayout, RailSection } from "../components/report/ReportLayout";
 import { extractCitations, ReportMarkdown, splitTitle } from "../components/report/ReportMarkdown";
 import { pageLabel, SnapshotSourceSheet } from "../components/report/SourceDrawer";
@@ -88,6 +89,7 @@ export function ArtifactPage() {
           <a className={buttonVariants({ variant: "ghost" })} href="#feedback"><MessageSquareWarning size={15} />反馈问题</a>
         </>}
         notices={<>
+          <FollowUpLinks key={body_.run_id} runId={body_.run_id} task={task.data} />
           {childLinks.map((link) => (
             <Notice key={link.id} tone="info" icon={<GitBranch size={15} />} title="这份报告已有修订版本"
               action={<Link className={buttonVariants({ size: "sm" })} to={`/artifacts/${link.child_artifact_id}`}>阅读修订版<ArrowRight size={14} /></Link>}>
@@ -118,7 +120,10 @@ export function ArtifactPage() {
             </dl>
           </Disclosure>
         </>}
-        after={run.data ? <RunFeedbackPanel key={run.data.id} output={output.data} run={run.data} /> : null}
+        after={<div className="space-y-6">
+          {run.data?.status === "completed" ? <FollowUpPanel key={body_.run_id} runId={body_.run_id} artifactId={record.id} projectId={record.project_id} /> : null}
+          {run.data ? <RunFeedbackPanel key={run.data.id} output={output.data} run={run.data} /> : null}
+        </div>}
         backLabel="全部报告"
       />
       <SnapshotSourceSheet citations={citations} evidenceId={active} snapshotId={body_.context_snapshot_id} onSelect={setActive} />
