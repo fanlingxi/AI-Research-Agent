@@ -160,6 +160,7 @@ class KnowledgeContextReader:
             JOIN documents document ON document.id = chunk.document_id
             JOIN sources source ON source.id = evidence.source_id
             WHERE source.id = document.source_id
+              AND source.superseded_by_source_id IS NULL
               AND document.content_status IN ('available', 'qdrant_backfilled')
               AND {scope_filter}
             ORDER BY eligible_claims.claim_id, evidence.id

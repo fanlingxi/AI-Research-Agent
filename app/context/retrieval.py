@@ -30,7 +30,8 @@ class QdrantContextCandidateRetriever:
 
     No network call is made until a build request explicitly enables vector
     candidates. The Context Builder will subsequently re-read each ID from
-    SQLite and discard stale, unscoped, or ungrounded points.
+    SQLite via KnowledgeContextReader and discard superseded sources as well as
+    stale, unscoped, or ungrounded points. Old vectors need not be deleted.
     """
 
     def __init__(self, chunk_search=None) -> None:
