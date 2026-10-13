@@ -278,6 +278,8 @@ interface CandidateBase {
   confidence: number;
   evidence: CandidateEvidence;
   status: string;
+  /** `evidence_located: false` means the model quote was not found; evidence is a chunk excerpt. */
+  metadata?: { evidence_located?: boolean } & Record<string, unknown>;
 }
 
 export interface EntityCandidate extends CandidateBase {
