@@ -77,6 +77,7 @@ function CandidateCard({ record, onDecide, onSelect, pending, selected, titles }
           ) : <p className="mt-2 break-words text-[15px] font-medium leading-6 text-ink">{title}</p>}
           <p className="mt-1 text-[13.5px] leading-6 text-ink-soft">{candidate.summary}</p>
           {target ? <MergeSuggestions candidateId={candidate.id} candidateType={candidate.type} disabled={pending} onChange={setMergeTarget} suggestions={suggestions} value={target.entity_id} /> : null}
+          {candidate.metadata?.prereview?.verdict === "unsure" ? <p className="mt-2 text-xs leading-5 text-muted-ink">AI 预审未能确定：{candidate.metadata.prereview.reason}</p> : null}
           {candidate.metadata?.evidence_located === false ? (
             <p className="mt-2.5 flex gap-1.5 rounded-md border border-amber-200 bg-warning-soft/60 px-2.5 py-1.5 text-xs leading-5 text-amber-950" role="note">
               <AlertTriangle className="mt-0.5 shrink-0" size={13} />
@@ -232,7 +233,27 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
   const selectedIngestion = reviewable.find((item) => item.id === selectedId);
   const pageCandidateIds = candidates.data?.items.map((record) => record.candidate.id) ?? [];
   const allPageSelected = pageCandidateIds.length > 0 && pageCandidateIds.every((candidateId) => selectedCandidateIds.includes(candidateId));
-  const reviewPending = decide.isPending || decideBulk.isPending || approveReady.isPending || autoApproveHighConfidence.isPending || mergeGroup.isPending || mergeExact.isPending;
+  const [prereviewProgress, setPrereviewProgress] = useState<number | null>(null);
+  const aiPrereview = useMutation({
+    mutationFn: async () => {
+      const total = { approved: 0, merged: 0, rejected: 0, unsure: 0, llm_calls: 0 };
+      setPrereviewProgress(0);
+      for (let round = 0; round < 50; round += 1) {
+        const result = await api.aiPrereview(selectedId);
+        for (const key of Object.keys(total) as Array<keyof typeof total>) total[key] += result[key];
+        setPrereviewProgress(total.approved + total.merged + total.rejected + total.unsure);
+        invalidate();
+        if (!result.remaining || !result.items.length) break;
+      }
+      return total;
+    },
+    onSuccess: (total) => {
+      setReviewFeedback({ summary: `AI 预审完成：批准 ${total.approved} 条、合并到已有实体 ${total.merged} 条、驳回 ${total.rejected} 条，${total.unsure} 条拿不准留给你审核。每条决策的理由都记录在审核记录里。`, issues: [] });
+      invalidate();
+    },
+    onSettled: () => setPrereviewProgress(null),
+  });
+  const reviewPending = decide.isPending || decideBulk.isPending || approveReady.isPending || autoApproveHighConfidence.isPending || mergeGroup.isPending || mergeExact.isPending || aiPrereview.isPending;
   const pageStart = candidates.data?.total ? candidates.data.offset + 1 : 0;
   const pageEnd = candidates.data ? Math.min(candidates.data.offset + candidates.data.items.length, candidates.data.total) : 0;
   const clearSelection = () => setSelectedCandidateIds([]);
@@ -248,11 +269,14 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
   const runApproveReady = () => {
     if (window.confirm("确认批准这批资料中所有没有同名冲突的实体吗？有冲突的实体和全部关系仍会保留给你逐条审核。")) approveReady.mutate();
   };
+  const runAiPrereview = () => {
+    if (window.confirm("AI 预审会让另一个模型逐条核对候选与原文证据：只批准证据已在原文中定位且直接支持的（同名实体合并到已有实体），明显不合格的驳回，拿不准的留给你。每条决策都会写明理由，可在审核记录中追溯。是否开始？")) aiPrereview.mutate();
+  };
   const runAutoApproveHighConfidence = () => {
     if (window.confirm("确认自动批准置信度高于 90% 的候选吗？有同名冲突的实体、端点尚未发布的关系仍会保留人工审核。")) autoApproveHighConfidence.mutate();
   };
   const paperOptions = Array.from(titles.entries());
-  const mutationError = (decide.error ?? decideBulk.error ?? approveReady.error ?? autoApproveHighConfidence.error ?? mergeGroup.error ?? mergeExact.error) as Error | null;
+  const mutationError = (decide.error ?? decideBulk.error ?? approveReady.error ?? autoApproveHighConfidence.error ?? mergeGroup.error ?? mergeExact.error ?? aiPrereview.error) as Error | null;
   const duplicateCount = duplicates.data?.groups.length;
   const publishedShare = selectedIngestion && selectedIngestion.candidate_count ? selectedIngestion.published_count / selectedIngestion.candidate_count : 0;
 
@@ -297,6 +321,7 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
         </div> : null}
         <Disclosure className="mt-3" summary={<span className="inline-flex items-center gap-1.5"><Sparkles size={14} />批量快捷处理</span>}>
           <div className="space-y-3 text-[13px]">
+            <div className="flex flex-wrap items-center justify-between gap-2"><p className="min-w-0 flex-1 text-muted-ink">推荐：另一个模型逐条核对候选与原文证据，只批准证据已定位且直接支持的，明显不合格的驳回，拿不准的留给你。</p><Button disabled={reviewPending} onClick={runAiPrereview} size="sm">{prereviewProgress === null ? "AI 预审" : `预审中…已处理 ${prereviewProgress} 条`}</Button></div>
             <div className="flex flex-wrap items-center justify-between gap-2"><p className="min-w-0 flex-1 text-muted-ink">批准置信度高于 90% 的候选。冲突实体和端点未发布的关系会被跳过。</p><Button disabled={reviewPending} onClick={runAutoApproveHighConfidence} size="sm" variant="outline">自动通过 &gt;90%</Button></div>
             <div className="flex flex-wrap items-center justify-between gap-2"><p className="min-w-0 flex-1 text-muted-ink">批准所有没有同名冲突的实体；关系仍需逐条审核。</p><Button disabled={reviewPending} onClick={runApproveReady} size="sm" variant="outline">批准无冲突实体</Button></div>
           </div>

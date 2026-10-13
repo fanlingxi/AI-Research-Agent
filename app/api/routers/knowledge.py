@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from app.api.schemas import CollectionRequest, KnowledgeCandidatePatch, KnowledgeIngestionRequest
 from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.map_view import KnowledgeMapReader
+from app.knowledge.prereview import CandidatePrereviewer
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import BulkCandidateDecision, CandidateDecision, CandidateStatus
@@ -192,6 +193,18 @@ def build_knowledge_router(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Knowledge candidate not found.") from exc
         except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.post("/api/knowledge/ingestions/{ingestion_id}/ai-prereview")
+    def ai_prereview_candidates(
+        ingestion_id: str, payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        _require_ingestion(repository, ingestion_id)
+        try:
+            return CandidatePrereviewer(service).run(
+                ingestion_id, limit=int((payload or {}).get("limit", 30))
+            )
+        except LiveLLMRequiredError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @router.post("/api/knowledge/ingestions/{ingestion_id}/auto-approve-high-confidence")

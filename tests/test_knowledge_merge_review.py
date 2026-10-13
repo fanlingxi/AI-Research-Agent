@@ -291,12 +291,8 @@ def test_relation_from_merged_endpoint_attaches_to_canonical_and_links_papers(tm
     paper_ids = {
         entity.id for entity in repository.list_published_entities() if entity.type == "Paper"
     }
-    presenters = {
-        relation.source_entity_id
-        for relation in repository.list_published_relations()
-        if relation.target_entity_id == rag_id
-    }
-    assert presenters >= paper_ids
+    # No generated paper->entity relations (D033): papers link through evidence edges.
+    assert not [r for r in repository.list_published_relations() if r.source_entity_id in paper_ids]
     linked_to_rag = {
         edge["source"]
         for edge in graph["edges"]

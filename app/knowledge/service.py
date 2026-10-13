@@ -776,31 +776,9 @@ class KnowledgeIngestionService:
             candidates.append(candidate)
             entities_by_name.setdefault(_normal_name(candidate.name), candidate)
 
-            relation_type = {
-                "Method": "PRESENTS",
-                "Task": "ADDRESSES",
-                "Dataset": "EVALUATES",
-                "Metric": "EVALUATES",
-                "Finding": "SUPPORTS",
-                "Concept": "SUPPORTS",
-                "Topic": "SUPPORTS",
-                "Formula": "SUPPORTS",
-                "Patch": "SUPPORTS",
-            }[candidate.type]
-            candidates.append(
-                CandidateRelation(
-                    id=_candidate_id(),
-                    ingestion_id=ingestion.id,
-                    topic_slug=ingestion.topic_slug,
-                    source_candidate_id=paper_candidate.id,
-                    target_candidate_id=candidate.id,
-                    type=relation_type,  # type: ignore[arg-type]
-                    summary=f"《{paper.title}》{_relation_phrase(relation_type)}“{candidate.name}”。",
-                    confidence=extracted.confidence,
-                    evidence=extracted.evidence,
-                    metadata=flagged(extracted.evidence, {"generated_from": "paper_entity_link"}),
-                )
-            )
+            # No paper->entity relation is generated here: the model never asserted
+            # one, and "paper PRESENTS X" is wrong for surveys and for methods a paper
+            # only uses. Entities stay linked to their papers through evidence (D033).
 
         for extracted in result.payload.relations:
             source = entities_by_name.get(_normal_name(extracted.source_name))

@@ -299,7 +299,10 @@ def test_api_queues_ingestion_and_worker_publishes_outbox(tmp_path) -> None:
 
         candidates = client.get(f"/api/knowledge/ingestions/{ingestion_id}/candidates")
         approved = client.post(f"/api/knowledge/ingestions/{ingestion_id}/approve-ready")
-        assert approved.json()["ingestion"]["status"] == "needs_review"
+        has_relations = any(item["kind"] == "relation" for item in candidates.json())
+        assert approved.json()["ingestion"]["status"] == (
+            "needs_review" if has_relations else "publishing"
+        )
         for item in candidates.json():
             if item["kind"] == "relation":
                 response = client.post(
@@ -315,11 +318,12 @@ def test_api_queues_ingestion_and_worker_publishes_outbox(tmp_path) -> None:
         completed = client.get(f"/api/knowledge/ingestions/{ingestion_id}")
 
     assert submitted.status_code == 202
-    assert len(candidates.json()) == 3
+    assert len(candidates.json()) == 2
     assert completed.json()["status"] == "completed"
     assert topic.status_code == 200
     assert len(graph.json()["nodes"]) == 2
-    assert len(graph.json()["edges"]) == 1
+    # The fixture extracts no relation; no paper->entity relation is generated (D033).
+    assert graph.json()["edges"] == []
 
 
 def test_api_creates_and_queues_ingestion_for_the_worker(tmp_path) -> None:
@@ -347,7 +351,7 @@ def test_api_creates_and_queues_ingestion_for_the_worker(tmp_path) -> None:
 
     assert response.status_code == 202
     assert completed.document_count == 1
-    assert completed.candidate_count == 3
+    assert completed.candidate_count == 2
     job = repository.jobs.get_resource_job("ingestion", ingestion_id)
     assert job.payload["auto_execute"] is True
     assert job.status == "completed"

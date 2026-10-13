@@ -386,6 +386,21 @@ class CandidateRepository:
             )
         return self.get_candidate(candidate_id)
 
+    def set_prereview(self, candidate_id: str, record: dict[str, Any]) -> None:
+        """Store an AI pre-review result on a draft; never changes its review status."""
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = self._candidate_row_tx(connection, candidate_id)
+            if row["status"] != "draft":
+                return
+            payload = json.loads(row["payload_json"])
+            payload["metadata"] = {**(payload.get("metadata") or {}), "prereview": record}
+            connection.execute(
+                "UPDATE candidates SET payload_json = ?, updated_at = ? "
+                "WHERE id = ? AND status = 'draft'",
+                (_dump(payload), _now(), candidate_id),
+            )
+
     # Transactional review and outbox -------------------------------------------
 
     def reject_candidate(
