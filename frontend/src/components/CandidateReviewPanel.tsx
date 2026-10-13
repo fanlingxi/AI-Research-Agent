@@ -3,7 +3,7 @@ import { ArrowRight, Check, ChevronLeft, ChevronRight, GitMerge, PauseCircle, Pl
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { api, type CandidateDecisionKind, type EntityCandidate, type KnowledgeCandidate, type MergeSuggestion, type RelationCandidate } from "../lib/api";
+import { api, type BulkCandidateDecisionResult, type CandidateDecisionKind, type DuplicateGroup, type EntityCandidate, type KnowledgeCandidate, type MergeSuggestion, type RelationCandidate } from "../lib/api";
 import { documentTitle, useIngestions, usePaperTitles } from "../lib/hooks";
 import { entityTypeLabel, relationTypeLabel } from "../lib/labels";
 import { cn } from "../lib/utils";
@@ -172,6 +172,24 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
     },
     onError: invalidate,
   });
+  const mergeExact = useMutation({
+    mutationFn: async (groups: DuplicateGroup[]) => {
+      let merged = 0;
+      const issues: BulkCandidateDecisionResult["skipped"] = [];
+      for (const group of groups) {
+        if (!group.target) continue;
+        const result = await api.decideCandidatesBulk(selectedId, group.candidates.map((item) => item.id), "merge", group.target.entity_id);
+        merged += result.applied + result.replayed;
+        issues.push(...result.skipped);
+      }
+      return { merged, issues, groups: groups.length };
+    },
+    onSuccess: ({ merged, issues, groups }) => {
+      setReviewFeedback({ summary: `${groups} 组同名候选中 ${merged} 条已合并到已有实体${issues.length ? `，${issues.length} 条需要逐条处理` : ""}。`, issues });
+      invalidate();
+    },
+    onError: invalidate,
+  });
   const decideBulk = useMutation({
     mutationFn: ({ candidateIds, decision }: { candidateIds: string[]; decision: Decision }) => api.decideCandidatesBulk(selectedId, candidateIds, decision),
     onSuccess: (result) => {
@@ -208,7 +226,7 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
   const selectedIngestion = reviewable.find((item) => item.id === selectedId);
   const pageCandidateIds = candidates.data?.items.map((record) => record.candidate.id) ?? [];
   const allPageSelected = pageCandidateIds.length > 0 && pageCandidateIds.every((candidateId) => selectedCandidateIds.includes(candidateId));
-  const reviewPending = decide.isPending || decideBulk.isPending || approveReady.isPending || autoApproveHighConfidence.isPending || mergeGroup.isPending;
+  const reviewPending = decide.isPending || decideBulk.isPending || approveReady.isPending || autoApproveHighConfidence.isPending || mergeGroup.isPending || mergeExact.isPending;
   const pageStart = candidates.data?.total ? candidates.data.offset + 1 : 0;
   const pageEnd = candidates.data ? Math.min(candidates.data.offset + candidates.data.items.length, candidates.data.total) : 0;
   const clearSelection = () => setSelectedCandidateIds([]);
@@ -228,7 +246,7 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
     if (window.confirm("确认自动批准置信度高于 90% 的候选吗？有同名冲突的实体、端点尚未发布的关系仍会保留人工审核。")) autoApproveHighConfidence.mutate();
   };
   const paperOptions = Array.from(titles.entries());
-  const mutationError = (decide.error ?? decideBulk.error ?? approveReady.error ?? autoApproveHighConfidence.error ?? mergeGroup.error) as Error | null;
+  const mutationError = (decide.error ?? decideBulk.error ?? approveReady.error ?? autoApproveHighConfidence.error ?? mergeGroup.error ?? mergeExact.error) as Error | null;
   const duplicateCount = duplicates.data?.groups.length;
   const publishedShare = selectedIngestion && selectedIngestion.candidate_count ? selectedIngestion.published_count / selectedIngestion.candidate_count : 0;
 
@@ -298,6 +316,7 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
               onApproveAsCanonical={(candidate, others) => mergeGroup.mutate({ approveFirst: candidate.id, candidateIds: others.map((item) => item.id), canonicalName: candidate.name })}
               onApproveAsNew={(candidate) => { if (confirmApproveAsNew(candidate.name, candidate.merge_suggestions ?? [])) decide.mutate({ candidateId: candidate.id, decision: "approve" }); }}
               onMerge={(candidateId, target) => decide.mutate({ candidateId, decision: "merge", canonicalId: target.entity_id })}
+              onMergeExact={(groups) => mergeExact.mutate(groups)}
               onMergeAll={(candidateIds, target) => mergeGroup.mutate({ candidateIds, canonicalId: target.entity_id, canonicalName: target.name })}
               onReject={(candidateId) => decide.mutate({ candidateId, decision: "reject" })}
             />

@@ -10,6 +10,7 @@ import { EmptyBlock } from "./AsyncState";
 import { pageLabel } from "./report/SourceDrawer";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 
 export function matchLabel(suggestion: MergeSuggestion) {
   return suggestion.match_kind === "exact" ? "同名" : `相似 ${Math.round(suggestion.similarity * 100)}%`;
@@ -129,8 +130,38 @@ function DuplicateGroupCard({ group, pending, titles, onMergeAll, onMerge, onApp
   );
 }
 
-export function DuplicateGroupList({ groups, ...handlers }: {
+/** Groups safe to merge in one step: an existing entity with the same name and the same type. */
+export function exactMergeGroups(groups: DuplicateGroup[]) {
+  return groups.filter((group) => group.target?.match_kind === "exact" && group.candidates.every((item) => item.type === group.target?.type));
+}
+
+function MergeExactBar({ groups, pending, onConfirm }: { groups: DuplicateGroup[]; pending: boolean; onConfirm: () => void }) {
+  const [open, setOpen] = useState(false);
+  const count = groups.reduce((sum, group) => sum + group.candidates.length, 0);
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-warning-soft/60 px-3 py-2.5 text-[13px] text-amber-950">
+      <span>{groups.length} 组共 {count} 条候选与已有实体同名且类型相同（例如重新解析或重复导入的资料）。</span>
+      <Button disabled={pending} size="sm" onClick={() => setOpen(true)}><GitMerge size={14} />全部合并到同名实体</Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="w-[min(560px,calc(100vw-2rem))]">
+          <DialogTitle>合并 {groups.length} 组同名候选</DialogTitle>
+          <DialogDescription>每组候选的证据和出处会挂到同名的已有实体上，不新建条目。名称相近或类型不同的组不在此列，仍需逐组处理。</DialogDescription>
+          <ul className="scroll-thin mt-3 max-h-64 space-y-1 overflow-y-auto text-[13px]">
+            {groups.map((group) => <li className="break-words" key={group.key}>{group.candidates.length} 条 →「{group.target?.name}」<span className="ml-1 text-xs text-muted-ink">{entityTypeLabel(group.type)}</span></li>)}
+          </ul>
+          <div className="mt-5 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>取消</Button>
+            <Button disabled={pending} onClick={() => { setOpen(false); onConfirm(); }}>确认合并</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+export function DuplicateGroupList({ groups, onMergeExact, ...handlers }: {
   groups: DuplicateGroup[];
+  onMergeExact?: (groups: DuplicateGroup[]) => void;
   pending: boolean;
   titles: Map<string, string>;
   onMergeAll: (candidateIds: string[], target: MergeSuggestion) => void;
@@ -144,8 +175,10 @@ export function DuplicateGroupList({ groups, ...handlers }: {
     return <EmptyBlock className="mt-4" icon={<Check size={19} />} title="没有疑似重复的实体候选">同一概念在不同文献中的候选都已处理，或者与已有实体都不重名。</EmptyBlock>;
   }
   const visible = showAll ? groups : groups.slice(0, 20);
+  const exact = exactMergeGroups(groups);
   return (
     <div className="mt-4 space-y-3">
+      {onMergeExact && exact.length > 1 ? <MergeExactBar groups={exact} pending={handlers.pending} onConfirm={() => onMergeExact(exact)} /> : null}
       <p className="px-1 text-[13px] text-muted-ink">同名或名称相近的实体候选会被归到一起；概念、方法、任务之间也会互相提示，并标出“类型不同”，合并后保留规范实体的类型。合并后同一概念只保留一个节点，各篇文献都会连到它。</p>
       {visible.map((group) => <DuplicateGroupCard group={group} key={group.key} {...handlers} />)}
       {groups.length > visible.length ? <Button size="sm" variant="outline" onClick={() => setShowAll(true)}>显示其余 {groups.length - visible.length} 组</Button> : null}
