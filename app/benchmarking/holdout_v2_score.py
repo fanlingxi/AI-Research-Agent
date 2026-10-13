@@ -130,10 +130,12 @@ def judge_api(run_dir: Path, max_calls: int = 120) -> dict:
     return {"calls": calls, "failures": failures}
 
 
-def _verdicts(run_dir: Path, key: str) -> list[dict]:
+def _verdicts(run_dir: Path, key: str, judges: list[str] | None = None) -> list[dict]:
     found = []
     for folder in sorted(run_dir.glob("judge-*")):
         if folder.name == "judge-packets":
+            continue
+        if judges is not None and folder.name.removeprefix("judge-") not in judges:
             continue
         path = folder / f"{key}.json"
         if path.is_file():
@@ -141,7 +143,7 @@ def _verdicts(run_dir: Path, key: str) -> list[dict]:
     return found
 
 
-def summary(run_dir: Path) -> dict:
+def summary(run_dir: Path, judges: list[str] | None = None) -> dict:
     tasks = _tasks(run_dir)
     arms: dict[str, dict] = {}
     per_run = []
@@ -150,7 +152,7 @@ def summary(run_dir: Path) -> dict:
         exp = task["expectation"]
         required = [c["id"] for c in exp["required_conclusions"]]
         key = f"{row['case']}__{row['workflow']}"
-        verdicts = _verdicts(run_dir, key) if _report(run_dir, row) is not None else []
+        verdicts = _verdicts(run_dir, key, judges) if _report(run_dir, row) is not None else []
         # Conservative merge: covered only if every judge says so; violated if any judge does.
         covered = sum(
             1 for cid in required
@@ -204,7 +206,8 @@ def summary(run_dir: Path) -> dict:
         }
     return {
         "label_provenance": "ai-consensus (not human-verified)",
-        "judging": "conservative merge of all available judges",
+        "judging": ("conservative merge of all available judges" if judges is None
+                    else f"conservative merge of selected judges: {', '.join(judges)}"),
         "arms": arms,
         **gates,
         "runs": per_run,
@@ -218,13 +221,19 @@ if __name__ == "__main__":
     group.add_argument("--packets", action="store_true")
     group.add_argument("--judge-api", action="store_true")
     group.add_argument("--summary", action="store_true")
+    parser.add_argument("--judges", help="Only merge these judge directories, e.g. human,api")
     args = parser.parse_args()
+    judges = None
+    if args.judges is not None:
+        judges = [name.strip() for name in args.judges.split(",")]
+        if not args.summary or not all(re.fullmatch(r"[A-Za-z0-9_-]+", name) for name in judges):
+            parser.error("--judges requires --summary and comma-separated judge names")
     if args.packets:
         result = {"packets": write_packets(args.run_dir)}
     elif args.judge_api:
         result = judge_api(args.run_dir)
     else:
-        result = summary(args.run_dir)
+        result = summary(args.run_dir, judges=judges)
         (args.run_dir / "score.json").write_text(
             json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8"
         )

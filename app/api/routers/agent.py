@@ -11,6 +11,7 @@ from app.agent.feedback_models import (
     FeedbackRequest,
     FeedbackRerunRequest,
 )
+from app.agent.follow_up import FollowUpDraftRequest
 from app.agent.models import AgentRunCreateRequest, AgentRunReviewRequest
 from app.agent.service import AgentRunService
 from app.api.errors import agent_call, memory_call, workspace_call
@@ -110,6 +111,14 @@ def build_agent_router(
     def list_agent_run_events(run_id: str) -> list[dict[str, Any]]:
         events = agent_call(lambda: agents.repository.list_events(run_id))
         return [item.model_dump() for item in events]
+
+    @router.post("/api/agent-runs/{run_id}/follow-up-draft")
+    def draft_follow_up(run_id: str, payload: FollowUpDraftRequest) -> dict[str, Any]:
+        return agent_call(lambda: agents.follow_up.draft(run_id, payload.question))
+
+    @router.get("/api/agent-runs/{run_id}/follow-ups")
+    def list_follow_ups(run_id: str) -> list[dict[str, Any]]:
+        return agent_call(lambda: agents.follow_up.list(run_id))
 
     @router.get("/api/agent-runs/{run_id}/tool-calls")
     def list_agent_tool_calls(run_id: str) -> list[dict[str, Any]]:

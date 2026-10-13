@@ -321,3 +321,26 @@ def test_ten_pdf_batch_creates_ten_readable_paper_notes_without_offline_demo(tmp
     assert len(published_papers) == 10
     assert len(paper_notes) == 10
     assert all("offline_demo" not in note.read_text(encoding="utf-8") for note in paper_notes)
+
+
+class UnlocatedExtractor(FixtureExtractor):
+    def extract(self, paper, chunks):
+        result = super().extract(paper, chunks)
+        evidence = result.payload.reading.evidence
+        result.unlocated_evidence = {(evidence.chunk_id, evidence.quote)}
+        return result
+
+
+def test_candidates_flag_evidence_that_was_not_located_in_source(tmp_path) -> None:
+    repository, service, _ = _service(tmp_path)
+    located = service.submit(topic="定位", sources=["located.pdf"], pdf_max_pages=4)
+    service.run(located.id)
+    assert all("evidence_located" not in item["candidate"].get("metadata", {})
+               for item in repository.list_candidates(located.id, status="draft"))
+
+    service.extractor = UnlocatedExtractor()
+    unlocated = service.submit(topic="未定位", sources=["unlocated.pdf"], pdf_max_pages=4)
+    service.run(unlocated.id)
+    drafts = repository.list_candidates(unlocated.id, status="draft")
+    assert drafts
+    assert all(item["candidate"]["metadata"]["evidence_located"] is False for item in drafts)

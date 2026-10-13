@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
 from collections import Counter
 from pathlib import Path
@@ -39,7 +40,9 @@ class ExperimentReadService:
         self, root: Path | None = None, dataset: Path | None = None,
         semantic_archive: Path | None = None,
     ):
-        self.root = (root or ROOT / "data/evaluation").resolve()
+        self.root = (
+            root or Path(os.environ.get("ARA_EVALUATION_ROOT", ROOT / "data/evaluation"))
+        ).resolve()
         self.dataset = (dataset or ROOT / "benchmarks/research/papers-v1").resolve()
         self.semantic_archive = (semantic_archive or ROOT / "docs/improvement/a05").absolute()
 

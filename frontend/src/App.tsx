@@ -17,6 +17,7 @@ const ReportsPage = lazy(async () => ({ default: (await import("./pages/ReportsP
 const QuickReportPage = lazy(async () => ({ default: (await import("./pages/QuickReportPage")).QuickReportPage }));
 const RuntimePage = lazy(async () => ({ default: (await import("./pages/RuntimePage")).RuntimePage }));
 const ExperimentsPage = lazy(async () => ({ default: (await import("./pages/ExperimentsPage")).ExperimentsPage }));
+const ExperimentReviewPage = lazy(async () => ({ default: (await import("./pages/ExperimentReviewPage")).ExperimentReviewPage }));
 const KnowledgeMapPage = lazy(async () => ({ default: (await import("./features/knowledge-map")).KnowledgeMapPage }));
 
 export function App() {
@@ -38,6 +39,7 @@ export function App() {
           <Route path="/agent-runs/:runId" element={<AgentRunPage />} />
           <Route path="/runtime" element={<RuntimePage />} />
           <Route path="/experiments" element={<ExperimentsPage />} />
+          <Route path="/experiments/review" element={<ExperimentReviewPage />} />
           <Route path="*" element={<Navigate replace to="/" />} />
         </Routes>
       </Suspense>

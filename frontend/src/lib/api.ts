@@ -36,6 +36,24 @@ export interface WorkspaceTask {
   updated_at: string;
 }
 
+export interface FollowUpOf {
+  run_id: string;
+  artifact_id: string | null;
+  parent_task_id?: string;
+}
+
+export interface FollowUpDraft {
+  standalone_question: string;
+  suggestions: string[];
+  fallback: boolean;
+}
+
+export interface FollowUp {
+  task: WorkspaceTask;
+  latest_run: AgentRun | null;
+  artifact: Artifact | null;
+}
+
 export interface Decision {
   id: string;
   project_id: string;
@@ -278,6 +296,8 @@ interface CandidateBase {
   confidence: number;
   evidence: CandidateEvidence;
   status: string;
+  /** `evidence_located: false` means the model quote was not found; evidence is a chunk excerpt. */
+  metadata?: { evidence_located?: boolean } & Record<string, unknown>;
 }
 
 export interface EntityCandidate extends CandidateBase {
@@ -503,6 +523,7 @@ export type ResearchCommandInput =
     }
   | {
       mode: "project_run";
+      follow_up_of?: FollowUpOf;
       instruction: string;
       project_id: string;
       task:
@@ -537,6 +558,31 @@ export interface KnowledgeEvidenceRef {
   page_start: number;
   page_end: number;
   quote: string;
+}
+
+export interface SourceVersion {
+  document_id: string;
+  title: string;
+  source_id: string;
+  version: string;
+  parser_version: string;
+  ingestion_id: string;
+  ingestion_ids: string[];
+  has_published_evidence: boolean;
+  is_active: boolean;
+  superseded_by_source_id: string | null;
+  created_at: string;
+}
+
+export interface KnowledgeDocument extends SourceVersion {
+  can_reparse: boolean;
+  versions: SourceVersion[];
+}
+
+export interface ReparseResult {
+  status: "unchanged" | "queued";
+  ingestion_id: string | null;
+  deduplicated?: boolean;
 }
 
 export interface KnowledgeEntity {
@@ -745,7 +791,73 @@ export type ProjectionRebuild = {
   };
 };
 
+export interface ReviewRun {
+  run_ref: string;
+  dataset: string;
+  name: string;
+  question_count: number;
+  item_count: number;
+  human_count: number;
+  ai_judge_count: number;
+}
+
+export interface ReviewItem {
+  key: string;
+  human_reviewed: boolean;
+  ai_agree: boolean | null;
+  ai_judge_count: number;
+}
+
+export interface ReviewVerdict {
+  covered: Record<string, boolean>;
+  violated: boolean[];
+  outcome_ok: boolean;
+  note: string;
+  judge?: string;
+  corrected_note?: string;
+}
+
+export interface ReviewDetail {
+  key: string;
+  packet: {
+    question: string;
+    expected_outcome: string;
+    outcome_guide: Record<string, string>;
+    required_conclusions: { id: string; statement: string }[];
+    forbidden_conclusions: string[];
+    missing_information: string[];
+    report: string;
+    instructions: string;
+  };
+  human: ReviewVerdict | null;
+  ai_judges?: Record<string, ReviewVerdict>;
+}
+
+export interface AgreementMetric { matched: number; total: number; rate: number | null }
+export interface ReviewAgreement {
+  human_count: number;
+  judges: Record<string, {
+    paired_count: number;
+    outcome_ok: AgreementMetric;
+    covered: AgreementMetric;
+    violated: AgreementMetric;
+    covered_by_id: Record<string, AgreementMetric>;
+  }>;
+}
+
+const reviewPath = (run: string) => `/api/experiments/review/runs/${path(run)}`;
+
 export const api = {
+  followUpDraft: (runId: string, question: string) =>
+    request<FollowUpDraft>(`/api/agent-runs/${path(runId)}/follow-up-draft`, {
+      method: "POST", body: JSON.stringify({ question }),
+    }),
+  followUps: (runId: string) => request<FollowUp[]>(`/api/agent-runs/${path(runId)}/follow-ups`),
+  reviewRuns: () => request<{ runs: ReviewRun[] }>("/api/experiments/review/runs"),
+  reviewItems: (run: string) => request<{ items: ReviewItem[]; total: number; human_count: number }>(`${reviewPath(run)}/items`),
+  reviewItem: (run: string, key: string) => request<ReviewDetail>(`${reviewPath(run)}/items/${path(key)}`),
+  reviewHuman: (run: string, key: string, verdict: ReviewVerdict) => request<{ key: string; human: ReviewVerdict }>(`${reviewPath(run)}/items/${path(key)}/human`, { method: "PUT", body: JSON.stringify(verdict) }),
+  reviewAgreement: (run: string) => request<ReviewAgreement>(`${reviewPath(run)}/agreement`),
   submitRebuild: (input: { target: ProjectionTarget; collection_slug: string | null; confirmed: true }, key: string) =>
     request<ProjectionRebuild>("/api/v1/runtime/rebuilds", {
       method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(input),
@@ -858,6 +970,11 @@ export const api = {
   ),
   documentSource: (documentId: string) =>
     request<DocumentSource>(`/api/knowledge/documents/${path(documentId)}/source`),
+  knowledgeDocuments: () => request<KnowledgeDocument[]>("/api/knowledge/documents"),
+  reparseDocument: (documentId: string) =>
+    request<ReparseResult>(`/api/knowledge/documents/${path(documentId)}/reparse`, { method: "POST" }),
+  activateSource: (sourceId: string) =>
+    request<{ source_id: string; status: string }>(`/api/knowledge/sources/${path(sourceId)}/activate`, { method: "POST" }),
   duplicateGroups: (ingestionId: string) =>
     request<DuplicateGroups>(`/api/knowledge/ingestions/${path(ingestionId)}/duplicate-groups`),
   autoApproveHighConfidence: (ingestionId: string) =>

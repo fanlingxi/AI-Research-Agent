@@ -2,13 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 
 import { EmptyBlock, ErrorBlock, LoadingBlock, Notice } from "../components/AsyncState";
 import { MetricHelp } from "../components/MetricHelp";
 import { SemanticObservation } from "../components/SemanticObservation";
 import { Badge } from "../components/ui/badge";
+import { buttonVariants } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Field, Input, Select } from "../components/ui/field";
 import { Disclosure, Page, PageHeader, Stat } from "../components/ui/page";
@@ -131,7 +132,7 @@ export function ExperimentsPage() {
 
   return (
     <Page width="wide" className="space-y-5">
-      <PageHeader title="实验对比" description="面向开发与评估：查看不同检索策略在同一批题目上的证据与失败记录。本页只读，不会调用模型。" />
+      <PageHeader title="实验对比" description="面向开发与评估：查看不同检索策略在同一批题目上的证据与失败记录。本页只读，不会调用模型。" actions={<Link className={buttonVariants({ variant: "outline" })} to="/experiments/review">人工核验</Link>} />
       <Notice tone="warning" icon={<AlertTriangle size={15} />} title="下方展示 A02 / A04 历史实验归档">
         批次列表尚未接入 A08 后续实验与报告修订，不能据此判断当前系统质量。A05 语义观察在页面底部单独展示。
       </Notice>

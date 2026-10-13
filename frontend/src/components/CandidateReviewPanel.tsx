@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Check, ChevronLeft, ChevronRight, GitMerge, PauseCircle, Plus, Sparkles, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, GitMerge, PauseCircle, Plus, Sparkles, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -77,6 +77,12 @@ function CandidateCard({ record, onDecide, onSelect, pending, selected, titles }
           ) : <p className="mt-2 break-words text-[15px] font-medium leading-6 text-ink">{title}</p>}
           <p className="mt-1 text-[13.5px] leading-6 text-ink-soft">{candidate.summary}</p>
           {target ? <MergeSuggestions candidateId={candidate.id} candidateType={candidate.type} disabled={pending} onChange={setMergeTarget} suggestions={suggestions} value={target.entity_id} /> : null}
+          {candidate.metadata?.evidence_located === false ? (
+            <p className="mt-2.5 flex gap-1.5 rounded-md border border-amber-200 bg-warning-soft/60 px-2.5 py-1.5 text-xs leading-5 text-amber-950" role="note">
+              <AlertTriangle className="mt-0.5 shrink-0" size={13} />
+              <span>模型给出的引文未能在原文中找到，下面显示的是该切片开头，不一定支持这条知识。请核对原文后再批准。</span>
+            </p>
+          ) : null}
           <details className="group mt-2.5">
             <summary className="list-none">
               <blockquote className="rounded-md border-l-2 border-brand/50 bg-subtle/70 px-3 py-2 text-[13px] leading-6 text-ink-soft">

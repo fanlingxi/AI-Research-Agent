@@ -30,16 +30,28 @@ class QuickReportCommand(BaseModel):
     top_k: int = Field(default=12, ge=1, le=30)
 
 
+class FollowUpOf(BaseModel):
+    run_id: str = Field(min_length=1)
+    artifact_id: str | None = Field(default=None, min_length=1)
+
+
 class ProjectRunCommand(BaseModel):
     mode: Literal["project_run"]
     instruction: str = Field(min_length=3, max_length=4000)
     project_id: str = Field(min_length=1)
     task: TaskSelection
+    follow_up_of: FollowUpOf | None = None
     create_memory_proposal: bool = False
     max_steps: int = Field(default=10, ge=3, le=16)
     max_tool_calls: int = Field(default=3, ge=0, le=8)
     # None preserves automatic profile selection through durable serialization.
     token_budget: int | None = Field(default=None, ge=256, le=1048576)
+
+    @model_validator(mode="after")
+    def follow_up_requires_new_task(self):
+        if self.follow_up_of is not None and self.task.kind != "new":
+            raise ValueError("追问必须创建新任务。")
+        return self
 
 
 CommandPayload = Annotated[

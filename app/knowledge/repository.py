@@ -116,6 +116,7 @@ class KnowledgeRepository:
         self._apply_structural_migration(18)
         self._apply_structural_migration(19)
         self._apply_structural_migration(20)
+        self._apply_structural_migration(21)
         self._backfill_legacy_relation_collections()
         self._backfill_semantic_records()
 
@@ -194,6 +195,7 @@ class KnowledgeRepository:
         pdf_max_pages: int,
         enqueue: bool = True,
         auto_execute: bool = False,
+        reparse_payload: dict[str, Any] | None = None,
     ) -> tuple[KnowledgeIngestion, bool]:
         """Create one active ingestion per equivalent submission.
 
@@ -215,16 +217,51 @@ class KnowledgeRepository:
         existing_id: str | None = None
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            if reparse_payload is not None:
+                current = connection.execute(
+                    """SELECT i.topic_slug, d.content_sha256 FROM documents d
+                       JOIN ingestions i ON i.id = d.ingestion_id WHERE d.id = ?""",
+                    (reparse_payload["document_id"],),
+                ).fetchone()
+                if (current is None or current["topic_slug"] != collection_slug
+                        or current["content_sha256"] != reparse_payload["original_sha256"]):
+                    raise ValueError("解析期间文献或所属集合已变化，请重新解析。")
+                existing = connection.execute(
+                    """SELECT m.ingestion_id FROM documents d
+                       JOIN sources s ON s.id = d.source_id
+                       JOIN ingestion_documents m ON m.document_id = d.id
+                       JOIN ingestions i ON i.id = m.ingestion_id
+                       WHERE s.canonical_uri = ? AND d.content_sha256 = ? AND i.topic_slug = ?
+                       ORDER BY i.created_at LIMIT 1""",
+                    (reparse_payload["identity_uri"], reparse_payload["content_sha256"],
+                     collection_slug),
+                ).fetchone()
+                if existing:
+                    existing_id = str(existing[0])
             rows = connection.execute(
                 """
-                SELECT id, sources_json FROM ingestions
+                SELECT id, sources_json, reparse_payload_json FROM ingestions
                 WHERE topic_slug = ? AND pdf_max_pages = ?
-                  AND status IN ('queued', 'running', 'needs_review', 'publishing')
+                  AND (status IN ('queued', 'running', 'needs_review', 'publishing')
+                       OR reparse_payload_json IS NOT NULL)
                 ORDER BY created_at
                 """,
                 (collection_slug, pdf_max_pages),
             ).fetchall()
             for row in rows:
+                if existing_id is not None:
+                    break
+                previous = json.loads(row["reparse_payload_json"] or "null")
+                if reparse_payload is not None:
+                    if previous and all(
+                        previous[key] == reparse_payload[key]
+                        for key in ("identity_uri", "content_sha256")
+                    ):
+                        existing_id = str(row["id"])
+                        break
+                    continue
+                if previous is not None:
+                    continue
                 if _normalized_sources(json.loads(row["sources_json"])) == normalized_sources:
                     existing_id = str(row["id"])
                     break
@@ -247,6 +284,11 @@ class KnowledgeRepository:
                     ),
                 )
                 self._ensure_collection_tx(connection, collection_name, collection_slug)
+                if reparse_payload is not None:
+                    connection.execute(
+                        "UPDATE ingestions SET reparse_payload_json = ? WHERE id = ?",
+                        (_dump(reparse_payload), ingestion_id),
+                    )
                 connection.execute(
                     """
                     INSERT OR REPLACE INTO ingestion_collections (ingestion_id, collection_slug)
@@ -284,6 +326,13 @@ class KnowledgeRepository:
         if existing_id is not None:
             return self.get_ingestion(existing_id), True
         return self.get_ingestion(ingestion_id), False
+
+    def reparse_payload(self, ingestion_id: str) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT reparse_payload_json FROM ingestions WHERE id = ?", (ingestion_id,)
+            ).fetchone()
+        return json.loads(row[0]) if row and row[0] else None
 
     def list_ingestions(self, limit: int = 100) -> list[KnowledgeIngestion]:
         with self._connect() as connection:
@@ -1150,13 +1199,25 @@ class KnowledgeRepository:
         return PublishedEntity.model_validate_json(row["payload_json"])
 
     def get_published_relation(self, relation_id: str) -> PublishedRelation:
+        """Return the relation with evidence merged from historical duplicates."""
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT payload_json FROM published_relations WHERE id = ?", (relation_id,)
+                "SELECT source_entity_id, target_entity_id, relation_type "
+                "FROM published_relations WHERE id = ?", (relation_id,)
             ).fetchone()
-        if row is None:
-            raise KeyError(relation_id)
-        return PublishedRelation.model_validate_json(row["payload_json"])
+            if row is None:
+                raise KeyError(relation_id)
+            rows = connection.execute(
+                """SELECT payload_json FROM published_relations
+                   WHERE source_entity_id = ? AND target_entity_id = ? AND relation_type = ?
+                   ORDER BY created_at, id""",
+                tuple(row),
+            ).fetchall()
+        relations = [PublishedRelation.model_validate_json(item[0]) for item in rows]
+        merged = relations[0]
+        for relation in relations[1:]:
+            merged = _merge_relations(merged, relation)
+        return merged.model_copy(update={"id": relation_id})
 
     def list_published_entities(self, topic_slug: str | None = None) -> list[PublishedEntity]:
         query = "SELECT payload_json FROM published_entities"
@@ -1186,7 +1247,21 @@ class KnowledgeRepository:
             params = (topic_slug,)
         with self._connect() as connection:
             rows = connection.execute(query, params).fetchall()
-        return [PublishedRelation.model_validate_json(row["payload_json"]) for row in rows]
+            allowed = None
+            if topic_slug:
+                allowed = {str(row[0]) for row in connection.execute(
+                    """SELECT DISTINCT d.document_id FROM ingestion_documents d
+                       JOIN ingestion_collections ic ON ic.ingestion_id = d.ingestion_id
+                       WHERE ic.collection_slug = ?""", (topic_slug,))}
+        grouped: dict[tuple[str, str, str], PublishedRelation] = {}
+        for row in rows:
+            item = PublishedRelation.model_validate_json(row["payload_json"])
+            if allowed is not None:
+                item = item.model_copy(update={
+                    "evidence": [e for e in item.evidence if e.paper_id in allowed]})
+            key = (item.source_entity_id, item.target_entity_id, item.type)
+            grouped[key] = _merge_relations(grouped[key], item) if key in grouped else item
+        return list(grouped.values())
 
     def list_topics(self) -> list[dict[str, Any]]:
         return [
@@ -1660,6 +1735,17 @@ def _normalized_sources(values: list[str]) -> list[str]:
     """Normalize a multi-PDF submission so URL order cannot create a duplicate job."""
 
     return sorted(_unique(values))
+
+
+def _merge_relations(first: PublishedRelation, other: PublishedRelation) -> PublishedRelation:
+    """Read-side merge of historical duplicates; stored publication records stay unchanged."""
+    return first.model_copy(update={
+        "evidence": list({(e.chunk_id, e.quote): e for e in first.evidence + other.evidence}
+                         .values()),
+        "topic_slugs": list(dict.fromkeys(first.topic_slugs + other.topic_slugs)),
+        "collection_slugs": list(dict.fromkeys(first.collection_slugs + other.collection_slugs)),
+        "confidence": max(first.confidence, other.confidence),
+    })
 
 
 def _dump(value: Any) -> str:
