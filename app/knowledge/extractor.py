@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pydantic import ValidationError
 
 from app.knowledge.schemas import EvidenceSpan, KnowledgeExtraction
 from app.llms.provider import LLMClient, MockLLMClient
+from app.retrieval.anchors import locate_quote
 from app.schemas.documents import DocumentChunk, PaperMetadata
 
 EXTRACTION_SYSTEM_PROMPT = """你是严谨的科研知识工程师。你的任务是把一篇论文转换为可审阅的候选知识，
@@ -53,6 +54,9 @@ class LiveLLMRequiredError(RuntimeError):
 class ExtractionResult:
     payload: KnowledgeExtraction
     used_repair: bool = False
+    # (chunk_id, quote) pairs whose model quote could not be located in any supplied chunk;
+    # their quote is a chunk excerpt the reviewer must check against the source.
+    unlocated_evidence: set[tuple[str, str]] = field(default_factory=set)
 
 
 class SchemaKnowledgeExtractor:
@@ -85,7 +89,11 @@ class SchemaKnowledgeExtractor:
             payload = self._parse(repaired)
             used_repair = True
 
-        return ExtractionResult(payload=self._ground(payload, chunks), used_repair=used_repair)
+        unlocated: set[tuple[str, str]] = set()
+        grounded = self._ground(payload, chunks, unlocated)
+        return ExtractionResult(
+            payload=grounded, used_repair=used_repair, unlocated_evidence=unlocated
+        )
 
     def _build_prompt(self, paper: PaperMetadata, chunks: list[DocumentChunk]) -> str:
         selected = _sample_chunks(chunks)
@@ -154,16 +162,27 @@ class SchemaKnowledgeExtractor:
         return KnowledgeExtraction.model_validate_json(cleaned)
 
     def _ground(
-        self, payload: KnowledgeExtraction, chunks: list[DocumentChunk]
+        self,
+        payload: KnowledgeExtraction,
+        chunks: list[DocumentChunk],
+        unlocated: set[tuple[str, str]] | None = None,
     ) -> KnowledgeExtraction:
         by_id = {chunk.id: chunk for chunk in chunks}
 
         def ground(evidence: EvidenceSpan) -> EvidenceSpan:
-            chunk = by_id.get(evidence.chunk_id) or chunks[0]
-            page = int(chunk.metadata.get("page_start", 1) or 1)
-            quote = evidence.quote.strip()
-            if not _is_quote_in_chunk(quote, chunk.text):
+            stated = by_id.get(evidence.chunk_id)
+            chunk, quote = _locate_in_chunks(
+                evidence.quote.strip(),
+                [stated, *(item for item in chunks if item is not stated)] if stated else chunks,
+            )
+            if chunk is None:
+                # Never present an unlocated model quote as source text: keep a real
+                # excerpt of the cited chunk and flag it for the reviewer.
+                chunk = stated or chunks[0]
                 quote = _evidence_quote(chunk.text)
+                if unlocated is not None:
+                    unlocated.add((chunk.id, quote))
+            page = int(chunk.metadata.get("page_start", 1) or 1)
             return EvidenceSpan(
                 paper_id=chunk.paper_id,
                 chunk_id=chunk.id,
@@ -231,12 +250,17 @@ def _meaningful_name(value: str) -> bool:
     return len(normalized) >= 3 and normalized not in NOISE_NAMES and not normalized.isdigit()
 
 
-def _is_quote_in_chunk(quote: str, chunk_text: str) -> bool:
+def _locate_in_chunks(
+    quote: str, chunks: list[DocumentChunk]
+) -> tuple[DocumentChunk | None, str]:
+    """Find the quote modulo layout noise; return the exact source span, not model text."""
     if len(quote) < 16:
-        return False
-    normalized_quote = re.sub(r"\s+", " ", quote).strip().casefold()
-    normalized_chunk = re.sub(r"\s+", " ", chunk_text).casefold()
-    return normalized_quote in normalized_chunk
+        return None, ""
+    for chunk in chunks:
+        span = locate_quote(quote, chunk.text)
+        if span is not None:
+            return chunk, re.sub(r"\s+", " ", chunk.text[span[0]:span[1]]).strip()
+    return None, ""
 
 
 def _evidence_quote(text: str) -> str:

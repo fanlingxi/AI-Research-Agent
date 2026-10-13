@@ -648,6 +648,13 @@ class KnowledgeIngestionService:
     ) -> list[CandidateEntity | CandidateRelation]:
         result = self.extractor.extract(paper, chunks)
         reading = result.payload.reading
+        unlocated = getattr(result, "unlocated_evidence", set())
+
+        def flagged(evidence, metadata=None) -> dict:
+            """Mark candidates whose evidence is a chunk excerpt, not a located quote."""
+            if (evidence.chunk_id, evidence.quote) in unlocated:
+                return {**(metadata or {}), "evidence_located": False}
+            return dict(metadata or {})
         candidates: list[CandidateEntity | CandidateRelation] = []
         paper_candidate = CandidateEntity(
             id=_candidate_id(),
@@ -659,13 +666,13 @@ class KnowledgeIngestionService:
             aliases=[],
             confidence=0.95,
             evidence=reading.evidence,
-            metadata={
+            metadata=flagged(reading.evidence, {
                 "source_url": paper.url,
                 "pdf_url": paper.pdf_url,
                 "local_path": paper.metadata.get("local_path"),
                 "reading": reading.model_dump(),
                 "used_json_repair": result.used_repair,
-            },
+            }),
         )
         candidates.append(paper_candidate)
         entities_by_name: dict[str, CandidateEntity] = {_normal_name(paper.title): paper_candidate}
@@ -685,6 +692,7 @@ class KnowledgeIngestionService:
                 conditions=extracted.conditions,
                 confidence=extracted.confidence,
                 evidence=extracted.evidence,
+                metadata=flagged(extracted.evidence),
                 merge_suggestions=self.repository.find_merge_suggestions(
                     name=extracted.name,
                     entity_type=extracted.type,
@@ -716,7 +724,7 @@ class KnowledgeIngestionService:
                     summary=f"《{paper.title}》{_relation_phrase(relation_type)}“{candidate.name}”。",
                     confidence=extracted.confidence,
                     evidence=extracted.evidence,
-                    metadata={"generated_from": "paper_entity_link"},
+                    metadata=flagged(extracted.evidence, {"generated_from": "paper_entity_link"}),
                 )
             )
 
@@ -736,6 +744,7 @@ class KnowledgeIngestionService:
                     summary=extracted.summary,
                     confidence=extracted.confidence,
                     evidence=extracted.evidence,
+                    metadata=flagged(extracted.evidence),
                 )
             )
         return candidates
