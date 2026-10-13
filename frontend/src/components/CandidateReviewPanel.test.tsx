@@ -132,4 +132,22 @@ describe("candidate merge review", () => {
     await waitFor(() => expect(decide).toHaveBeenCalledWith("candidate-d", "approve"));
     await waitFor(() => expect(bulk).toHaveBeenLastCalledWith("ingestion-1", ["candidate-e"], "merge", "entity-llm"));
   });
+
+  it("warns when the evidence is a chunk excerpt because the model quote was not found", async () => {
+    const items: KnowledgeCandidatePage["items"] = [
+      { kind: "entity", candidate: entity("located", "paper:a", { merge_suggestions: [] }) },
+      { kind: "entity", candidate: entity("unlocated", "paper:b", { name: "未定位实体", merge_suggestions: [], metadata: { evidence_located: false } }) },
+    ];
+    vi.spyOn(api, "ingestions").mockResolvedValue([ingestion]);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "candidatePage").mockResolvedValue({ items, total: 2, offset: 0, limit: 25, next_offset: null });
+    vi.spyOn(api, "duplicateGroups").mockResolvedValue({ groups: [], candidate_count: 0 });
+
+    renderPanel();
+
+    const notes = await screen.findAllByRole("note");
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toHaveTextContent("模型给出的引文未能在原文中找到");
+    expect(notes[0].closest("article")).toHaveTextContent("未定位实体");
+  });
 });

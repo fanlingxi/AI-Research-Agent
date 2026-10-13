@@ -425,7 +425,9 @@ class KnowledgeCoreRepository:
                 JOIN claims claim ON claim.entity_id = entity.id
                 JOIN claim_evidence_links link ON link.claim_id = claim.id
                 JOIN evidences evidence ON evidence.id = link.evidence_id
+                JOIN sources source ON source.id = evidence.source_id
                 WHERE entity.entity_type = 'Paper'
+                  AND source.superseded_by_source_id IS NULL
                   AND entity.status = 'published'
                   AND claim.status = 'published'
                 """
@@ -470,7 +472,9 @@ class KnowledgeCoreRepository:
             JOIN claim_evidence_links link ON link.claim_id = claim.id
             JOIN evidences evidence ON evidence.id = link.evidence_id
             JOIN chunks chunk ON chunk.id = evidence.chunk_id
+            JOIN sources source ON source.id = evidence.source_id
             WHERE entity.entity_type = 'Paper' AND entity.status = 'published'
+              AND source.superseded_by_source_id IS NULL
               AND claim.status = 'published' {scope_sql}
         """, params)}
 
@@ -539,6 +543,7 @@ class KnowledgeCoreRepository:
             JOIN documents document ON document.id = chunk.document_id
             JOIN sources source ON source.id = document.source_id
             WHERE chunk.id IN ({placeholders})
+              AND source.superseded_by_source_id IS NULL
             """,
             tuple(unique_ids),
         ).fetchall()

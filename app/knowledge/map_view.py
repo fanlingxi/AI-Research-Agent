@@ -27,6 +27,12 @@ EdgeKind = Literal["relation", "evidence"]
 SOURCE_NODE_PREFIX = "source:"
 EVIDENCE_EDGE_TYPE = "EVIDENCE"
 
+_CURRENT_CANDIDATE_SQL = """NOT EXISTS (
+    SELECT 1 FROM documents d JOIN sources s ON s.id = d.source_id
+    WHERE d.id = json_extract(c.payload_json, '$.evidence.paper_id')
+      AND s.superseded_by_source_id IS NOT NULL
+)"""
+
 
 class MapNode(BaseModel):
     id: str
@@ -97,6 +103,7 @@ class KnowledgeMapReader:
         limit: int = 300,
     ) -> KnowledgeMapGraph:
         with self.database.connect() as connection:
+            connection.execute("BEGIN")
             nodes, edges = self._published(connection, collection)
             if include_pending:
                 self._add_pending(connection, collection, nodes, edges)
@@ -199,6 +206,8 @@ class KnowledgeMapReader:
             node_id = str(row["node_id"])
             properties = _loads(row["properties_json"])
             docs = documents.get(str(row["id"]), {})
+            if not docs:
+                continue
             nodes[node_id] = _Node(
                 MapNode(
                     id=node_id,
@@ -227,32 +236,53 @@ class KnowledgeMapReader:
             SELECT r.id, COALESCE(r.legacy_id, r.id) AS edge_id, r.source_entity_id,
                    r.target_entity_id, r.relation_type,
                    (SELECT c.statement FROM claims c
-                    WHERE c.relation_id = r.id AND c.status = 'published'
-                    ORDER BY c.created_at LIMIT 1) AS statement,
-                   (SELECT COUNT(DISTINCT l.evidence_id) FROM claims c
                     JOIN claim_evidence_links l ON l.claim_id = c.id
-                    WHERE c.relation_id = r.id AND c.status = 'published') AS evidence_count
+                    JOIN evidences ev ON ev.id = l.evidence_id
+                    JOIN sources s ON s.id = ev.source_id
+                      AND s.superseded_by_source_id IS NULL
+                    WHERE c.relation_id = r.id AND c.status = 'published'
+                    ORDER BY c.created_at LIMIT 1) AS statement
             FROM relations r
             WHERE r.status = 'published' {relation_scope}
             """,
             relation_params,
         ).fetchall()
+        relation_evidence: dict[str, set[tuple[str, str]]] = defaultdict(set)
+        for evidence in connection.execute(
+            """SELECT c.relation_id, ev.chunk_id, ev.quote FROM claims c
+               JOIN relations r ON r.id = c.relation_id
+               JOIN claim_evidence_links l ON l.claim_id = c.id
+               JOIN evidences ev ON ev.id = l.evidence_id
+               JOIN sources s ON s.id = ev.source_id AND s.superseded_by_source_id IS NULL
+               LEFT JOIN chunks ch ON ch.id = ev.chunk_id
+               WHERE c.status = 'published' AND r.status = 'published'
+                 AND (? IS NULL OR EXISTS (
+                   SELECT 1 FROM collection_memberships m
+                   JOIN ingestion_documents d ON d.ingestion_id = m.ingestion_id
+                   WHERE m.aggregate_type = 'relation'
+                     AND m.aggregate_id = COALESCE(r.legacy_id, r.id)
+                     AND m.collection_slug = ? AND d.document_id = ch.document_id))""",
+            (collection, collection),
+        ):
+            relation_evidence[str(evidence["relation_id"])].add(
+                (evidence["chunk_id"], evidence["quote"]))
         edges: list[MapEdge] = []
+        grouped: dict[tuple[str, str, str], MapEdge] = {}
+        evidence_keys: dict[tuple[str, str, str], set[tuple[str, str]]] = defaultdict(set)
         for row in relation_rows:
             source = core_to_node.get(str(row["source_entity_id"]))
             target = core_to_node.get(str(row["target_entity_id"]))
-            if source is None or target is None:
+            current = relation_evidence[str(row["id"])]
+            if source not in nodes or target not in nodes or not current:
                 continue
-            edges.append(
-                MapEdge(
-                    id=str(row["edge_id"]),
-                    source=source,
-                    target=target,
-                    type=str(row["relation_type"]),
-                    weight=max(1, int(row["evidence_count"] or 0)),
-                    label=str(row["statement"] or ""),
-                )
-            )
+            key = (source, target, str(row["relation_type"]))
+            evidence_keys[key].update(current)
+            if key not in grouped:
+                edge = MapEdge(id=str(row["edge_id"]), source=source, target=target,
+                               type=str(row["relation_type"]), label=str(row["statement"] or ""))
+                grouped[key] = edge
+                edges.append(edge)
+            grouped[key].weight = max(1, len(evidence_keys[key]))
         return nodes, edges
 
     @staticmethod
@@ -264,6 +294,7 @@ class KnowledgeMapReader:
             FROM claims c
             JOIN claim_evidence_links l ON l.claim_id = c.id
             JOIN evidences ev ON ev.id = l.evidence_id
+            JOIN sources s ON s.id = ev.source_id AND s.superseded_by_source_id IS NULL
             LEFT JOIN chunks ch ON ch.id = ev.chunk_id
             WHERE c.status = 'published' AND c.entity_id IS NOT NULL
             GROUP BY c.entity_id, document_id
@@ -339,6 +370,7 @@ class KnowledgeMapReader:
             SELECT c.id, c.payload_json FROM candidates c
             LEFT JOIN ingestion_collections ic ON ic.ingestion_id = c.ingestion_id
             WHERE c.status = 'draft' AND c.kind = ? {scope_sql}
+              AND {_CURRENT_CANDIDATE_SQL}
             ORDER BY c.created_at, c.id
             """,
             tuple(params),
@@ -413,6 +445,7 @@ class KnowledgeMapReader:
     # ----------------------------------------------------------------- detail
     def node_detail(self, node_id: str, *, include_pending: bool = False) -> dict[str, Any]:
         with self.database.connect() as connection:
+            connection.execute("BEGIN")
             documents = self._documents(connection)
             if node_id.startswith(SOURCE_NODE_PREFIX):
                 return self._source_detail(connection, node_id, documents)
@@ -429,8 +462,9 @@ class KnowledgeMapReader:
                 return self._entity_detail(connection, row, documents, include_pending)
             if include_pending:
                 candidate = connection.execute(
-                    "SELECT * FROM candidates "
-                    "WHERE id = ? AND kind = 'entity' AND status = 'draft'",
+                    "SELECT c.* FROM candidates c "
+                    "WHERE c.id = ? AND c.kind = 'entity' AND c.status = 'draft' "
+                    f"AND {_CURRENT_CANDIDATE_SQL}",
                     (node_id,),
                 ).fetchone()
                 if candidate is not None:
@@ -447,6 +481,7 @@ class KnowledgeMapReader:
             JOIN claims c ON c.entity_id = e.id AND c.status = 'published'
             JOIN claim_evidence_links l ON l.claim_id = c.id
             JOIN evidences ev ON ev.id = l.evidence_id
+            JOIN sources s ON s.id = ev.source_id AND s.superseded_by_source_id IS NULL
             LEFT JOIN chunks ch ON ch.id = ev.chunk_id
             WHERE e.status = 'published' AND e.entity_type = 'Paper'
             """
@@ -461,6 +496,7 @@ class KnowledgeMapReader:
             """
             SELECT d.id, d.title, d.local_path, d.source_url, d.pages, s.title AS source_title
             FROM documents d LEFT JOIN sources s ON s.id = d.source_id
+            WHERE s.superseded_by_source_id IS NULL
             """
         ):
             document_id = str(row["id"])
@@ -489,6 +525,7 @@ class KnowledgeMapReader:
                    ch.page_start AS chunk_page_start, ch.page_end AS chunk_page_end
             FROM claim_evidence_links l
             JOIN evidences ev ON ev.id = l.evidence_id
+            JOIN sources s ON s.id = ev.source_id AND s.superseded_by_source_id IS NULL
             LEFT JOIN chunks ch ON ch.id = ev.chunk_id
             WHERE l.claim_id IN ({",".join("?" for _ in claim_ids)})
             ORDER BY l.claim_id, ev.id
@@ -572,13 +609,19 @@ class KnowledgeMapReader:
                 "evidence": evidence.get(str(item["id"]), []),
             }
             for item in claim_rows
+            if evidence.get(str(item["id"]))
         ]
+        if not claims:
+            raise KeyError(node_id)
         statements: dict[str, list[sqlite3.Row]] = defaultdict(list)
         for item in relation_claims:
-            statements[str(item["relation_id"])].append(item)
+            if evidence.get(str(item["id"])):
+                statements[str(item["relation_id"])].append(item)
         relations = []
         for item in relation_rows:
             relation_claim_rows = statements.get(str(item["id"]), [])
+            if not relation_claim_rows:
+                continue
             relations.append(
                 {
                     "id": str(item["edge_id"]),
@@ -601,6 +644,16 @@ class KnowledgeMapReader:
                     ],
                 }
             )
+        grouped_relations: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for relation in relations:
+            key = (relation["direction"], relation["other"]["id"], relation["type"])
+            if key in grouped_relations:
+                grouped_relations[key]["evidence"].extend(relation["evidence"])
+            else:
+                grouped_relations[key] = relation
+        relations = list(grouped_relations.values())
+        for relation in relations:
+            relation["evidence"] = list({e["id"]: e for e in relation["evidence"]}.values())
         if include_pending:
             relations.extend(self._pending_relations_for(connection, node_id, documents))
         summary = next(
@@ -652,8 +705,9 @@ class KnowledgeMapReader:
             return []
         relations = []
         for row in connection.execute(
-            "SELECT id, payload_json FROM candidates "
-            "WHERE kind = 'relation' AND status = 'draft' ORDER BY created_at, id"
+            "SELECT c.id, c.payload_json FROM candidates c "
+            "WHERE c.kind = 'relation' AND c.status = 'draft' "
+            f"AND {_CURRENT_CANDIDATE_SQL} ORDER BY c.created_at, c.id"
         ):
             payload = _loads(row["payload_json"])
             source = str(payload.get("source_candidate_id") or "")
@@ -685,7 +739,8 @@ class KnowledgeMapReader:
         connection: sqlite3.Connection, candidate_id: str
     ) -> dict[str, Any] | None:
         row = connection.execute(
-            "SELECT id, status, canonical_id, payload_json FROM candidates WHERE id = ?",
+            "SELECT c.id, c.status, c.canonical_id, c.payload_json FROM candidates c "
+            f"WHERE c.id = ? AND {_CURRENT_CANDIDATE_SQL}",
             (candidate_id,),
         ).fetchone()
         if row is None:
@@ -775,6 +830,7 @@ class KnowledgeMapReader:
             JOIN claims c ON c.entity_id = e.id AND c.status = 'published'
             JOIN claim_evidence_links l ON l.claim_id = c.id
             JOIN evidences ev ON ev.id = l.evidence_id
+            JOIN sources s ON s.id = ev.source_id AND s.superseded_by_source_id IS NULL
             LEFT JOIN chunks ch ON ch.id = ev.chunk_id
             WHERE e.status = 'published' AND {_DOCUMENT_ID_SQL} = ?
             GROUP BY e.id ORDER BY evidence_count DESC, e.name

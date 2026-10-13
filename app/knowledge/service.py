@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 from uuid import uuid4
 
@@ -37,6 +38,8 @@ from app.knowledge.source_identity import content_sha256, derive_source_identity
 from app.llms.provider import LLMClient, MockLLMClient, get_llm_client
 from app.schemas.documents import DocumentChunk, PaperMetadata, ParsedDocument
 from app.tools.pdf_tools import parse_pdf_source
+
+PARSER_VERSION = "pypdf-v2"
 
 
 class KnowledgeExtractor(Protocol):
@@ -119,6 +122,48 @@ class KnowledgeIngestionService:
         )
         return ingestion.model_copy(update={"deduplicated": deduplicated})
 
+    def reparse(self, document_id: str) -> dict:
+        """Parse outside transactions, then queue a frozen input for normal review."""
+        with self.repository.database.connect() as connection:
+            document = connection.execute(
+                """SELECT d.*, s.canonical_uri, i.pdf_max_pages, i.topic AS collection
+                   FROM documents d JOIN sources s ON s.id = d.source_id
+                   JOIN ingestions i ON i.id = d.ingestion_id WHERE d.id = ?""",
+                (document_id,),
+            ).fetchone()
+        if document is None:
+            raise KeyError(document_id)
+        local_path = Path(document["local_path"] or "")
+        if local_path.suffix.lower() != ".pdf" or not local_path.is_file():
+            raise ValueError("登记的本地 PDF 不存在或不是 PDF 文件。")
+        try:
+            parsed = self.parser(source=str(local_path), max_pages=document["pdf_max_pages"])
+        except Exception as exc:
+            raise ValueError("PDF 解析失败，请检查文件是否可读且未损坏。") from exc
+        if not parsed.text.strip():
+            raise ValueError("PDF 未提取到可用正文。")
+        checksum = content_sha256(parsed.text)
+        if checksum == document["content_sha256"]:
+            return {"status": "unchanged", "message": "解析内容无变化。", "ingestion_id": None}
+        self.ensure_execution_available()
+        # An upstream ETag describes the PDF bytes, not the newly parsed content.
+        parsed = parsed.model_copy(update={
+            "source": str(local_path),
+            "metadata": {key: value for key, value in parsed.metadata.items()
+                         if key not in {"source_version", "etag", "version"}},
+        })
+        ingestion, reused = self.repository.create_or_reuse_active_ingestion(
+            collection=document["collection"], sources=[str(local_path)],
+            pdf_max_pages=document["pdf_max_pages"], auto_execute=True,
+            reparse_payload={
+                "document_id": document_id, "identity_uri": document["canonical_uri"],
+                "original_sha256": document["content_sha256"],
+                "content_sha256": checksum, "parser_version": PARSER_VERSION,
+                "parsed": parsed.model_dump(mode="json"),
+            },
+        )
+        return {"status": "queued", "ingestion_id": ingestion.id, "deduplicated": reused}
+
     def run(
         self,
         ingestion_id: str,
@@ -130,6 +175,7 @@ class KnowledgeIngestionService:
         if (expected_job_id is None) != (expected_job_attempt is None):
             raise ValueError("A claimed ingestion requires both its job id and attempt.")
         ingestion = self.repository.get_ingestion(ingestion_id)
+        reparse_payload = self.repository.reparse_payload(ingestion_id)
         try:
             self.ensure_execution_available()
         except LiveLLMRequiredError as exc:
@@ -164,14 +210,19 @@ class KnowledgeIngestionService:
                         expected_job_attempt=expected_job_attempt,
                         expected_job_owner=expected_job_owner,
                     )
-                    parsed = self.parser(source=source, max_pages=ingestion.pdf_max_pages)
+                    parsed = (
+                        ParsedDocument.model_validate(reparse_payload["parsed"])
+                        if reparse_payload else
+                        self.parser(source=source, max_pages=ingestion.pdf_max_pages)
+                    )
                     self._assert_claim(
                         ingestion_id,
                         expected_job_id=expected_job_id,
                         expected_job_attempt=expected_job_attempt,
                         expected_job_owner=expected_job_owner,
                     )
-                    paper = self._paper_from_document(parsed, source)
+                    identity_uri = reparse_payload["identity_uri"] if reparse_payload else source
+                    paper = self._paper_from_document(parsed, identity_uri)
                     chunks = [
                         chunk.model_copy(
                             update={
@@ -199,9 +250,10 @@ class KnowledgeIngestionService:
                     self.core_repository.record_source_document(
                         document_id=paper.id,
                         title=paper.title,
-                        uri=source,
+                        uri=identity_uri,
                         content=parsed.text,
-                        parser_version="pypdf-v1",
+                        parser_version=(reparse_payload["parser_version"]
+                                        if reparse_payload else PARSER_VERSION),
                         metadata=paper.metadata,
                     )
                     self.core_repository.upsert_chunks(chunks)
@@ -590,6 +642,7 @@ class KnowledgeIngestionService:
         return processed
 
     def topic(self, topic_slug: str) -> dict:
+        graph = self.graph(topic_slug)
         return {
             "topic": next(
                 (
@@ -599,29 +652,32 @@ class KnowledgeIngestionService:
                 ),
                 None,
             ),
-            "entities": [
-                item.model_dump() for item in self.repository.list_published_entities(topic_slug)
-            ],
-            "relations": [
-                item.model_dump() for item in self.repository.list_published_relations(topic_slug)
-            ],
+            "entities": graph["nodes"],
+            "relations": graph["edges"],
         }
 
     def collection(self, collection_slug: str) -> dict:
+        graph = self.graph(collection_slug)
         return {
             "collection": self.repository.get_collection(collection_slug).model_dump(),
-            "entities": [
-                item.model_dump()
-                for item in self.repository.list_published_entities(collection_slug)
-            ],
-            "relations": [
-                item.model_dump()
-                for item in self.repository.list_published_relations(collection_slug)
-            ],
+            "entities": graph["nodes"],
+            "relations": graph["edges"],
         }
 
     def entity_detail(self, entity_id: str) -> dict:
-        return self.repository.entity_detail(entity_id)
+        detail = self.repository.entity_detail(entity_id)
+        excluded = self._superseded_documents()
+        entity = self._current_records([detail["entity"]], excluded)
+        if not entity:
+            raise KeyError(entity_id)
+        detail["entity"] = entity[0]
+        for field in ("relations", "papers"):
+            detail[field] = self._current_records(detail[field], excluded)
+        detail["documents"] = [d for d in detail["documents"] if d["id"] not in excluded]
+        detail["source_mentions"] = [
+            item for item in detail["source_mentions"] if item["paper_id"] not in excluded
+        ]
+        return detail
 
     def sync_collections(self, collection_slugs: list[str]) -> None:
         """Rebuild affected collection projections from SQLite after a durable move job."""
@@ -631,14 +687,32 @@ class KnowledgeIngestionService:
         self._render_topics(list(dict.fromkeys(collection_slugs)))
 
     def graph(self, topic_slug: str | None = None) -> dict:
+        excluded = self._superseded_documents()
         return {
-            "nodes": [
+            "nodes": self._current_records([
                 item.model_dump() for item in self.repository.list_published_entities(topic_slug)
-            ],
-            "edges": [
+            ], excluded),
+            "edges": self._current_records([
                 item.model_dump() for item in self.repository.list_published_relations(topic_slug)
-            ],
+            ], excluded),
         }
+
+    def _superseded_documents(self) -> set[str]:
+        with self.repository.database.connect() as connection:
+            return {str(row[0]) for row in connection.execute(
+                "SELECT d.id FROM documents d JOIN sources s ON s.id = d.source_id "
+                "WHERE s.superseded_by_source_id IS NOT NULL"
+            )}
+
+    @staticmethod
+    def _current_records(records: list[dict], excluded: set[str]) -> list[dict]:
+        """Filter live library DTOs; preserve stored publication and review history."""
+        result = []
+        for item in records:
+            evidence = [e for e in item["evidence"] if e["paper_id"] not in excluded]
+            if evidence:
+                result.append({**item, "evidence": evidence})
+        return result
 
     def _candidate_batch(
         self,
@@ -648,6 +722,13 @@ class KnowledgeIngestionService:
     ) -> list[CandidateEntity | CandidateRelation]:
         result = self.extractor.extract(paper, chunks)
         reading = result.payload.reading
+        unlocated = getattr(result, "unlocated_evidence", set())
+
+        def flagged(evidence, metadata=None) -> dict:
+            """Mark candidates whose evidence is a chunk excerpt, not a located quote."""
+            if (evidence.chunk_id, evidence.quote) in unlocated:
+                return {**(metadata or {}), "evidence_located": False}
+            return dict(metadata or {})
         candidates: list[CandidateEntity | CandidateRelation] = []
         paper_candidate = CandidateEntity(
             id=_candidate_id(),
@@ -659,13 +740,13 @@ class KnowledgeIngestionService:
             aliases=[],
             confidence=0.95,
             evidence=reading.evidence,
-            metadata={
+            metadata=flagged(reading.evidence, {
                 "source_url": paper.url,
                 "pdf_url": paper.pdf_url,
                 "local_path": paper.metadata.get("local_path"),
                 "reading": reading.model_dump(),
                 "used_json_repair": result.used_repair,
-            },
+            }),
         )
         candidates.append(paper_candidate)
         entities_by_name: dict[str, CandidateEntity] = {_normal_name(paper.title): paper_candidate}
@@ -685,6 +766,7 @@ class KnowledgeIngestionService:
                 conditions=extracted.conditions,
                 confidence=extracted.confidence,
                 evidence=extracted.evidence,
+                metadata=flagged(extracted.evidence),
                 merge_suggestions=self.repository.find_merge_suggestions(
                     name=extracted.name,
                     entity_type=extracted.type,
@@ -716,7 +798,7 @@ class KnowledgeIngestionService:
                     summary=f"《{paper.title}》{_relation_phrase(relation_type)}“{candidate.name}”。",
                     confidence=extracted.confidence,
                     evidence=extracted.evidence,
-                    metadata={"generated_from": "paper_entity_link"},
+                    metadata=flagged(extracted.evidence, {"generated_from": "paper_entity_link"}),
                 )
             )
 
@@ -736,6 +818,7 @@ class KnowledgeIngestionService:
                     summary=extracted.summary,
                     confidence=extracted.confidence,
                     evidence=extracted.evidence,
+                    metadata=flagged(extracted.evidence),
                 )
             )
         return candidates
