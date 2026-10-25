@@ -1,0 +1,5314 @@
+[
+ {
+  "id": "embedding-q1",
+  "family_id": "embedding",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "INSTRUCTOR 在编码时接收哪些输入，它生成的嵌入面向哪些信息维度？",
+  "allowed_source_ids": [
+   "instructor"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "embedding-q1-c1",
+     "statement": "INSTRUCTOR 是单一嵌入模型，同时接收文本与任务指令。",
+     "evidence_ids": [
+      "core-evidence-378f80bde68c467d8244c876ab5aa446"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "embedding-q1-c2",
+     "statement": "其生成的嵌入具有任务感知和领域感知特性。",
+     "evidence_ids": [
+      "core-evidence-378f80bde68c467d8244c876ab5aa446"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "INSTRUCTOR 只编码文本，不接收任务指令。",
+    "INSTRUCTOR 为每种任务分别训练完全独立的嵌入模型。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "embedding-q2",
+  "family_id": "embedding",
+  "split": "holdout",
+  "kind": "overclaim_trap",
+  "difficulty": "hard",
+  "question": "INSTRUCTOR 的评估规模和训练未见数据集数量分别是多少，能否把全部评估数据都称为训练时未见？",
+  "allowed_source_ids": [
+   "instructor"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "embedding-q2-c1",
+     "statement": "INSTRUCTOR 在 70 个嵌入数据集上进行评估。",
+     "evidence_ids": [
+      "core-evidence-fea5745b4c3e4a93ab50c222d11966e6"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "embedding-q2-c2",
+     "statement": "其中 66 个训练时未见，不能把全部 70 个都称为未见数据集。",
+     "evidence_ids": [
+      "core-evidence-fea5745b4c3e4a93ab50c222d11966e6"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "全部 70 个评估数据集都在训练时未见。",
+    "66 是训练数据集总数。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "embedding-q3",
+  "family_id": "embedding",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "《Improving Text Embeddings with Large Language Models》与 INSTRUCTOR 如何准备训练数据中的任务信息，随后采用什么训练目标？请比较数据准备流程与目标函数。",
+  "allowed_source_ids": [
+   "e5-mistral",
+   "instructor"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "embedding-q3-c1",
+     "statement": "前者先让 LLM 构思候选任务池再按选定任务生成数据，INSTRUCTOR 的 MEDI 则包含 330 个多样化数据集及人工编写的任务指令。",
+     "evidence_ids": [
+      "core-evidence-9fb7dd026d294309b3fe45b3073c6ef5",
+      "core-evidence-c3cfc131675a4cebbbb00f0d129e3b03"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "embedding-q3-c2",
+     "statement": "前者用标准对比损失在合成数据上微调开源 decoder-only LLM，INSTRUCTOR 也在其多任务混合数据上用对比损失训练。",
+     "evidence_ids": [
+      "core-evidence-41f8572ff844448ca648d7795eb90206",
+      "core-evidence-b034a6fa783f46e387b64df1a2d56a37"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "两篇都使用人工逐条编写的训练样本，且没有合成数据。",
+    "INSTRUCTOR 的引文证明它也在合成数据上微调 decoder-only LLM。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "embedding-q4",
+  "family_id": "embedding",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "《Improving Text Embeddings with Large Language Models》的 MIRACL 评估与 INSTRUCTOR 的未见领域评估分别覆盖什么范围，前者采用什么数据划分和指标，后者比较哪些模型？",
+  "allowed_source_ids": [
+   "e5-mistral",
+   "instructor"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "embedding-q4-c1",
+     "statement": "MIRACL 评估覆盖高资源和低资源语言，而 INSTRUCTOR 的未见领域评估列出 geography、biology 和 civil comments。",
+     "evidence_ids": [
+      "core-evidence-f079d5fd3d0643339e2cc797b7531903",
+      "core-evidence-53d8e5d5c1c0468e8ba781a840633a5f"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "embedding-q4-c2",
+     "statement": "前者的 MIRACL 评估在开发集报告 nDCG@10；INSTRUCTOR 的未见领域实验比较 GTR-Large 与 INSTRUCTOR。",
+     "evidence_ids": [
+      "core-evidence-f079d5fd3d0643339e2cc797b7531903",
+      "core-evidence-53d8e5d5c1c0468e8ba781a840633a5f"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "MIRACL 摘录报告的是测试集准确率。",
+    "INSTRUCTOR 的 geography、biology、civil comments 是三种低资源语言。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "embedding-q5",
+  "family_id": "embedding",
+  "split": "holdout",
+  "kind": "synthesis",
+  "difficulty": "hard",
+  "question": "《Improving Text Embeddings with Large Language Models》与 INSTRUCTOR 如何把检索纳入嵌入模型的评估？请比较检索与其他任务的关系，并说明 BEIR 的覆盖规模及 INSTRUCTOR 的检索任务指令如何表达。",
+  "allowed_source_ids": [
+   "e5-mistral",
+   "instructor"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "embedding-q5-c1",
+     "statement": "前者将 MTEB 的检索类别对应到 BEIR，而 INSTRUCTOR 的应用范围包含分类、信息检索、语义文本相似度及文本生成评估。",
+     "evidence_ids": [
+      "core-evidence-28b4b457c8024103bd39bc3e232785d1",
+      "core-evidence-2576471bc1ef40e19d47be9194e14b47"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "embedding-q5-c2",
+     "statement": "前者明确这一类别对应 BEIR 的 15 个公开数据集，INSTRUCTOR 则给出 Natural Question（BEIR）的指令示例：表示维基百科问题以检索支持文档。",
+     "evidence_ids": [
+      "core-evidence-28b4b457c8024103bd39bc3e232785d1",
+      "core-evidence-f429b45b8e544fa7aacfe8b0e346d7ee"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "INSTRUCTOR 的评估只覆盖检索，不涉及其它下游应用。",
+    "INSTRUCTOR 的指令示例要求直接生成答案而非检索支持文档。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "embedding-q6",
+  "family_id": "embedding",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "INSTRUCTOR 的 MEDI 训练数据如何构成，任务信息由谁编写，训练采用什么目标？",
+  "allowed_source_ids": [
+   "instructor"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "embedding-q6-c1",
+     "statement": "MEDI 是包含 330 个多样化数据集的多任务混合训练数据，带有人工编写的任务指令。",
+     "evidence_ids": [
+      "core-evidence-c3cfc131675a4cebbbb00f0d129e3b03"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "embedding-q6-c2",
+     "statement": "INSTRUCTOR 在多任务混合数据上采用对比损失训练。",
+     "evidence_ids": [
+      "core-evidence-b034a6fa783f46e387b64df1a2d56a37"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "MEDI 的任务指令全部由语言模型自动生成。",
+    "训练目标是纯自回归语言建模损失。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "embedding-q7",
+  "family_id": "embedding",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "INSTRUCTOR 的未见领域实验覆盖哪些领域，与哪个模型进行比较？",
+  "allowed_source_ids": [
+   "instructor"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "embedding-q7-c1",
+     "statement": "未见领域包括 geography、biology 和 civil comments。",
+     "evidence_ids": [
+      "core-evidence-53d8e5d5c1c0468e8ba781a840633a5f"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "embedding-q7-c2",
+     "statement": "该实验比较 GTR-Large 与 INSTRUCTOR。",
+     "evidence_ids": [
+      "core-evidence-53d8e5d5c1c0468e8ba781a840633a5f"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "这些名称代表三种低资源语言。",
+    "该实验比较的是 INSTRUCTOR 与 GPT-4。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "embedding-q8",
+  "family_id": "embedding",
+  "split": "holdout",
+  "kind": "insufficient_evidence",
+  "difficulty": "medium",
+  "question": "《Improving Text Embeddings with Large Language Models》在 MIRACL 开发集上，阿拉伯语和斯瓦希里语的 nDCG@10 分别是多少，差值是多少？",
+  "allowed_source_ids": [
+   "e5-mistral"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "abstain",
+   "required_conclusions": [
+    {
+     "id": "embedding-q8-c1",
+     "statement": "应说明当前允许资料不足以确定MIRACL 中这两种语言的具体分数及差值。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "阿拉伯语的 nDCG@10 是 64.2。",
+    "斯瓦希里语与阿拉伯语的差值可由高低资源分类直接推得。"
+   ],
+   "missing_information": [
+    "MIRACL 中这两种语言的具体分数及差值"
+   ],
+   "rationale": "区分主题相关的背景证据与足以回答具体问题的证据。"
+  },
+  "report_requirements": [
+   "中文回答，明确说明当前允许资料缺少的信息，不推测数值或实验细节；如补充背景，只引用允许范围内的论文。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "embedding-q9",
+  "family_id": "embedding",
+  "split": "holdout",
+  "kind": "insufficient_evidence",
+  "difficulty": "medium",
+  "question": "两篇方法在相同硬件上完成训练各需多少 GPU 小时，哪一种训练成本更低？",
+  "allowed_source_ids": [
+   "e5-mistral",
+   "instructor"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "abstain",
+   "required_conclusions": [
+    {
+     "id": "embedding-q9-c1",
+     "statement": "应说明当前允许资料不足以确定两篇方法在相同硬件下的 GPU 小时和训练成本比较。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "使用合成数据的方法必然训练成本更低。",
+    "INSTRUCTOR 的训练成本恰好是前者的两倍。"
+   ],
+   "missing_information": [
+    "两篇方法在相同硬件下的 GPU 小时和训练成本比较"
+   ],
+   "rationale": "区分主题相关的背景证据与足以回答具体问题的证据。"
+  },
+  "report_requirements": [
+   "中文回答，明确说明当前允许资料缺少的信息，不推测数值或实验细节；如补充背景，只引用允许范围内的论文。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "embedding-q10",
+  "family_id": "embedding",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "SimLM 讨论已有预训练方法时，列举了哪些方法？",
+  "allowed_source_ids": [
+   "e5-mistral",
+   "instructor"
+  ],
+  "forbidden_source_ids": [
+   "simlm"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "embedding-q10-c1",
+     "statement": "应说明SimLM 列举的已有预训练方法属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 simlm；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "pretraining-q1",
+  "family_id": "pretraining",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "SimLM 面向什么检索任务，其瓶颈预训练如何表示段落信息？",
+  "allowed_source_ids": [
+   "simlm"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "pretraining-q1-c1",
+     "statement": "SimLM 是面向稠密段落检索的预训练方法。",
+     "evidence_ids": [
+      "core-evidence-fe781469b62e4eadb558e259a370fa6d"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "pretraining-q1-c2",
+     "statement": "其简单瓶颈架构通过自监督预训练学习把段落信息压缩为一个稠密向量。",
+     "evidence_ids": [
+      "core-evidence-5cbec23ce52349dea6e0861eb56beb74"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "SimLM 把每段文本仅表示为离散词频。",
+    "SimLM 的瓶颈预训练必须依赖人工相关性标签。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "pretraining-q2",
+  "family_id": "pretraining",
+  "split": "holdout",
+  "kind": "overclaim_trap",
+  "difficulty": "hard",
+  "question": "SimLM 的对比损失使用哪些负例，论文关于达到最先进性能的陈述附带哪些组合条件？",
+  "allowed_source_ids": [
+   "simlm"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "pretraining-q2-c1",
+     "statement": "计算对比损失同时使用批内负例和 BM25 硬负例。",
+     "evidence_ids": [
+      "core-evidence-53d8ab1f5ea14728bcec286731acbd36"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "pretraining-q2-c2",
+     "statement": "达到新的最先进性能的陈述附带结合挖掘的硬负例与基于 cross-encoder 的重排序器蒸馏这一条件。",
+     "evidence_ids": [
+      "core-evidence-b304486d137d41d39d10ac69b9f01101"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "只要使用 SimLM 预训练就无条件达到最先进性能。",
+    "对比损失只使用随机负例，不使用 BM25 硬负例。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "pretraining-q3",
+  "family_id": "pretraining",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "easy",
+  "question": "RetroMAE 的编码器和解码器分别采用什么掩码比例范围？",
+  "allowed_source_ids": [
+   "retromae"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "pretraining-q3-c1",
+     "statement": "编码器的掩码比例为 15%–30%。",
+     "evidence_ids": [
+      "core-evidence-a25a609b602d49a8bf767081e2dc328d"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "pretraining-q3-c2",
+     "statement": "解码器的掩码比例为 50%–70%。",
+     "evidence_ids": [
+      "core-evidence-a25a609b602d49a8bf767081e2dc328d"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "编码器和解码器均固定采用 15% 掩码比例。",
+    "编码器的掩码比例高于解码器。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "pretraining-q4",
+  "family_id": "pretraining",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "RetroMAE 与 SimLM 的预训练设计有何不同？请比较模型架构的描述，以及预训练输入的处理方式。",
+  "allowed_source_ids": [
+   "retromae",
+   "simlm"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "pretraining-q4-c1",
+     "statement": "RetroMAE 使用完整规模的 BERT 编码器和单层 Transformer 解码器；SimLM 使用瓶颈架构，通过自监督预训练把段落信息压缩为稠密向量。",
+     "evidence_ids": [
+      "core-evidence-535083f6d42b4bc896891e6ad5c84930",
+      "core-evidence-5cbec23ce52349dea6e0861eb56beb74"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "pretraining-q4-c2",
+     "statement": "RetroMAE 对编码器输入采用适度掩码、对解码器输入采用较强掩码；SimLM 的替换语言建模预训练输入中不含 [MASK] token。",
+     "evidence_ids": [
+      "core-evidence-535083f6d42b4bc896891e6ad5c84930",
+      "core-evidence-706c59373c754e42b558665d25578cc2"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "RetroMAE 的编码器与解码器均为单层 Transformer。",
+    "两者的预训练输入都使用 [MASK] token。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "pretraining-q5",
+  "family_id": "pretraining",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "RetroMAE 与 SimLM 的实验分别覆盖哪些检索数据集？RetroMAE 的检索质量表采用哪些指标类别，SimLM 与 ColBERTv2 的效率比较考察哪些维度、在什么压缩条件下进行？",
+  "allowed_source_ids": [
+   "retromae",
+   "simlm"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "pretraining-q5-c1",
+     "statement": "RetroMAE 的表头列出 MS MARCO 与 Natural Question，SimLM 的实验说明列出 MS-MARCO 段落排序、TREC Deep Learning Track 与 Natural Questions。",
+     "evidence_ids": [
+      "core-evidence-d09ef94baa5a4278968cf14f84ec7cc4",
+      "core-evidence-efd70cd733d94002af01c3b5005ccc05"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "pretraining-q5-c2",
+     "statement": "RetroMAE 表头包含 MRR 和多个截断位置的召回指标，SimLM 另与 ColBERTv2 比较无压缩情况下的索引存储成本及索引搜索算法复杂度。",
+     "evidence_ids": [
+      "core-evidence-d09ef94baa5a4278968cf14f84ec7cc4",
+      "core-evidence-d1ac3dcadcc147bc9d3053d4b53d64f2"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "两篇摘录已给出完全相同实验设置下的可直接排名分数。",
+    "SimLM 的索引存储比较是在压缩后进行。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "pretraining-q6",
+  "family_id": "pretraining",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "SimLM 的替换语言建模目标如何覆盖梯度更新位置，预训练输入是否包含特殊掩码符号？",
+  "allowed_source_ids": [
+   "simlm"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "pretraining-q6-c1",
+     "statement": "替换语言建模目标可在所有位置反向传播梯度。",
+     "evidence_ids": [
+      "core-evidence-706c59373c754e42b558665d25578cc2"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "pretraining-q6-c2",
+     "statement": "预训练输入中不包含 [MASK] token。",
+     "evidence_ids": [
+      "core-evidence-706c59373c754e42b558665d25578cc2"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "只有掩码位置可以反向传播梯度。",
+    "预训练输入必须插入 [MASK]。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "pretraining-q7",
+  "family_id": "pretraining",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "SimLM 在哪些数据集上进行实验，这些实验覆盖什么应用场景？",
+  "allowed_source_ids": [
+   "simlm"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "pretraining-q7-c1",
+     "statement": "实验使用 MS-MARCO passage ranking、TREC Deep Learning Track 和 Natural Questions 数据集。",
+     "evidence_ids": [
+      "core-evidence-efd70cd733d94002af01c3b5005ccc05"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "pretraining-q7-c2",
+     "statement": "实验覆盖大规模网络搜索和开放域问答场景。",
+     "evidence_ids": [
+      "core-evidence-efd70cd733d94002af01c3b5005ccc05"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "只进行了医疗问答实验。",
+    "只使用了 MS-MARCO 一个数据集。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "pretraining-q8",
+  "family_id": "pretraining",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "SimLM 与 ColBERTv2 的索引效率比较采用什么压缩条件，比较哪些成本和算法维度？",
+  "allowed_source_ids": [
+   "simlm"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "pretraining-q8-c1",
+     "statement": "索引存储成本的比较在不使用任何压缩的情况下进行。",
+     "evidence_ids": [
+      "core-evidence-d1ac3dcadcc147bc9d3053d4b53d64f2"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "pretraining-q8-c2",
+     "statement": "比较维度包括索引存储成本与索引搜索算法复杂度。",
+     "evidence_ids": [
+      "core-evidence-d1ac3dcadcc147bc9d3053d4b53d64f2"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "比较报告的是压缩后的索引体积。",
+    "表格标题足以给出毫秒级查询延迟。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "pretraining-q9",
+  "family_id": "pretraining",
+  "split": "holdout",
+  "kind": "insufficient_evidence",
+  "difficulty": "medium",
+  "question": "RetroMAE 在 Natural Question 上的 R@10 和 R@100 具体是多少，两者相差多少？",
+  "allowed_source_ids": [
+   "retromae"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "abstain",
+   "required_conclusions": [
+    {
+     "id": "pretraining-q9-c1",
+     "statement": "应说明当前允许资料不足以确定RetroMAE 在 Natural Question 上的 R@10、R@100 数值和差值。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "出现 R@10 表头就说明其数值是 10%。",
+    "掩码比例可直接作为 Natural Question 召回率。"
+   ],
+   "missing_information": [
+    "RetroMAE 在 Natural Question 上的 R@10、R@100 数值和差值"
+   ],
+   "rationale": "区分主题相关的背景证据与足以回答具体问题的证据。"
+  },
+  "report_requirements": [
+   "中文回答，明确说明当前允许资料缺少的信息，不推测数值或实验细节；如补充背景，只引用允许范围内的论文。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "所问的具体数值或名称在证据中缺失；DeepSeek 因证据给出相关背景而判部分可答，Claude 仲裁维持证据不足（好的回答可说明已知背景并指出缺失项）。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "pretraining-q10",
+  "family_id": "pretraining",
+  "split": "holdout",
+  "kind": "insufficient_evidence",
+  "difficulty": "medium",
+  "question": "在同一数据集和相同推理硬件下，RetroMAE 与 SimLM 的单查询延迟各是多少毫秒？",
+  "allowed_source_ids": [
+   "retromae",
+   "simlm"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "abstain",
+   "required_conclusions": [
+    {
+     "id": "pretraining-q10-c1",
+     "statement": "应说明当前允许资料不足以确定统一数据集与硬件下两种模型的单查询延迟。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "单层解码器足以证明 RetroMAE 的在线延迟更低。",
+    "索引算法复杂度比较等同于两种模型的毫秒级延迟测量。"
+   ],
+   "missing_information": [
+    "统一数据集与硬件下两种模型的单查询延迟"
+   ],
+   "rationale": "区分主题相关的背景证据与足以回答具体问题的证据。"
+  },
+  "report_requirements": [
+   "中文回答，明确说明当前允许资料缺少的信息，不推测数值或实验细节；如补充背景，只引用允许范围内的论文。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "pretraining-q11",
+  "family_id": "pretraining",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "《Improving Text Embeddings with Large Language Models》如何生成合成训练数据，微调时采用什么损失？",
+  "allowed_source_ids": [
+   "retromae",
+   "simlm"
+  ],
+  "forbidden_source_ids": [
+   "e5-mistral"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "pretraining-q11-c1",
+     "statement": "应说明该嵌入论文的合成数据生成流程与微调损失属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 e5-mistral；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "题目点名允许范围以外的论文；标注者判为“不可回答”与“超出范围”都指向拒答，Claude 仲裁维持超出范围拒答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "pretraining-q12",
+  "family_id": "pretraining",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "LLMLingua 如何组织粗粒度压缩，又如何对齐两个语言模型的分布？",
+  "allowed_source_ids": [
+   "retromae",
+   "simlm"
+  ],
+  "forbidden_source_ids": [
+   "llmlingua"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "pretraining-q12-c1",
+     "statement": "应说明LLMLingua 的粗粒度压缩与分布对齐方法属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 llmlingua；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "题目点名允许范围以外的论文；标注者判为“不可回答”与“超出范围”都指向拒答，Claude 仲裁维持超出范围拒答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "compression-q1",
+  "family_id": "compression",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "easy",
+  "question": "Selective Context 使用哪些类型的长上下文资料进行测试，覆盖哪些任务？",
+  "allowed_source_ids": [
+   "selective-context"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "compression-q1-c1",
+     "statement": "测试资料来自 arXiv 论文、新闻文章和长对话。",
+     "evidence_ids": [
+      "core-evidence-4d09beee1cf94bc1951632124ecef621"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "compression-q1-c2",
+     "statement": "测试任务包括摘要、问答和回复生成。",
+     "evidence_ids": [
+      "core-evidence-4d09beee1cf94bc1951632124ecef621"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "只在新闻摘要任务上测试。",
+    "资料范围仅有代码与结构化表格。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "compression-q2",
+  "family_id": "compression",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "LLMLingua 的粗粒度压缩在什么层级进行、追求什么目标，又如何处理两个语言模型的分布对齐？",
+  "allowed_source_ids": [
+   "llmlingua"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "compression-q2-c1",
+     "statement": "粗粒度压缩在示例层级进行，旨在高压缩率下保持语义完整性。",
+     "evidence_ids": [
+      "core-evidence-6d3b1ccfd7344388abe83729c18609eb"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "compression-q2-c2",
+     "statement": "论文进一步提出基于指令微调的方法来对齐两个语言模型的分布。",
+     "evidence_ids": [
+      "core-evidence-636f3aaf09ad4c788060ce5937ad8a70"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "粗粒度压缩只按字符随机删除内容。",
+    "分布对齐完全不涉及指令微调。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "compression-q3",
+  "family_id": "compression",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "LLMLingua 与 Selective Context 分别依据什么决定保留哪些信息，各自陈述了什么信息保留效果或计算效率目标？",
+  "allowed_source_ids": [
+   "llmlingua",
+   "selective-context"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "compression-q3-c1",
+     "statement": "LLMLingua 考虑 token 间的条件依赖；Selective Context 用基础因果语言模型计算的自信息衡量 token、短语或句子的信息量。",
+     "evidence_ids": [
+      "core-evidence-425c2da32e4b44289de952ed883135eb",
+      "core-evidence-20c8009f2cb34471aff918a0ff149cbf"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "compression-q3-c2",
+     "statement": "LLMLingua 论文声称相对 Selective Context 能更好保留提示中的关键信息，而 Selective Context 通过剪除冗余内容降低计算成本并更好利用固定上下文长度。",
+     "evidence_ids": [
+      "core-evidence-425c2da32e4b44289de952ed883135eb",
+      "core-evidence-caaa6f3b5c404f64a14eb512f0080600"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "两者的信息取舍依据都是独立随机删除 token。",
+    "上述方法描述已经证明任意压缩率下都不会损失任务质量。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "compression-q4",
+  "family_id": "compression",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "Selective Context 如何评估文本的信息量，计算依赖什么模型，可以作用于哪些文本单位？",
+  "allowed_source_ids": [
+   "selective-context"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "compression-q4-c1",
+     "statement": "它使用基础因果语言模型计算自信息，以评估词汇单位的信息量。",
+     "evidence_ids": [
+      "core-evidence-20c8009f2cb34471aff918a0ff149cbf"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "compression-q4-c2",
+     "statement": "这些单位可以是 token、短语或句子。",
+     "evidence_ids": [
+      "core-evidence-20c8009f2cb34471aff918a0ff149cbf"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "通过监督分类器给每个词分配人工标签。",
+    "方法仅支持整篇文档单位。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "compression-q5",
+  "family_id": "compression",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "Selective Context 对输入上下文做什么处理，作者希望由此改善哪些资源利用问题？",
+  "allowed_source_ids": [
+   "selective-context"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "compression-q5-c1",
+     "statement": "Selective Context 剪除输入上下文中的冗余内容。",
+     "evidence_ids": [
+      "core-evidence-caaa6f3b5c404f64a14eb512f0080600"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "compression-q5-c2",
+     "statement": "其目标是减少计算成本，并更好地利用语言模型固定的上下文长度。",
+     "evidence_ids": [
+      "core-evidence-caaa6f3b5c404f64a14eb512f0080600"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "方法扩展模型原生上下文窗口的长度。",
+    "论文据此保证任意任务的准确率都不下降。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "compression-q6",
+  "family_id": "compression",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "LLMLingua 的粗粒度压缩与 Selective Context 的信息筛选分别作用于什么层级？两篇如何说明压缩时要维护的语义或上下文利用目标？",
+  "allowed_source_ids": [
+   "llmlingua",
+   "selective-context"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "compression-q6-c1",
+     "statement": "LLMLingua 的粗粒度压缩作用于示例层级；Selective Context 的自信息评估单位包括 token、短语和句子。",
+     "evidence_ids": [
+      "core-evidence-6d3b1ccfd7344388abe83729c18609eb",
+      "core-evidence-20c8009f2cb34471aff918a0ff149cbf"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "compression-q6-c2",
+     "statement": "LLMLingua 的这一步旨在高压缩率下保持语义完整性；Selective Context 通过剪除冗余内容降低成本并更好利用固定上下文长度。",
+     "evidence_ids": [
+      "core-evidence-6d3b1ccfd7344388abe83729c18609eb",
+      "core-evidence-caaa6f3b5c404f64a14eb512f0080600"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "两种方法都只按整段示例进行信息筛选。",
+    "这些目标意味着任意压缩率下都无损。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "compression-q7",
+  "family_id": "compression",
+  "split": "holdout",
+  "kind": "insufficient_evidence",
+  "difficulty": "medium",
+  "question": "Selective Context 在问答任务上使用的自信息筛选阈值是多少，是否随输入长度调整？",
+  "allowed_source_ids": [
+   "selective-context"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "abstain",
+   "required_conclusions": [
+    {
+     "id": "compression-q7-c1",
+     "statement": "应说明当前允许资料不足以确定Selective Context 的具体筛选阈值及其随长度变化的规则。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "统一阈值为自信息 0.5。",
+    "自信息筛选必然采用随长度线性增长的阈值。"
+   ],
+   "missing_information": [
+    "Selective Context 的具体筛选阈值及其随长度变化的规则"
+   ],
+   "rationale": "区分主题相关的背景证据与足以回答具体问题的证据。"
+  },
+  "report_requirements": [
+   "中文回答，明确说明当前允许资料缺少的信息，不推测数值或实验细节；如补充背景，只引用允许范围内的论文。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "compression-q8",
+  "family_id": "compression",
+  "split": "holdout",
+  "kind": "insufficient_evidence",
+  "difficulty": "medium",
+  "question": "两种压缩方法的直接对比是否达到统计显著性，请给出重复实验次数、置信区间和检验结果。",
+  "allowed_source_ids": [
+   "llmlingua",
+   "selective-context"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "abstain",
+   "required_conclusions": [
+    {
+     "id": "compression-q8-c1",
+     "statement": "应说明当前允许资料不足以确定两种方法直接比较的重复次数、置信区间及显著性检验结果。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "声称更好保留信息就表示已通过 p<0.05 的检验。",
+    "这两篇的结果方差都为零。"
+   ],
+   "missing_information": [
+    "两种方法直接比较的重复次数、置信区间及显著性检验结果"
+   ],
+   "rationale": "区分主题相关的背景证据与足以回答具体问题的证据。"
+  },
+  "report_requirements": [
+   "中文回答，明确说明当前允许资料缺少的信息，不推测数值或实验细节；如补充背景，只引用允许范围内的论文。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "compression-q9",
+  "family_id": "compression",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "UDR 如何组织不同任务的训练信号，其检索模型面向什么任务范围？",
+  "allowed_source_ids": [
+   "llmlingua",
+   "selective-context"
+  ],
+  "forbidden_source_ids": [
+   "udr"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "compression-q9-c1",
+     "statement": "应说明UDR 的训练形式与任务覆盖范围属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 udr；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "题目点名允许范围以外的论文；标注者判为“不可回答”与“超出范围”都指向拒答，Claude 仲裁维持超出范围拒答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "hallucination-q1",
+  "family_id": "hallucination",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "CoVe 的列表问答评估与 RAGTruth 的分类幻觉检测评估分别采用哪些度量？前者在哪些任务上统计哪些实体，后者如何按幻觉类型组织结果？",
+  "allowed_source_ids": [
+   "cove",
+   "ragtruth"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "hallucination-q1-c1",
+     "statement": "CoVe 的列表问题评估报告测试精确率，RAGTruth 的图示报告不同模型的片段级召回率。",
+     "evidence_ids": [
+      "core-evidence-37d57b123e5b422892e6ace80bbc5ad9",
+      "core-evidence-6469788f34dd40aab17fc29253c1bb44"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "hallucination-q1-c2",
+     "statement": "CoVe 在 Wikidata 和 Wiki-Category 列表任务上统计正实体与负实体（幻觉）的平均数量，RAGTruth 的该图则按四种幻觉类型展示召回率。",
+     "evidence_ids": [
+      "core-evidence-37d57b123e5b422892e6ace80bbc5ad9",
+      "core-evidence-6469788f34dd40aab17fc29253c1bb44"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "RAGTruth 的该图只报告句子级准确率。",
+    "CoVe 的负实体数量就是 RAGTruth 的片段级召回率。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "hallucination-q2",
+  "family_id": "hallucination",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "CoVe 的 joint 方法与分开规划、执行的方法，在提示组织上有何差别？",
+  "allowed_source_ids": [
+   "cove"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "hallucination-q2-c1",
+     "statement": "joint 方法用一个 LLM 提示完成规划与执行，即步骤 2 和 3。",
+     "evidence_ids": [
+      "core-evidence-c984b17f3b8e4f87a94c2fd1baef7fb2"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "hallucination-q2-c2",
+     "statement": "分开的方法把规划与执行拆成两个步骤，每步有自己的 LLM 提示。",
+     "evidence_ids": [
+      "core-evidence-dd1dfd563dd34a279e4afac7b3ace5b3"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "joint 方法为规划和执行各调用一个独立提示。",
+    "分开规划和执行意味着不再使用 LLM。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "hallucination-q3",
+  "family_id": "hallucination",
+  "split": "holdout",
+  "kind": "limitation",
+  "difficulty": "medium",
+  "question": "CoVe 在核查步骤中是否使用外部工具，其对简短核查问题和长问题的回答准确性有何观察？",
+  "allowed_source_ids": [
+   "cove"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "hallucination-q3-c1",
+     "statement": "论文未探索工具使用，CoVe 所有步骤只使用 LLM 自身来检查自己的工作。",
+     "evidence_ids": [
+      "core-evidence-880a3e486dca4503bda192759f36e82a"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "hallucination-q3-c2",
+     "statement": "论文观察到简短核查问题比长问题能得到更准确的回答。",
+     "evidence_ids": [
+      "core-evidence-e728390daed24f9daf5f946d7882f505"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "CoVe 的核查已经由外部搜索工具验证。",
+    "更准确意味着所有简短核查问题都能回答正确。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "hallucination-q4",
+  "family_id": "hallucination",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "RAGTruth 对回答做了哪些层级的人工标注，标注还包含什么幻觉属性？",
+  "allowed_source_ids": [
+   "ragtruth"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "hallucination-q4-c1",
+     "statement": "回答经过个案级和词级的人工标注。",
+     "evidence_ids": [
+      "core-evidence-e15eb9dd0bd34e2cb89230efbb9e132e"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "hallucination-q4-c2",
+     "statement": "标注包含对幻觉强度的评估。",
+     "evidence_ids": [
+      "core-evidence-e15eb9dd0bd34e2cb89230efbb9e132e"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "RAGTruth 只有模型自动生成的文档级标签。",
+    "标注只区分有无幻觉，不包含强度评估。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "hallucination-q5",
+  "family_id": "hallucination",
+  "split": "holdout",
+  "kind": "synthesis",
+  "difficulty": "hard",
+  "question": "CoVe 的长文本幻觉缓解实验与哪些方法比较，它如何说明 FACTSCORE 可用于跨模型比较？RAGTruth 的回答选择实验用什么方法在两个回答中做选择，报告了什么效果？",
+  "allowed_source_ids": [
+   "cove",
+   "ragtruth"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "hallucination-q5-c1",
+     "statement": "CoVe 与 SelfCheckGPT 的 NLI、LLM 两个变体及 ChatProtect 比较，RAGTruth 则使用微调后的幻觉检测器从两个回答中进行采样选择。",
+     "evidence_ids": [
+      "core-evidence-79c436ba28454230aadb98daf778b03a",
+      "core-evidence-2c08166918c348c193cd690e0511cef3"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "hallucination-q5-c2",
+     "statement": "CoVe 说明 FACTSCORE 经归一化可跨模型比较，RAGTruth 报告上述两回答选择方式能显著降低幻觉率，但这一表述不是消除全部幻觉。",
+     "evidence_ids": [
+      "core-evidence-465487cb5b834ee9a5f7d6072133e42d",
+      "core-evidence-2c08166918c348c193cd690e0511cef3"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "RAGTruth 的检测器已经保证所有回答都没有幻觉。",
+    "CoVe 的引文给出了 ChatProtect 的具体领先分数。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "两名标注者都认为原题面要求的部分内容缺证据；Claude 仲裁收窄题面到所引证据直接支持的部分，要点不变。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "hallucination-q6",
+  "family_id": "hallucination",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "CoVe 的长文本幻觉缓解实验选择了哪些对照方法，FACTSCORE 为什么可用于跨模型比较？",
+  "allowed_source_ids": [
+   "cove"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "hallucination-q6-c1",
+     "statement": "对照包括 SelfCheckGPT 的 NLI、LLM 两个表现最好的变体以及 ChatProtect。",
+     "evidence_ids": [
+      "core-evidence-79c436ba28454230aadb98daf778b03a"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "hallucination-q6-c2",
+     "statement": "论文说明 FACTSCORE 指标经过归一化，因此可跨模型比较。",
+     "evidence_ids": [
+      "core-evidence-465487cb5b834ee9a5f7d6072133e42d"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "对照只有一个 SelfCheckGPT 变体。",
+    "FACTSCORE 在这里被描述为未经归一化的计数。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "hallucination-q7",
+  "family_id": "hallucination",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "CoVe 与 RAGTruth 分别怎样利用模型降低回答中的幻觉？请比较两者的核查或选择机制，并说明各自报告的相关观察。",
+  "allowed_source_ids": [
+   "cove",
+   "ragtruth"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "hallucination-q7-c1",
+     "statement": "CoVe 各步骤仅用 LLM 自身检查自己的工作，未探索工具使用；RAGTruth 使用微调后的幻觉检测器从两个回答中采样选择。",
+     "evidence_ids": [
+      "core-evidence-880a3e486dca4503bda192759f36e82a",
+      "core-evidence-2c08166918c348c193cd690e0511cef3"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "hallucination-q7-c2",
+     "statement": "CoVe 观察到简短核查问题比长问题回答得更准确；RAGTruth 报告上述两回答选择方式可显著降低幻觉率。",
+     "evidence_ids": [
+      "core-evidence-e728390daed24f9daf5f946d7882f505",
+      "core-evidence-2c08166918c348c193cd690e0511cef3"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "CoVe 的核查依赖外部搜索工具。",
+    "RAGTruth 保证幻觉率降至零。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "两名标注者都认为原题面要求的部分内容缺证据；Claude 仲裁收窄题面到所引证据直接支持的部分，要点不变。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "hallucination-q8",
+  "family_id": "hallucination",
+  "split": "holdout",
+  "kind": "insufficient_evidence",
+  "difficulty": "medium",
+  "question": "CoVe 在 Wiki-Category 任务上的精确率比基线高多少个百分点，置信区间是多少？",
+  "allowed_source_ids": [
+   "cove"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "abstain",
+   "required_conclusions": [
+    {
+     "id": "hallucination-q8-c1",
+     "statement": "应说明当前允许资料不足以确定该任务中 CoVe 相对基线的精确率差值与置信区间。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "报告精确率指标就足以算出提升幅度。",
+    "CoVe 的精确率提升为 20 个百分点且无方差。"
+   ],
+   "missing_information": [
+    "该任务中 CoVe 相对基线的精确率差值与置信区间"
+   ],
+   "rationale": "区分主题相关的背景证据与足以回答具体问题的证据。"
+  },
+  "report_requirements": [
+   "中文回答，明确说明当前允许资料缺少的信息，不推测数值或实验细节；如补充背景，只引用允许范围内的论文。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "hallucination-q9",
+  "family_id": "hallucination",
+  "split": "holdout",
+  "kind": "insufficient_evidence",
+  "difficulty": "medium",
+  "question": "RAGTruth 评估的四种幻觉类型分别叫什么，各模型在每种类型上的 span-level 召回率是多少？",
+  "allowed_source_ids": [
+   "ragtruth"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "abstain",
+   "required_conclusions": [
+    {
+     "id": "hallucination-q9-c1",
+     "statement": "应说明当前允许资料不足以确定四种幻觉类型名称及各模型对应的召回率数值。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "图注提到四种类型就已给出全部类型名称。",
+    "所有模型在四种类型上的召回率都相同。"
+   ],
+   "missing_information": [
+    "四种幻觉类型名称及各模型对应的召回率数值"
+   ],
+   "rationale": "区分主题相关的背景证据与足以回答具体问题的证据。"
+  },
+  "report_requirements": [
+   "中文回答，明确说明当前允许资料缺少的信息，不推测数值或实验细节；如补充背景，只引用允许范围内的论文。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "所问的具体数值或名称在证据中缺失；DeepSeek 因证据给出相关背景而判部分可答，Claude 仲裁维持证据不足（好的回答可说明已知背景并指出缺失项）。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "hallucination-q10",
+  "family_id": "hallucination",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "FreshLLMs 的两名人工评分者在 STRICT 模式下的一致率是多少？",
+  "allowed_source_ids": [
+   "cove",
+   "ragtruth"
+  ],
+  "forbidden_source_ids": [
+   "freshllms"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "hallucination-q10-c1",
+     "statement": "应说明FreshLLMs 的 STRICT 模式人工评分一致率属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 freshllms；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "题目点名允许范围以外的论文；标注者判为“不可回答”与“超出范围”都指向拒答，Claude 仲裁维持超出范围拒答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "hallucination-q11",
+  "family_id": "hallucination",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "《Evaluating Verifiability in Generative Search Engines》的开放式问题来自哪里，以什么方式收集？",
+  "allowed_source_ids": [
+   "cove",
+   "ragtruth"
+  ],
+  "forbidden_source_ids": [
+   "verifiability"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "hallucination-q11-c1",
+     "statement": "应说明可验证性审计的问题来源与收集方式属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 verifiability；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "attribution-q1",
+  "family_id": "attribution",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "《Evaluating Verifiability in Generative Search Engines》如何定义引用召回率和引用精确率，两者的统计对象有何区别？",
+  "allowed_source_ids": [
+   "verifiability"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "attribution-q1-c1",
+     "statement": "引用召回率是关于外部世界的生成陈述中，被其引用完整支持的陈述所占比例。",
+     "evidence_ids": [
+      "core-evidence-104c48b701bd4cbe9082e694c9500f12"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "attribution-q1-c2",
+     "statement": "引用精确率是生成引用中，能够支持其关联陈述的引用所占比例。",
+     "evidence_ids": [
+      "core-evidence-b50f2bc571d54e759de69b6e2e0b455b"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "引用召回率以引用条数作为统计对象。",
+    "只要有引用标记，就同时满足引用召回和引用精确的支持要求。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "attribution-q2",
+  "family_id": "attribution",
+  "split": "holdout",
+  "kind": "overclaim_trap",
+  "difficulty": "hard",
+  "question": "《Evaluating Verifiability in Generative Search Engines》报告的平均引用支持情况如何，能否据此认为所有生成句子及其引用均可靠？",
+  "allowed_source_ids": [
+   "verifiability"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "attribution-q2-c1",
+     "statement": "平均只有 51.5% 的生成句子获得引用的完整支持。",
+     "evidence_ids": [
+      "core-evidence-9fe7e62bdbc942ad908fa4cf2fbbc219"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "attribution-q2-c2",
+     "statement": "平均只有 74.5% 的引用支持其关联句子，这些平均结果不表示所有句子和引用均可靠。",
+     "evidence_ids": [
+      "core-evidence-9fe7e62bdbc942ad908fa4cf2fbbc219"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "74.5% 是被完整支持的生成句子比例。",
+    "每个搜索系统恰好都有 51.5% 的句子获得完整支持。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "attribution-q3",
+  "family_id": "attribution",
+  "split": "holdout",
+  "kind": "limitation",
+  "difficulty": "medium",
+  "question": "《Evaluating Verifiability in Generative Search Engines》中，引用精确率与感知效用呈现什么关系，Bing Chat 和 YouChat 的结果如何体现这一关系？",
+  "allowed_source_ids": [
+   "verifiability"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "attribution-q3-c1",
+     "statement": "在受审计的现有生成式搜索引擎中，引用精确率与感知效用呈负相关，r=-0.96。",
+     "evidence_ids": [
+      "core-evidence-87075a4849fc40c2902141d7286386dc"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "attribution-q3-c2",
+     "statement": "Bing Chat 引用精确率最高但感知效用最低，YouChat 引用精确率最低但感知效用评分最高。",
+     "evidence_ids": [
+      "core-evidence-8882aa5f6a6c4257bc4e27dffb1d6999"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "提高引用精确率必然导致任何系统的效用下降。",
+    "YouChat 同时拥有最高引用精确率和最高感知效用。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "attribution-q4",
+  "family_id": "attribution",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "AttrScore 与《Evaluating Verifiability in Generative Search Engines》如何界定引用支持这一目标？前者使用哪些任务的数据进行微调，后者用什么框架收集二元判断？",
+  "allowed_source_ids": [
+   "attrscore",
+   "verifiability"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "attribution-q4-c1",
+     "statement": "AttrScore 将归因评估表述为验证生成陈述是否被所引参考资料完整支持，可验证性论文强调让读者容易检查陈述是否由其引用来源支持。",
+     "evidence_ids": [
+      "core-evidence-1202a3eaba6c49969bad90bf62b2637a",
+      "core-evidence-539f1981528d4413b9d4ebfa7dd70668"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "attribution-q4-c2",
+     "statement": "AttrScore 的微调数据改编自问答、事实核查、自然语言推断和摘要等任务，可验证性审计用 AIS 框架收集二元判断。",
+     "evidence_ids": [
+      "core-evidence-9e8b6540b8414b10a4f8513bdcef331b",
+      "core-evidence-ca9bf6f310ea4a3f9ccf552ca6030458"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "AttrScore 只检查引用是否存在，不检查是否支持陈述。",
+    "AIS 是 AttrScore 专门新建的训练语料。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "attribution-q5",
+  "family_id": "attribution",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "AttrScore 与《Evaluating Verifiability in Generative Search Engines》的测试或审计对象覆盖哪些领域或系统，分别采用什么评估指标或评估单位？",
+  "allowed_source_ids": [
+   "attrscore",
+   "verifiability"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "attribution-q5-c1",
+     "statement": "AttrScore 从 New Bing 人工整理覆盖 12 个领域的测试样例；可验证性论文人工审计 Bing Chat、NeevaAI、perplexity.ai 和 YouChat 四个系统。",
+     "evidence_ids": [
+      "core-evidence-15a972a001b74c7f91575953814b86b4",
+      "core-evidence-162e6f8a1ade4ac5b1816452e0212a29"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "attribution-q5-c2",
+     "statement": "AttrScore 的表格在 AttrEval-Simulation 与 AttrEval-GenSearch 上报告不同模型的 F1；可验证性论文对每个查询—回答对用人工评估测量多个维度。",
+     "evidence_ids": [
+      "core-evidence-cde6fa69588446ad8ef81c74b89e6224",
+      "core-evidence-cfe4a8eab4944a7dbb9bdc317f7bd2e8"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "两篇都只在 New Bing 上进行十二个系统之间的比较。",
+    "AttrScore 的 F1 表头已经给出所有模型的具体分数。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "attribution-q6",
+  "family_id": "attribution",
+  "split": "holdout",
+  "kind": "limitation",
+  "difficulty": "medium",
+  "question": "AttrScore 如何描述评估提示选择和训练数据集组合对模型表现的影响？",
+  "allowed_source_ids": [
+   "attrscore"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "attribution-q6-c1",
+     "statement": "用于评估语言模型的提示选择可能影响模型表现。",
+     "evidence_ids": [
+      "core-evidence-6e0230591c5c4f519dbf1668919e4007"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "attribution-q6-c2",
+     "statement": "组合数据集通常能够改善模型表现；这是一般趋势而非任意组合必然提升的保证。",
+     "evidence_ids": [
+      "core-evidence-7978bae6f67f4f24a829580611b5ee8e"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "所有提示的评估表现都相同。",
+    "任意数据集组合都保证提升性能。"
+   ],
+   "missing_information": [],
+   "rationale": "只考察论文直接报告的设置影响，保留可能和通常的限定，不推导生成答案的流畅性或效用变化。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "attribution-q7",
+  "family_id": "attribution",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "《Evaluating Verifiability in Generative Search Engines》如何分别界定流畅性与感知效用？",
+  "allowed_source_ids": [
+   "verifiability"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "attribution-q7-c1",
+     "statement": "流畅性衡量生成文本是否流畅且连贯。",
+     "evidence_ids": [
+      "core-evidence-43e1a517627340e088fc9019806d0509"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "attribution-q7-c2",
+     "statement": "感知效用衡量生成回答是否有帮助且信息充分。",
+     "evidence_ids": [
+      "core-evidence-38acc07899af4476b3db05dbcdcbfbee"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "流畅性等同于每个陈述都有正确引用。",
+    "感知效用只看句子语法是否正确。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "attribution-q8",
+  "family_id": "attribution",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "《Evaluating Verifiability in Generative Search Engines》使用的开放式问题有一部分来自哪里？人工评估针对什么单位进行？",
+  "allowed_source_ids": [
+   "verifiability"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "attribution-q8-c1",
+     "statement": "研究使用从 Reddit 动态收集的开放式问题。",
+     "evidence_ids": [
+      "core-evidence-a497c09e935c416bad5d66f080c8cb8e"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "attribution-q8-c2",
+     "statement": "对每个查询—回答对，采用人工评估测量多个维度。",
+     "evidence_ids": [
+      "core-evidence-cfe4a8eab4944a7dbb9bdc317f7bd2e8"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "问题是从固定医学考试题库中抽样的。",
+    "评估只对整个系统给出一次总体判断。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "两名标注者都认为原题面要求的部分内容缺证据；Claude 仲裁收窄题面到所引证据直接支持的部分，要点不变。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "attribution-q9",
+  "family_id": "attribution",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "AttrScore 的模型 F1 评估与《Evaluating Verifiability in Generative Search Engines》的图 3 分别比较什么？两篇所衡量的归因支持与用户感知有何区别？",
+  "allowed_source_ids": [
+   "attrscore",
+   "verifiability"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "attribution-q9-c1",
+     "statement": "AttrScore 在 AttrEval-Simulation 与 AttrEval-GenSearch 上报告不同模型的 F1；可验证性审计的图 3 将平均感知效用与平均引用 F1 对照展示。",
+     "evidence_ids": [
+      "core-evidence-cde6fa69588446ad8ef81c74b89e6224",
+      "core-evidence-7c21f1ae92d44831b1d021b75fa8b98b"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "attribution-q9-c2",
+     "statement": "AttrScore 的归因评估检验生成陈述是否被所引参考资料完整支持；可验证性审计的感知效用衡量回答是否有帮助且信息充分。",
+     "evidence_ids": [
+      "core-evidence-1202a3eaba6c49969bad90bf62b2637a",
+      "core-evidence-38acc07899af4476b3db05dbcdcbfbee"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "两篇报告的 F1 是同一个评估任务，可直接混合排名。",
+    "归因支持与感知效用是同一评分定义。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "attribution-q10",
+  "family_id": "attribution",
+  "split": "holdout",
+  "kind": "insufficient_evidence",
+  "difficulty": "medium",
+  "question": "AttrScore 各模型在 AttrEval-GenSearch 上的 F1 具体是多少，排名第一的模型领先第二名多少？",
+  "allowed_source_ids": [
+   "attrscore"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "abstain",
+   "required_conclusions": [
+    {
+     "id": "attribution-q10-c1",
+     "statement": "应说明当前允许资料不足以确定AttrEval-GenSearch 各模型的 F1 数值、排名及领先幅度。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "表格标题可以直接确定排名第一的模型。",
+    "领先幅度是 12 个百分点。"
+   ],
+   "missing_information": [
+    "AttrEval-GenSearch 各模型的 F1 数值、排名及领先幅度"
+   ],
+   "rationale": "区分主题相关的背景证据与足以回答具体问题的证据。"
+  },
+  "report_requirements": [
+   "中文回答，明确说明当前允许资料缺少的信息，不推测数值或实验细节；如补充背景，只引用允许范围内的论文。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "attribution-q11",
+  "family_id": "attribution",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "CoVe 的 joint 方法如何组织规划与执行，分开执行时又如何安排提示？",
+  "allowed_source_ids": [
+   "attrscore",
+   "verifiability"
+  ],
+  "forbidden_source_ids": [
+   "cove"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "attribution-q11-c1",
+     "statement": "应说明CoVe 的规划与执行提示组织属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 cove；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "题目点名允许范围以外的论文；标注者判为“不可回答”与“超出范围”都指向拒答，Claude 仲裁维持超出范围拒答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "demonstration-q1",
+  "family_id": "demonstration",
+  "split": "holdout",
+  "kind": "synthesis",
+  "difficulty": "hard",
+  "question": "UDR 的统一示例检索设计覆盖什么任务范围，训练信号如何统一表述？LLM-R 观察到哪些任务对上下文示例质量不敏感，作者如何解释？",
+  "allowed_source_ids": [
+   "udr",
+   "llm-r"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "demonstration-q1-c1",
+     "statement": "UDR 是面向广泛任务的单一多任务示例检索模型；LLM-R 指出闭卷问答和常识推理等任务对上下文示例质量较不敏感，不能把广泛覆盖等同于各任务同等依赖示例质量。",
+     "evidence_ids": [
+      "core-evidence-2ccc0e61c3d34e0eb91dead32b48008e",
+      "core-evidence-9ce59f027a794d96af680e280a568927"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "demonstration-q1-c2",
+     "statement": "UDR 将不同任务的训练信号统一为列表式排序形式；LLM-R 对上述任务的解释是它们更依赖 LLM 的内在能力。",
+     "evidence_ids": [
+      "core-evidence-e60061f85ad847fda8f16901210d6a86",
+      "core-evidence-9ce59f027a794d96af680e280a568927"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "LLM-R 证明所有任务都不受上下文示例质量影响。",
+    "UDR 的统一训练保证每种任务获得相同幅度的收益。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "两名标注者都认为原题面要求的部分内容缺证据；Claude 仲裁收窄题面到所引证据直接支持的部分，要点不变。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "demonstration-q2",
+  "family_id": "demonstration",
+  "split": "holdout",
+  "kind": "insufficient_evidence",
+  "difficulty": "medium",
+  "question": "UDR 的列表式排序损失的完整数学表达式是什么，温度参数具体设为多少？",
+  "allowed_source_ids": [
+   "udr"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "abstain",
+   "required_conclusions": [
+    {
+     "id": "demonstration-q2-c1",
+     "statement": "应说明当前允许资料不足以确定UDR 排序损失的完整公式和温度参数值。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "统一列表式排序就意味着温度固定为 0.1。",
+    "可以把任意标准列表式损失写成该论文实际使用的完整公式。"
+   ],
+   "missing_information": [
+    "UDR 排序损失的完整公式和温度参数值"
+   ],
+   "rationale": "区分主题相关的背景证据与足以回答具体问题的证据。"
+  },
+  "report_requirements": [
+   "中文回答，明确说明当前允许资料缺少的信息，不推测数值或实验细节；如补充背景，只引用允许范围内的论文。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "demonstration-q3",
+  "family_id": "demonstration",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "INSTRUCTOR 在编码时接收什么输入，生成的嵌入具有什么特性？",
+  "allowed_source_ids": [
+   "udr",
+   "llm-r"
+  ],
+  "forbidden_source_ids": [
+   "instructor"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "demonstration-q3-c1",
+     "statement": "应说明INSTRUCTOR 的编码输入与嵌入特性属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 instructor；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "题目点名允许范围以外的论文；标注者判为“不可回答”与“超出范围”都指向拒答，Claude 仲裁维持超出范围拒答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "demonstration-q4",
+  "family_id": "demonstration",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "Selective Context 用什么方法衡量信息量，支持哪些文本单位？",
+  "allowed_source_ids": [
+   "udr",
+   "llm-r"
+  ],
+  "forbidden_source_ids": [
+   "selective-context"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "demonstration-q4-c1",
+     "statement": "应说明Selective Context 的信息量计算与文本单位属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 selective-context；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "题目点名允许范围以外的论文；标注者判为“不可回答”与“超出范围”都指向拒答，Claude 仲裁维持超出范围拒答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "query-rewrite-q1",
+  "family_id": "query-rewrite",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "LLM4CS 实验采用什么即席检索器及其预训练来源，T5QR 基线如何获得查询改写能力？",
+  "allowed_source_ids": [
+   "llm4cs"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "query-rewrite-q1-c1",
+     "statement": "即席检索器采用在 MSMARCO 上预训练的 ANCE 检查点。",
+     "evidence_ids": [
+      "core-evidence-aa91a483887547a28e8bf23b63b26a72"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "query-rewrite-q1-c2",
+     "statement": "T5QR 是基于 T5 的对话查询改写器，使用人工改写进行训练。",
+     "evidence_ids": [
+      "core-evidence-70c249dbf4da4699b740d213823ef75e"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "T5QR 是 LLM4CS 本身的无监督生成步骤。",
+    "ANCE 检查点在该摘录中明确仅用人工对话改写预训练。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "query-rewrite-q2",
+  "family_id": "query-rewrite",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "比较 LLM4CS 与 CSQE 的直接处理目标，以及 LLM 和输入文本在各自方法中的作用。",
+  "allowed_source_ids": [
+   "llm4cs",
+   "csqe"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "query-rewrite-q2-c1",
+     "statement": "LLM4CS 面向准确理解用户的上下文搜索意图这一对话搜索挑战，CSQE 描述的是对原始查询进行扩展。",
+     "evidence_ids": [
+      "core-evidence-21b7cb4ccaa646e9a2d6e96411871c1e",
+      "core-evidence-13b6a9b9bb9b4ef69c601151a8183129"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "query-rewrite-q2-c2",
+     "statement": "LLM4CS 用提示框架让 LLM 担任搜索意图解释器；CSQE 把语料来源文本与 LLM 知识驱动的扩展合并，用来扩展原查询。",
+     "evidence_ids": [
+      "core-evidence-6a5824f99d7749f5a509aa61ea0d5c59",
+      "core-evidence-13b6a9b9bb9b4ef69c601151a8183129"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "CSQE 的扩展完全不使用语料来源文本。",
+    "两篇摘录证明 LLM4CS 与 CSQE 采用完全相同的查询处理流程。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "query-rewrite-q3",
+  "family_id": "query-rewrite",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "LLM4CS 的即席检索实验与 CSQE 的适用性实验分别使用什么检索器？请比较检索器的训练背景及其在各自实验中的角色。",
+  "allowed_source_ids": [
+   "llm4cs",
+   "csqe"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "query-rewrite-q3-c1",
+     "statement": "LLM4CS 使用在 MSMARCO 上预训练的 ANCE 检查点；CSQE 将方法应用于无监督 Contriever。",
+     "evidence_ids": [
+      "core-evidence-aa91a483887547a28e8bf23b63b26a72",
+      "core-evidence-7f7ea5e62440421199cd21d9af5d80d1"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "query-rewrite-q3-c2",
+     "statement": "ANCE 在 LLM4CS 中作为即席检索器；CSQE 在表 6 将方法应用于 Contriever，以测试方法的适用性。",
+     "evidence_ids": [
+      "core-evidence-aa91a483887547a28e8bf23b63b26a72",
+      "core-evidence-7f7ea5e62440421199cd21d9af5d80d1"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "两篇都使用同一个 ANCE 检查点。",
+    "在 Contriever 上做过实验就证明 CSQE 优于所有检索器。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "query-rewrite-q4",
+  "family_id": "query-rewrite",
+  "split": "holdout",
+  "kind": "insufficient_evidence",
+  "difficulty": "medium",
+  "question": "CSQE 在无监督 Contriever 上相对未扩展查询的分数提升是多少，是否优于其 BM25 配置？",
+  "allowed_source_ids": [
+   "csqe"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "abstain",
+   "required_conclusions": [
+    {
+     "id": "query-rewrite-q4-c1",
+     "statement": "应说明当前允许资料不足以确定Contriever 上的具体提升及其与 BM25 配置的可比结果。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "在 Contriever 上做过实验就证明它优于 BM25 配置。",
+    "适用性测试说明 Contriever 各指标提升都显著。"
+   ],
+   "missing_information": [
+    "Contriever 上的具体提升及其与 BM25 配置的可比结果"
+   ],
+   "rationale": "区分主题相关的背景证据与足以回答具体问题的证据。"
+  },
+  "report_requirements": [
+   "中文回答，明确说明当前允许资料缺少的信息，不推测数值或实验细节；如补充背景，只引用允许范围内的论文。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "所问的具体数值或名称在证据中缺失；DeepSeek 因证据给出相关背景而判部分可答，Claude 仲裁维持证据不足（好的回答可说明已知背景并指出缺失项）。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "query-rewrite-q5",
+  "family_id": "query-rewrite",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "《Improving Text Embeddings with Large Language Models》中，MTEB 的检索类别对应哪个基准，包含多少个公开数据集？",
+  "allowed_source_ids": [
+   "llm4cs",
+   "csqe"
+  ],
+  "forbidden_source_ids": [
+   "e5-mistral"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "query-rewrite-q5-c1",
+     "statement": "应说明该嵌入论文的检索评估基准及数据集数量属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 e5-mistral；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "题目点名允许范围以外的论文；标注者判为“不可回答”与“超出范围”都指向拒答，Claude 仲裁维持超出范围拒答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "query-rewrite-q6",
+  "family_id": "query-rewrite",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "AttrScore 的微调数据来自哪些任务，生成式搜索测试样例来自哪里？",
+  "allowed_source_ids": [
+   "llm4cs",
+   "csqe"
+  ],
+  "forbidden_source_ids": [
+   "attrscore"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "query-rewrite-q6-c1",
+     "statement": "应说明AttrScore 的微调与测试数据来源属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 attrscore；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "题目点名允许范围以外的论文；标注者判为“不可回答”与“超出范围”都指向拒答，Claude 仲裁维持超出范围拒答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "rag-benchmark-q1",
+  "family_id": "rag-benchmark",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "FreshLLMs 的人工评估流程规模如何，采用哪些模式，严格模式对幻觉有何要求？",
+  "allowed_source_ids": [
+   "freshllms"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "rag-benchmark-q1-c1",
+     "statement": "论文用双模式人工评估同时测量正确性和幻觉，并收集超过 50K 条人工判断来评测开源与闭源 LLM。",
+     "evidence_ids": [
+      "core-evidence-d0b67da65a5f4c8f8e14a3b9056b2c06"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "rag-benchmark-q1-c2",
+     "statement": "准确率评估分为 RELAXED 与 STRICT 两种模式，STRICT 明确要求无幻觉。",
+     "evidence_ids": [
+      "core-evidence-461a4ca15d834099902191ad1f5e5bd1"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "50K 是 FRESHQA 的独立问题数量。",
+    "STRICT 只检查主要答案，明确容许附带幻觉。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "rag-benchmark-q2",
+  "family_id": "rag-benchmark",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "FRESHEVAL 如何让模型学习评分，在 RELAXED 模式下它与人工评估的一致率是多少，人工评分者之间又是多少？",
+  "allowed_source_ids": [
+   "freshllms"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "rag-benchmark-q2-c1",
+     "statement": "FRESHEVAL 是自动评分器，用少样本上下文学习教 LLM 评判模型回答。",
+     "evidence_ids": [
+      "core-evidence-6d034c80bc0e4875a410e548d5701283"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "rag-benchmark-q2-c2",
+     "statement": "在 RELAXED 模式下，FRESHEVAL 与人工评估的平均一致率为 96.5%。",
+     "evidence_ids": [
+      "core-evidence-412bfc0a12a44115af71d1d5223cc9e3"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "rag-benchmark-q2-c3",
+     "statement": "两名人工评分者在 RELAXED 模式下的一致率为 99%。",
+     "evidence_ids": [
+      "core-evidence-412bfc0a12a44115af71d1d5223cc9e3"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "96.5% 是模型回答事实正确的准确率。",
+    "FRESHEVAL 与人工评估在所有模式下完全一致。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "rag-benchmark-q3",
+  "family_id": "rag-benchmark",
+  "split": "holdout",
+  "kind": "overclaim_trap",
+  "difficulty": "hard",
+  "question": "MIRAGE 中 MEDRAG 相对思维链提示的提升怎样表述，GPT-3.5 和 Mixtral 相对 GPT-4 的结论又有哪些条件？",
+  "allowed_source_ids": [
+   "mirage"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "rag-benchmark-q3-c1",
+     "statement": "对于多种 LLM，MEDRAG 相对思维链提示的性能提升为 1%–18% 的相对提升。",
+     "evidence_ids": [
+      "core-evidence-8c1bc69d25f649c4a97d2a698630d93f"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "rag-benchmark-q3-c2",
+     "statement": "在 MIRAGE 上结合 MEDRAG 时，GPT-3.5 和 Mixtral 可达到与 GPT-4 相当的表现。",
+     "evidence_ids": [
+      "core-evidence-d1f18cd087b142649cf63bcf45bb5eaa"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "所有模型都获得 18 个百分点的绝对提升。",
+    "GPT-3.5 和 Mixtral 在所有任务上无需检索就超过 GPT-4。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "rag-benchmark-q4",
+  "family_id": "rag-benchmark",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "MIRAGE 与 FreshLLMs 的问答基准分别面向什么问题范围？医疗问题集合的组成规模如何，动态问答研究指出了什么与错误前提有关的困难？",
+  "allowed_source_ids": [
+   "mirage",
+   "freshllms"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "rag-benchmark-q4-c1",
+     "statement": "MIRAGE 聚焦医疗问答，而 FreshLLMs 的动态问答基准考察可能需要基于最新世界知识进行推理的问题。",
+     "evidence_ids": [
+      "core-evidence-89778d310e864407b2257cf537ec3a07",
+      "core-evidence-398b327fc15f4601af23b54808adb152"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "rag-benchmark-q4-c2",
+     "statement": "MIRAGE 包含来自五个医疗问答数据集的 7,663 道题；FreshLLMs 还指出含错误前提、需要被驳斥的问题会令 LLM 感到困难。",
+     "evidence_ids": [
+      "core-evidence-89778d310e864407b2257cf537ec3a07",
+      "core-evidence-2dcf70bda9c742ec8666e9b4ef20dae5"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "MIRAGE 的 7,663 是医疗文档数量。",
+    "FreshLLMs 的错误前提问题要求模型顺着错误前提作答。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "rag-benchmark-q5",
+  "family_id": "rag-benchmark",
+  "split": "holdout",
+  "kind": "synthesis",
+  "difficulty": "hard",
+  "question": "MIRAGE 与 FreshLLMs 分别如何描述医疗 RAG 的系统组成和 FRESHPROMPT 的信息组织方式？它们对配置选择或模型回答能力指出了哪些限制？",
+  "allowed_source_ids": [
+   "mirage",
+   "freshllms"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "rag-benchmark-q5-c1",
+     "statement": "MIRAGE 指出 RAG 可以包含多个灵活组件，而 FRESHPROMPT 是把搜索引擎的相关信息整理组织进 LLM 提示的少样本提示方法。",
+     "evidence_ids": [
+      "core-evidence-ce1a27c70ff742e9bad1a7e182c2507c",
+      "core-evidence-92a7d886f0dc451e94bd652816930497"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "rag-benchmark-q5-c2",
+     "statement": "MIRAGE 指出针对不同医疗用途的最优 RAG 设置尚缺乏最佳实践；FreshLLMs 报告受测模型无论规模大小，在知识快速变化的问题上都仍有不足。",
+     "evidence_ids": [
+      "core-evidence-ce1a27c70ff742e9bad1a7e182c2507c",
+      "core-evidence-0830fabcf02f45fd840717f8956342ae"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "两篇已证明存在通用于所有医疗用途的最佳 RAG 配置。",
+    "只要模型规模足够大，就必然解决知识快速变化的问题。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "rag-benchmark-q6",
+  "family_id": "rag-benchmark",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "MIRAGE 的检索器比较与 FreshLLMs 的 MIXTRAL 搜索增强系统比较分别得到什么结论？请说明前者的基准范围，以及后者的系统组合、量化增益和比较对象。",
+  "allowed_source_ids": [
+   "mirage",
+   "freshllms"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "rag-benchmark-q6-c1",
+     "statement": "MIRAGE 的检索器比较指出 BM25 与领域专用 MedCPT 表现较优；FreshLLMs 的系统比较报告 MIXTRAL 8X7B 加 FRESHPROMPT 可与闭源及商业系统竞争。",
+     "evidence_ids": [
+      "core-evidence-c7f6166922ef40189c4d9bcc729d1fce",
+      "core-evidence-4686ac637bb149c994e175752ac6c21a"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "rag-benchmark-q6-c2",
+     "statement": "BM25 与 MedCPT 表现较优的观察限于 MIRAGE；FreshLLMs 还报告 MIXTRAL 8X7B 配合 FRESHPROMPT 相对 PPLX.AI 的 ONLINE LLM 70B 获得 11 个百分点的绝对准确率提升。",
+     "evidence_ids": [
+      "core-evidence-c7f6166922ef40189c4d9bcc729d1fce",
+      "core-evidence-efd22e92a9ef466c9f89c30fcf339803"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "BM25 和 MedCPT 在所有检索基准上都最优。",
+    "MIXTRAL 无需 FRESHPROMPT 就已在所有任务上超越商业系统。"
+   ],
+   "missing_information": [],
+   "rationale": "检验是否按原文证据回答所问要点，并保留适用范围。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "DeepSeek 判为部分可答，理由是缺少两篇的直接对比陈述或泛化设置细节；所问事实均有引用证据且两名标注者的支持核查全部通过，Claude 仲裁维持可回答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "rag-benchmark-q7",
+  "family_id": "rag-benchmark",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "MIRAGE 的问题集合面向什么领域，包含多少道题，来自多少个问答数据集？",
+  "allowed_source_ids": [
+   "mirage"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "rag-benchmark-q7-c1",
+     "statement": "MIRAGE 是医疗检索增强生成评估基准，包含 7,663 道问题。",
+     "evidence_ids": [
+      "core-evidence-89778d310e864407b2257cf537ec3a07"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "rag-benchmark-q7-c2",
+     "statement": "这些问题来自五个医疗问答数据集。",
+     "evidence_ids": [
+      "core-evidence-89778d310e864407b2257cf537ec3a07"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "7,663 指检索文档数。",
+    "五个数据集必然贡献相同数量的问题。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "rag-benchmark-q8",
+  "family_id": "rag-benchmark",
+  "split": "holdout",
+  "kind": "single_fact",
+  "difficulty": "medium",
+  "question": "FRESHPROMPT 属于什么提示方法，如何把外部信息提供给语言模型？",
+  "allowed_source_ids": [
+   "freshllms"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "answer",
+   "required_conclusions": [
+    {
+     "id": "rag-benchmark-q8-c1",
+     "statement": "FRESHPROMPT 是少样本提示方法。",
+     "evidence_ids": [
+      "core-evidence-92a7d886f0dc451e94bd652816930497"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "rag-benchmark-q8-c2",
+     "statement": "它把搜索引擎的相关信息筛选、整理并组织进语言模型的提示中。",
+     "evidence_ids": [
+      "core-evidence-92a7d886f0dc451e94bd652816930497"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "FRESHPROMPT 直接通过参数更新注入新知识。",
+    "方法完全不使用搜索引擎的信息。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "rag-benchmark-q9",
+  "family_id": "rag-benchmark",
+  "split": "holdout",
+  "kind": "comparison",
+  "difficulty": "hard",
+  "question": "MIRAGE 与 FreshLLMs 报告的增强方法增益分别相对哪个比较对象，提升幅度和计算口径有何不同？",
+  "allowed_source_ids": [
+   "mirage",
+   "freshllms"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "qualified_answer",
+   "required_conclusions": [
+    {
+     "id": "rag-benchmark-q9-c1",
+     "statement": "MIRAGE 将多种 LLM 使用 MEDRAG 的表现与思维链提示比较；FreshLLMs 将 MIXTRAL 8X7B 加 FRESHPROMPT 与 PPLX.AI 的 ONLINE LLM 70B 比较。",
+     "evidence_ids": [
+      "core-evidence-8c1bc69d25f649c4a97d2a698630d93f",
+      "core-evidence-efd22e92a9ef466c9f89c30fcf339803"
+     ],
+     "basis": "source"
+    },
+    {
+     "id": "rag-benchmark-q9-c2",
+     "statement": "MIRAGE 报告 1%–18% 的相对性能提升；FreshLLMs 对上述系统组合报告 11 个百分点的绝对准确率提升。",
+     "evidence_ids": [
+      "core-evidence-8c1bc69d25f649c4a97d2a698630d93f",
+      "core-evidence-efd22e92a9ef466c9f89c30fcf339803"
+     ],
+     "basis": "source"
+    }
+   ],
+   "forbidden_conclusions": [
+    "1%–18% 和 11% 都是同一口径的绝对百分点增益。",
+    "两项增益都以 GPT-4 为比较对象。"
+   ],
+   "missing_information": [],
+   "rationale": "核对所问方法、设置与限定；每个结论由所列原文引用直接支持。"
+  },
+  "report_requirements": [
+   "中文回答，逐条引用允许范围内的论文，保留比较对象、实验设置和结论限定。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "consensus",
+   "adjudication": "Codex 出题，DeepSeek 与 qwen 盲标可答性一致，要点支持核查全部通过。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "answerable",
+     "answerability_agrees": true,
+     "support_check": [
+      true,
+      true
+     ]
+    }
+   ],
+   "arbiter": null
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "rag-benchmark-q10",
+  "family_id": "rag-benchmark",
+  "split": "holdout",
+  "kind": "insufficient_evidence",
+  "difficulty": "medium",
+  "question": "MIRAGE 的五个医疗问答子数据集分别叫什么，各自贡献多少道题？",
+  "allowed_source_ids": [
+   "mirage"
+  ],
+  "forbidden_source_ids": [],
+  "expectation": {
+   "outcome": "abstain",
+   "required_conclusions": [
+    {
+     "id": "rag-benchmark-q10-c1",
+     "statement": "应说明当前允许资料不足以确定MIRAGE 五个子数据集的名称和各自题数。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "五个子数据集一定等量贡献问题。",
+    "可把总题数除以五作为每个子数据集的实际题数。"
+   ],
+   "missing_information": [
+    "MIRAGE 五个子数据集的名称和各自题数"
+   ],
+   "rationale": "区分主题相关的背景证据与足以回答具体问题的证据。"
+  },
+  "report_requirements": [
+   "中文回答，明确说明当前允许资料缺少的信息，不推测数值或实验细节；如补充背景，只引用允许范围内的论文。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "所问的具体数值或名称在证据中缺失；DeepSeek 因证据给出相关背景而判部分可答，Claude 仲裁维持证据不足（好的回答可说明已知背景并指出缺失项）。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "partially_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "rag-benchmark-q11",
+  "family_id": "rag-benchmark",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "CSQE 如何利用语料文本和语言模型扩展查询，又用哪个无监督检索器测试适用性？",
+  "allowed_source_ids": [
+   "mirage",
+   "freshllms"
+  ],
+  "forbidden_source_ids": [
+   "csqe"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "rag-benchmark-q11-c1",
+     "statement": "应说明CSQE 的查询扩展流程与适用性实验属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 csqe；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "题目点名允许范围以外的论文；标注者判为“不可回答”与“超出范围”都指向拒答，Claude 仲裁维持超出范围拒答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ },
+ {
+  "id": "rag-benchmark-q12",
+  "family_id": "rag-benchmark",
+  "split": "holdout",
+  "kind": "out_of_scope",
+  "difficulty": "medium",
+  "question": "LLM-R 指出哪些任务对上下文示例质量较不敏感，它如何解释这种现象？",
+  "allowed_source_ids": [
+   "mirage",
+   "freshllms"
+  ],
+  "forbidden_source_ids": [
+   "llm-r"
+  ],
+  "expectation": {
+   "outcome": "scope_refusal",
+   "required_conclusions": [
+    {
+     "id": "rag-benchmark-q12-c1",
+     "statement": "应说明LLM-R 的任务敏感性观察及解释属于被排除论文，超出本次允许的资料范围。",
+     "evidence_ids": [],
+     "basis": "missing_information"
+    }
+   ],
+   "forbidden_conclusions": [
+    "因为研究主题相关就使用被排除论文作答。",
+    "将允许论文中的事实移植为被排除论文的结论。"
+   ],
+   "missing_information": [
+    "允许资料范围不包含 llm-r；缺少回答该论文问题的范围授权。"
+   ],
+   "rationale": "检验是否先检查论文范围，并拒绝提供被明确排除论文的信息。"
+  },
+  "report_requirements": [
+   "中文回答，根据 allowed_source_ids 与 forbidden_source_ids 指出所问论文超出范围，不给出范围外事实答案。"
+  ],
+  "annotation": {
+   "label_provenance": "ai-consensus",
+   "human_verified": false,
+   "drafted_by": "Codex (gpt-6-astra)",
+   "status": "arbitrated",
+   "adjudication": "题目点名允许范围以外的论文；标注者判为“不可回答”与“超出范围”都指向拒答，Claude 仲裁维持超出范围拒答。",
+   "verdicts": [
+    {
+     "labeler": "deepseek:deepseek-v4-flash",
+     "blind": true,
+     "answerability": "not_answerable",
+     "answerability_agrees": false,
+     "support_check": null
+    },
+    {
+     "labeler": "volc:qwen3.8-max",
+     "blind": true,
+     "answerability": "out_of_scope",
+     "answerability_agrees": true,
+     "support_check": null
+    }
+   ],
+   "arbiter": "Claude (claude-opus-5.5), not blind"
+  },
+  "version": "v1",
+  "target": "project_run"
+ }
+]
