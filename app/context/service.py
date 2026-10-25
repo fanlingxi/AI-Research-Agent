@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
+from app.context.coverage_packing import pack_coverage
 from app.context.knowledge_reader import KnowledgeContextReader, RawKnowledgeBundle
 from app.context.models import (
     ArtifactContext,
@@ -341,19 +342,23 @@ class ContextBuilderService:
             original_ranks = {r.bundle.claim['id']: r.rank for r in ranked_bundles}
             if '_rerank' not in cache:
                 ranker = ((self.coverage_reranker or (CoreCoverageReranker()
-                           if request.evidence_reranking == 'coverage-v2' else CoverageReranker()))
-                          if request.evidence_reranking in {'coverage-v1', 'coverage-v2'}
+                           if request.evidence_reranking in {'coverage-v2', 'coverage-v3'}
+                           else CoverageReranker()))
+                          if request.evidence_reranking in {
+                              'coverage-v1', 'coverage-v2', 'coverage-v3'}
                           else self.evidence_reranker)
                 record = ranker.rank(payload)
                 # Validate even injected adapters against this exact candidate input.
                 if record.get('input_sha256') != input_digest(payload):
                     raise ContextConflictError('Reranker input binding mismatch')
-                if (request.evidence_reranking in {'coverage-v1', 'coverage-v2'}
+                if (request.evidence_reranking in {'coverage-v1', 'coverage-v2', 'coverage-v3'}
                         and record['status'] == 'ranked'):
                     if coverage_indices(payload, record.get('parts')) != record.get('indices'):
                         raise ContextConflictError('Coverage ordering binding mismatch')
                 record = {'strategy': request.evidence_reranking, **record,
                           'candidate_claim_ids': candidate_claim_ids}
+                if request.evidence_reranking == 'coverage-v3':
+                    record['strategy'] = 'coverage-v3'
                 cache['_rerank'] = (prepared.fingerprint, record)
             fingerprint, record = cache['_rerank']
             if (fingerprint != prepared.fingerprint
@@ -380,6 +385,16 @@ class ContextBuilderService:
             raw_bundles=raw_bundles,
             ranked_bundles=ranked_bundles,
         )
+        packing = None
+        if request.evidence_reranking == 'coverage-v3':
+            source_titles: dict[str, set[str]] = {}
+            for bundle in raw_bundles:
+                for evidence in bundle.evidence:
+                    source_titles.setdefault(evidence.source['id'], set()).update(
+                        title for title in (evidence.source['title'], evidence.document['title'])
+                        if title
+                    )
+            packing = {'record': rerank_record, 'source_titles': source_titles}
         package, items = self._assemble_package(
             request,
             memory_snapshot=memory_snapshot,
@@ -395,6 +410,7 @@ class ContextBuilderService:
             verified_bundles=len(raw_bundles),
             notices=notices,
             neighbor_groups=neighbor_groups,
+            **({'packing': packing} if packing is not None else {}),
         )
 
         audit = context_retrieval_audit(
@@ -406,6 +422,12 @@ class ContextBuilderService:
                     rerank_record, {b.claim.claim_id for b in package.knowledge.claim_bundles}
                 )
             audit.parameters['reranking'] = rerank_record
+        if packing is not None:
+            audit.parameters['coverage_packing'] = packing.get('audit', {
+                'strategy': 'coverage-v3', 'status': 'fallback',
+                'fallback_strategy': 'coverage-v2', 'parts': [],
+                'first_fit_skipped_bundles': 0,
+            })
         audit.parameters.update({
             "consistency_policy": "prepare-revalidate-v1",
             "input_sha256": prepared.fingerprint,
@@ -442,7 +464,10 @@ class ContextBuilderService:
             audit.parameters["context_neighbors"] = {
                 "strategy": "adjacent-v1", "max_anchors": MAX_ANCHORS,
                 "neighbors_per_anchor": 2, "recursive": False,
-                "budget_policy": "whole_new_group_prefix",
+                "budget_policy": (
+                    "whole_group_first_fit_with_dependencies"
+                    if packing is not None and 'audit' in packing else "whole_new_group_prefix"
+                ),
                 "groups": [{**group, "selected": set(group["claim_ids"]) <= selected_ids}
                            for group in neighbor_groups],
             }
@@ -545,6 +570,7 @@ class ContextBuilderService:
         verified_bundles: int,
         notices: list[str],
         neighbor_groups: list[dict] | None = None,
+        packing: dict | None = None,
     ) -> tuple[ContextPackage, list[ContextSnapshotItem]]:
         project_context = _project_context(memory_snapshot)
         task_context = _task_context(task)
@@ -594,11 +620,16 @@ class ContextBuilderService:
         dropped_artifacts = 0
         group_by_claim = {key: set(group["claim_ids"]) for group in (neighbor_groups or [])
                           for key in group["claim_ids"]}
+        packing_bundles = None
+        if packing is not None and packing['record']['status'] == 'ranked':
+            packing_bundles, selected_bundles = selected_bundles, []
 
         def candidate_package() -> ContextPackage:
             candidate_notices = list(diagnostic_notices)
             if dropped_for_budget:
                 candidate_notices.append(
+                    "Claim bundles that did not fit were omitted to respect the budget."
+                    if packing is not None and 'audit' in packing else
                     "Lower-ranked Claim bundles were omitted to respect the budget."
                 )
             if dropped_artifacts:
@@ -639,6 +670,21 @@ class ContextBuilderService:
         while True:
             package = _finalize_runtime_usage(candidate_package())
             if package.token_usage.used <= request.max_tokens:
+                if packing_bundles is not None:
+                    selected_bundles, packing['audit'] = pack_coverage(
+                        package, packing_bundles, packing['record'], packing['source_titles'],
+                        neighbor_groups,
+                    )
+                    dropped_for_budget = len(packing_bundles) - len(selected_bundles)
+                    packing_bundles = None
+                    # One final full serialization verifies the incremental accounting.
+                    # A drift is audited; if it breaks the budget, tail trimming takes over.
+                    package = _finalize_runtime_usage(candidate_package())
+                    packing['audit']['measured_tokens_matched'] = (
+                        package.token_usage.used == packing['audit']['measured_tokens']
+                    )
+                    if package.token_usage.used > request.max_tokens:
+                        continue
                 return package, _snapshot_items(package)
             if selected_bundles:
                 last = selected_bundles[-1].claim.claim_id

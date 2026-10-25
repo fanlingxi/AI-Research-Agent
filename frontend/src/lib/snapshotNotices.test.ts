@@ -46,5 +46,7 @@ describe("snapshotNotices", () => {
     expect(notices.map((notice) => notice.key)).toEqual(["profile", "budget"]);
     expect(notices[0]).toMatchObject({ level: "warning", body: expect.stringContaining("向量检索服务不可用") });
     expect(notices[1].body).toContain("36 个");
+    const packed = snapshotNotices(summary(null, ["Claim bundles that did not fit were omitted to respect the budget."], 5));
+    expect(packed).toEqual([expect.objectContaining({ key: "budget", body: expect.stringContaining("5 个") })]);
   });
 });
