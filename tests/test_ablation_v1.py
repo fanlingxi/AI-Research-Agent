@@ -161,3 +161,18 @@ def test_distinct_selection_prompts_are_not_guessed(tmp_path):
     write(tmp_path / "A/generation/calls.json", [live("gen")])
     write(tmp_path / "ranking/calls.json", [live("rank-1"), live("rank-2")])
     assert holdout_v2_score._case_costs(tmp_path)["A"]["usage_known"] is False
+
+
+def test_paid_call_ceiling_is_shared_across_clients():
+    from types import SimpleNamespace
+
+    from app.benchmarking.resume_closeout import CappedClient
+
+    delegate = SimpleNamespace(provider_name="p", model="m", last_usage={"input_tokens": 1},
+                               last_usage_complete=True, invoke=lambda prompt, system: "ok")
+    paid = {"paid": 0}
+    first, second = CappedClient(delegate, paid, 3), CappedClient(delegate, paid, 3)
+    assert [first.invoke("a"), second.invoke("b"), first.invoke("c")] == ["ok"] * 3
+    with pytest.raises(ValueError, match="ceiling"):
+        second.invoke("d")
+    assert paid["paid"] == 3 and first.last_usage == {"input_tokens": 1}

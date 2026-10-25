@@ -69,6 +69,28 @@ def fingerprints():
     }
 
 
+class CappedClient:
+    """One paid-call ceiling shared by every selection and generation client of a run."""
+
+    def __init__(self, delegate, counter, limit):
+        self.delegate, self.counter, self.limit = delegate, counter, limit
+        self.provider_name, self.model = delegate.provider_name, delegate.model
+
+    @property
+    def last_usage(self):
+        return self.delegate.last_usage
+
+    @property
+    def last_usage_complete(self):
+        return self.delegate.last_usage_complete
+
+    def invoke(self, prompt, system_prompt=None):
+        if self.counter["paid"] >= self.limit:
+            raise ValueError("Evaluation paid-call ceiling reached")
+        self.counter["paid"] += 1
+        return self.delegate.invoke(prompt, system_prompt)
+
+
 def guard(variable):
     if "PYTEST_CURRENT_TEST" in os.environ or os.getenv(variable) == "0":
         raise ValueError("Real execution disabled in offline tests")
@@ -179,6 +201,9 @@ def execute(output, *, cases_path=CASES, output_root=OUTPUT):
     if not isinstance(client, LangChainChatClient):
         raise ValueError("Configured real model required")
     client = replace(client, max_tokens=8192, timeout=120, max_retries=0, thinking_enabled=False)
+    paid = {"paid": 0}
+    ranking_client = CappedClient(replace(client, timeout=90), paid, config["max_calls"])
+    client = CappedClient(client, paid, config["max_calls"])
     write(
         output / "execution.json",
         {
@@ -240,7 +265,7 @@ def execute(output, *, cases_path=CASES, output_root=OUTPUT):
                     priority="high",
                     metadata={"expected_output": "中文直接回答；逐条引用；保留限定语及证据缺口。"},
                 )
-                ranker = RecordedClient(replace(client, timeout=90), folder / "ranking", {})
+                ranker = RecordedClient(ranking_client, folder / "ranking", {})
                 builder = ContextBuilderService(
                     repo,
                     vector_retriever=QdrantContextCandidateRetriever(
