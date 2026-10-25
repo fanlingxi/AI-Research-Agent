@@ -252,7 +252,7 @@ def execute(output, *, cases_path=CASES, output_root=OUTPUT):
                 for spec in {json.dumps(a["context"], sort_keys=True) for a in arms.values()}:
                     context = json.loads(spec)
                     package = builder.build_context(
-                        ContextBuildRequest(task_id=task.id, max_tokens=16000, **context)
+                        ContextBuildRequest(**{"task_id": task.id, "max_tokens": 16000, **context})
                     )
                     if context.get("enable_vector_candidates") and any(
                         "vector_unavailable" in n for n in package.diagnostics.notices

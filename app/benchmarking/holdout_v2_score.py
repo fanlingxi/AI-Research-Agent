@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 from pathlib import Path
 
@@ -143,11 +144,100 @@ def _verdicts(run_dir: Path, key: str, judges: list[str] | None = None) -> list[
     return found
 
 
+def _number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _case_costs(folder: Path) -> dict[str, dict]:
+    """Attribute call costs, not benchmark wall time or replay savings, to each arm.
+
+    RecordedClient writes calls.json only on invocation: absent ranking means no
+    selection calls. Absent generation cannot establish a run's usage. Replay
+    lookup stays within the case, matching the runner's cache lifetime.
+    """
+    ranking_path = folder / "ranking" / "calls.json"
+    ranking = json.loads(ranking_path.read_text(encoding="utf-8")) if ranking_path.is_file() else []
+    generation = {
+        path.parent.parent.name: json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted(folder.glob("*/generation/calls.json"))
+    }
+    originals = {}
+    for call in [c for calls in generation.values() for c in calls]:
+        if call.get("kind") == "live" and call.get("status") == "returned":
+            originals.setdefault(call.get("prompt_sha256"), []).append(call)
+    # Every snapshot build runs one selection (with its retries); the other builds of
+    # the case replay that same prompt. Charge each arm the paid attempts once, never
+    # the replays. A failed attempt costs its latency but no input tokens.
+    selection = [c for c in ranking if c.get("kind") == "live"]
+    selection_known = len({c.get("prompt_sha256") for c in selection}) <= 1
+    selection = [
+        {**c, "usage": {"input_tokens": 0}} if c.get("status") == "failed" else c
+        for c in selection
+    ]
+    result = {}
+    for name, calls in generation.items():
+        tokens, latency, known = 0, 0, selection_known
+        for call in calls + selection:
+            if call.get("kind") == "exact_prompt_replay":
+                matches = originals.get(call.get("prompt_sha256"), [])
+                # Ambiguous origins must not silently select a cheaper paid call.
+                costs = {(json.dumps(c.get("usage"), sort_keys=True), c.get("latency_seconds"))
+                         for c in matches}
+                call = matches[0] if len(costs) == 1 else {}
+            usage = call.get("usage") or {}
+            inputs, seconds = usage.get("input_tokens"), call.get("latency_seconds")
+            if not all(_number(v) and v >= 0 for v in (inputs, seconds)):
+                known = False
+                continue
+            tokens += inputs
+            latency += seconds
+        result[name] = {"usage_known": known, "input_tokens": tokens if known else None,
+                        "latency_seconds": latency if known else None}
+    return result
+
+
+def gate_d035(arms: dict[str, dict]) -> dict | None:
+    names = ("A0-standard", "A1-compact", "A2-32k", "A3-compact-cov3", "A4-compact-cov3-v9")
+    if not set(names) <= arms.keys():
+        return None
+    baseline = arms[names[0]]
+    checks, eligible = {}, []
+    for name in names[1:]:
+        candidate = arms[name]
+        tests = {}
+        for label, metric, direction, offset, factor in (
+            ("completion_not_worse", "completion_rate", "ge", 0, 1),
+            ("overclaim_not_worse", "overclaim_rate", "le", 0, 1),
+            ("refusal_not_worse", "refusal_correctness", "ge", 0, 1),
+            ("coverage_plus_5pp", "point_coverage", "ge", 0.05, 1),
+            ("input_tokens_within_1_2x", "mean_input_tokens", "le", 0, 1.2),
+            ("latency_within_1_2x", "mean_latency_seconds", "le", 0, 1.2),
+        ):
+            a, b = baseline.get(metric), candidate.get(metric)
+            tests[label] = bool(
+                _number(a) and _number(b)
+                and (b >= a * factor + offset if direction == "ge" else b <= a * factor)
+            )
+        checks[name] = tests
+        if all(tests.values()):
+            eligible.append(name)
+    selected = min(eligible, key=lambda n: (
+        -arms[n]["point_coverage"], arms[n]["mean_input_tokens"], n,
+    )) if eligible else None
+    return {"checks": checks, "eligible": eligible, "selected": selected}
+
+
 def summary(run_dir: Path, judges: list[str] | None = None) -> dict:
     tasks = _tasks(run_dir)
     arms: dict[str, dict] = {}
     per_run = []
+    costs = {}
     for row in _rows(run_dir):
+        if row["case"] not in costs:
+            costs[row["case"]] = _case_costs(run_dir / row["case"])
+        cost = costs[row["case"]].get(row["workflow"], {
+            "usage_known": False, "input_tokens": None, "latency_seconds": None,
+        })
         task = tasks[row["case"]]
         exp = task["expectation"]
         required = [c["id"] for c in exp["required_conclusions"]]
@@ -166,7 +256,15 @@ def summary(run_dir: Path, judges: list[str] | None = None) -> dict:
         arm = arms.setdefault(row["workflow"], {
             "attempts": 0, "completed": 0, "required": 0, "covered": 0, "violations": 0,
             "refusal_tasks": 0, "refusal_ok": 0, "judged_runs": 0, "judges_agree": 0,
+            "usage_known_runs": 0, "usage_unknown_runs": 0,
+            "mean_input_tokens": None, "mean_latency_seconds": None,
         })
+        arm["usage_known_runs" if cost["usage_known"] else "usage_unknown_runs"] += 1
+        if cost["usage_known"]:
+            count = arm["usage_known_runs"]
+            for metric in ("input_tokens", "latency_seconds"):
+                mean = f"mean_{metric}"
+                arm[mean] = ((arm[mean] or 0) * (count - 1) + cost[metric]) / count
         arm["attempts"] += 1
         arm["completed"] += row.get("status") == "completed"
         arm["required"] += len(required)
@@ -179,7 +277,7 @@ def summary(run_dir: Path, judges: list[str] | None = None) -> dict:
             arm["refusal_ok"] += outcome_ok
         per_run.append({"run": key, "status": row.get("status"), "judges": len(verdicts),
                         "covered": f"{covered}/{len(required)}", "violated": violated,
-                        "outcome_ok": outcome_ok})
+                        "outcome_ok": outcome_ok, **cost})
     for arm in arms.values():
         arm["completion_rate"] = arm["completed"] / arm["attempts"]
         arm["point_coverage"] = arm["covered"] / arm["required"] if arm["required"] else None
@@ -210,11 +308,12 @@ def summary(run_dir: Path, judges: list[str] | None = None) -> dict:
                     else f"conservative merge of selected judges: {', '.join(judges)}"),
         "arms": arms,
         **gates,
+        "gate_D035": gate_d035(arms),
         "runs": per_run,
     }
 
 
-if __name__ == "__main__":
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run_dir", type=Path)
     group = parser.add_mutually_exclusive_group(required=True)
@@ -222,7 +321,8 @@ if __name__ == "__main__":
     group.add_argument("--judge-api", action="store_true")
     group.add_argument("--summary", action="store_true")
     parser.add_argument("--judges", help="Only merge these judge directories, e.g. human,api")
-    args = parser.parse_args()
+    parser.add_argument("--max-judge-calls", type=int, default=120)
+    args = parser.parse_args(argv)
     judges = None
     if args.judges is not None:
         judges = [name.strip() for name in args.judges.split(",")]
@@ -231,7 +331,7 @@ if __name__ == "__main__":
     if args.packets:
         result = {"packets": write_packets(args.run_dir)}
     elif args.judge_api:
-        result = judge_api(args.run_dir)
+        result = judge_api(args.run_dir, max_calls=args.max_judge_calls)
     else:
         result = summary(args.run_dir, judges=judges)
         (args.run_dir / "score.json").write_text(
@@ -240,3 +340,7 @@ if __name__ == "__main__":
     print(json.dumps(result if not args.summary else {k: v for k, v in result.items()
                                                        if k != "runs"},
                      ensure_ascii=False, indent=1))
+
+
+if __name__ == "__main__":
+    main()
