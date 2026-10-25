@@ -20,6 +20,7 @@ from app.workspace.schemas import (
     ContextSnapshotItemPage,
     ContextSnapshotSummary,
     EvidenceReferenceProjection,
+    EvidenceSelectionSummary,
     WorkspaceDashboardProjection,
 )
 
@@ -335,6 +336,52 @@ class WorkspaceProjectionService:
             )
 
 
+def _evidence_selection_summary(package: ContextPackage) -> EvidenceSelectionSummary | None:
+    if package.retrieval_audit is None:
+        return None
+    record = package.retrieval_audit.parameters.get("reranking")
+    if not record:
+        return None
+    reason = record.get("reason")
+    category = None
+    if record["status"] != "ranked":
+        category = {
+            "no_anchored_support": "no_anchored_support",
+            "unavailable_or_empty": "unavailable",
+            "inputs_changed_after_rerank": "inputs_changed",
+            "ValidationError": "invalid_output",
+            "JSONDecodeError": "invalid_output",
+            "ValueError": "invalid_output",
+            "TypeError": "invalid_output",
+        }.get(reason, "other")
+        attempts = record.get("attempts", [])
+        if (category == "other" and (
+            (attempts and attempts[-1].get("outcome") == "transient_failure")
+            or reason in {
+                "APIConnectionError", "OpenAIConnectionError", "APITimeoutError",
+                "OpenAITimeoutError", "TimeoutError", "ConnectionError",
+                "ConnectTimeout", "ReadTimeout", "WriteTimeout", "PoolTimeout",
+                "TimeoutException", "ConnectError", "ReadError", "WriteError",
+                "CloseError", "NetworkError", "RemoteProtocolError",
+                "RateLimitError", "OpenAIRateLimitError", "InternalServerError",
+                "OpenAIInternalServerError", "OpenAIAPIError",
+            }
+        )):
+            category = "transient_failure"
+    # Legacy invalidated records kept all actual calls under previous_attempt.
+    calls_record = record
+    if "attempts" not in record and record.get("previous_attempt"):
+        calls_record = record["previous_attempt"]
+    model_calls = calls_record.get("model_calls", len(calls_record.get("attempts", [])))
+    return EvidenceSelectionSummary(
+        strategy=record.get("strategy") or calls_record.get("strategy") or "llm-v1",
+        status=record["status"],
+        reason_category=category,
+        model_calls=model_calls,
+        retried=model_calls > 1,
+    )
+
+
 def _snapshot_summary(package: ContextPackage, *, persisted: bool) -> ContextSnapshotSummary:
     item_counts = Counter(
         {
@@ -342,6 +389,11 @@ def _snapshot_summary(package: ContextPackage, *, persisted: bool) -> ContextSna
             "knowledge_evidence": sum(
                 len(bundle.evidence) for bundle in package.knowledge.claim_bundles
             ),
+            "knowledge_sources": len({
+                evidence.source_id
+                for bundle in package.knowledge.claim_bundles
+                for evidence in bundle.evidence
+            }),
             "open_workspace_tasks": len(package.memory.open_workspace_tasks),
             "accepted_decisions": len(package.memory.accepted_decisions),
             "task_artifacts": len(package.artifacts.task_artifacts),
@@ -363,6 +415,7 @@ def _snapshot_summary(package: ContextPackage, *, persisted: bool) -> ContextSna
         collection_scopes=[item.collection_slug for item in package.project.knowledge_scopes],
         item_counts=dict(item_counts),
         diagnostics=package.diagnostics.model_dump(mode="json"),
+        evidence_selection=_evidence_selection_summary(package),
         created_at=package.created_at,
     )
 

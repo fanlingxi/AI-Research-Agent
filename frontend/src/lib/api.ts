@@ -143,9 +143,19 @@ export interface ContextSnapshotSummary {
   diagnostics: {
     knowledge_coverage: string;
     selected_claim_bundles: number;
+    dropped_for_budget?: number;
     notices: string[];
   };
+  evidence_selection?: EvidenceSelection | null;
   created_at: string;
+}
+
+export interface EvidenceSelection {
+  strategy: string;
+  status: "ranked" | "fallback";
+  reason_category: "transient_failure" | "invalid_output" | "no_anchored_support" | "unavailable" | "inputs_changed" | "other" | null;
+  model_calls: number;
+  retried: boolean;
 }
 
 export interface ContextSnapshotItem {

@@ -352,14 +352,21 @@ class ContextBuilderService:
                         and record['status'] == 'ranked'):
                     if coverage_indices(payload, record.get('parts')) != record.get('indices'):
                         raise ContextConflictError('Coverage ordering binding mismatch')
-                record = {**record, 'candidate_claim_ids': candidate_claim_ids}
+                record = {'strategy': request.evidence_reranking, **record,
+                          'candidate_claim_ids': candidate_claim_ids}
                 cache['_rerank'] = (prepared.fingerprint, record)
             fingerprint, record = cache['_rerank']
             if (fingerprint != prepared.fingerprint
                     or record.get('input_sha256') != input_digest(payload)
                     or record.get('candidate_claim_ids') != candidate_claim_ids):
-                rerank_record = {'status': 'fallback', 'reason': 'inputs_changed_after_rerank',
-                                 'model_calls': 0, 'usage': None, 'previous_attempt': record}
+                rerank_record = {
+                    key: record[key] for key in (
+                        'strategy', 'retry_policy', 'max_attempts', 'attempts',
+                        'model_calls', 'usage', 'usage_complete',
+                    ) if key in record
+                }
+                rerank_record.update(status='fallback', reason='inputs_changed_after_rerank',
+                                     previous_attempt=record)
             else:
                 rerank_record = {**record, 'original_ranks': original_ranks}
                 ranked_bundles = apply_reranking(ranked_bundles, record)
