@@ -16,8 +16,8 @@ from app.domain_plugins.research.plugin import ResearchDomainPlugin
 from tests.test_answer_coverage import anchored_report
 from tests.test_research_workflow import _analysis, _plan, _research_stack
 
-# Digests of (system + final-report prompt) for a fixed state, computed before research_v8
-# existed. Older versions must stay byte-identical so recorded generation attempts replay.
+# Digests of (system + final-report prompt) for a fixed state, frozen before each successor.
+# Older versions must stay byte-identical so recorded generation attempts replay.
 FROZEN_PROMPTS = {
     "StructuredResearchWorkflow": (
         "400380522223500a968741cbf8907f480dbad14f66d9d70b55608212568ce7e7"
@@ -31,6 +31,9 @@ FROZEN_PROMPTS = {
         "5749effa18128244bdc201bffa60de3cd78e8160e1eb43a93fc7b43f1d2639a7"
     ),
     "DirectResearchWorkflow": "56ed47f7c77b4a53c1dad072551aa140400b3e700ca7f29482477b8a76333dd2",
+    "AnchoredDirectResearchWorkflow": (
+        "36fa21646be1b8e35f57c3fad144f03d743d2a7f71d9b5cf46f7a7e1d8b5e46d"
+    ),
 }
 STATE = {
     "task_analysis": {"research_question": "q?", "intended_output": "o", "constraints": []},
@@ -50,7 +53,7 @@ def test_older_report_prompts_stay_byte_identical(name):
     prompt = prompt_for(getattr(sr, name))
     digest = hashlib.sha256((sr.REPORT_SYSTEM_PROMPT + "\n" + prompt).encode()).hexdigest()
     assert digest == FROZEN_PROMPTS[name]
-    assert "ORIGINAL TASK" not in prompt
+    assert ("ORIGINAL TASK" in prompt) == (name == "AnchoredDirectResearchWorkflow")
 
 
 def test_v8_is_registered_with_its_own_version_and_namespace():
