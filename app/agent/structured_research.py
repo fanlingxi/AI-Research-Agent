@@ -14,8 +14,11 @@ from app.agent.research_workflow import (
     CitationValidation,
     ResearchDraft,
     ResearchFinding,
+    ResearchPlan,
     ResearchWorkflow,
+    TaskAnalysis,
     _canonical_json,
+    _safe_plan_step,
     _strip_json_fence,
     validate_research_draft,
 )
@@ -588,4 +591,75 @@ class AnchoredDirectResearchWorkflow(DirectResearchWorkflow):
             "ORIGINAL TASK (verbatim; the only valid source of question_part; JSON strings):\n"
             f"Title: {_canonical_json(package.task.title)}\n"
             f"Goal: {_canonical_json(package.task.goal)}\n"
+        )
+
+
+class FixedPlanResearchWorkflow(AnchoredDirectResearchWorkflow):
+    """Opt-in structured-v8: deterministic preparation with the v8 report contract."""
+
+    def _task_analysis(self, state):
+        self._mark_running(state, "task_analysis")
+        package = self.service.load_context_snapshot(state["run_id"])
+        # This is an audit label, not a rewritten or truncated task question.
+        # The full title and goal remain in the report's ORIGINAL TASK block.
+        title = package.task.title
+        analysis = TaskAnalysis(
+            research_question=title if 2 <= len(title) <= 2000 else "原始任务（详见快照）",
+            intended_output="依据原始任务和不可变快照生成可核验的研究报告，明确证据缺口。",
+            constraints=[
+                f"{key}: {_canonical_json(value)}"
+                for key, value in sorted(package.constraints.model_dump(mode="json").items())
+            ],
+        )
+        self.service.record_node_completed(
+            state["run_id"],
+            node_name="task_analysis",
+            output_summary={"constraint_count": len(analysis.constraints), "deterministic": True},
+            token_usage={"input_tokens": 0, "output_tokens": 0},
+        )
+        return self._progress(
+            state,
+            phase="constrained_plan",
+            current_node="constrained_plan",
+            steps_used=int(state.get("steps_used", 1)) + 1,
+            task_analysis=analysis.model_dump(mode="json"),
+        )
+
+    def _constrained_plan(self, state):
+        self._mark_running(state, "constrained_plan")
+        # The complete input includes constraints and bundles, so one tool is enough
+        # for every admitted run (the manifest requires max_tool_calls >= 1).
+        plan = ResearchPlan(
+            steps=["读取不可变研究快照。", "依据原始任务生成带证据引用的报告并说明缺口。"],
+            tool_sequence=["context.research_input"],
+        )
+        self.service.record_node_completed(
+            state["run_id"],
+            node_name="constrained_plan",
+            output_summary={
+                "deterministic": True,
+                "step_count": len(plan.steps),
+                "tool_sequence": plan.tool_sequence,
+                "plan_steps": [
+                    {"position": index, "description": _safe_plan_step(step)}
+                    for index, step in enumerate(plan.steps, start=1)
+                ],
+            },
+            token_usage={"input_tokens": 0, "output_tokens": 0},
+        )
+        return self._progress(
+            state,
+            phase="snapshot_tools",
+            current_node="snapshot_tools",
+            steps_used=int(state.get("steps_used", 2)) + 1,
+            research_plan=plan.model_dump(mode="json"),
+        )
+
+    def _report_prompt(self, state, package):
+        return (
+            f"{self.report_rules}"
+            f"{self.report_guidance}"
+            f"{self._report_task_block(package)}"
+            f"Research input: {_canonical_json(self._research_input(package))}\n"
+            f"Required JSON schema: {_canonical_json(self.report_model.model_json_schema())}"
         )
