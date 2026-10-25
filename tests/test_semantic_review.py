@@ -7,6 +7,7 @@ from app.agent.research_workflow import ResearchDraft
 from app.agent.semantic_review import SemanticReviewService
 from app.context.models import canonical_package_sha256
 from app.experiments.calibration import annotation_pack, calibrate
+from app.retrieval.anchors import contains_quote
 from tests.test_research_workflow import _draft, _research_stack
 
 
@@ -66,6 +67,77 @@ def test_all_four_verdicts_preserve_locations_and_do_not_mutate_inputs(inputs):
     assert result["findings"][0]["citations"][0]["page_start"] == 1
     assert result["findings"][0]["proofs"][0]["quote_start"] == 0
     assert before == (package.model_dump_json(), draft.model_dump_json())
+
+
+@pytest.mark.parametrize(
+    ("source", "quote", "start"),
+    [
+        (
+            "A governed\n  ContextSnapshot retains evidence.",
+            "ContextSnapshot retains evidence.",
+            13,
+        ),
+        ("Evidence： Ａ，Ｂ．", "Evidence: A,B.", 0),
+        ("The re-\ntrieval retains evidence.", "retrieval retains evidence.", 4),
+        ('The “evidence”—verified.', '"evidence"-verified.', 4),
+    ],
+)
+def test_layout_noise_preserves_original_quote_offsets(inputs, source, quote, start):
+    draft, package, _ = inputs
+    bundle = package.knowledge.claim_bundles[0]
+    citation_quote = "Prefix. " + source + " Suffix."
+    bundle.evidence[0].quote = citation_quote
+    chunk = next(c for c in bundle.chunks if c.chunk_id == bundle.evidence[0].chunk_id)
+    chunk.content = "Chunk prefix. " + citation_quote + " Chunk suffix."
+    package.package_sha256 = canonical_package_sha256(package)
+
+    def change(response):
+        response["findings"][0]["proofs"][0]["quote"] = quote
+
+    result = SemanticReviewService().review(
+        draft, package, package.package_sha256, Judge(change), model="fixture"
+    )
+    assert result["status"] == "completed"
+    finding = result["findings"][0]
+    assert finding["status"] == "reviewed"
+    proof = finding["proofs"][0]
+    assert proof["quote"] == quote
+    original_span = citation_quote[proof["quote_start"] : proof["quote_end"]]
+    assert contains_quote(quote, original_span)
+    assert proof["quote_start"] == len("Prefix. ") + start
+    assert proof["quote_end"] == citation_quote.index(source) + len(source)
+
+
+@pytest.mark.parametrize(
+    "quote",
+    [
+        "A governed ContextSnapshot preserves a traceable claim-to-evidence chain.",
+        "A governed ContextSnapshot ... a traceable claim-to-evidence chain.",
+        "A governed ContextSnapshot retains a chain.",
+        "A traceable claim-to-evidence chain retains a governed ContextSnapshot.",
+    ],
+)
+def test_invalid_proof_only_affects_its_finding(inputs, quote):
+    draft, package, sha = inputs
+    draft.findings *= 3
+
+    def change(response):
+        response["findings"][1]["proofs"].append(
+            {**response["findings"][1]["proofs"][0], "quote": quote}
+        )
+
+    result = SemanticReviewService().review(draft, package, sha, Judge(change), model="fixture")
+    assert result["status"] == "partial"
+    assert result["error"] is None
+    assert [f["status"] for f in result["findings"]] == [
+        "reviewed", "invalid_judgment", "reviewed"
+    ]
+    invalid = result["findings"][1]
+    assert invalid["verdict"] == "cannot_determine"
+    assert invalid["proofs"] == []
+    for finding in (result["findings"][0], result["findings"][2]):
+        assert finding["verdict"] == "supported"
+        assert finding["proofs"]
 
 
 def test_hard_citation_failure_prevents_model_call(inputs):
