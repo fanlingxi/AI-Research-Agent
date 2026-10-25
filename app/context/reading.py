@@ -18,6 +18,16 @@ def research_payload(package):
         },
     }
     if package.reading_format == "inline-v1":
+        result["knowledge"] = knowledge_reading_payload(package.knowledge, package.reading_format)
+    return result
+
+
+def knowledge_reading_payload(value, reading_format):
+    """Serialize knowledge or a single bundle using the Runtime reading format."""
+    if reading_format == "legacy":
+        return value.model_dump(mode="json", exclude_defaults=True, exclude_none=True)
+    result = value.model_dump(mode="json")
+    if reading_format == "inline-v1":
 
         def strip(value):
             if isinstance(value, dict):
@@ -32,5 +42,5 @@ def research_payload(package):
                 return [strip(v) for v in value]
             return value
 
-        result["knowledge"] = strip(result["knowledge"])
+        result = strip(result)
     return result

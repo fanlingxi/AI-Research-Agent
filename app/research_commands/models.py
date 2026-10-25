@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, RootModel, model_validator
+from pydantic import BaseModel, Field, RootModel, field_validator, model_validator
+
+from app.agent.gap_evidence import GapEvidenceRequest
 
 
 class ExistingTaskSelection(BaseModel):
@@ -35,12 +37,25 @@ class FollowUpOf(BaseModel):
     artifact_id: str | None = Field(default=None, min_length=1)
 
 
+class GapEvidenceOf(GapEvidenceRequest):
+    run_id: str = Field(min_length=1)
+    claim_ids: list[Annotated[str, Field(min_length=1)]] = Field(min_length=1, max_length=5)
+
+    @field_validator("claim_ids", mode="before")
+    @classmethod
+    def deduplicate_claim_ids(cls, value):
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            return list(dict.fromkeys(value))
+        return value
+
+
 class ProjectRunCommand(BaseModel):
     mode: Literal["project_run"]
     instruction: str = Field(min_length=3, max_length=4000)
     project_id: str = Field(min_length=1)
     task: TaskSelection
     follow_up_of: FollowUpOf | None = None
+    gap_evidence_of: GapEvidenceOf | None = None
     create_memory_proposal: bool = False
     max_steps: int = Field(default=10, ge=3, le=16)
     max_tool_calls: int = Field(default=3, ge=0, le=8)
@@ -49,6 +64,11 @@ class ProjectRunCommand(BaseModel):
 
     @model_validator(mode="after")
     def follow_up_requires_new_task(self):
+        if self.gap_evidence_of is not None:
+            if self.follow_up_of is not None:
+                raise ValueError("补证据研究不能与追问同时使用。")
+            if self.task.kind != "existing":
+                raise ValueError("补证据研究必须使用父运行的现有任务。")
         if self.follow_up_of is not None and self.task.kind != "new":
             raise ValueError("追问必须创建新任务。")
         return self

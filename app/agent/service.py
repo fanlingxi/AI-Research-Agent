@@ -12,6 +12,7 @@ from app.agent.errors import AgentRunConflictError
 from app.agent.feedback import RunFeedbackService
 from app.agent.feedback_models import FeedbackDecision, FeedbackRequest, FeedbackRerunRequest
 from app.agent.follow_up import RunFollowUpService
+from app.agent.gap_evidence import RunGapEvidenceService
 from app.agent.models import (
     AgentRun,
     AgentRunCreateRequest,
@@ -75,6 +76,7 @@ class AgentRunService:
         self.plugin_registry = plugin_registry or create_builtin_plugin_registry()
         self.feedback = RunFeedbackService(self)
         self.follow_up = RunFollowUpService(self)
+        self.gap_evidence = RunGapEvidenceService(self)
         self._current_execution: ContextVar[ExecutionFence | None] = ContextVar(
             f"agent_execution_fence_{id(self)}",
             default=None,
@@ -95,8 +97,11 @@ class AgentRunService:
         request: AgentRunCreateRequest,
         *,
         run_id: str | None = None,
+        gap_evidence_origin: dict[str, Any] | None = None,
     ) -> AgentRun:
-        return self._create_run(project_id, task_id, request, run_id=run_id)
+        return self._create_run(
+            project_id, task_id, request, run_id=run_id, gap_evidence_origin=gap_evidence_origin,
+        )
 
     def _create_run(
         self,
@@ -106,6 +111,7 @@ class AgentRunService:
         *,
         run_id: str | None = None,
         feedback_rerun: tuple[str, str, FeedbackRerunRequest, int] | None = None,
+        gap_evidence_origin: dict[str, Any] | None = None,
     ) -> AgentRun:
         task = self.knowledge_repository.memory_repository.get_workspace_task(task_id)
         if task.project_id != project_id:
@@ -171,6 +177,8 @@ class AgentRunService:
         )
         with self.knowledge_repository._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            if gap_evidence_origin:
+                self.gap_evidence.validate_creation_tx(connection, gap_evidence_origin, context)
             if feedback_rerun:
                 parent_id, feedback_id, rerun_request, parent_revision = feedback_rerun
                 duplicate = self.feedback.check_rerun_tx(
@@ -231,6 +239,11 @@ class AgentRunService:
             if feedback_rerun:
                 self.feedback.link_rerun_tx(
                     connection, parent_id, feedback_id, rerun_request, queued
+                )
+            if gap_evidence_origin:
+                self.repository._append_event_tx(
+                    connection, run_id=queued.id, event_type="gap_evidence_origin",
+                    node_name=None, status=queued.status, output_summary=gap_evidence_origin,
                 )
             return queued
 

@@ -54,6 +54,49 @@ export interface FollowUp {
   artifact: Artifact | null;
 }
 
+export interface GapEvidenceOf {
+  run_id: string;
+  output_sha256: string;
+  gap_index: number;
+  /** Reviewed claims shown to the user; the rerun's snapshot places them first. */
+  claim_ids: string[];
+}
+
+export interface GapEvidence {
+  run_id: string;
+  gap_index: number;
+  gap: string;
+  scopes: string[];
+  search: { method: "vector" | "lexical"; notices: string[] };
+  reviewed: {
+    claim_id: string;
+    statement: string;
+    evidence: { evidence_id: string; quote: string; document_title: string; page_start: number | null; page_end: number | null }[];
+  }[];
+  reviewed_in_snapshot_count: number;
+  pending: {
+    candidate_id: string;
+    kind: "entity" | "relation";
+    title: string;
+    summary: string;
+    quote: string;
+    paper_title: string;
+    page_start: number | null;
+    page_end: number | null;
+    ingestion_id: string;
+    collection_slug: string;
+    prereview: { decision: string; reason: string } | null;
+  }[];
+  can_rerun: boolean;
+}
+
+export interface GapRerun {
+  gap_index: number;
+  command_id: string;
+  run: AgentRun | null;
+  artifact: Artifact | null;
+}
+
 export interface Decision {
   id: string;
   project_id: string;
@@ -534,6 +577,7 @@ export type ResearchCommandInput =
   | {
       mode: "project_run";
       follow_up_of?: FollowUpOf;
+      gap_evidence_of?: GapEvidenceOf;
       instruction: string;
       project_id: string;
       task:
@@ -872,6 +916,11 @@ export const api = {
       method: "POST", body: JSON.stringify({ question }),
     }),
   followUps: (runId: string) => request<FollowUp[]>(`/api/agent-runs/${path(runId)}/follow-ups`),
+  gapEvidence: (runId: string, outputSha256: string, gapIndex: number) =>
+    request<GapEvidence>(`/api/v1/agent-runs/${path(runId)}/gap-evidence`, {
+      method: "POST", body: JSON.stringify({ output_sha256: outputSha256, gap_index: gapIndex }),
+    }),
+  gapReruns: (runId: string) => request<GapRerun[]>(`/api/v1/agent-runs/${path(runId)}/gap-reruns`),
   reviewRuns: () => request<{ runs: ReviewRun[] }>("/api/experiments/review/runs"),
   reviewItems: (run: string) => request<{ items: ReviewItem[]; total: number; human_count: number }>(`${reviewPath(run)}/items`),
   reviewItem: (run: string, key: string) => request<ReviewDetail>(`${reviewPath(run)}/items/${path(key)}`),

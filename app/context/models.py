@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_serializer, model_validator
 
 from app.context.neighbors import ContextNeighborMode
 from app.context.reading import ReadingFormat, research_payload
@@ -25,6 +25,9 @@ class ContextBuildRequest(BaseModel):
     task_id: str = Field(min_length=1)
     project_id: str | None = Field(default=None, min_length=1)
     snapshot_id: str | None = Field(default=None, min_length=1)
+    pinned_claim_ids: list[Annotated[str, Field(min_length=1)]] = Field(
+        default_factory=list, max_length=5,
+    )
     max_tokens: int = Field(default=6000, ge=256, le=262144)
     enable_vector_candidates: bool = False
     enable_graph_candidates: bool = False
@@ -33,6 +36,14 @@ class ContextBuildRequest(BaseModel):
     context_neighbors: ContextNeighborMode = "off"
     evidence_reranking: Literal['off', 'llm-v1', 'coverage-v1', 'coverage-v2'] = 'off'
     reading_format: ReadingFormat = 'legacy'
+
+    @model_serializer(mode="wrap")
+    def omit_empty_pins(self, handler):
+        # Empty pins must not alter existing request fingerprints or snapshots.
+        values = handler(self)
+        if not self.pinned_claim_ids:
+            values.pop("pinned_claim_ids", None)
+        return values
 
     @model_validator(mode="after")
     def require_dense_channel(self):

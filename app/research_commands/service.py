@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 from app.agent.models import AgentRunCreateRequest
 from app.agent.service import AgentRunService
 from app.context.models import ContextBuildRequest
+from app.context.service import ContextConflictError
 from app.execution import ExecutionFence
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
@@ -43,9 +46,13 @@ class ResearchCommandService:
         payload = submission.root.model_dump(mode="json")
         if payload.get("follow_up_of") is None:
             payload.pop("follow_up_of", None)
+        if payload.get("gap_evidence_of") is None:
+            payload.pop("gap_evidence_of", None)
         command, _ = self.repository.create_or_get(
             idempotency_key=idempotency_key,
             normalized_request=payload,
+            validate_new=(lambda: self._validate_gap_origin(submission.root))
+            if isinstance(submission.root, ProjectRunCommand) else None,
         )
         return self.refresh(command.id)
 
@@ -185,6 +192,7 @@ class ResearchCommandService:
         memory = self.knowledge_repository.memory_repository
         memory.get_project(payload.project_id)
         follow_up_metadata = self._follow_up_metadata(payload)
+        ignored_pins = self._validate_gap_origin(payload)
         if payload.task.kind == "existing":
             task = memory.get_workspace_task(payload.task.task_id)
             if task.project_id != payload.project_id:
@@ -216,15 +224,39 @@ class ResearchCommandService:
         try:
             context = self.agent_service.context_builder.snapshot_repository.get(snapshot_id)
         except KeyError:
+            context = None
+        if context is not None and payload.gap_evidence_of:
+            # Recovery may find a frozen snapshot but no target run. If inputs
+            # changed since freezing, preserve that snapshot and prepare a new one.
+            # An already-created target always keeps its original immutable input.
+            try:
+                self.agent_service.get_run(
+                    command.target_resource_id or _target_id("agent-run", command.id)
+                )
+            except KeyError:
+                try:
+                    with self.knowledge_repository.database.connect() as connection:
+                        connection.execute("PRAGMA query_only = ON")
+                        connection.execute("BEGIN")
+                        self.agent_service.context_builder.validate_fresh_context_tx(
+                            connection, context,
+                        )
+                except ContextConflictError:
+                    context = None
+                    snapshot_id = f"context-snapshot-{uuid4().hex}"
+        if context is None:
             context = self.agent_service.context_builder.build_research_context(
                 ContextBuildRequest(
                     task_id=task.id,
                     project_id=payload.project_id,
                     snapshot_id=snapshot_id,
+                    pinned_claim_ids=(payload.gap_evidence_of.claim_ids
+                                      if payload.gap_evidence_of else []),
                     **({"max_tokens": min(payload.token_budget, 16000)}
                        if payload.token_budget is not None else {}),
                 ),
                 profile=self.agent_service.settings.research_default_profile,
+                pinned_claims_ignored=ignored_pins,
             )
         command = self.repository.update_progress(
             command.id,
@@ -250,6 +282,13 @@ class ResearchCommandService:
                        if payload.token_budget is not None else {}),
                 ),
                 run_id=run_id,
+                gap_evidence_origin={
+                    "parent_run_id": payload.gap_evidence_of.run_id,
+                    "output_sha256": payload.gap_evidence_of.output_sha256,
+                    "gap_index": payload.gap_evidence_of.gap_index,
+                    "claim_ids": payload.gap_evidence_of.claim_ids,
+                    "command_id": command.id,
+                } if payload.gap_evidence_of else None,
             )
         self.repository.update_progress(
             command.id,
@@ -287,6 +326,15 @@ class ResearchCommandService:
         return {"follow_up_of": {
             **payload.follow_up_of.model_dump(), "parent_task_id": parent.task_id,
         }}
+
+    def _validate_gap_origin(self, payload: ProjectRunCommand) -> dict[str, str]:
+        if payload.gap_evidence_of is not None:
+            return self.agent_service.gap_evidence.validate_origin(
+                payload.gap_evidence_of.run_id, payload.gap_evidence_of,
+                project_id=payload.project_id, task_id=payload.task.task_id,
+                claim_ids=payload.gap_evidence_of.claim_ids,
+            )
+        return {}
 
 
 def _target_id(prefix: str, command_id: str) -> str:
