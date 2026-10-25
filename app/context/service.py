@@ -446,6 +446,9 @@ class ContextBuilderService:
                 "groups": [{**group, "selected": set(group["claim_ids"]) <= selected_ids}
                            for group in neighbor_groups],
             }
+        if request.reading_format == "compact-v1":
+            # Keep historical formats and their audit digests byte-identical.
+            audit.parameters["reading_format"] = request.reading_format
         package = ContextPackage.model_validate({
             **package.model_dump(mode="json"),
             "package_schema_version": '1.2' if request.reading_format != 'legacy' else '1.1',
