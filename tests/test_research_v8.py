@@ -34,6 +34,12 @@ FROZEN_PROMPTS = {
     "AnchoredDirectResearchWorkflow": (
         "36fa21646be1b8e35f57c3fad144f03d743d2a7f71d9b5cf46f7a7e1d8b5e46d"
     ),
+    "FixedPlanResearchWorkflow": (
+        "7e4e8050a916cf111ad464fd8a5b5ab5f0d07697c8c7f66d2a9bd07fcbc0d763"
+    ),
+    "SharedEvidenceResearchWorkflow": (
+        "36fa21646be1b8e35f57c3fad144f03d743d2a7f71d9b5cf46f7a7e1d8b5e46d"
+    ),
 }
 STATE = {
     "task_analysis": {"research_question": "q?", "intended_output": "o", "constraints": []},
@@ -53,7 +59,10 @@ def test_older_report_prompts_stay_byte_identical(name):
     prompt = prompt_for(getattr(sr, name))
     digest = hashlib.sha256((sr.REPORT_SYSTEM_PROMPT + "\n" + prompt).encode()).hexdigest()
     assert digest == FROZEN_PROMPTS[name]
-    assert ("ORIGINAL TASK" in prompt) == (name == "AnchoredDirectResearchWorkflow")
+    assert ("ORIGINAL TASK" in prompt) == (name in {
+        "AnchoredDirectResearchWorkflow", "FixedPlanResearchWorkflow",
+        "SharedEvidenceResearchWorkflow",
+    })
 
 
 def test_v8_is_registered_with_its_own_version_and_namespace():
