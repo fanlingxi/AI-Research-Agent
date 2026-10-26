@@ -40,7 +40,7 @@ def _checkpoint(worker, run):
     return saved.checkpoint["channel_values"]
 
 
-def test_v9_registration_is_separate_and_default_is_unchanged():
+def test_v9_registration_is_separate_from_the_default():
     plugin = ResearchDomainPlugin()
     spec = plugin.workflow_spec("research_v9")
     assert (spec.version, spec.checkpoint_namespace) == (
@@ -50,7 +50,7 @@ def test_v9_registration_is_separate_and_default_is_unchanged():
     others = [w for w in plugin.manifest.workflows if w.key != "research_v9"]
     assert spec.version not in {w.version for w in others}
     assert spec.checkpoint_namespace not in {w.checkpoint_namespace for w in others}
-    assert STANDARD.workflow == "research_v8"
+    assert STANDARD.workflow == "research_v11"
     plugin.validate_run_request("research_v9", max_steps=9, max_tool_calls=1, is_mock_llm=False)
 
 

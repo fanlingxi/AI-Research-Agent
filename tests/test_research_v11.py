@@ -39,7 +39,7 @@ def test_registration_and_frozen_generation():
         "structured-v10", "agent_research_structured_v10",
     )
     assert (spec.min_steps, spec.min_tool_calls, spec.requires_live_llm) == (9, 1, True)
-    assert STANDARD.workflow == "research_v8"
+    assert STANDARD.workflow == "research_v11"
     other = [s for s in plugin.manifest.workflows if s.key != "research_v11"]
     assert spec.version not in {s.version for s in other}
     assert spec.checkpoint_namespace not in {s.checkpoint_namespace for s in other}
