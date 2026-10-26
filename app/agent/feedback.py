@@ -80,6 +80,20 @@ class RunFeedbackService:
                 raise AgentRunConflictError("Duplicate evidence references.")
             if not set(request.evidence_ids).issubset(evidence):
                 raise AgentRunConflictError("Evidence is outside the run snapshot.")
+            if run.plugin.workflow_key == "research_v10" and request.finding_index is not None:
+                # Bind new finding feedback to its actual owner. Historical anchors and
+                # feedback without a selected finding retain their original semantics.
+                owned = {
+                    e.evidence_id: {**e.model_dump(mode="json"), "source_version": next(
+                        s.version for s in bundle.sources if s.source_id == e.source_id
+                    )}
+                    for bundle in package.knowledge.claim_bundles
+                    if bundle.claim.claim_id == finding["claim_bundle_id"]
+                    for e in bundle.evidence
+                }
+                if not set(request.evidence_ids).issubset(owned):
+                    raise AgentRunConflictError("Evidence does not belong to the selected bundle.")
+                evidence = owned
             anchor = {
                 "project_id": run.project_id,
                 "task_id": run.task_id,

@@ -14,8 +14,11 @@ from app.agent.research_workflow import (
     CitationValidation,
     ResearchDraft,
     ResearchFinding,
+    ResearchPlan,
     ResearchWorkflow,
+    TaskAnalysis,
     _canonical_json,
+    _safe_plan_step,
     _strip_json_fence,
     validate_research_draft,
 )
@@ -331,7 +334,7 @@ class CoveredReport(StructuredReport):
     answer_parts: list[AnswerPart] = Field(min_length=1, max_length=8)
 
 
-def prepare_covered_report(report, package, *, status_label=None):
+def prepare_covered_report(report, package, *, status_label=None, pair_ownership=False):
     question = "\n".join((package.task.title, package.task.goal))
     parts, used = set(), []
     for part in report.answer_parts:
@@ -348,8 +351,20 @@ def prepare_covered_report(report, package, *, status_label=None):
         raise ReportContractError("A report with a requested answer gap must not be complete")
     if report.answer_status != "complete" and not any(p.gap.strip() for p in report.answer_parts):
         raise ReportContractError("Partial or insufficient reports require a requested answer gap")
-    evidence = {e.evidence_id: (b.claim.claim_id, e.quote)
-                for b in package.knowledge.claim_bundles for e in b.evidence}
+    if pair_ownership:
+        evidence, quotes = {}, {}
+        for bundle in package.knowledge.claim_bundles:
+            for item in bundle.evidence:
+                if item.evidence_id in quotes and quotes[item.evidence_id] != item.quote:
+                    raise ReportContractError("Shared evidence must have identical source quotes")
+                quotes[item.evidence_id] = item.quote
+                evidence[bundle.claim.claim_id, item.evidence_id] = (
+                    bundle.claim.claim_id, item.quote
+                )
+    else:
+        # Frozen v2-v9 path: old attempts must retain their original validation outcome.
+        evidence = {e.evidence_id: (b.claim.claim_id, e.quote)
+                    for b in package.knowledge.claim_bundles for e in b.evidence}
     seen = set()
     findings = []
     for finding in report.findings:
@@ -360,7 +375,8 @@ def prepare_covered_report(report, package, *, status_label=None):
         if set(finding.evidence_ids) != {a.evidence_id for a in finding.support}:
             raise ReportContractError("Every cited evidence ID needs its own exact support anchor")
         for anchor in finding.support:
-            saved = evidence.get(anchor.evidence_id)
+            saved = evidence.get((finding.claim_bundle_id, anchor.evidence_id)
+                                 if pair_ownership else anchor.evidence_id)
             if (not saved or saved[0] != finding.claim_bundle_id
                     or not contains_quote(anchor.quote, saved[1])):
                 raise ReportContractError(
@@ -490,6 +506,7 @@ class DirectResearchWorkflow(StructuredResearchWorkflow):
     """Opt-in structured-v6; older schemas, prompts and namespaces stay intact."""
 
     report_model = DirectReport
+    pair_ownership = False
     report_rules = (
         "Answer the original task directly using only the supplied evidence. Return title and "
         "answer_parts only. Each part contains a verbatim contiguous factual question span "
@@ -527,7 +544,8 @@ class DirectResearchWorkflow(StructuredResearchWorkflow):
         covered = CoveredReport(title=report.title, findings=report.findings,
                                 answer_status=report.answer_status, limitations=report.limitations,
                                 answer_parts=parts)
-        return prepare_covered_report(covered, package, status_label=status_label)
+        return prepare_covered_report(covered, package, status_label=status_label,
+                                      pair_ownership=self.pair_ownership)
 
 
 class AnchoredDirectResearchWorkflow(DirectResearchWorkflow):
@@ -588,4 +606,81 @@ class AnchoredDirectResearchWorkflow(DirectResearchWorkflow):
             "ORIGINAL TASK (verbatim; the only valid source of question_part; JSON strings):\n"
             f"Title: {_canonical_json(package.task.title)}\n"
             f"Goal: {_canonical_json(package.task.goal)}\n"
+        )
+
+
+class SharedEvidenceResearchWorkflow(AnchoredDirectResearchWorkflow):
+    """Opt-in structured-v9: v8 generation with claim/evidence pair ownership."""
+
+    pair_ownership = True
+
+
+class FixedPlanResearchWorkflow(AnchoredDirectResearchWorkflow):
+    """Opt-in structured-v8: deterministic preparation with the v8 report contract."""
+
+    def _task_analysis(self, state):
+        self._mark_running(state, "task_analysis")
+        package = self.service.load_context_snapshot(state["run_id"])
+        # This is an audit label, not a rewritten or truncated task question.
+        # The full title and goal remain in the report's ORIGINAL TASK block.
+        title = package.task.title
+        analysis = TaskAnalysis(
+            research_question=title if 2 <= len(title) <= 2000 else "原始任务（详见快照）",
+            intended_output="依据原始任务和不可变快照生成可核验的研究报告，明确证据缺口。",
+            constraints=[
+                f"{key}: {_canonical_json(value)}"
+                for key, value in sorted(package.constraints.model_dump(mode="json").items())
+            ],
+        )
+        self.service.record_node_completed(
+            state["run_id"],
+            node_name="task_analysis",
+            output_summary={"constraint_count": len(analysis.constraints), "deterministic": True},
+            token_usage={"input_tokens": 0, "output_tokens": 0},
+        )
+        return self._progress(
+            state,
+            phase="constrained_plan",
+            current_node="constrained_plan",
+            steps_used=int(state.get("steps_used", 1)) + 1,
+            task_analysis=analysis.model_dump(mode="json"),
+        )
+
+    def _constrained_plan(self, state):
+        self._mark_running(state, "constrained_plan")
+        # The complete input includes constraints and bundles, so one tool is enough
+        # for every admitted run (the manifest requires max_tool_calls >= 1).
+        plan = ResearchPlan(
+            steps=["读取不可变研究快照。", "依据原始任务生成带证据引用的报告并说明缺口。"],
+            tool_sequence=["context.research_input"],
+        )
+        self.service.record_node_completed(
+            state["run_id"],
+            node_name="constrained_plan",
+            output_summary={
+                "deterministic": True,
+                "step_count": len(plan.steps),
+                "tool_sequence": plan.tool_sequence,
+                "plan_steps": [
+                    {"position": index, "description": _safe_plan_step(step)}
+                    for index, step in enumerate(plan.steps, start=1)
+                ],
+            },
+            token_usage={"input_tokens": 0, "output_tokens": 0},
+        )
+        return self._progress(
+            state,
+            phase="snapshot_tools",
+            current_node="snapshot_tools",
+            steps_used=int(state.get("steps_used", 2)) + 1,
+            research_plan=plan.model_dump(mode="json"),
+        )
+
+    def _report_prompt(self, state, package):
+        return (
+            f"{self.report_rules}"
+            f"{self.report_guidance}"
+            f"{self._report_task_block(package)}"
+            f"Research input: {_canonical_json(self._research_input(package))}\n"
+            f"Required JSON schema: {_canonical_json(self.report_model.model_json_schema())}"
         )

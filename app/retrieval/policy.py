@@ -32,3 +32,15 @@ def is_transient_error(error: Exception) -> bool:
         if isinstance(error, tuple(getattr(exceptions, name) for name in names)):
             return True
     return False
+
+
+def is_selection_transient_error(error: Exception) -> bool:
+    if is_transient_error(error):
+        return True
+    try:
+        openai = import_module("openai")
+    except ImportError:
+        return False
+    return isinstance(error, openai.APIStatusError) and (
+        error.status_code == 429 or 500 <= error.status_code < 600
+    )

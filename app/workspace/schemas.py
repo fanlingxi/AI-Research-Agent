@@ -17,6 +17,17 @@ class ContextProjectionRequest(BaseModel):
     max_tokens: int = Field(default=6000, ge=256, le=16000)
 
 
+class EvidenceSelectionSummary(BaseModel):
+    strategy: str
+    status: Literal["ranked", "fallback"]
+    reason_category: Literal[
+        "transient_failure", "invalid_output", "no_anchored_support",
+        "unavailable", "inputs_changed", "other",
+    ] | None = None
+    model_calls: int = Field(ge=0)
+    retried: bool
+
+
 class ContextSnapshotSummary(BaseModel):
     """Small snapshot envelope, deliberately excluding the runtime payload."""
 
@@ -34,6 +45,7 @@ class ContextSnapshotSummary(BaseModel):
     collection_scopes: list[str] = Field(default_factory=list)
     item_counts: dict[str, int] = Field(default_factory=dict)
     diagnostics: dict[str, Any] = Field(default_factory=dict)
+    evidence_selection: EvidenceSelectionSummary | None = None
     created_at: str
 
 

@@ -58,7 +58,9 @@ class AgentRunCreateRequest(BaseModel):
     context_max_tokens: int | None = Field(default=None, ge=256, le=262144)
     query_planning: QueryPlanningMode = "off"
     context_neighbors: ContextNeighborMode = "off"
-    evidence_reranking: Literal['off', 'llm-v1', 'coverage-v1', 'coverage-v2'] = 'off'
+    evidence_reranking: Literal[
+        'off', 'llm-v1', 'coverage-v1', 'coverage-v2', 'coverage-v3'
+    ] = 'off'
     reading_format: ReadingFormat = 'legacy'
 
     @model_validator(mode="after")

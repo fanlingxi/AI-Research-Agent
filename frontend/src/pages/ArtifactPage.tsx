@@ -3,6 +3,7 @@ import { ArrowRight, FileDown, GitBranch, Lock, MessageSquareWarning, Workflow }
 import { useCallback, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { SnapshotWarnings } from "../components/SnapshotNotices";
 import { ErrorBlock, LoadingBlock, Notice } from "../components/AsyncState";
 import { FollowUpLinks, FollowUpPanel } from "../components/FollowUpPanel";
 import { GapEvidencePanel, GapRerunLinks } from "../components/report/GapEvidencePanel";
@@ -90,6 +91,7 @@ export function ArtifactPage() {
           <a className={buttonVariants({ variant: "ghost" })} href="#feedback"><MessageSquareWarning size={15} />反馈问题</a>
         </>}
         notices={<>
+          <SnapshotWarnings className="space-y-3" snapshotId={body_.context_snapshot_id} />
           <FollowUpLinks key={body_.run_id} runId={body_.run_id} task={task.data} />
           <GapRerunLinks key={`gap-${body_.run_id}`} runId={body_.run_id} />
           {childLinks.map((link) => (

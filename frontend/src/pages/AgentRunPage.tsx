@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { JsonDetails } from "../components/JsonDetails";
 import { RunFeedbackPanel } from "../components/RunFeedbackPanel";
+import { SnapshotWarnings } from "../components/SnapshotNotices";
 import { api, type AgentRunEvent } from "../lib/api";
 import { EVENT_LABELS, nodeLabel, TOOL_LABELS } from "../lib/labels";
 import { cn, formatDate, shortId } from "../lib/utils";
@@ -135,6 +136,7 @@ function RunDetail({ runId }: { runId: string }) {
           {current.status === "needs_review" ? <pre className="mt-2 max-h-40 max-w-full overflow-auto whitespace-pre-wrap rounded bg-panel/70 p-3 text-xs">{current.error_message}</pre> : null}
         </Notice>
       ) : null}
+      <SnapshotWarnings className="mt-5 space-y-3" snapshotId={current.context_snapshot_id} />
       {proposalId ? <Notice className="mt-5" tone="warning" title="智能体提出了一条项目记忆" action={<Link className="text-[13px] font-medium underline" to={`/review?tab=memory&proposal=${proposalId}`}>去审核</Link>}>需要你批准后才会写入项目记忆。</Notice> : null}
 
       <section className="mt-6 grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]" data-testid="agent-trace-grid">
