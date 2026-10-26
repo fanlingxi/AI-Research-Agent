@@ -103,6 +103,7 @@ def main(argv=None):
     for name in ("manifest", "prepare"):
         commands[name].add_argument("--zh-dir", type=Path)
         commands[name].add_argument("--en-dir", type=Path)
+    commands["prepare"].add_argument("--papers", type=Path)
     commands["prepare"].add_argument("--render-python", type=Path, default=MINERU_PYTHON)
     commands["run-mineru"].add_argument("--base-url", default="http://127.0.0.1:16580")
     commands["run-mineru"].add_argument("--service-pid", type=int, required=True)
@@ -111,6 +112,7 @@ def main(argv=None):
     commands["run-paddle"].add_argument("--cpu", action="store_true")
     for name in ("run-mineru", "run-paddle"):
         commands[name].add_argument("--max-pages", type=int, default=150)
+    commands["packets"].add_argument("--lines-only", action="store_true")
     commands["packets"].add_argument("--seed", type=int, default=39)
     commands["packets"].add_argument("--max-images", type=int, default=40)
     commands["judge-deepseek"].add_argument("--max-calls", type=int, default=12)
@@ -131,10 +133,18 @@ def main(argv=None):
         from .prepare import corpus, manifest, prepare
 
         entries = corpus(args.zh_dir, args.en_dir)
+        split = "development"
+        if args.command == "prepare" and args.papers:
+            from .prepare import paper_list
+
+            if args.zh_dir or args.en_dir:
+                parser.error("--papers cannot be combined with --zh-dir/--en-dir")
+            explicit = paper_list(args.papers)
+            entries, split = explicit["papers"], explicit["split"]
         result = (
             manifest(root, entries)
             if args.command == "manifest"
-            else prepare(root, args.render_python, entries)
+            else prepare(root, args.render_python, entries, split=split)
         )
     elif args.command == "run-mineru":
         from .runners import run_mineru
@@ -153,7 +163,7 @@ def main(argv=None):
     elif args.command == "packets":
         from .packets import packets
 
-        result = packets(root, args.seed, args.max_images)
+        result = packets(root, args.seed, args.max_images, lines_only=args.lines_only)
     elif args.command == "judge-deepseek":
         from .judge import judge_deepseek
 

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import math
 from collections import Counter, defaultdict
 from pathlib import Path
 
 from app.tools.pdf_tools import parse_pdf_source
 
 from .align import EXCLUDED, LINE_TYPES
-from .common import read, write
+from .common import digest, read, write
 from .packets import validate_line
 from .score import binary_f1, ratio
 
@@ -79,6 +80,28 @@ def gold_labels(pages, consensus, resolutions, packet):
             for page in pages for line in page["lines"]]
 
 
+def wilson(successes, total):
+    """Two-sided 95% Wilson score interval; no evidence yields null."""
+    if not total:
+        return None
+    z = 1.959963984540054
+    proportion = successes / total
+    denominator = 1 + z * z / total
+    center = (proportion + z * z / (2 * total)) / denominator
+    radius = z * math.sqrt(proportion * (1 - proportion) / total
+                           + z * z / (4 * total * total)) / denominator
+    return [max(0.0, center - radius), min(1.0, center + radius)]
+
+
+def f1_interval(pairs):
+    # F1 = 2J/(1+J), where J = TP/(TP+FP+FN). Transform the
+    # Wilson interval for J rather than counting each TP as two independent trials.
+    tp = sum(a and b for a, b in pairs)
+    union = sum(a or b for a, b in pairs)
+    interval = wilson(tp, union)
+    return [2 * value / (1 + value) for value in interval] if interval else None
+
+
 def metrics(gold, predicted):
     if {line["id"] for line in gold} != set(predicted):
         raise ValueError("Every gold line must have a span prediction")
@@ -99,6 +122,18 @@ def metrics(gold, predicted):
         "body_false_exclusion_rate": ratio(sum(p["label"] != "body" for g, p in body), len(body)),
         "paragraph_boundary_f1": binary_f1([g["paragraph_start"] for g, p in body],
                                            [p["paragraph_start"] for g, p in body]),
+        "wilson_95": {
+            "front_matter_f1": f1_interval([
+                (g["label"] == "front_matter", p["label"] == "front_matter") for g, p in first]),
+            "margin_exclusion_recall": wilson(
+                sum(p["label"] in EXCLUDED for g, p in margins), len(margins)),
+            "references_exclusion_recall": wilson(
+                sum(p["label"] in EXCLUDED for g, p in refs), len(refs)),
+            "body_false_exclusion_rate": wilson(
+                sum(p["label"] != "body" for g, p in body), len(body)),
+            "paragraph_boundary_f1": f1_interval([
+                (g["paragraph_start"], p["paragraph_start"]) for g, p in body]),
+        },
         "scored_lines": len(gold), "unaligned_lines": 0,
         "denominators": {"first_page": len(first), "body": len(body), "margins": len(margins),
                          "references": len(refs)},
@@ -148,6 +183,8 @@ def zoning_score(root, out, versions=VERSIONS):
         source = Path(paper["pdf"])
         if not source.is_file() or source.suffix.lower() != ".pdf":
             raise ValueError(f"Scoring requires a local PDF: {source}")
+        if "sha256" in paper and digest(source) != paper["sha256"]:
+            raise ValueError(f"SHA-256 mismatch: {name}")
         for version in evaluated:
             parsed = parse_pdf_source(str(source), max_pages=paper["page_count"],
                                       derive_blocks=True, parser_version=version)
@@ -185,6 +222,13 @@ def zoning_score(root, out, versions=VERSIONS):
         "note": "按全部原文行 span 评分；正文误排除含任何非 body 类；段落 F1 只计真值 body 行。"
                 "1pp 检查按指标不利方向，零分母为 null，不判达标。",
     }
+    if manifest.get("split") == "holdout-d040":
+        result["provenance"] = "D040 保留集；仅使用本 root 的共识及仲裁标签；AI 标注，非人工。"
+    result["interval_method"] = (
+        "95% Wilson score; F1 uses monotone transform 2J/(1+J) of Wilson Jaccard interval; "
+        "line-level intervals do not account for within-paper dependence. "
+        "Gates use point estimates."
+    )
     write(out / "score.json", result)
     write(out / "errors.json", errors)
     report = [result["provenance"], "", result["note"], "",
@@ -204,6 +248,18 @@ def zoning_score(root, out, versions=VERSIONS):
                           f"{percent(candidate['metrics'][key]) if candidate else '未请求'} | "
                           f"{f'{delta:+.2f}' if delta is not None else '无数据'} | "
                           f"{check.get('threshold')} / {check.get('non_regression')} |")
+    report.extend(["", result["interval_method"], "",
+                   "| Language | Version | Gate | Metric | 95% Wilson interval |",
+                   "|---|---|---|---|---|"])
+    for language in ("zh", "en"):
+        for version in versions:
+            arm = arms[version][language]
+            for key, interval in arm["metrics"]["wilson_95"].items():
+                bounds = "no data" if interval is None else " – ".join(map(percent, interval))
+                report.append(f"| {language} | {version} | {arm['gate']['status']} | "
+                              f"{key} | {bounds} |")
     report.extend(["", "门槛仅为开发集诊断，不作保留集采用结论。完整错误及行号见 errors.json。"])
+    if manifest.get("split") == "holdout-d040":
+        report[-1] = "D040 保留集门槛与不利方向 1pp 检查见上表；详见 errors.json。"
     (out / "score.md").write_text("\n".join(report) + "\n", encoding="utf-8")
     return result

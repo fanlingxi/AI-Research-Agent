@@ -211,3 +211,65 @@ $trialTests = (Get-ChildItem tests/test_parser_trial*.py).FullName
 
 PowerShell 不会替原生程序展开 `tests/test_parser_trial*.py`，因此命令先枚举测试文件。
 不运行任何真实解析器、模型或网络 smoke test。
+## D040 保留集
+
+以下命令由集成者执行。`$paperList` 指向预先登记的 JSON 清单，格式如下；
+每篇论文使用绝对 PDF 路径和预登记 SHA-256，`paper` 必须唯一，语言只能为 `zh`/`en`。
+准备前检查全部摘要，manifest 保留 split、论文顺序与摘要；每篇最多取前 12 个物理页，
+沿用稳定行号、150 dpi PNG 和 pypdf-v3 blocks。省略 `--papers` 时仍使用原开发集。
+
+```json
+{"split":"holdout-d040","papers":[{"paper":"registered-id","language":"zh","pdf":"D:/absolute/registered.pdf","sha256":"<预登记的64位SHA-256>"}]}
+```
+
+```powershell
+$python = 'D:\AI-Research-Agent\.venv\Scripts\python.exe'
+$trialRoot = 'D:\AI-Research-Agent\data\evaluation\parser-trial\holdout-d040'
+$paperList = 'D:\AI-Research-Agent\data\evaluation\holdout-d040\papers.json'
+$zoningOut = 'D:\AI-Research-Agent\data\evaluation\parser-trial\holdout-d040-zoning'
+$mineruServicePid = 12345 # 替换为已启动的本机 MinerU 服务 PID
+
+& $python -m app.benchmarking.parser_trial prepare --root $trialRoot --papers $paperList
+& $python -m app.benchmarking.parser_trial run-mineru --root $trialRoot --service-pid $mineruServicePid --max-pages 150
+& $python -m app.benchmarking.parser_trial packets --root $trialRoot --lines-only
+& $python -m app.benchmarking.parser_trial judge-deepseek --root $trialRoot --max-calls 8
+
+# 外部 qwen-text：独立标注 $trialRoot\packets\lines\lines-*.json。
+# 按包内 compact spans/paragraph_starts 格式作答，然后用下方转换命令导入。
+# 将原始回答保存在 $trialRoot\external-qwen-text\lines-<paper>.json。
+@'
+import sys
+from pathlib import Path
+from app.benchmarking.parser_trial.common import read, write
+from app.benchmarking.parser_trial.packets import expand_line_answer, validate_answer
+root = Path(sys.argv[1])
+for packet_id in read(root / "packets/index.json")["line_packets"]:
+    packet = read(root / "packets/lines" / f"{packet_id}.json")
+    raw = read(root / "external-qwen-text" / f"{packet_id}.json")
+    answer = validate_answer(packet, expand_line_answer(packet, raw))
+    write(root / "judge-qwen-text" / f"{packet_id}.json", answer)
+'@ | & $python - $trialRoot
+
+& $python -m app.benchmarking.parser_trial score --root $trialRoot --line-judges deepseek qwen-text
+
+# 仲裁：查看 disagreements.json / arbitration.md，核对对应原页 PNG。
+# 人工写入 $trialRoot\arbitration.json，例如：
+# {"resolutions":{"lines-<paper>/line/<完整行id>":{"id":"<完整行id>","label":"body","paragraph_start":true}}}
+# 完成全部分歧后重新 score，再运行 zoning-score。
+& $python -m app.benchmarking.parser_trial score --root $trialRoot --line-judges deepseek qwen-text --arbitration "$trialRoot\arbitration.json"
+& $python -m app.benchmarking.parser_trial zoning-score --root $trialRoot --out $zoningOut --versions pypdf-v3 pypdf-v4
+```
+
+清单路径与服务 PID 按实际登记文件及运行进程替换。MinerU 仍使用本机 uploads +
+`/v1/parse/jobs`，逐页保存 `structured_content.json` 和 `middle_json.json`，
+沿用 150 页累计预算、锁和不自动重试规则；这些原始结果供单独的表格试验使用。
+纯行包不依赖 normalize/align、Paddle 或图片裁判；DeepSeek 按本 root 的 manifest
+校验包列表，`--max-calls` 为累计上限，硬上限仍为 12。
+
+纯行 score 只生成共识、分歧和仲裁报告，不要求解析器预测或性能数据。
+zoning-score 使用本 root 的完整共识及 arbitration.json，缺失标签则拒绝评分；
+不读取开发集标签。输出目录必须在 trial root 外，报告分别列出中英文门槛、
+相对 v3 不利方向不超过 1pp 的检查和通过/失败状态。
+95% Wilson 区间按行计算；F1 使用 Jaccard 的 Wilson 区间经 `2J/(1+J)` 转换，
+不将一个 TP 视作两个独立样本。区间不校正论文内相关性，门槛使用点估计，
+零分母为 null，不能算通过；最终采用决定仍由集成者作出。

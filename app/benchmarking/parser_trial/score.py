@@ -275,8 +275,15 @@ def complete_timing(row, pages):
     )
 
 
-def score(root, line_judges, image_judges, arbitration=None):
-    for pair in (line_judges, image_judges):
+def score(root, line_judges, image_judges=None, arbitration=None):
+    index = read(root / "packets/index.json")
+    lines_only = index.get("lines_only", False) or (
+        not image_judges and not index["image_packets"]
+    )
+    if lines_only:
+        image_judges = []
+    image_judges = image_judges or []
+    for pair in ([line_judges] if lines_only else [line_judges, image_judges]):
         if (
             len(pair) != 2
             or pair[0] == pair[1]
@@ -285,7 +292,11 @@ def score(root, line_judges, image_judges, arbitration=None):
             raise ValueError("Specify two distinct judge directory names per modality")
     resolutions = read(arbitration)["resolutions"] if arbitration else {}
     manifest, index = read(root / "manifest.json"), read(root / "packets/index.json")
-    mapping = read(root / "private/blind-map.json")
+    if lines_only:
+        expected = [f"lines-{p['paper']}" for p in manifest["papers"]]
+        if index["line_packets"] != expected or index["image_packets"]:
+            raise ValueError("Line packets do not match root manifest")
+    mapping = {} if lines_only else read(root / "private/blind-map.json")
     languages = {p["paper"]: p["language"] for p in manifest["papers"]}
     consensus, conflicts, packets = {}, [], {}
     known_keys = set()
@@ -328,6 +339,19 @@ def score(root, line_judges, image_judges, arbitration=None):
             ]
         )
     (root / "arbitration.md").write_text("\n".join(report), encoding="utf-8")
+    if lines_only:
+        result = {
+            "split": manifest.get("split"), "mode": "lines-only",
+            "unresolved_items": sum(not c["resolved"] for c in conflicts),
+            "complete_labels": not any(not c["resolved"] for c in conflicts),
+            "adopt": False,
+        }
+        write(root / "score.json", result)
+        (root / "score.md").write_text(
+            f"Line consensus: {result['unresolved_items']} unresolved; see arbitration.md.\n",
+            encoding="utf-8",
+        )
+        return result
     arms = {}
     for parser in PARSERS:
         arms[parser] = {}
