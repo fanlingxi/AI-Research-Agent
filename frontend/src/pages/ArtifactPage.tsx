@@ -3,6 +3,7 @@ import { ArrowRight, FileDown, GitBranch, Lock, MessageSquareWarning, Workflow }
 import { useCallback, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { SnapshotWarnings } from "../components/SnapshotNotices";
 import { ErrorBlock, LoadingBlock, Notice } from "../components/AsyncState";
 import { FollowUpLinks, FollowUpPanel } from "../components/FollowUpPanel";
 import { ReportLayout, RailSection } from "../components/report/ReportLayout";
@@ -89,6 +90,7 @@ export function ArtifactPage() {
           <a className={buttonVariants({ variant: "ghost" })} href="#feedback"><MessageSquareWarning size={15} />反馈问题</a>
         </>}
         notices={<>
+          <SnapshotWarnings className="space-y-3" snapshotId={body_.context_snapshot_id} />
           <FollowUpLinks key={body_.run_id} runId={body_.run_id} task={task.data} />
           {childLinks.map((link) => (
             <Notice key={link.id} tone="info" icon={<GitBranch size={15} />} title="这份报告已有修订版本"

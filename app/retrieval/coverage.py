@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.llms.provider import MockLLMClient
 from app.retrieval.anchors import contains_quote
-from app.retrieval.reranking import EvidenceReranker, input_digest
+from app.retrieval.reranking import EvidenceReranker, selection_record
 
 
 class CoverageAnchor(BaseModel):
@@ -64,11 +64,7 @@ class CoverageReranker(EvidenceReranker):
     guidance = ""
     def rank(self, payload):
         record = {
-            "status": "fallback",
-            "model_calls": 0,
-            "usage": None,
-            "input_sha256": input_digest(payload),
-            "indices": [],
+            **selection_record(payload),
             "strategy": "coverage-v1",
             "semantic_support": "unreviewed",
         }
@@ -91,10 +87,10 @@ class CoverageReranker(EvidenceReranker):
             + "\nRequired schema: "
             + json.dumps(CoverageOrder.model_json_schema())
         )
-        record["model_calls"] = 1
-        self.llm.last_usage = {}
         try:
-            response = self.llm.invoke(prompt, system_prompt="Select research evidence. JSON only.")
+            response = self._invoke_selection(
+                prompt, "Select research evidence. JSON only.", record
+            )
             if not isinstance(response, str) or len(response) > 64000:
                 raise ValueError("Coverage response out of bounds")
             value = CoverageOrder.model_validate_json(response)
@@ -107,9 +103,6 @@ class CoverageReranker(EvidenceReranker):
                 record["reason"] = "no_anchored_support"
         except Exception as exc:
             record["reason"] = type(exc).__name__
-        usage = getattr(self.llm, "last_usage", None)
-        if getattr(self.llm, "last_usage_complete", bool(usage)) and usage:
-            record["usage"] = dict(usage)
         return record
 
 

@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { ApiError, api, type ContextSnapshotSummary, type WorkspaceTask } from "../lib/api";
 import { nodeLabel } from "../lib/labels";
+import { snapshotNotices } from "../lib/snapshotNotices";
 import { cn, formatDate } from "../lib/utils";
 import { ErrorBlock, LoadingBlock } from "./AsyncState";
 import { StatusBadge } from "./StatusBadge";
@@ -51,12 +52,24 @@ function SnapshotItemsDialog({ snapshot }: { snapshot: ContextSnapshotSummary })
 
 function SnapshotSummary({ snapshot }: { snapshot: ContextSnapshotSummary }) {
   const bundles = snapshot.item_counts.knowledge_claim_bundles ?? 0;
+  const sources = snapshot.item_counts.knowledge_sources;
+  const notices = snapshotNotices(snapshot);
   return (
     <div className={cn("rounded-lg border p-3 text-xs", snapshot.persisted ? "border-brand/30 bg-brand-tint" : "bg-subtle/60")}>
-      <p className="font-medium text-ink">{snapshot.persisted ? "已冻结" : "预览"}：{bundles} 个知识证据包</p>
+      <p className="font-medium text-ink">{snapshot.persisted ? "已冻结" : "预览"}：{bundles} 个知识证据包{bundles && sources ? `，来自 ${sources} 篇资料` : ""}</p>
       <p className="mt-1 text-muted-ink">约 {snapshot.used_tokens.toLocaleString()} / {snapshot.token_budget.toLocaleString()} Token{snapshot.collection_scopes.length ? ` · 范围：${snapshot.collection_scopes.join("、")}` : ""}</p>
-      {snapshot.diagnostics.notices.length ? <p className="mt-1.5 text-amber-800">{snapshot.diagnostics.notices[0]}</p> : null}
+      {notices.map((notice) => (
+        <p className={cn("mt-1.5 leading-5", notice.level === "warning" ? "text-amber-800" : "text-muted-ink")} key={notice.key}>
+          <span className="font-medium">{notice.title}：</span>{notice.body}
+        </p>
+      ))}
       {!bundles ? <p className="mt-1.5 text-amber-800">没有找到相关知识。请检查项目的知识范围，或先审核更多候选知识。</p> : null}
+      {snapshot.diagnostics.notices.length ? (
+        <details className="mt-1.5 text-muted-ink">
+          <summary className="cursor-pointer">技术详情</summary>
+          <ul className="mt-1 space-y-0.5 break-all font-mono text-[10px]">{snapshot.diagnostics.notices.map((notice) => <li key={notice}>{notice}</li>)}</ul>
+        </details>
+      ) : null}
       {snapshot.persisted ? <SnapshotItemsDialog snapshot={snapshot} /> : null}
     </div>
   );
