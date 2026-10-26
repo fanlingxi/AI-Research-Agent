@@ -334,7 +334,7 @@ class CoveredReport(StructuredReport):
     answer_parts: list[AnswerPart] = Field(min_length=1, max_length=8)
 
 
-def prepare_covered_report(report, package, *, status_label=None):
+def prepare_covered_report(report, package, *, status_label=None, pair_ownership=False):
     question = "\n".join((package.task.title, package.task.goal))
     parts, used = set(), []
     for part in report.answer_parts:
@@ -351,8 +351,20 @@ def prepare_covered_report(report, package, *, status_label=None):
         raise ReportContractError("A report with a requested answer gap must not be complete")
     if report.answer_status != "complete" and not any(p.gap.strip() for p in report.answer_parts):
         raise ReportContractError("Partial or insufficient reports require a requested answer gap")
-    evidence = {e.evidence_id: (b.claim.claim_id, e.quote)
-                for b in package.knowledge.claim_bundles for e in b.evidence}
+    if pair_ownership:
+        evidence, quotes = {}, {}
+        for bundle in package.knowledge.claim_bundles:
+            for item in bundle.evidence:
+                if item.evidence_id in quotes and quotes[item.evidence_id] != item.quote:
+                    raise ReportContractError("Shared evidence must have identical source quotes")
+                quotes[item.evidence_id] = item.quote
+                evidence[bundle.claim.claim_id, item.evidence_id] = (
+                    bundle.claim.claim_id, item.quote
+                )
+    else:
+        # Frozen v2-v9 path: old attempts must retain their original validation outcome.
+        evidence = {e.evidence_id: (b.claim.claim_id, e.quote)
+                    for b in package.knowledge.claim_bundles for e in b.evidence}
     seen = set()
     findings = []
     for finding in report.findings:
@@ -363,7 +375,8 @@ def prepare_covered_report(report, package, *, status_label=None):
         if set(finding.evidence_ids) != {a.evidence_id for a in finding.support}:
             raise ReportContractError("Every cited evidence ID needs its own exact support anchor")
         for anchor in finding.support:
-            saved = evidence.get(anchor.evidence_id)
+            saved = evidence.get((finding.claim_bundle_id, anchor.evidence_id)
+                                 if pair_ownership else anchor.evidence_id)
             if (not saved or saved[0] != finding.claim_bundle_id
                     or not contains_quote(anchor.quote, saved[1])):
                 raise ReportContractError(
@@ -493,6 +506,7 @@ class DirectResearchWorkflow(StructuredResearchWorkflow):
     """Opt-in structured-v6; older schemas, prompts and namespaces stay intact."""
 
     report_model = DirectReport
+    pair_ownership = False
     report_rules = (
         "Answer the original task directly using only the supplied evidence. Return title and "
         "answer_parts only. Each part contains a verbatim contiguous factual question span "
@@ -530,7 +544,8 @@ class DirectResearchWorkflow(StructuredResearchWorkflow):
         covered = CoveredReport(title=report.title, findings=report.findings,
                                 answer_status=report.answer_status, limitations=report.limitations,
                                 answer_parts=parts)
-        return prepare_covered_report(covered, package, status_label=status_label)
+        return prepare_covered_report(covered, package, status_label=status_label,
+                                      pair_ownership=self.pair_ownership)
 
 
 class AnchoredDirectResearchWorkflow(DirectResearchWorkflow):
@@ -592,6 +607,12 @@ class AnchoredDirectResearchWorkflow(DirectResearchWorkflow):
             f"Title: {_canonical_json(package.task.title)}\n"
             f"Goal: {_canonical_json(package.task.goal)}\n"
         )
+
+
+class SharedEvidenceResearchWorkflow(AnchoredDirectResearchWorkflow):
+    """Opt-in structured-v9: v8 generation with claim/evidence pair ownership."""
+
+    pair_ownership = True
 
 
 class FixedPlanResearchWorkflow(AnchoredDirectResearchWorkflow):
