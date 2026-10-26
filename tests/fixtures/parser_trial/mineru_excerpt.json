@@ -1,0 +1,149 @@
+{
+  "pages": [
+    {
+      "page_idx": 6,
+      "blocks": [
+        {
+          "type": "header",
+          "bbox": [
+            0.118,
+            0.047,
+            0.273,
+            0.062
+          ],
+          "content": "中国计算语言学大会"
+        },
+        {
+          "type": "text",
+          "bbox": [
+            0.116,
+            0.089,
+            0.885,
+            0.12
+          ],
+          "content": "合 $D _ { s p } = \\{ s _ { p 1 } , s _ { p 2 } , . . . , s _ { p n } \\}$ ，其中**包含**了工艺规范m中从第一个段落**到第**n个段落中每个段落对应的最小子树对象。"
+        },
+        {
+          "type": "equation",
+          "bbox": [
+            0.221,
+            0.165,
+            0.883,
+            0.183
+          ],
+          "content": "\\{s _ {m 1}, s _ {m 2}, \\dots , s _ {m k} \\} = t s r _ {t b} (q, D _ {p}) = t r a v e r s e (\\text {retrieval} (q, D _ {p}) \\mid T _ {m _ {k}})\\tag{15}"
+        },
+        {
+          "type": "paragraph_title",
+          "bbox": [
+            0.116,
+            0.355,
+            0.2,
+            0.373
+          ],
+          "level": 2,
+          "content": "4 实验"
+        },
+        {
+          "type": "page_footnote",
+          "bbox": [
+            0.206,
+            0.95,
+            0.784,
+            0.963
+          ],
+          "content": "第二十四届中国计算语言学大会论文集，第143页-第155页，济南，中国，2025年8月11日至14日。"
+        },
+        {
+          "type": "footer",
+          "bbox": [
+            0.346,
+            0.968,
+            0.654,
+            0.982
+          ],
+          "content": "(c) 2025 中国中文信息学会计算语言学专业委员会"
+        },
+        {
+          "type": "page_number",
+          "bbox": [
+            0.872,
+            0.972,
+            0.896,
+            0.984
+          ],
+          "content": "149"
+        }
+      ]
+    },
+    {
+      "page_idx": 7,
+      "blocks": [
+        {
+          "type": "table",
+          "bbox": [
+            0.123,
+            0.277,
+            0.884,
+            0.538
+          ],
+          "content": "<table><tr><td rowspan=\"2\">大语言模型方法</td><td colspan=\"3\">Yi1.5-9B-Chat</td><td colspan=\"3\">Llama3-8B-Instruct</td><td colspan=\"3\">Chatglm3-6b</td><td colspan=\"3\">GLM4-9b-Chat</td></tr><tr><td>ACC</td><td>ROUGE-L</td><td>BLEU-4</td><td>ACC</td><td>ROUGE-L</td><td>BLEU-4</td><td>ACC</td><td>ROUGE-L</td><td>BLEU-4</td><td>ACC</td><td>ROUGE-L</td><td>BLEU-4</td></tr><tr><td> $TSR_b$ </td><td>69.67</td><td>30.94</td><td>16.54</td><td>56.14</td><td>32.72</td><td>18.06</td><td>64.05</td><td>34.35</td><td>18.64</td><td>66.74</td><td>35.72</td><td>20.78</td></tr><tr><td> $LLM_{Base}$ </td><td>44.23</td><td>5.33</td><td>0.76</td><td>31.21</td><td>7.36</td><td>1.11</td><td>42.28</td><td>9.79</td><td>2.48</td><td>45.85</td><td>6.18</td><td>0.96</td></tr><tr><td> $RAG_{250}$ </td><td>65.35</td><td>27.55</td><td>13.91</td><td>49.57</td><td>30.46</td><td>15.98</td><td>62.83</td><td>32.79</td><td>17.24</td><td>62.92</td><td>32.24</td><td>17.48</td></tr><tr><td> $RAG_{750}$ </td><td>63.74</td><td>25.19</td><td>12.19</td><td>44.73</td><td>27.09</td><td>13.46</td><td>58.48</td><td>29.50</td><td>15.92</td><td>62.85</td><td>29.80</td><td>16.20</td></tr><tr><td> $Raptor_{Tree}$ </td><td>62.84</td><td>25.26</td><td>10.73</td><td>59.98</td><td>28.40</td><td>13.26</td><td>55.27</td><td>27.06</td><td>12.06</td><td>59.98</td><td>28.40</td><td>13.26</td></tr><tr><td> $Raptor_{Col}$ </td><td>65.80</td><td>26.85</td><td>12.83</td><td>66.21</td><td>27.78</td><td>13.56</td><td>55.78</td><td>27.58</td><td>12.01</td><td>66.21</td><td>27.78</td><td>13.56</td></tr><tr><td>SPC</td><td>64.95</td><td>28.91</td><td>14.75</td><td>54.18</td><td>30.85</td><td>16.73</td><td>61.25</td><td>32.25</td><td>17.12</td><td>63.81</td><td>33.27</td><td>18.99</td></tr><tr><td> $SPC_H$ </td><td>70.08</td><td>27.35</td><td>13.58</td><td>52.31</td><td>30.02</td><td>16.08</td><td>62.31</td><td>32.50</td><td>16.72</td><td>66.19</td><td>34.69</td><td>20.01</td></tr><tr><td> $SPC_{HD}$ </td><td>67.59</td><td>29.39</td><td>15.72</td><td>54.09</td><td>29.72</td><td>15.76</td><td>62.00</td><td>33.84</td><td>18.02</td><td>66.58</td><td>35.16</td><td>20.80</td></tr><tr><td rowspan=\"2\">大语言模型方法</td><td colspan=\"3\">Qwen1.5-7B-Chat</td><td colspan=\"3\">Qwen1.5-14B-Chat</td><td colspan=\"3\">Qwen2-7B-Instruct</td><td colspan=\"3\">Gemma2-9b-it</td></tr><tr><td>ACC</td><td>ROUGE-L</td><td>BLEU-4</td><td>ACC</td><td>ROUGE-L</td><td>BLEU-4</td><td>ACC</td><td>ROUGE-L</td><td>BLEU-4</td><td>ACC</td><td>ROUGE-L</td><td>BLEU-4</td></tr><tr><td> $TSR_b$ </td><td>65.33</td><td>32.33</td><td>16.40</td><td>64.77</td><td>34.14</td><td>17.53</td><td>61.59</td><td>33.24</td><td>18.82</td><td>43.91</td><td>42.19</td><td>26.50</td></tr><tr><td> $LLM_{Base}$ </td><td>43.91</td><td>7.17</td><td>1.04</td><td>43.91</td><td>8.12</td><td>1.45</td><td>44.65</td><td>6.10</td><td>0.95</td><td>43.95</td><td>8.68</td><td>1.32</td></tr><tr><td> $RAG_{250}$ </td><td>63.15</td><td>31.00</td><td>14.55</td><td>64.20</td><td>30.28</td><td>14.50</td><td>58.11</td><td>28.60</td><td>14.66</td><td>35.69</td><td>36.42</td><td>21.19</td></tr><tr><td> $RAG_{750}$ </td><td>61.33</td><td>30.15</td><td>14.15</td><td>62.48</td><td>30.14</td><td>14.34</td><td>57.36</td><td>26.84</td><td>14.04</td><td>35.11</td><td>34.20</td><td>19.89</td></tr><tr><td> $Raptor_{Tree}$ </td><td>62.84</td><td>25.26</td><td>10.73</td><td>33.23</td><td>20.20</td><td>5.17</td><td>55.27</td><td>27.06</td><td>12.06</td><td>41.61</td><td>37.37</td><td>21.99</td></tr><tr><td> $Raptor_{Col}$ </td><td>65.80</td><td>26.85</td><td>12.83</td><td>27.64</td><td>17.38</td><td>3.46</td><td>55.78</td><td>27.58</td><td>12.01</td><td>32.00</td><td>33.68</td><td>18.73</td></tr><tr><td>SPC</td><td>62.46</td><td>31.47</td><td>15.09</td><td>62.00</td><td>32.50</td><td>16.17</td><td>57.25</td><td>31.79</td><td>17.97</td><td>39.00</td><td>39.45</td><td>24.72</td></tr><tr><td> $SPC_H$ </td><td>63.50</td><td>31.63</td><td>15.15</td><td>63.02</td><td>34.09</td><td>16.66</td><td>59.66</td><td>32.03</td><td>18.48</td><td>39.72</td><td>39.18</td><td>23.76</td></tr><tr><td> $SPC_{HD}$ </td><td>64.44</td><td>31.69</td><td>15.95</td><td>63.74</td><td>34.29</td><td>17.05</td><td>58.52</td><td>32.07</td><td>18.45</td><td>41.50</td><td>40.77</td><td>25.21</td></tr></table>",
+          "captions": [
+            {
+              "bbox": [
+                0.343,
+                0.549,
+                0.659,
+                0.566
+              ],
+              "content": "Table 2: $\\mathrm { T S R _ { b } }$ 与其他方法的对比结果"
+            }
+          ],
+          "footnotes": []
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "file_suffix": "pdf",
+    "producer": {
+      "name": "mineru",
+      "version": "4.0.12"
+    },
+    "document": {
+      "title": "untitled",
+      "authors": [
+        "anonymous"
+      ],
+      "subject": "unspecified",
+      "created_at": "2025-07-14T17:34:17+08:00",
+      "modified_at": "2025-07-14T17:34:17+08:00",
+      "creator_application": "ReportLab PDF Library - www.reportlab.com",
+      "producer_application": "ReportLab PDF Library - www.reportlab.com",
+      "page_count": 13,
+      "page_count_kind": "physical"
+    }
+  },
+  "extensions": {
+    "mineru": {
+      "tier": "standard",
+      "parse_mode": "txt"
+    },
+    "docvortex_layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page_idx": 6,
+          "width_pt": 595.2760009765625,
+          "height_pt": 841.8900146484375
+        },
+        {
+          "page_idx": 7,
+          "width_pt": 595.2760009765625,
+          "height_pt": 841.8900146484375
+        }
+      ]
+    }
+  },
+  "is_full_document": false
+}
