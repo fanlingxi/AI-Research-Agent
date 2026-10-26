@@ -33,10 +33,16 @@ def _tasks(run_dir: Path | None = None) -> dict[str, dict]:
     root = DATASET
     if run_dir is not None and (run_dir / "config.json").is_file():
         config = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
-        root = dataset_path(config.get("dataset", "v2"))
+        dataset = config.get("dataset", "v2")
+        root = (DATASET.parent / "holdout-v4" if dataset in ("v4", "research-holdout-v4")
+                else dataset_path(dataset))
     tasks = {}
     for name in ("tasks.dev.json", "tasks.holdout.json"):
-        for task in json.loads((root / name).read_text(encoding="utf-8"))["tasks"]:
+        path = root / name
+        if name == "tasks.dev.json" and not path.is_file():
+            continue
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        for task in payload if isinstance(payload, list) else payload["tasks"]:
             tasks[task["id"]] = task
     return tasks
 
@@ -227,6 +233,27 @@ def gate_d035(arms: dict[str, dict]) -> dict | None:
     return {"checks": checks, "eligible": eligible, "selected": selected}
 
 
+def gate_d036(arms: dict[str, dict]) -> dict | None:
+    if not {"A0-standard", "A1-compact"} <= arms.keys():
+        return None
+    baseline, candidate = arms["A0-standard"], arms["A1-compact"]
+    checks = {}
+    for label, metric, direction, offset, factor in (
+        ("completion_not_worse", "completion_rate", "ge", 0, 1),
+        ("coverage_plus_10pp", "point_coverage", "ge", 0.10, 1),
+        ("overclaim_not_worse", "overclaim_rate", "le", 0, 1),
+        ("refusal_not_worse", "refusal_correctness", "ge", 0, 1),
+        ("input_tokens_within_1_2x", "mean_input_tokens", "le", 0, 1.2),
+        ("latency_within_1_2x", "mean_latency_seconds", "le", 0, 1.2),
+    ):
+        a, b = baseline.get(metric), candidate.get(metric)
+        checks[label] = bool(
+            _number(a) and _number(b)
+            and (b >= a * factor + offset if direction == "ge" else b <= a * factor)
+        )
+    return {"checks": checks, "switch_default": all(checks.values())}
+
+
 def summary(run_dir: Path, judges: list[str] | None = None) -> dict:
     tasks = _tasks(run_dir)
     arms: dict[str, dict] = {}
@@ -309,6 +336,7 @@ def summary(run_dir: Path, judges: list[str] | None = None) -> dict:
         "arms": arms,
         **gates,
         "gate_D035": gate_d035(arms),
+        "gate_D036": gate_d036(arms),
         "runs": per_run,
     }
 

@@ -180,7 +180,21 @@ def prepare():
     return {"output": str(output), "chunks": len(chunks)}
 
 
-def execute(output, *, cases_path=CASES, output_root=OUTPUT):
+def validate_passage_snapshot(package, case, mapping, seed):
+    """Keep the original v2/v3 passage identity and scope contract."""
+    for bundle in package.knowledge.claim_bundles:
+        for chunk in bundle.chunks:
+            entry = mapping["chunks"][chunk.chunk_id]
+            if (
+                entry["source_id"] not in case["source_ids"]
+                or entry["text_sha256"] != chunk.content_sha256
+                or entry["claim_id"] != bundle.claim.claim_id
+            ):
+                raise ValueError("Snapshot identity or scope violation")
+
+
+def execute(output, *, cases_path=CASES, output_root=OUTPUT,
+            snapshot_validator=validate_passage_snapshot):
     """Run each prepared case once per workflow; other frozen sets pass their own paths."""
     guard("RUN_LIVE_LLM_INTEGRATION")
     guard("RUN_STORE_INTEGRATION")
@@ -283,15 +297,7 @@ def execute(output, *, cases_path=CASES, output_root=OUTPUT):
                         "vector_unavailable" in n for n in package.diagnostics.notices
                     ):
                         raise ValueError("Real vector retrieval unavailable")
-                    for bundle in package.knowledge.claim_bundles:
-                        for chunk in bundle.chunks:
-                            entry = mapping["chunks"][chunk.chunk_id]
-                            if (
-                                entry["source_id"] not in case["source_ids"]
-                                or entry["text_sha256"] != chunk.content_sha256
-                                or entry["claim_id"] != bundle.claim.claim_id
-                            ):
-                                raise ValueError("Snapshot identity or scope violation")
+                    snapshot_validator(package, case, mapping, seed)
                     packages[spec] = package
                 for name, arm_spec in arms.items():
                     package = packages[json.dumps(arm_spec["context"], sort_keys=True)]
