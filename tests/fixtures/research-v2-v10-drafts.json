@@ -1,0 +1,47 @@
+{
+  "StructuredResearchWorkflow": {
+    "complete": "30d5daee273bee91b7837c3c9e04dd49543f09c44e449e1d0c15ca04ad0099fd",
+    "partial": "16e04a9a6375a85d5db8b9e08500d5f33aa1e4b9efbe0cd501a8ef29a6c5ded0",
+    "insufficient_evidence": "155501d49fe3ae09557993b4c08b50828683d8b03bf2dd0aac2e48e3a5b378d8"
+  },
+  "EvidenceAlignedResearchWorkflow": {
+    "complete": "30d5daee273bee91b7837c3c9e04dd49543f09c44e449e1d0c15ca04ad0099fd",
+    "partial": "16e04a9a6375a85d5db8b9e08500d5f33aa1e4b9efbe0cd501a8ef29a6c5ded0",
+    "insufficient_evidence": "155501d49fe3ae09557993b4c08b50828683d8b03bf2dd0aac2e48e3a5b378d8"
+  },
+  "FocusedResearchWorkflow": {
+    "complete": "30d5daee273bee91b7837c3c9e04dd49543f09c44e449e1d0c15ca04ad0099fd",
+    "partial": "16e04a9a6375a85d5db8b9e08500d5f33aa1e4b9efbe0cd501a8ef29a6c5ded0",
+    "insufficient_evidence": "155501d49fe3ae09557993b4c08b50828683d8b03bf2dd0aac2e48e3a5b378d8"
+  },
+  "CoverageResearchWorkflow": {
+    "complete": "587c4000281bf56992900b58b146aadcf7923d58b2e1aa034711819cd91ee5e7",
+    "partial": "f9f981aeb91c04f477f2e19bf327b2d8c7e66d75c4f37cc059a4611fe42d0c76",
+    "insufficient_evidence": "40e41cf94778fd7f92267843dae9317dc03fba5fe5b1b096aec97ca34f85b5c1"
+  },
+  "CoreCoverageResearchWorkflow": {
+    "complete": "587c4000281bf56992900b58b146aadcf7923d58b2e1aa034711819cd91ee5e7",
+    "partial": "f9f981aeb91c04f477f2e19bf327b2d8c7e66d75c4f37cc059a4611fe42d0c76",
+    "insufficient_evidence": "40e41cf94778fd7f92267843dae9317dc03fba5fe5b1b096aec97ca34f85b5c1"
+  },
+  "DirectResearchWorkflow": {
+    "complete": "587c4000281bf56992900b58b146aadcf7923d58b2e1aa034711819cd91ee5e7",
+    "partial": "f9f981aeb91c04f477f2e19bf327b2d8c7e66d75c4f37cc059a4611fe42d0c76",
+    "insufficient_evidence": "40e41cf94778fd7f92267843dae9317dc03fba5fe5b1b096aec97ca34f85b5c1"
+  },
+  "AnchoredDirectResearchWorkflow": {
+    "complete": "587c4000281bf56992900b58b146aadcf7923d58b2e1aa034711819cd91ee5e7",
+    "partial": "f9f981aeb91c04f477f2e19bf327b2d8c7e66d75c4f37cc059a4611fe42d0c76",
+    "insufficient_evidence": "40e41cf94778fd7f92267843dae9317dc03fba5fe5b1b096aec97ca34f85b5c1"
+  },
+  "FixedPlanResearchWorkflow": {
+    "complete": "587c4000281bf56992900b58b146aadcf7923d58b2e1aa034711819cd91ee5e7",
+    "partial": "f9f981aeb91c04f477f2e19bf327b2d8c7e66d75c4f37cc059a4611fe42d0c76",
+    "insufficient_evidence": "40e41cf94778fd7f92267843dae9317dc03fba5fe5b1b096aec97ca34f85b5c1"
+  },
+  "SharedEvidenceResearchWorkflow": {
+    "complete": "587c4000281bf56992900b58b146aadcf7923d58b2e1aa034711819cd91ee5e7",
+    "partial": "f9f981aeb91c04f477f2e19bf327b2d8c7e66d75c4f37cc059a4611fe42d0c76",
+    "insufficient_evidence": "40e41cf94778fd7f92267843dae9317dc03fba5fe5b1b096aec97ca34f85b5c1"
+  }
+}
