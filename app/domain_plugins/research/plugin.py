@@ -23,6 +23,11 @@ class ResearchDomainPlugin:
         domain="research",
         workflows=[
             DomainWorkflowSpec(
+                key="research_v9", name="research_fixed_plan", version="structured-v8",
+                checkpoint_namespace="agent_research_structured_v8", min_steps=9,
+                min_tool_calls=1, requires_live_llm=True,
+            ),
+            DomainWorkflowSpec(
                 key="research_v8", name="research_direct_anchored", version="structured-v7",
                 checkpoint_namespace="agent_research_structured_v7", min_steps=9,
                 min_tool_calls=1, requires_live_llm=True,
@@ -118,6 +123,10 @@ class ResearchDomainPlugin:
 
     def build_workflow(self, service: Any, pin: PluginPin) -> Any:
         workflow = self.workflow_spec(pin.workflow_key)
+        if workflow.key == "research_v9":
+            from app.agent.structured_research import FixedPlanResearchWorkflow
+
+            return FixedPlanResearchWorkflow(service)
         if workflow.key == "research_v8":
             from app.agent.structured_research import AnchoredDirectResearchWorkflow
 
