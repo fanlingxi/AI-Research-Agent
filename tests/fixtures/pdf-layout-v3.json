@@ -1,0 +1,387 @@
+[
+  {
+    "texts": [
+      "??????\n?????\n????\na@uni.edu\n??\n??????\n?????\n??????\n1 ??\n?????"
+    ],
+    "layouts": {
+      "1": [
+        [
+          {
+            "text": "??????",
+            "x": 60,
+            "y": 700,
+            "size": 10
+          },
+          {
+            "text": "?????",
+            "x": 60,
+            "y": 688,
+            "size": 10
+          },
+          {
+            "text": "????",
+            "x": 60,
+            "y": 676,
+            "size": 10
+          },
+          {
+            "text": "a@uni.edu",
+            "x": 60,
+            "y": 664,
+            "size": 10
+          },
+          {
+            "text": "??",
+            "x": 60,
+            "y": 652,
+            "size": 10
+          },
+          {
+            "text": "??????",
+            "x": 60,
+            "y": 640,
+            "size": 10
+          },
+          {
+            "text": "?????",
+            "x": 60,
+            "y": 628,
+            "size": 10
+          },
+          {
+            "text": "??????",
+            "x": 60,
+            "y": 616,
+            "size": 10
+          },
+          {
+            "text": "1 ??",
+            "x": 60,
+            "y": 604,
+            "size": 10
+          },
+          {
+            "text": "?????",
+            "x": 60,
+            "y": 592,
+            "size": 10
+          }
+        ],
+        800
+      ]
+    },
+    "blocks_json": [
+      "{\"kind\":\"paragraph\",\"text\":\"?????? ????? ???? a@uni.edu ?? ?????? ????? ??????\",\"spans\":[{\"page\":1,\"start\":0,\"end\":50}]}",
+      "{\"kind\":\"other\",\"text\":\"1 ??\",\"spans\":[{\"page\":1,\"start\":51,\"end\":55}]}",
+      "{\"kind\":\"paragraph\",\"text\":\"?????\",\"spans\":[{\"page\":1,\"start\":56,\"end\":61}]}"
+    ],
+    "chunks_json": [
+      "{\"id\":\"fixture:page:1:chunk:0\",\"paper_id\":\"fixture\",\"title\":\"Regression fixture\",\"text\":\"?????? ????? ???? a@uni.edu ?? ?????? ????? ??????\",\"chunk_index\":0,\"token_count\":8,\"source_tier\":\"primary_fulltext\",\"metadata\":{\"source\":\"pdf\",\"source_tier\":\"primary_fulltext\",\"url\":null,\"pdf_url\":null,\"local_path\":null,\"content_kind\":\"pdf_full_text\",\"page_start\":1,\"page_end\":1,\"parser_version\":\"pypdf-v3\",\"spans\":[{\"page\":1,\"start\":0,\"end\":50}]}}",
+      "{\"id\":\"fixture:page:1:chunk:1\",\"paper_id\":\"fixture\",\"title\":\"Regression fixture\",\"text\":\"?????\",\"chunk_index\":1,\"token_count\":1,\"source_tier\":\"primary_fulltext\",\"metadata\":{\"source\":\"pdf\",\"source_tier\":\"primary_fulltext\",\"url\":null,\"pdf_url\":null,\"local_path\":null,\"content_kind\":\"pdf_full_text\",\"page_start\":1,\"page_end\":1,\"parser_version\":\"pypdf-v3\",\"spans\":[{\"page\":1,\"start\":56,\"end\":61}]}}"
+    ]
+  },
+  {
+    "texts": [
+      "Study of Retrieval\nJane Smith\nExample University\nAbstract\nWe study re-\ntrieval methods.\nKeywords: retrieval\n1 Introduction\nBody text."
+    ],
+    "layouts": {
+      "1": [
+        [
+          {
+            "text": "Study of Retrieval",
+            "x": 60,
+            "y": 700,
+            "size": 10
+          },
+          {
+            "text": "Jane Smith",
+            "x": 60,
+            "y": 688,
+            "size": 10
+          },
+          {
+            "text": "Example University",
+            "x": 60,
+            "y": 676,
+            "size": 10
+          },
+          {
+            "text": "Abstract",
+            "x": 60,
+            "y": 664,
+            "size": 10
+          },
+          {
+            "text": "We study re-",
+            "x": 60,
+            "y": 652,
+            "size": 10
+          },
+          {
+            "text": "trieval methods.",
+            "x": 60,
+            "y": 640,
+            "size": 10
+          },
+          {
+            "text": "Keywords: retrieval",
+            "x": 60,
+            "y": 628,
+            "size": 10
+          },
+          {
+            "text": "1 Introduction",
+            "x": 60,
+            "y": 616,
+            "size": 10
+          },
+          {
+            "text": "Body text.",
+            "x": 60,
+            "y": 604,
+            "size": 10
+          }
+        ],
+        800
+      ]
+    },
+    "blocks_json": [
+      "{\"kind\":\"front_matter\",\"text\":\"Study of Retrieval\",\"spans\":[{\"page\":1,\"start\":0,\"end\":18}]}",
+      "{\"kind\":\"front_matter\",\"text\":\"Jane Smith\",\"spans\":[{\"page\":1,\"start\":19,\"end\":29}]}",
+      "{\"kind\":\"front_matter\",\"text\":\"Example University\",\"spans\":[{\"page\":1,\"start\":30,\"end\":48}]}",
+      "{\"kind\":\"abstract\",\"text\":\"Abstract\",\"spans\":[{\"page\":1,\"start\":49,\"end\":57}]}",
+      "{\"kind\":\"abstract\",\"text\":\"We study re- trieval methods.\",\"spans\":[{\"page\":1,\"start\":58,\"end\":87}]}",
+      "{\"kind\":\"keywords\",\"text\":\"Keywords: retrieval\",\"spans\":[{\"page\":1,\"start\":88,\"end\":107}]}",
+      "{\"kind\":\"heading\",\"text\":\"1 Introduction\",\"spans\":[{\"page\":1,\"start\":108,\"end\":122}]}",
+      "{\"kind\":\"paragraph\",\"text\":\"Body text.\",\"spans\":[{\"page\":1,\"start\":123,\"end\":133}]}"
+    ],
+    "chunks_json": [
+      "{\"id\":\"fixture:page:1:chunk:0\",\"paper_id\":\"fixture\",\"title\":\"Regression fixture\",\"text\":\"Abstract\\n\\nWe study re- trieval methods.\",\"chunk_index\":0,\"token_count\":6,\"source_tier\":\"primary_fulltext\",\"metadata\":{\"source\":\"pdf\",\"source_tier\":\"primary_fulltext\",\"url\":null,\"pdf_url\":null,\"local_path\":null,\"content_kind\":\"pdf_full_text\",\"page_start\":1,\"page_end\":1,\"parser_version\":\"pypdf-v3\",\"spans\":[{\"page\":1,\"start\":49,\"end\":57},{\"page\":1,\"start\":58,\"end\":87}]}}",
+      "{\"id\":\"fixture:page:1:chunk:1\",\"paper_id\":\"fixture\",\"title\":\"Regression fixture\",\"text\":\"1 Introduction\\n\\nBody text.\",\"chunk_index\":1,\"token_count\":4,\"source_tier\":\"primary_fulltext\",\"metadata\":{\"source\":\"pdf\",\"source_tier\":\"primary_fulltext\",\"url\":null,\"pdf_url\":null,\"local_path\":null,\"content_kind\":\"pdf_full_text\",\"page_start\":1,\"page_end\":1,\"parser_version\":\"pypdf-v3\",\"spans\":[{\"page\":1,\"start\":108,\"end\":122},{\"page\":1,\"start\":123,\"end\":133}]}}"
+    ]
+  },
+  {
+    "texts": [
+      "Journal 2024\nWe study a new\nmethod.\nReferences\n[1] Smith. 2024. A reference.\n21",
+      "Journal 2025\n[2] Jones. 2023. Another reference.\nAppendix A\nAppendix body.\n22"
+    ],
+    "layouts": {
+      "1": [
+        [
+          {
+            "text": "Journal 2024",
+            "x": 60,
+            "y": 770,
+            "size": 10
+          },
+          {
+            "text": "We study a new",
+            "x": 60,
+            "y": 638,
+            "size": 10
+          },
+          {
+            "text": "method.",
+            "x": 60,
+            "y": 626,
+            "size": 10
+          },
+          {
+            "text": "References",
+            "x": 60,
+            "y": 614,
+            "size": 10
+          },
+          {
+            "text": "[1] Smith. 2024. A reference.",
+            "x": 60,
+            "y": 602,
+            "size": 10
+          },
+          {
+            "text": "21",
+            "x": 60,
+            "y": 30,
+            "size": 10
+          }
+        ],
+        800
+      ],
+      "2": [
+        [
+          {
+            "text": "Journal 2025",
+            "x": 60,
+            "y": 770,
+            "size": 10
+          },
+          {
+            "text": "[2] Jones. 2023. Another reference.",
+            "x": 60,
+            "y": 638,
+            "size": 10
+          },
+          {
+            "text": "Appendix A",
+            "x": 60,
+            "y": 626,
+            "size": 10
+          },
+          {
+            "text": "Appendix body.",
+            "x": 60,
+            "y": 614,
+            "size": 10
+          },
+          {
+            "text": "22",
+            "x": 60,
+            "y": 30,
+            "size": 10
+          }
+        ],
+        800
+      ]
+    },
+    "blocks_json": [
+      "{\"kind\":\"header\",\"text\":\"Journal 2024\",\"spans\":[{\"page\":1,\"start\":0,\"end\":12}]}",
+      "{\"kind\":\"paragraph\",\"text\":\"We study a new method.\",\"spans\":[{\"page\":1,\"start\":13,\"end\":35}]}",
+      "{\"kind\":\"references\",\"text\":\"References\",\"spans\":[{\"page\":1,\"start\":36,\"end\":46}]}",
+      "{\"kind\":\"references\",\"text\":\"[1] Smith. 2024. A reference.\",\"spans\":[{\"page\":1,\"start\":47,\"end\":76}]}",
+      "{\"kind\":\"footer\",\"text\":\"21\",\"spans\":[{\"page\":1,\"start\":77,\"end\":79}]}",
+      "{\"kind\":\"header\",\"text\":\"Journal 2025\",\"spans\":[{\"page\":2,\"start\":0,\"end\":12}]}",
+      "{\"kind\":\"references\",\"text\":\"[2] Jones. 2023. Another reference.\",\"spans\":[{\"page\":2,\"start\":13,\"end\":48}]}",
+      "{\"kind\":\"heading\",\"text\":\"Appendix A\",\"spans\":[{\"page\":2,\"start\":49,\"end\":59}]}",
+      "{\"kind\":\"paragraph\",\"text\":\"Appendix body.\",\"spans\":[{\"page\":2,\"start\":60,\"end\":74}]}",
+      "{\"kind\":\"footer\",\"text\":\"22\",\"spans\":[{\"page\":2,\"start\":75,\"end\":77}]}"
+    ],
+    "chunks_json": [
+      "{\"id\":\"fixture:page:1:chunk:0\",\"paper_id\":\"fixture\",\"title\":\"Regression fixture\",\"text\":\"We study a new method.\",\"chunk_index\":0,\"token_count\":5,\"source_tier\":\"primary_fulltext\",\"metadata\":{\"source\":\"pdf\",\"source_tier\":\"primary_fulltext\",\"url\":null,\"pdf_url\":null,\"local_path\":null,\"content_kind\":\"pdf_full_text\",\"page_start\":1,\"page_end\":1,\"parser_version\":\"pypdf-v3\",\"spans\":[{\"page\":1,\"start\":13,\"end\":35}]}}",
+      "{\"id\":\"fixture:page:2:chunk:0\",\"paper_id\":\"fixture\",\"title\":\"Regression fixture\",\"text\":\"Appendix A\\n\\nAppendix body.\",\"chunk_index\":1,\"token_count\":4,\"source_tier\":\"primary_fulltext\",\"metadata\":{\"source\":\"pdf\",\"source_tier\":\"primary_fulltext\",\"url\":null,\"pdf_url\":null,\"local_path\":null,\"content_kind\":\"pdf_full_text\",\"page_start\":2,\"page_end\":2,\"parser_version\":\"pypdf-v3\",\"spans\":[{\"page\":2,\"start\":49,\"end\":59},{\"page\":2,\"start\":60,\"end\":74}]}}"
+    ]
+  },
+  {
+    "texts": [
+      "We study re-\ntrieval methods.\nNew paragraph starts.\nOther column."
+    ],
+    "layouts": {
+      "1": [
+        [
+          {
+            "text": "We study re-",
+            "x": 60,
+            "y": 700,
+            "size": 10
+          },
+          {
+            "text": "trieval methods.",
+            "x": 60,
+            "y": 688,
+            "size": 10
+          },
+          {
+            "text": "New paragraph starts.",
+            "x": 80,
+            "y": 676,
+            "size": 10
+          },
+          {
+            "text": "Other column.",
+            "x": 310,
+            "y": 664,
+            "size": 10
+          }
+        ],
+        800
+      ]
+    },
+    "blocks_json": [
+      "{\"kind\":\"paragraph\",\"text\":\"We study re- trieval methods.\",\"spans\":[{\"page\":1,\"start\":0,\"end\":29}]}",
+      "{\"kind\":\"paragraph\",\"text\":\"New paragraph starts.\",\"spans\":[{\"page\":1,\"start\":30,\"end\":51}]}",
+      "{\"kind\":\"paragraph\",\"text\":\"Other column.\",\"spans\":[{\"page\":1,\"start\":52,\"end\":65}]}"
+    ],
+    "chunks_json": [
+      "{\"id\":\"fixture:page:1:chunk:0\",\"paper_id\":\"fixture\",\"title\":\"Regression fixture\",\"text\":\"We study re- trieval methods.\\n\\nNew paragraph starts.\\n\\nOther column.\",\"chunk_index\":0,\"token_count\":10,\"source_tier\":\"primary_fulltext\",\"metadata\":{\"source\":\"pdf\",\"source_tier\":\"primary_fulltext\",\"url\":null,\"pdf_url\":null,\"local_path\":null,\"content_kind\":\"pdf_full_text\",\"page_start\":1,\"page_end\":1,\"parser_version\":\"pypdf-v3\",\"spans\":[{\"page\":1,\"start\":0,\"end\":29},{\"page\":1,\"start\":30,\"end\":51},{\"page\":1,\"start\":52,\"end\":65}]}}"
+    ]
+  },
+  {
+    "texts": [
+      "We propose a new",
+      "method for retrieval."
+    ],
+    "layouts": {
+      "1": [
+        [
+          {
+            "text": "We propose a new",
+            "x": 60,
+            "y": 110,
+            "size": 10
+          }
+        ],
+        800
+      ],
+      "2": [
+        [
+          {
+            "text": "method for retrieval.",
+            "x": 60,
+            "y": 690,
+            "size": 10
+          }
+        ],
+        800
+      ]
+    },
+    "blocks_json": [
+      "{\"kind\":\"paragraph\",\"text\":\"We propose a new method for retrieval.\",\"spans\":[{\"page\":1,\"start\":0,\"end\":16},{\"page\":2,\"start\":0,\"end\":21}]}"
+    ],
+    "chunks_json": [
+      "{\"id\":\"fixture:page:1:chunk:0\",\"paper_id\":\"fixture\",\"title\":\"Regression fixture\",\"text\":\"We propose a new method for retrieval.\",\"chunk_index\":0,\"token_count\":7,\"source_tier\":\"primary_fulltext\",\"metadata\":{\"source\":\"pdf\",\"source_tier\":\"primary_fulltext\",\"url\":null,\"pdf_url\":null,\"local_path\":null,\"content_kind\":\"pdf_full_text\",\"page_start\":1,\"page_end\":2,\"parser_version\":\"pypdf-v3\",\"spans\":[{\"page\":1,\"start\":0,\"end\":16},{\"page\":2,\"start\":0,\"end\":21}]}}"
+    ]
+  },
+  {
+    "texts": [
+      "? ?  12  24  36\n?? x = y + z\nReferences\nAn uncertain heading."
+    ],
+    "layouts": {
+      "1": [
+        [
+          {
+            "text": "? ?  12  24  36",
+            "x": 60,
+            "y": 700,
+            "size": 10
+          },
+          {
+            "text": "?? x = y + z",
+            "x": 60,
+            "y": 688,
+            "size": 10
+          },
+          {
+            "text": "References",
+            "x": 60,
+            "y": 676,
+            "size": 10
+          },
+          {
+            "text": "An uncertain heading.",
+            "x": 60,
+            "y": 664,
+            "size": 10
+          }
+        ],
+        800
+      ]
+    },
+    "blocks_json": [
+      "{\"kind\":\"other\",\"text\":\"? ?  12  24  36\",\"spans\":[{\"page\":1,\"start\":0,\"end\":15}]}",
+      "{\"kind\":\"other\",\"text\":\"?? x = y + z\",\"spans\":[{\"page\":1,\"start\":16,\"end\":28}]}",
+      "{\"kind\":\"paragraph\",\"text\":\"References An uncertain heading.\",\"spans\":[{\"page\":1,\"start\":29,\"end\":61}]}"
+    ],
+    "chunks_json": [
+      "{\"id\":\"fixture:page:1:chunk:0\",\"paper_id\":\"fixture\",\"title\":\"Regression fixture\",\"text\":\"References An uncertain heading.\",\"chunk_index\":0,\"token_count\":4,\"source_tier\":\"primary_fulltext\",\"metadata\":{\"source\":\"pdf\",\"source_tier\":\"primary_fulltext\",\"url\":null,\"pdf_url\":null,\"local_path\":null,\"content_kind\":\"pdf_full_text\",\"page_start\":1,\"page_end\":1,\"parser_version\":\"pypdf-v3\",\"spans\":[{\"page\":1,\"start\":29,\"end\":61}]}}"
+    ]
+  }
+]

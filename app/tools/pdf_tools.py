@@ -14,6 +14,7 @@ def parse_pdf_source(
     max_pages: int | None = None,
     *,
     derive_blocks: bool = False,
+    parser_version: str = "pypdf-v3",
 ) -> ParsedDocument:
     path = _resolve_pdf_source(source=source, download_dir=download_dir)
 
@@ -52,7 +53,7 @@ def parse_pdf_source(
     if derive_blocks:
         from app.tools.pdf_layout import derive_document_blocks
 
-        blocks = derive_document_blocks(page_texts, page_numbers, layouts)
+        blocks = derive_document_blocks(page_texts, page_numbers, layouts, version=parser_version)
     return ParsedDocument(
         source=str(path),
         title=title,

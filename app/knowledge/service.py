@@ -10,8 +10,8 @@ from uuid import uuid4
 from app.config.settings import Settings, get_settings
 from app.knowledge.extractor import LiveLLMRequiredError, SchemaKnowledgeExtractor
 from app.knowledge.obsidian import KnowledgeVaultExporter
+from app.knowledge.paragraph_chunks import LAYOUT_PARSER_VERSIONS, paragraph_chunks
 from app.knowledge.paragraph_chunks import PARSER_VERSION as LAYOUT_PARSER_VERSION
-from app.knowledge.paragraph_chunks import paragraph_chunks
 from app.knowledge.projector import (
     KnowledgeProjector,
     Neo4jKnowledgeProjector,
@@ -146,7 +146,8 @@ class KnowledgeIngestionService:
             raise ValueError("PDF 未提取到可用正文。")
         checksum = content_sha256(parsed.text)
         if checksum == document["content_sha256"] and (
-            PARSER_VERSION != LAYOUT_PARSER_VERSION or document["parser_version"] == PARSER_VERSION
+            PARSER_VERSION not in LAYOUT_PARSER_VERSIONS
+            or document["parser_version"] == PARSER_VERSION
         ):
             return {"status": "unchanged", "message": "解析内容无变化。", "ingestion_id": None}
         self.ensure_execution_available()
@@ -815,13 +816,15 @@ class KnowledgeIngestionService:
     def _parse(self, *, source: str, max_pages: int) -> ParsedDocument:
         if self.parser is parse_pdf_source:
             return self.parser(source=source, max_pages=max_pages,
-                               derive_blocks=PARSER_VERSION == LAYOUT_PARSER_VERSION)
+                               derive_blocks=PARSER_VERSION in LAYOUT_PARSER_VERSIONS,
+                               parser_version=PARSER_VERSION)
         parsed = self.parser(source=source, max_pages=max_pages)
-        if PARSER_VERSION == LAYOUT_PARSER_VERSION and parsed.blocks is None:
+        if PARSER_VERSION in LAYOUT_PARSER_VERSIONS and parsed.blocks is None:
             from app.tools.pdf_layout import derive_document_blocks
 
             parsed = parsed.model_copy(update={"blocks": derive_document_blocks(
                 parsed.page_texts or [parsed.text], parsed.page_numbers,
+                version=PARSER_VERSION,
             )})
         return parsed
 
@@ -831,7 +834,7 @@ class KnowledgeIngestionService:
         parser_version = parser_version or PARSER_VERSION
         checksum = content_sha256(parsed.text)
         source_metadata = dict(parsed.metadata)
-        if parser_version == LAYOUT_PARSER_VERSION:
+        if parser_version in LAYOUT_PARSER_VERSIONS:
             upstream = derive_source_identity(
                 uri=source, content_sha256=checksum, metadata=source_metadata,
             )
@@ -868,7 +871,7 @@ class KnowledgeIngestionService:
                 "content_sha256": checksum,
                 "parser_version": parser_version,
                 **({"blocks": [block.model_dump() for block in parsed.blocks]}
-                   if parsed.blocks is not None and parser_version == LAYOUT_PARSER_VERSION
+                   if parsed.blocks is not None and parser_version in LAYOUT_PARSER_VERSIONS
                    else {}),
             },
         )
@@ -877,8 +880,8 @@ class KnowledgeIngestionService:
         self, paper: PaperMetadata, parsed: ParsedDocument, *, parser_version: str | None = None,
     ) -> list[DocumentChunk]:
         version = parser_version or paper.metadata.get("parser_version") or PARSER_VERSION
-        if version == LAYOUT_PARSER_VERSION:
-            return paragraph_chunks(paper, parsed)
+        if version in LAYOUT_PARSER_VERSIONS:
+            return paragraph_chunks(paper, parsed, parser_version=version)
         page_texts = parsed.page_texts or [parsed.text]
         page_numbers = parsed.page_numbers or list(range(1, len(page_texts) + 1))
         chunks: list[DocumentChunk] = []

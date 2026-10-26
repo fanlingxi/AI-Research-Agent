@@ -180,7 +180,14 @@ def _reference_entry(text: str) -> bool:
 def derive_document_blocks(
     page_texts: list[str], page_numbers: list[int] | None = None,
     layouts: dict[int, tuple[list[TextRun], float]] | None = None,
+    *, version: str = "pypdf-v3",
 ) -> list[DocumentBlock]:
+    if version == "pypdf-v4":
+        from app.tools.pdf_zoning_v4 import derive_blocks
+
+        return derive_blocks(page_texts, page_numbers, layouts)
+    if version != "pypdf-v3":
+        raise ValueError(f"Unsupported layout parser: {version}")
     numbers = page_numbers or list(range(1, len(page_texts) + 1))
     raw = dict(zip(numbers, page_texts, strict=True))
     pages = [_lines(t, n, *(layouts or {}).get(n, ([], 0)))

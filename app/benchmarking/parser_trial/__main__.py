@@ -95,6 +95,7 @@ def main(argv=None):
         "packets",
         "judge-deepseek",
         "score",
+        "zoning-score",
     ):
         command = sub.add_parser(name)
         command.add_argument("--root", type=Path, default=DEFAULT_ROOT)
@@ -118,6 +119,11 @@ def main(argv=None):
         "--image-judges", nargs=2, default=["doubao-image", "qwen-image"]
     )
     commands["score"].add_argument("--arbitration", type=Path)
+    commands["zoning-score"].add_argument("--versions", nargs="+",
+                                         choices=("pypdf-v3", "pypdf-v4"),
+                                         default=["pypdf-v3", "pypdf-v4"])
+    commands["zoning-score"].add_argument("--out", type=Path,
+                                         default=Path(".pytest-tmp/zoning-dev"))
     args = parser.parse_args(argv)
     root = args.root.resolve()
     result = None
@@ -152,6 +158,10 @@ def main(argv=None):
         from .judge import judge_deepseek
 
         result = judge_deepseek(root, args.max_calls)
+    elif args.command == "zoning-score":
+        from .zoning import zoning_score
+
+        result = zoning_score(root, args.out, args.versions)
     elif args.command == "score":
         from .score import score
 

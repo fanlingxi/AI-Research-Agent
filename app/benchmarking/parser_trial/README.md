@@ -1,5 +1,35 @@
 # D039-B 开发集解析器试验
 
+## D040-E：分区规则 v4 的离线 span 评分
+
+```powershell
+python -m app.benchmarking.parser_trial zoning-score --root D:\AI-Research-Agent\data\evaluation\parser-trial\dev --versions pypdf-v3 pypdf-v4 --out .pytest-tmp/zoning-dev
+```
+
+此入口只读取本地 PDF、`manifest.json`、`prepared/`、`consensus.json` 与
+`arbitration.json`，不调用网络、模型或版面引擎，不改写试验数据。
+输出目录必须在输入试验目录之外；默认写入 `.pytest-tmp/zoning-dev`。
+产物为 `score.json`、中文 `score.md`、包含行号和原文的 `errors.json`。
+
+真值先取共识，再由仲裁覆盖。逐行核对 PDF 原文偏移，以唯一完整覆盖该行的块
+作为预测；缺失、部分覆盖、多重覆盖、原文变化或标签缺失均报错，不丢弃任何行。
+分别按中文和英文汇总五项指标：首个物理页前置信息 F1；页眉/页脚/页码被判为
+排除类的召回；参考文献被判为排除类的召回；真值正文被判为任何非正文类别的比例；
+仅在真值正文行上计算的段落起点 F1。正文类别包括 paragraph、abstract、heading、keywords。
+排除类别为 front_matter、header、footer、page_number、references。
+
+D040 门槛为 95%、95%、98%、≤0.5%、85%，同时每项在不利方向上相对 v3 不差
+超过 1 个百分点；误排除率越低越好，其余越高越好。零分母为 null，不判达标。
+即使仅请求 v4，也会计算 v3 以检查退步。
+
+**开发集已用于调参；标签来自 AI 共识和仲裁，非人工，不能代表未见保留集。**
+此评分入口始终输出 `adopt=false`；以下原 D039-B 试验及冻结基线保持原样。
+生产新导入/重新解析按本次实施要求使用 v4，已保存来源和冻结的重解析任务按其原版本执行。
+v4 的 `paragraph_start` 区分物理分块与逻辑段落，页眉或图表后的续行不会因此变成新段；
+v3 不输出该字段，旧块和切片的序列化字节保持不变。
+
+## D039-B 原始试验
+
 开发集，只用于选候选；AI 共识标签，非人工。
 
 本模块不改变生产解析策略或主项目依赖。导入模块不会调用模型、解析器、网络。
