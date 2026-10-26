@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.agent.research_workflow import ResearchDraft, validate_research_draft
 from app.context.models import ContextPackage, canonical_package_sha256
 from app.llms.provider import LLMClient
-from app.retrieval.anchors import contains_quote
+from app.retrieval.anchors import locate_quote
 
 Verdict = Literal["supported", "contradicted", "insufficient_evidence", "cannot_determine"]
 VERSION = "finding-support-v1"
@@ -187,12 +187,21 @@ class SemanticReviewService:
             for finding in result["findings"]:
                 judgment = judgments[finding["finding_id"]]
                 cites = {e["evidence_id"]: e for e in finding["citations"]}
-                valid = all(
-                    bool(p.quote.strip())
-                    and p.evidence_id in cites
-                    and contains_quote(p.quote, cites[p.evidence_id]["quote"])
-                    for p in judgment.proofs
-                )
+                valid = True
+                proofs = []
+                for proof in judgment.proofs:
+                    citation = cites.get(proof.evidence_id)
+                    span = locate_quote(proof.quote, citation["quote"]) if citation else None
+                    if span is None:
+                        valid = False
+                        break
+                    proofs.append(
+                        {
+                            **proof.model_dump(),
+                            "quote_start": span[0],
+                            "quote_end": span[1],
+                        }
+                    )
                 if judgment.verdict in {"supported", "contradicted"} and not judgment.proofs:
                     valid = False
                 if not valid:
@@ -200,17 +209,6 @@ class SemanticReviewService:
                         status="invalid_judgment", reason="裁判引文缺失、越界或不匹配；本条弃权。"
                     )
                     continue
-                proofs = []
-                for proof in judgment.proofs:
-                    citation = cites[proof.evidence_id]
-                    start = citation["quote"].index(proof.quote)
-                    proofs.append(
-                        {
-                            **proof.model_dump(),
-                            "quote_start": start,
-                            "quote_end": start + len(proof.quote),
-                        }
-                    )
                 finding.update(
                     verdict=judgment.verdict,
                     reason=judgment.reason,
