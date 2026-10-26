@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -22,6 +23,38 @@ THRESHOLDS = {
 NAMES = dict(zip(THRESHOLDS, ["首页前置信息 F1", "页眉页脚排除召回", "参考文献排除召回",
                             "正文误排除率", "段落边界 F1"], strict=True))
 VERSIONS = ("pypdf-v3", "pypdf-v4")
+
+
+def project_lines(pages, parsed):
+    """Keep frozen line ids while projecting spans across verified font decoding."""
+    texts = dict(zip(parsed.page_numbers, parsed.page_texts, strict=True))
+    decoded = parsed.metadata.get("tex_font_decoded_pages", [])
+    result = []
+
+    def cjk(text):
+        return re.sub(r"[^\u3400-\u9fff]|[\u5700-\u577f\u5b00-\u5b7f]", "", text)
+
+    for page in pages:
+        text = texts.get(page["page"], "")
+        changed = next((line for line in page["lines"]
+                        if text[line["start"]:line["end"]] != line["text"]), None)
+        if changed is None:
+            result.append(page)
+            continue
+        lines = []
+        if page["page"] in decoded:
+            for match in re.finditer(r"[^\r\n]+", text):
+                value = match.group().strip()
+                if value:
+                    start = match.start() + len(match.group()) - len(match.group().lstrip())
+                    lines.append({"text": value, "start": start, "end": start + len(value)})
+        if (len(lines) != len(page["lines"])
+                or any(cjk(old["text"]) != cjk(new["text"])
+                       for old, new in zip(page["lines"], lines, strict=True))):
+            raise ValueError(f"Prepared raw text changed: {changed['id']}")
+        result.append({**page, "lines": [{**old, **new}
+                                       for old, new in zip(page["lines"], lines, strict=True)]})
+    return result
 
 
 def span_predictions(pages, blocks):
@@ -151,16 +184,12 @@ def zoning_score(root, out, versions=VERSIONS):
         for version in evaluated:
             parsed = parse_pdf_source(str(source), max_pages=paper["page_count"],
                                       derive_blocks=True, parser_version=version)
-            texts = dict(zip(parsed.page_numbers, parsed.page_texts, strict=True))
-            for page in pages:
-                for line in page["lines"]:
-                    if texts.get(page["page"], "")[line["start"]:line["end"]] != line["text"]:
-                        raise ValueError(f"Prepared raw text changed: {line['id']}")
-            predicted = span_predictions(pages, parsed.blocks)
+            projected = project_lines(pages, parsed)
+            predicted = span_predictions(projected, parsed.blocks)
             if set(predictions[version][language]) & set(predicted):
                 raise ValueError("Duplicate line ids across papers")
             predictions[version][language].update(predicted)
-            lines = {line["id"]: line for page in pages for line in page["lines"]}
+            lines = {line["id"]: line for page in projected for line in page["lines"]}
             for label in labels:
                 prediction = predicted[label["id"]]
                 if (prediction["label"] != label["label"] or

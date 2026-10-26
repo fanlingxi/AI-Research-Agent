@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -29,9 +30,18 @@ def parse_pdf_source(
     page_texts = []
     page_numbers = []
     fallback_pages = []
+    tex_pages = []
+    tex_fonts = set()
     layouts = {}
     for page_index in range(page_limit):
-        text = reader.pages[page_index].extract_text() or ""
+        decoder = None
+        if parser_version == "pypdf-v4":
+            text, decoder = extract_tex_decoded_text(reader.pages[page_index])
+            if decoder:
+                tex_pages.append(page_index + 1)
+                tex_fonts.update(decoder.labels)
+        else:
+            text = reader.pages[page_index].extract_text() or ""
         if has_garbled_glyph_decoding(text):
             text = decode_offset_glyphs(text)
             fallback_pages.append(page_index + 1)
@@ -41,7 +51,7 @@ def parse_pdf_source(
             if derive_blocks:
                 from app.tools.pdf_layout import collect_text_runs
 
-                layouts[page_index + 1] = collect_text_runs(reader.pages[page_index])
+                layouts[page_index + 1] = collect_text_runs(reader.pages[page_index], decoder)
 
     metadata_title = reader.metadata.title if reader.metadata and reader.metadata.title else None
     title = (
@@ -71,6 +81,15 @@ def parse_pdf_source(
                     "glyph_offset_decoding": "U+5B00 offset, OT1 ligatures",
                 }
                 if fallback_pages
+                else {}
+            ),
+            **(
+                {
+                    "tex_font_decoded_pages": tex_pages,
+                    "tex_font_decoded_fonts": sorted(tex_fonts),
+                    "tex_font_decoding": "Per-font U+5700/U+5B00 offset, TeX OT1 encoding",
+                }
+                if tex_pages
                 else {}
             ),
         },
@@ -108,6 +127,103 @@ def has_garbled_glyph_decoding(text: str) -> bool:
 # Their ToUnicode map shifts every code by U+5B00 ("孩孴" = "it"); codes 0x0B-0x0F are the
 # TeX OT1 ligatures. Any extractor that trusts the map returns the same noise.
 _OT1_LIGATURES = {0x0B: "ff", 0x0C: "fi", 0x0D: "fl", 0x0E: "ffi", 0x0F: "ffl"}
+
+
+# pdfTeX + the CJK package can attach a CJK subfont's ToUnicode map (TeX-Uni57-0:
+# <00>-<FF> -> U+5700) to CMR10, so "表 圲场" is really "表 2:". Decode such fonts
+# with the OT1 maps pdfTeX writes for the healthy CM fonts of the same PDFs
+# (TeX-cmr12-builtin, TeX-cmtt12-builtin): ASCII decoding would turn quotes into
+# \ and ", en dashes into { and drop the accents of author names.
+_OT1_SHARED = {
+    **{code: chr(code) for code in range(0x21, 0x7F)},
+    **dict(enumerate("\u0393\u2206\u0398\u039b\u039e\u03a0\u03a3\u03a5\u03a6\u03a8\u2126")),
+    **dict(enumerate("\u0131\u0237`\u00b4\u02c7\u02d8\u00af\u02da\u00b8ßæœøÆŒØ", 0x10)),
+    0x27: "\u2019", 0x60: "\u2018", 0x7F: "\u00a8",
+}
+_OT1_TEXT = {
+    **_OT1_SHARED, **_OT1_LIGATURES,
+    0x20: "", 0x22: "\u201d", 0x3C: "\u00a1", 0x3E: "\u00bf", 0x5C: "\u201c",
+    0x5E: "\u02c6", 0x5F: "\u02d9", 0x7B: "\u2013", 0x7C: "\u2014",
+    0x7D: "\u02dd", 0x7E: "\u02dc",
+}
+_OT1_ITALIC = {**_OT1_TEXT, 0x24: "\u00a3"}
+_OT1_TYPEWRITER = {
+    **_OT1_SHARED, 0x0B: "\u2191", 0x0C: "\u2193", 0x0D: "'",
+    0x0E: "\u00a1", 0x0F: "\u00bf", 0x20: "\u2423",
+}
+_TEX_TEXT = re.compile(
+    r"(CMR|CMBX|CMB|CMSL|CMBXSL|CMTI|CMBXTI|CMU|CMSS|CMSSBX|CMSSDC|CMSSI|"
+    r"CMSSQ|CMSSQI|CMCSC|CMDUNH|CMFIB)\d+", re.I,
+)
+_TEX_TYPEWRITER = re.compile(r"(?:CMTT|CMSLTT|CMITT|CMTCSC)\d+", re.I)
+
+
+def _font_name(font) -> str:
+    return str(font.get("/BaseFont", "")).removeprefix("/") if font else ""
+
+
+@dataclass
+class TexFontDecoder:
+    """One page's verdict: BaseFont -> (shifted block base, OT1 table); others pass."""
+
+    fonts: dict[str, tuple[int, dict[int, str]]]
+
+    @property
+    def labels(self) -> list[str]:
+        return [f"{name} U+{base:04X}" for name, (base, _) in self.fonts.items()]
+
+    def __call__(self, text: str, font) -> str:
+        rule = self.fonts.get(_font_name(font))
+        if rule is None:
+            return text
+        base, table = rule
+        return "".join(char if char.isspace() else table.get(ord(char) - base, char)
+                       for char in text)
+
+
+def extract_tex_decoded_text(page) -> tuple[str, TexFontDecoder | None]:
+    """pypdf-v4: the same extract_text() output, plus the font that drew each chunk."""
+    chunks = []
+    text = page.extract_text(
+        visitor_text=lambda chunk, cm, tm, font, size: chunks.append((chunk, font)),
+    ) or ""
+    return decode_tex_font_page(text, chunks)
+
+
+def decode_tex_font_page(text: str, chunks) -> tuple[str, TexFontDecoder | None]:
+    """Trust font evidence only when visitor chunks account for the entire output."""
+    spans = []
+    blocks = {}
+    pos = 0
+    for chunk, font in chunks:
+        # pypdf may repeat a whole XObject after its individual visitor chunks.
+        if not chunk or not text.startswith(chunk, pos):
+            continue
+        end = pos + len(chunk)
+        spans.append((pos, end, font))
+        blocks.setdefault(_font_name(font), set()).update(
+            ord(char) & ~0x7F for char in text[pos:end] if not char.isspace()
+        )
+        pos = end
+    if pos != len(text):
+        return text, None
+    fonts = {}
+    for name, bases in blocks.items():
+        if len(bases) != 1 or not bases <= {0x5700, 0x5B00}:
+            continue
+        family = re.sub(r"^[A-Z]{6}\+", "", name, flags=re.I)
+        match = _TEX_TEXT.fullmatch(family)
+        if match:
+            table = _OT1_ITALIC if match[1].upper() in {"CMTI", "CMBXTI", "CMU"} else _OT1_TEXT
+        elif _TEX_TYPEWRITER.fullmatch(family):
+            table = _OT1_TYPEWRITER
+        else:
+            continue
+        fonts[name] = (next(iter(bases)), table)
+    if not fonts:
+        return text, None
+    decoder = TexFontDecoder(fonts)
+    return "".join(decoder(text[start:end], font) for start, end, font in spans), decoder
 
 
 def decode_offset_glyphs(text: str) -> str:

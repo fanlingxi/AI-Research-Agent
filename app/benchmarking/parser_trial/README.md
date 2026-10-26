@@ -13,6 +13,9 @@ python -m app.benchmarking.parser_trial zoning-score --root D:\AI-Research-Agent
 
 真值先取共识，再由仲裁覆盖。逐行核对 PDF 原文偏移，以唯一完整覆盖该行的块
 作为预测；缺失、部分覆盖、多重覆盖、原文变化或标签缺失均报错，不丢弃任何行。
+唯一例外是 v4 按字体解码了 CCL 坏 TeX 字体的页（元数据 `tex_font_decoded_pages`）：
+解码不增删换行，所以冻结的第 i 个非空行投影到 v4 该页的第 i 个非空行，要求行数相同、
+且每行去掉 U+5700–577F/U+5B00–5B7F 后的汉字序列一致，否则仍按原文变化报错。
 分别按中文和英文汇总五项指标：首个物理页前置信息 F1；页眉/页脚/页码被判为
 排除类的召回；参考文献被判为排除类的召回；真值正文被判为任何非正文类别的比例；
 仅在真值正文行上计算的段落起点 F1。正文类别包括 paragraph、abstract、heading、keywords。
