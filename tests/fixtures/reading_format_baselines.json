@@ -1,0 +1,20 @@
+{
+  "legacy": {
+    "package_sha256": "c2575bd86b86406dcd528d09e56bd3c591cef2c5511591e61685afe222ce97e9",
+    "runtime_payload_sha256": "125488cbc4ed64b757dd4aaf5e9f74252700a2ece0a3629c5786286074ae81d1",
+    "research_payload_sha256": "f7a464ed94bebaff39bb704a4175095b018962dc795bf2bdbc4b03eab1665824",
+    "tokens": 2318
+  },
+  "research-v1": {
+    "package_sha256": "b1f45bc70bacb15a125b7d4b58ea677bdfbf47e3e7a9da9b01c79b133d0a0cff",
+    "runtime_payload_sha256": "1481668dfd79087273a4d1bf3ef539886fab1943a736040eaad3f412175a44e8",
+    "research_payload_sha256": "1481668dfd79087273a4d1bf3ef539886fab1943a736040eaad3f412175a44e8",
+    "tokens": 2554
+  },
+  "inline-v1": {
+    "package_sha256": "3019e1293f45306c6b0c927485382e7af2c8db5d9b8a2a861769c5b82caed4a6",
+    "runtime_payload_sha256": "519a3bf11fb814f9e785a58abbb34b14e707f50ed4ecb89aef7a2599685dc2bf",
+    "research_payload_sha256": "519a3bf11fb814f9e785a58abbb34b14e707f50ed4ecb89aef7a2599685dc2bf",
+    "tokens": 1577
+  }
+}
