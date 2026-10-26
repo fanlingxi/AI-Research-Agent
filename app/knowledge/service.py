@@ -10,6 +10,8 @@ from uuid import uuid4
 from app.config.settings import Settings, get_settings
 from app.knowledge.extractor import LiveLLMRequiredError, SchemaKnowledgeExtractor
 from app.knowledge.obsidian import KnowledgeVaultExporter
+from app.knowledge.paragraph_chunks import PARSER_VERSION as LAYOUT_PARSER_VERSION
+from app.knowledge.paragraph_chunks import paragraph_chunks
 from app.knowledge.projector import (
     KnowledgeProjector,
     Neo4jKnowledgeProjector,
@@ -39,7 +41,7 @@ from app.llms.provider import LLMClient, MockLLMClient, get_llm_client
 from app.schemas.documents import DocumentChunk, PaperMetadata, ParsedDocument
 from app.tools.pdf_tools import parse_pdf_source
 
-PARSER_VERSION = "pypdf-v2"
+PARSER_VERSION = LAYOUT_PARSER_VERSION
 
 
 class KnowledgeExtractor(Protocol):
@@ -137,13 +139,15 @@ class KnowledgeIngestionService:
         if local_path.suffix.lower() != ".pdf" or not local_path.is_file():
             raise ValueError("登记的本地 PDF 不存在或不是 PDF 文件。")
         try:
-            parsed = self.parser(source=str(local_path), max_pages=document["pdf_max_pages"])
+            parsed = self._parse(source=str(local_path), max_pages=document["pdf_max_pages"])
         except Exception as exc:
             raise ValueError("PDF 解析失败，请检查文件是否可读且未损坏。") from exc
         if not parsed.text.strip():
             raise ValueError("PDF 未提取到可用正文。")
         checksum = content_sha256(parsed.text)
-        if checksum == document["content_sha256"]:
+        if checksum == document["content_sha256"] and (
+            PARSER_VERSION != LAYOUT_PARSER_VERSION or document["parser_version"] == PARSER_VERSION
+        ):
             return {"status": "unchanged", "message": "解析内容无变化。", "ingestion_id": None}
         self.ensure_execution_available()
         # An upstream ETag describes the PDF bytes, not the newly parsed content.
@@ -159,6 +163,9 @@ class KnowledgeIngestionService:
                 "document_id": document_id, "identity_uri": document["canonical_uri"],
                 "original_sha256": document["content_sha256"],
                 "content_sha256": checksum, "parser_version": PARSER_VERSION,
+                "source_version": self._paper_from_document(
+                    parsed, document["canonical_uri"], parser_version=PARSER_VERSION,
+                ).metadata["source_version"],
                 "parsed": parsed.model_dump(mode="json"),
             },
         )
@@ -213,7 +220,7 @@ class KnowledgeIngestionService:
                     parsed = (
                         ParsedDocument.model_validate(reparse_payload["parsed"])
                         if reparse_payload else
-                        self.parser(source=source, max_pages=ingestion.pdf_max_pages)
+                        self._parse(source=source, max_pages=ingestion.pdf_max_pages)
                     )
                     self._assert_claim(
                         ingestion_id,
@@ -222,7 +229,11 @@ class KnowledgeIngestionService:
                         expected_job_owner=expected_job_owner,
                     )
                     identity_uri = reparse_payload["identity_uri"] if reparse_payload else source
-                    paper = self._paper_from_document(parsed, identity_uri)
+                    parser_version = (reparse_payload["parser_version"]
+                                      if reparse_payload else PARSER_VERSION)
+                    paper = self._paper_from_document(
+                        parsed, identity_uri, parser_version=parser_version,
+                    )
                     chunks = [
                         chunk.model_copy(
                             update={
@@ -233,7 +244,7 @@ class KnowledgeIngestionService:
                                 }
                             }
                         )
-                        for chunk in self._page_chunks(paper, parsed)
+                        for chunk in self._page_chunks(paper, parsed, parser_version=parser_version)
                     ]
                     if not chunks:
                         raise ValueError("PDF 未提取到可用正文。")
@@ -801,9 +812,33 @@ class KnowledgeIngestionService:
             )
         return candidates
 
-    def _paper_from_document(self, parsed: ParsedDocument, source: str) -> PaperMetadata:
+    def _parse(self, *, source: str, max_pages: int) -> ParsedDocument:
+        if self.parser is parse_pdf_source:
+            return self.parser(source=source, max_pages=max_pages,
+                               derive_blocks=PARSER_VERSION == LAYOUT_PARSER_VERSION)
+        parsed = self.parser(source=source, max_pages=max_pages)
+        if PARSER_VERSION == LAYOUT_PARSER_VERSION and parsed.blocks is None:
+            from app.tools.pdf_layout import derive_document_blocks
+
+            parsed = parsed.model_copy(update={"blocks": derive_document_blocks(
+                parsed.page_texts or [parsed.text], parsed.page_numbers,
+            )})
+        return parsed
+
+    def _paper_from_document(
+        self, parsed: ParsedDocument, source: str, *, parser_version: str | None = None,
+    ) -> PaperMetadata:
+        parser_version = parser_version or PARSER_VERSION
         checksum = content_sha256(parsed.text)
         source_metadata = dict(parsed.metadata)
+        if parser_version == LAYOUT_PARSER_VERSION:
+            upstream = derive_source_identity(
+                uri=source, content_sha256=checksum, metadata=source_metadata,
+            )
+            version = upstream.version
+            if version != f"content-sha256:{checksum}":
+                version = f"{version}:content-sha256:{checksum}"
+            source_metadata["source_version"] = f"{version}:parser:{parser_version}"
         identity = derive_source_identity(
             uri=source,
             content_sha256=checksum,
@@ -831,10 +866,19 @@ class KnowledgeIngestionService:
                 "canonical_uri": identity.canonical_uri,
                 "source_version": identity.version,
                 "content_sha256": checksum,
+                "parser_version": parser_version,
+                **({"blocks": [block.model_dump() for block in parsed.blocks]}
+                   if parsed.blocks is not None and parser_version == LAYOUT_PARSER_VERSION
+                   else {}),
             },
         )
 
-    def _page_chunks(self, paper: PaperMetadata, parsed: ParsedDocument) -> list[DocumentChunk]:
+    def _page_chunks(
+        self, paper: PaperMetadata, parsed: ParsedDocument, *, parser_version: str | None = None,
+    ) -> list[DocumentChunk]:
+        version = parser_version or paper.metadata.get("parser_version") or PARSER_VERSION
+        if version == LAYOUT_PARSER_VERSION:
+            return paragraph_chunks(paper, parsed)
         page_texts = parsed.page_texts or [parsed.text]
         page_numbers = parsed.page_numbers or list(range(1, len(page_texts) + 1))
         chunks: list[DocumentChunk] = []

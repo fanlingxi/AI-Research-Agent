@@ -12,6 +12,8 @@ def parse_pdf_source(
     source: str,
     download_dir: str = "data/raw_papers",
     max_pages: int | None = None,
+    *,
+    derive_blocks: bool = False,
 ) -> ParsedDocument:
     path = _resolve_pdf_source(source=source, download_dir=download_dir)
 
@@ -26,6 +28,7 @@ def parse_pdf_source(
     page_texts = []
     page_numbers = []
     fallback_pages = []
+    layouts = {}
     for page_index in range(page_limit):
         text = reader.pages[page_index].extract_text() or ""
         if has_garbled_glyph_decoding(text):
@@ -34,6 +37,10 @@ def parse_pdf_source(
         if text.strip():
             page_texts.append(collapse_fake_bold(sanitize_utf8_text(text.strip())))
             page_numbers.append(page_index + 1)
+            if derive_blocks:
+                from app.tools.pdf_layout import collect_text_runs
+
+                layouts[page_index + 1] = collect_text_runs(reader.pages[page_index])
 
     metadata_title = reader.metadata.title if reader.metadata and reader.metadata.title else None
     title = (
@@ -41,6 +48,11 @@ def parse_pdf_source(
         or _infer_title(page_texts)
         or path.stem
     )
+    blocks = None
+    if derive_blocks:
+        from app.tools.pdf_layout import derive_document_blocks
+
+        blocks = derive_document_blocks(page_texts, page_numbers, layouts)
     return ParsedDocument(
         source=str(path),
         title=title,
@@ -48,6 +60,7 @@ def parse_pdf_source(
         pages=page_limit,
         page_texts=page_texts,
         page_numbers=page_numbers,
+        blocks=blocks,
         metadata={
             "file_name": path.name,
             "original_source": source,
