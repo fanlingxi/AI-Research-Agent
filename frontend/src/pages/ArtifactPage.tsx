@@ -6,6 +6,7 @@ import { Link, useParams } from "react-router-dom";
 import { SnapshotWarnings } from "../components/SnapshotNotices";
 import { ErrorBlock, LoadingBlock, Notice } from "../components/AsyncState";
 import { FollowUpLinks, FollowUpPanel } from "../components/FollowUpPanel";
+import { GapEvidencePanel, GapRerunLinks } from "../components/report/GapEvidencePanel";
 import { ReportLayout, RailSection } from "../components/report/ReportLayout";
 import { extractCitations, ReportMarkdown, splitTitle } from "../components/report/ReportMarkdown";
 import { pageLabel, SnapshotSourceSheet } from "../components/report/SourceDrawer";
@@ -92,6 +93,7 @@ export function ArtifactPage() {
         notices={<>
           <SnapshotWarnings className="space-y-3" snapshotId={body_.context_snapshot_id} />
           <FollowUpLinks key={body_.run_id} runId={body_.run_id} task={task.data} />
+          <GapRerunLinks key={`gap-${body_.run_id}`} runId={body_.run_id} />
           {childLinks.map((link) => (
             <Notice key={link.id} tone="info" icon={<GitBranch size={15} />} title="这份报告已有修订版本"
               action={<Link className={buttonVariants({ size: "sm" })} to={`/artifacts/${link.child_artifact_id}`}>阅读修订版<ArrowRight size={14} /></Link>}>
@@ -123,7 +125,8 @@ export function ArtifactPage() {
           </Disclosure>
         </>}
         after={<div className="space-y-6">
-          {run.data?.status === "completed" ? <FollowUpPanel key={body_.run_id} runId={body_.run_id} artifactId={record.id} projectId={record.project_id} /> : null}
+          {run.data?.status === "completed" && output.data && record.task_id ? <GapEvidencePanel key={`gap-${body_.run_id}`} output={output.data} projectId={record.project_id} runId={body_.run_id} taskId={record.task_id} /> : null}
+          {run.data?.status === "completed" ? <FollowUpPanel key={`follow-up-${body_.run_id}`} runId={body_.run_id} artifactId={record.id} projectId={record.project_id} /> : null}
           {run.data ? <RunFeedbackPanel key={run.data.id} output={output.data} run={run.data} /> : null}
         </div>}
         backLabel="全部报告"

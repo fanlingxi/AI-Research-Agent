@@ -47,6 +47,7 @@ from app.context.models import (
 from app.context.neighbors import MAX_ANCHORS, adjacent_bundles
 from app.context.query_ranking import rank_query_bundles
 from app.context.ranking import RankedKnowledgeBundle, rank_bundles
+from app.context.reading import knowledge_reading_payload
 from app.context.repository import ContextSnapshotRepository
 from app.context.retrieval import (
     CandidateReference,
@@ -154,11 +155,13 @@ class ContextBuilderService:
     def build_research_context(
         self, request: ContextBuildRequest, *, profile: ResearchProfileName,
         persist: bool = True,
+        pinned_claims_ignored: dict[str, str] | None = None,
     ) -> ContextPackage:
         """Apply project defaults before freezing; explicit retrieval stays unchanged."""
         return self._build_context(
             request, persist=persist,
             default_profile=None if request.model_fields_set & RETRIEVAL_FIELDS else profile,
+            pinned_claims_ignored=pinned_claims_ignored,
         )
 
     def validate_fresh_context_tx(
@@ -180,6 +183,7 @@ class ContextBuilderService:
     def _build_context(
         self, request: ContextBuildRequest, *, persist: bool,
         default_profile: ResearchProfileName | None = None,
+        pinned_claims_ignored: dict[str, str] | None = None,
     ) -> ContextPackage:
         request = request.model_copy(deep=True)
         attempts: list[dict[str, Any]] = []
@@ -196,7 +200,8 @@ class ContextBuilderService:
                 )
                 effective_request = profile.context_request(request)
             package, items = self._prepare_context(
-                effective_request, prepared, attempt, attempts, planning_cache=planning_cache
+                effective_request, prepared, attempt, attempts, planning_cache=planning_cache,
+                pinned_claims_ignored=pinned_claims_ignored,
             )
             if default_profile is not None:
                 resolved, fallback = resolve_research_profile(
@@ -208,6 +213,7 @@ class ContextBuilderService:
                     package, items = self._prepare_context(
                         resolved.context_request(request), prepared, attempt, attempts,
                         planning_cache=planning_cache,
+                        pinned_claims_ignored=pinned_claims_ignored,
                     )
                     package.diagnostics.notices.extend(failed_notices)
                 package.diagnostics.notices.append(f"research_profile:{resolved.name}")
@@ -275,6 +281,7 @@ class ContextBuilderService:
         self, request: ContextBuildRequest, prepared: _PreparedInputs,
         attempt: int, previous_attempts: list[dict[str, Any]],
         *, planning_cache: dict[str, Any] | None = None,
+        pinned_claims_ignored: dict[str, str] | None = None,
     ) -> tuple[ContextPackage, list[ContextSnapshotItem]]:
         """Retrieve, rank and serialize after the preparation connection is closed."""
 
@@ -379,6 +386,66 @@ class ContextBuilderService:
         neighbor_groups = None
         if request.context_neighbors == "adjacent-v1":
             ranked_bundles, neighbor_groups = adjacent_bundles(raw_bundles, ranked_bundles)
+        # Pins follow all ranking/selection and precede budget packing. Command
+        # validation can additionally exclude IDs outside the parent-visible scope.
+        pinned_requested = list(dict.fromkeys(request.pinned_claim_ids))
+        promoted_pins: list[str] = []
+        pinned_verified = []
+        pinned_ignored = []
+        if pinned_requested:
+            raw_by_id = {bundle.claim["id"]: bundle for bundle in raw_bundles}
+            ranked_by_id = {item.bundle.claim["id"]: item for item in ranked_bundles}
+            pins = []
+            promoted_ids = set()
+            pin_tokens = 0
+            group_by_claim = {key: set(group["claim_ids"]) for group in (neighbor_groups or [])
+                              for key in group["claim_ids"]}
+            for claim_id in pinned_requested:
+                reason = (pinned_claims_ignored or {}).get(claim_id)
+                if reason or claim_id not in raw_by_id:
+                    pinned_ignored.append({
+                        "claim_id": claim_id, "reason": reason or "not_in_formal_bundles",
+                    })
+                    continue
+                pinned_verified.append(claim_id)
+                pin = ranked_by_id.get(claim_id) or RankedKnowledgeBundle(
+                    bundle=raw_by_id[claim_id], rank=len(pins) + 1, score=0.0,
+                    score_breakdown={}, channels=["structured"],
+                    selected_reason="user-pinned SQLite-verified formal evidence",
+                )
+                group_ids = group_by_claim.get(claim_id, {claim_id})
+                new_members = [
+                    pin if key == claim_id else ranked_by_id[key]
+                    for key in group_ids - promoted_ids
+                ]
+                # Same reading-format serialization and characters/4 as Runtime;
+                # this share excludes the package envelope, not final packing.
+                cost = 0
+                for member in new_members:
+                    bundle = _knowledge_bundle(member)
+                    bundle = _with_estimated_tokens(bundle, _estimate_tokens(bundle))
+                    rendered = json.dumps(
+                        knowledge_reading_payload(bundle, request.reading_format),
+                        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+                    )
+                    cost += max(1, (len(rendered) + 3) // 4)
+                if pin_tokens + cost > request.max_tokens // 2:
+                    pinned_ignored.append({"claim_id": claim_id, "reason": "pin_budget_share"})
+                    continue
+                pin_tokens += cost
+                promoted_ids.update(group_ids)
+                pins.append(pin)
+            pin_ids = {item.bundle.claim["id"] for item in pins}
+            promoted_pins = [item.bundle.claim["id"] for item in pins]
+            rejected_ids = set(pinned_requested) - set(pinned_verified)
+            # Preserve indivisible adjacency groups: a companion at the tail
+            # must not cause its pinned member to be dropped ahead of other work.
+            companions = promoted_ids - pin_ids - rejected_ids
+            ranked_bundles = (
+                pins + [item for item in ranked_bundles if item.bundle.claim["id"] in companions]
+                + [item for item in ranked_bundles
+                   if item.bundle.claim["id"] not in promoted_ids | rejected_ids]
+            )
         coverage = self._knowledge_coverage(
             has_core_claim=prepared.has_core_claim,
             scopes=scopes,
@@ -394,7 +461,8 @@ class ContextBuilderService:
                         title for title in (evidence.source['title'], evidence.document['title'])
                         if title
                     )
-            packing = {'record': rerank_record, 'source_titles': source_titles}
+            packing = {'record': rerank_record, 'source_titles': source_titles,
+                       'pinned': promoted_pins}
         package, items = self._assemble_package(
             request,
             memory_snapshot=memory_snapshot,
@@ -416,6 +484,17 @@ class ContextBuilderService:
         audit = context_retrieval_audit(
             request, package, raw_bundles, ranked_bundles, candidate_audits
         )
+        if pinned_requested:
+            selected_ids = {b.claim.claim_id for b in package.knowledge.claim_bundles}
+            audit.parameters["pinned_claims"] = {
+                "requested": pinned_requested,
+                "verified": pinned_verified,
+                "selected": [claim_id for claim_id in pinned_verified if claim_id in selected_ids],
+                "ignored": pinned_ignored + [
+                    {"claim_id": claim_id, "reason": "context_budget"}
+                    for claim_id in pinned_verified if claim_id not in selected_ids
+                ],
+            }
         if rerank_record is not None:
             if request.evidence_reranking in {'coverage-v1', 'coverage-v2'}:
                 rerank_record['selected_coverage'] = selected_coverage(
@@ -673,7 +752,7 @@ class ContextBuilderService:
                 if packing_bundles is not None:
                     selected_bundles, packing['audit'] = pack_coverage(
                         package, packing_bundles, packing['record'], packing['source_titles'],
-                        neighbor_groups,
+                        neighbor_groups, pinned=packing['pinned'],
                     )
                     dropped_for_budget = len(packing_bundles) - len(selected_bundles)
                     packing_bundles = None

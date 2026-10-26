@@ -441,3 +441,12 @@ def test_old_coverage_assembly_bytes_and_hashes_match_pre_v3(monkeypatch, strate
     assert canonical_package_sha256(package) == expected['package_sha256']
     assert package.token_usage.used == expected['tokens']
     assert len(_ids(package)) == expected['bundles']
+
+
+def test_pinned_evidence_is_packed_before_anchors():
+    base, bundles, record = _synthetic()
+    record['parts'] = [_part('first question', [0], bundles)]
+    base.constraints.max_context_tokens = _budget_for(base, [bundles[0]])
+    assert _pack(base, bundles, record)[0] == ['claim-0']
+    selected, _ = pack_coverage(base, bundles, record, {}, None, pinned=['claim-3'])
+    assert [b.claim.claim_id for b in selected] == ['claim-3']

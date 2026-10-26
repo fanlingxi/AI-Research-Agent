@@ -22,7 +22,9 @@ class ResearchProfile:
     max_tool_calls: int = 3
 
     def context_request(self, request: ContextBuildRequest) -> ContextBuildRequest:
-        values = request.model_dump(include={"task_id", "project_id", "snapshot_id"})
+        values = request.model_dump(include={
+            "task_id", "project_id", "snapshot_id", "pinned_claim_ids",
+        })
         if self.name == "standard":
             values.update(
                 enable_vector_candidates=True, retrieval_strategy="dense-v1",

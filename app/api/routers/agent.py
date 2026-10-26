@@ -12,6 +12,7 @@ from app.agent.feedback_models import (
     FeedbackRerunRequest,
 )
 from app.agent.follow_up import FollowUpDraftRequest
+from app.agent.gap_evidence import GapEvidenceRequest
 from app.agent.models import AgentRunCreateRequest, AgentRunReviewRequest
 from app.agent.service import AgentRunService
 from app.api.errors import agent_call, memory_call, workspace_call
@@ -119,6 +120,14 @@ def build_agent_router(
     @router.get("/api/agent-runs/{run_id}/follow-ups")
     def list_follow_ups(run_id: str) -> list[dict[str, Any]]:
         return agent_call(lambda: agents.follow_up.list(run_id))
+
+    @router.post("/api/v1/agent-runs/{run_id}/gap-evidence")
+    def find_gap_evidence(run_id: str, payload: GapEvidenceRequest) -> dict[str, Any]:
+        return agent_call(lambda: agents.gap_evidence.search(run_id, payload))
+
+    @router.get("/api/v1/agent-runs/{run_id}/gap-reruns")
+    def list_gap_reruns(run_id: str) -> list[dict[str, Any]]:
+        return agent_call(lambda: agents.gap_evidence.list_reruns(run_id))
 
     @router.get("/api/agent-runs/{run_id}/tool-calls")
     def list_agent_tool_calls(run_id: str) -> list[dict[str, Any]]:
