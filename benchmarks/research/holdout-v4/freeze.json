@@ -1,0 +1,57 @@
+{
+ "dataset_version": "research-holdout-v4",
+ "frozen_at": "2026-10-26",
+ "label_provenance": "ai-consensus",
+ "human_verified": false,
+ "tasks_sha256": "d5e74c2db43009f9f3d0433b3c9c7eb38a4d04cb26f1c71352967398231332b3",
+ "corpus_sha256": "6ad0d44e5413ee1d13307f95c035b7b98f89a24423a92b9736a28853b573744c",
+ "pdf_sha256": {
+  "e5-mistral": "a55b3d08150a7266377419deec550c47daa7469639c1bec1602fc66daa6a70eb",
+  "instructor": "83a1dfbf48371795c9b784c314379557d29dae3f73cead9a1c2abe869b15ff1e",
+  "retromae": "c1c774e01ae89ead321419c7c94efed38e9e8eacf4157d5d879ae49442bdab9d",
+  "simlm": "c2afc6df9dfc27707bba1c54a0c703069565c3841d54d5a7001fa073a8d938e8",
+  "llmlingua": "6312f97a2cf31bd8362d314696b5b32110f75e370be09225b281a2292a853589",
+  "selective-context": "ae2221f1769cf78d81c587b21a8dd6a51a0561ddd05283a88baa7852e79f963f",
+  "cove": "712e86c624918325cc7b34bfbae710094999b731e326bbce7a1146a71454e524",
+  "ragtruth": "17afb377ca5ea8cf672efa9a95fca5889713e94c6fd0355f89f8e01651ddfd4d",
+  "attrscore": "1673be1531451da14decf47739a7449910af09f8cf3128ad756e0b7a3121dd95",
+  "verifiability": "2ca08791359f27082d6210b4dec0ed84fe8c7ad6dc70fa57030f1d0066a28c87",
+  "udr": "e3defb1a939069e5af8e380dda531b3fa56bef8bcac5b6c778fca7726817000e",
+  "llm-r": "9e03b5387ec05c6857a025bcd4a6ac06c7f777a23400601830ddd6384436e52a",
+  "llm4cs": "e59491d396abd73cbf156639196b8654985419f5f809b729417776a34d9586f7",
+  "csqe": "509c2fcee90db5b7af213a1631474330407802339d8d383708f3b1e3d677c161",
+  "mirage": "b8f47826d8a20a02c81644ff6b1d43bea5c0e5b7187da590edb015cab28f4640",
+  "freshllms": "0db9ab3cf92f9f2ce1642290123a415a509027b13ad699e992ad62ccb8ab487e"
+ },
+ "local_store": "data/evaluation/holdout-v4/store/knowledge.frozen.db",
+ "local_store_sha256": "1ae43862acca6ed87df4b83223acab94a3bd4d2582517a202aaa4c74b454121f",
+ "approved_evidence_sha256": "d03ad976e2c8b905d846b294279dfeb7aa1f2ed0ddf4c225a887a6db7f94696c",
+ "counts": {
+  "tasks": 75,
+  "outcomes": {
+   "answer": 37,
+   "qualified_answer": 13,
+   "abstain": 12,
+   "scope_refusal": 13
+  },
+  "annotation": {
+   "consensus": 43,
+   "arbitrated": 32
+  },
+  "cross_source_answerable": 20,
+  "candidates": 426,
+  "approved_claims": 136
+ },
+ "preparation_calls": {
+  "extraction_deepseek": 17,
+  "review_deepseek": 32,
+  "review_qwen": 30,
+  "review_kimi_k3": 21,
+  "labels_deepseek": 28,
+  "labels_qwen": 28,
+  "total_api_calls": 156,
+  "approved_cap": 250,
+  "codex_local_sessions": 2,
+  "cost": "unknown"
+ }
+}

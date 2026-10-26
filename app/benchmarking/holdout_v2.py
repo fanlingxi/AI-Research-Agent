@@ -44,6 +44,19 @@ ARMS = (
 )
 # v7-vs-v8: identical candidate snapshot, only the final-report workflow differs (dev tuning).
 ARM_PRESETS = {
+    "ablation-v1": tuple(
+        {"name": name, "workflow": workflow,
+         "context": {**resume_closeout.SHARED_CONTEXT, "max_tokens": 16000, **overrides}}
+        for name, workflow, overrides in (
+            ("A0-standard", "research_v8", {}),
+            ("A1-compact", "research_v8", {"reading_format": "compact-v1"}),
+            ("A2-32k", "research_v8", {"max_tokens": 32000}),
+            ("A3-compact-cov3", "research_v8",
+             {"reading_format": "compact-v1", "evidence_reranking": "coverage-v3"}),
+            ("A4-compact-cov3-v9", "research_v9",
+             {"reading_format": "compact-v1", "evidence_reranking": "coverage-v3"}),
+        )
+    ),
     "d029": ARMS,
     "d030": (
         {"name": "A-default", "workflow": "research", "context": {}},

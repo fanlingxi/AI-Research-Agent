@@ -69,6 +69,28 @@ def fingerprints():
     }
 
 
+class CappedClient:
+    """One paid-call ceiling shared by every selection and generation client of a run."""
+
+    def __init__(self, delegate, counter, limit):
+        self.delegate, self.counter, self.limit = delegate, counter, limit
+        self.provider_name, self.model = delegate.provider_name, delegate.model
+
+    @property
+    def last_usage(self):
+        return self.delegate.last_usage
+
+    @property
+    def last_usage_complete(self):
+        return self.delegate.last_usage_complete
+
+    def invoke(self, prompt, system_prompt=None):
+        if self.counter["paid"] >= self.limit:
+            raise ValueError("Evaluation paid-call ceiling reached")
+        self.counter["paid"] += 1
+        return self.delegate.invoke(prompt, system_prompt)
+
+
 def guard(variable):
     if "PYTEST_CURRENT_TEST" in os.environ or os.getenv(variable) == "0":
         raise ValueError("Real execution disabled in offline tests")
@@ -158,7 +180,21 @@ def prepare():
     return {"output": str(output), "chunks": len(chunks)}
 
 
-def execute(output, *, cases_path=CASES, output_root=OUTPUT):
+def validate_passage_snapshot(package, case, mapping, seed):
+    """Keep the original v2/v3 passage identity and scope contract."""
+    for bundle in package.knowledge.claim_bundles:
+        for chunk in bundle.chunks:
+            entry = mapping["chunks"][chunk.chunk_id]
+            if (
+                entry["source_id"] not in case["source_ids"]
+                or entry["text_sha256"] != chunk.content_sha256
+                or entry["claim_id"] != bundle.claim.claim_id
+            ):
+                raise ValueError("Snapshot identity or scope violation")
+
+
+def execute(output, *, cases_path=CASES, output_root=OUTPUT,
+            snapshot_validator=validate_passage_snapshot):
     """Run each prepared case once per workflow; other frozen sets pass their own paths."""
     guard("RUN_LIVE_LLM_INTEGRATION")
     guard("RUN_STORE_INTEGRATION")
@@ -179,6 +215,9 @@ def execute(output, *, cases_path=CASES, output_root=OUTPUT):
     if not isinstance(client, LangChainChatClient):
         raise ValueError("Configured real model required")
     client = replace(client, max_tokens=8192, timeout=120, max_retries=0, thinking_enabled=False)
+    paid = {"paid": 0}
+    ranking_client = CappedClient(replace(client, timeout=90), paid, config["max_calls"])
+    client = CappedClient(client, paid, config["max_calls"])
     write(
         output / "execution.json",
         {
@@ -240,7 +279,7 @@ def execute(output, *, cases_path=CASES, output_root=OUTPUT):
                     priority="high",
                     metadata={"expected_output": "中文直接回答；逐条引用；保留限定语及证据缺口。"},
                 )
-                ranker = RecordedClient(replace(client, timeout=90), folder / "ranking", {})
+                ranker = RecordedClient(ranking_client, folder / "ranking", {})
                 builder = ContextBuilderService(
                     repo,
                     vector_retriever=QdrantContextCandidateRetriever(
@@ -252,21 +291,13 @@ def execute(output, *, cases_path=CASES, output_root=OUTPUT):
                 for spec in {json.dumps(a["context"], sort_keys=True) for a in arms.values()}:
                     context = json.loads(spec)
                     package = builder.build_context(
-                        ContextBuildRequest(task_id=task.id, max_tokens=16000, **context)
+                        ContextBuildRequest(**{"task_id": task.id, "max_tokens": 16000, **context})
                     )
                     if context.get("enable_vector_candidates") and any(
                         "vector_unavailable" in n for n in package.diagnostics.notices
                     ):
                         raise ValueError("Real vector retrieval unavailable")
-                    for bundle in package.knowledge.claim_bundles:
-                        for chunk in bundle.chunks:
-                            entry = mapping["chunks"][chunk.chunk_id]
-                            if (
-                                entry["source_id"] not in case["source_ids"]
-                                or entry["text_sha256"] != chunk.content_sha256
-                                or entry["claim_id"] != bundle.claim.claim_id
-                            ):
-                                raise ValueError("Snapshot identity or scope violation")
+                    snapshot_validator(package, case, mapping, seed)
                     packages[spec] = package
                 for name, arm_spec in arms.items():
                     package = packages[json.dumps(arm_spec["context"], sort_keys=True)]
