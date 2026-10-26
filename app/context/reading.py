@@ -28,6 +28,18 @@ def research_payload(package):
         },
     }
     if package.reading_format in {"inline-v1", "compact-v1"}:
+        result["knowledge"] = knowledge_reading_payload(package.knowledge, package.reading_format)
+    if package.reading_format == "compact-v1":
+        result["reading_notes"] = COMPACT_READING_NOTES
+    return result
+
+
+def knowledge_reading_payload(value, reading_format):
+    """Serialize knowledge or a single bundle using the Runtime reading format."""
+    if reading_format == "legacy":
+        return value.model_dump(mode="json", exclude_defaults=True, exclude_none=True)
+    result = value.model_dump(mode="json")
+    if reading_format in {"inline-v1", "compact-v1"}:
 
         def strip(value):
             if isinstance(value, dict):
@@ -42,10 +54,11 @@ def research_payload(package):
                 return [strip(v) for v in value]
             return value
 
-        result["knowledge"] = strip(result["knowledge"])
-    if package.reading_format == "compact-v1":
-        _compact_knowledge(result["knowledge"])
-        result["reading_notes"] = COMPACT_READING_NOTES
+        result = strip(result)
+    if reading_format == "compact-v1":
+        # A single bundle is costed as a one-bundle compact view with its own tables.
+        result = result if "claim_bundles" in result else {"claim_bundles": [result]}
+        _compact_knowledge(result)
     return result
 
 

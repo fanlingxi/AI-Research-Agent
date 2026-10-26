@@ -105,7 +105,7 @@ class _ReadingCost:
         return True
 
 
-def pack_coverage(base, bundles, record, source_titles, neighbor_groups=None):
+def pack_coverage(base, bundles, record, source_titles, neighbor_groups=None, pinned=()):
     """Pack whole groups: part coverage, explicit source coverage, extra anchors, fill.
 
     Group dependencies retain the context of earlier adjacency groups even when
@@ -167,6 +167,9 @@ def pack_coverage(base, bundles, record, source_titles, neighbor_groups=None):
         covered = covered_sources()
         return sorted(keys, key=lambda key: not (anchor_sources[index][key] - covered))
 
+    # User-pinned evidence (already capped to its budget share) goes first.
+    for key in pinned:
+        attempt(key)
     # First feasible anchor per part, in task order. Failed large anchors do not
     # prevent a smaller anchor from satisfying the same part.
     for index, keys in enumerate(anchors):

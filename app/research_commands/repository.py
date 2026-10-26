@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -21,6 +22,7 @@ class ResearchCommandRepository:
         *,
         idempotency_key: str,
         normalized_request: dict[str, Any],
+        validate_new: Callable[[], None] | None = None,
     ) -> tuple[ResearchCommand, bool]:
         serialized = _dump(normalized_request)
         request_sha256 = hashlib.sha256(serialized.encode()).hexdigest()
@@ -36,6 +38,8 @@ class ResearchCommandRepository:
                         "Idempotency-Key is already bound to a different research command."
                     )
                 return self._from_row(existing), False
+            if validate_new is not None:
+                validate_new()
             command_id = f"research-command-{uuid4().hex}"
             now = _now()
             connection.execute(
