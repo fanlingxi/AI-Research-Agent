@@ -48,7 +48,10 @@ const PROFILE_FALLBACK: Record<string, string> = {
   legacy_snapshot: "快照为旧格式，只能使用经典配置。",
 };
 
-const BUDGET_NOTICE = "Lower-ranked Claim bundles were omitted to respect the budget.";
+const BUDGET_NOTICES = [
+  "Lower-ranked Claim bundles were omitted to respect the budget.",
+  "Claim bundles that did not fit were omitted to respect the budget.",
+];
 
 /** Plain-language notices about how this snapshot's evidence was chosen; raw codes stay in details. */
 export function snapshotNotices(snapshot: ContextSnapshotSummary): SnapshotNotice[] {
@@ -72,7 +75,7 @@ export function snapshotNotices(snapshot: ContextSnapshotSummary): SnapshotNotic
       body: PROFILE_FALLBACK[profileReason] ?? "标准配置不可用，已自动改用经典配置。",
     });
   }
-  if (raw.includes(BUDGET_NOTICE)) {
+  if (raw.some((notice) => BUDGET_NOTICES.includes(notice))) {
     const dropped = snapshot.diagnostics.dropped_for_budget;
     notices.push({
       key: "budget",

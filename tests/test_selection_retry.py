@@ -223,6 +223,7 @@ def test_production_client_disables_sdk_retries_and_bounds_timeout():
 @pytest.mark.parametrize("ranker,strategy", [
     (EvidenceReranker, "llm-v1"), (CoverageReranker, "coverage-v1"),
     (CoreCoverageReranker, "coverage-v2"),
+    (CoreCoverageReranker, "coverage-v3"),
 ])
 def test_consistency_rebuild_keeps_retry_budget_and_actual_call_audit(tmp_path, ranker, strategy):
     repo, task, claims = _setup(tmp_path)
@@ -267,7 +268,8 @@ def test_consistency_rebuild_keeps_retry_budget_and_actual_call_audit(tmp_path, 
 
 
 @pytest.mark.parametrize("binding", ["digest", "coverage"])
-def test_invalid_injected_binding_is_rejected_without_reranking(tmp_path, binding):
+@pytest.mark.parametrize("strategy", ["coverage-v1", "coverage-v3"])
+def test_invalid_injected_binding_is_rejected_without_reranking(tmp_path, binding, strategy):
     repo, task, _ = _setup(tmp_path)
 
     class InvalidRanker:
@@ -282,7 +284,7 @@ def test_invalid_injected_binding_is_rejected_without_reranking(tmp_path, bindin
     builder = ContextBuilderService(repo, coverage_reranker=ranker)
     with pytest.raises((ContextConflictError, ValueError)):
         builder.build_context(ContextBuildRequest(
-            task_id=task.id, evidence_reranking="coverage-v1",
+            task_id=task.id, evidence_reranking=strategy,
         ))
     assert ranker.calls == 1
 
