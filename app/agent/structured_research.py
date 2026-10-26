@@ -88,6 +88,20 @@ REPORT_SYSTEM_PROMPT = (
 )
 
 
+def report_error_diagnostic(exc):
+    """Frozen runtime repair text, also used to verify offline repair requests."""
+    if isinstance(exc, ValidationError):
+        messages = {error["msg"] for error in exc.errors(include_input=False)}
+        if "Value error, Insufficient evidence must not contain findings" in messages:
+            return "insufficient_evidence requires findings=[]; explain only in limitations"
+        if "Value error, Partial or insufficient answers must explain missing evidence" in messages:
+            return "partial/insufficient_evidence requires nonempty limitations"
+        return "Invalid schema: respect required fields, IDs, types and the 12-finding limit"
+    if isinstance(exc, ReportContractError):
+        return str(exc)
+    return "Invalid JSON/schema, excessive findings or inconsistent answer state"
+
+
 class StructuredResearchWorkflow(ResearchWorkflow):
     report_guidance = ""
     report_model = StructuredReport
@@ -172,7 +186,9 @@ class StructuredResearchWorkflow(ResearchWorkflow):
                 report = self.parse_report(json.loads(_strip_json_fence(response)))
                 draft = self.prepare_report(report, package)
                 validation = validate_research_draft(draft, package)
-                if report.answer_status == "insufficient_evidence":
+                # Older renderers preserve report.answer_status exactly. v11 derives
+                # this from the validated, numerically filtered content instead.
+                if draft.answer_status == "insufficient_evidence":
                     validation = CitationValidation(passed=True, errors=[], cited_evidence_ids=[])
                 validation.repair_applied = bool(slot)
                 if validation.passed:
@@ -188,9 +204,11 @@ class StructuredResearchWorkflow(ResearchWorkflow):
                         output_summary={
                             "passed": True,
                             "semantic_support": "unreviewed",
-                            "answer_status": report.answer_status,
+                            "answer_status": draft.answer_status,
                             "reading_format": package.reading_format,
                             "reading_estimated_tokens": runtime_context_token_count(package),
+                            **({"numeric_omitted": len(draft.numeric_audit["omitted"])}
+                               if isinstance(draft, NumericRenderedDraft) else {}),
                         },
                     )
                     return self._finalize_validated_draft(
@@ -200,28 +218,10 @@ class StructuredResearchWorkflow(ResearchWorkflow):
                         llm_calls_used=int(state.get("llm_calls_used", 0)) + slot + 1,
                     )
                 prior_error = "Citation IDs or bundle ownership are invalid"
-            except ValidationError as exc:
+            except (ValueError, TypeError) as exc:
                 # A fixed diagnostic explains cross-field rules that JSON Schema cannot express.
                 # Never reflect untrusted response values or exception input into the next prompt.
-                messages = {error["msg"] for error in exc.errors(include_input=False)}
-                if "Value error, Insufficient evidence must not contain findings" in messages:
-                    prior_error = (
-                        "insufficient_evidence requires findings=[]; explain only in limitations"
-                    )
-                elif (
-                    "Value error, Partial or insufficient answers must explain missing evidence"
-                    in messages
-                ):
-                    prior_error = "partial/insufficient_evidence requires nonempty limitations"
-                else:
-                    prior_error = (
-                        "Invalid schema: respect required fields, IDs, types "
-                        "and the 12-finding limit"
-                    )
-            except ReportContractError as exc:
-                prior_error = str(exc)
-            except (ValueError, TypeError):
-                prior_error = "Invalid JSON/schema, excessive findings or inconsistent answer state"
+                prior_error = report_error_diagnostic(exc)
         return self._needs_review(state, prior_error)
 
     def _report_task_block(self, package):
@@ -613,6 +613,78 @@ class SharedEvidenceResearchWorkflow(AnchoredDirectResearchWorkflow):
     """Opt-in structured-v9: v8 generation with claim/evidence pair ownership."""
 
     pair_ownership = True
+
+
+class NumericRenderedDraft(RenderedDraft):
+    """Platform-only output metadata; never part of the model's report schema."""
+
+    numeric_audit: dict
+    answer_parts: list[dict]
+
+
+class NumericSupportResearchWorkflow(SharedEvidenceResearchWorkflow):
+    """Opt-in structured-v10: unchanged v10 generation, deterministic numeric omission."""
+
+    def prepare_report(self, report, package):
+        from app.agent.numeric_support import RULE_VERSION, unsupported_numbers
+
+        # Validate ALL original findings before any omission can conceal an error.
+        original = super().prepare_report(report, package)
+        validation = validate_research_draft(original, package)
+        if original.answer_status != "insufficient_evidence" and not validation.passed:
+            raise ReportContractError("Citation IDs or bundle ownership are invalid")
+        findings, parts, omitted, mapping, gaps = [], [], [], [], []
+        old_index = 0
+        for part_index, part in enumerate(report.answer_parts, start=1):
+            indices, count = [], 0
+            for part_finding_index, finding in enumerate(part.findings, start=1):
+                old_index += 1
+                unsupported = unsupported_numbers(
+                    finding.assertion, finding.scope, [a.quote for a in finding.support]
+                )
+                new_index = None
+                if unsupported:
+                    count += 1
+                    omitted.append({
+                        "part_index": part_index, "question_part": part.question_part,
+                        "part_finding_index": part_finding_index, "original_index": old_index,
+                        "assertion": finding.assertion, "scope": finding.scope,
+                        "unsupported_numbers": unsupported,
+                        "reason": "unsupported_numeric_claim",
+                    })
+                else:
+                    findings.append(original.findings[old_index - 1])
+                    new_index = len(findings)
+                    indices.append(new_index)
+                mapping.append({"original_index": old_index, "filtered_index": new_index})
+            message = f"所引证据片段未包含结论中的具体数值，无法核验，已省略 {count} 条相关结论。"
+            platform_gaps = [message] if count else []
+            gap = part.gap.strip()
+            gaps.extend(([gap] if gap else []) + platform_gaps)
+            parts.append({"question_part": part.question_part, "finding_indices": indices,
+                          "gap": gap, "platform_gaps": platform_gaps})
+        limitations = list(dict.fromkeys(gaps))
+        status = ("insufficient_evidence" if not findings else
+                  "partial" if limitations else "complete")
+        markdown = original.markdown
+        if omitted:
+            labels = {"partial": "部分回答", "insufficient_evidence": "证据不足"}
+            text = [f"# {plain(report.title)}", f"回答状态：{labels[status]}"]
+            for part in parts:
+                text.append("## " + plain(part["question_part"]))
+                for index in part["finding_indices"]:
+                    finding = findings[index - 1]
+                    cites = " ".join(f"[cite:{eid}]" for eid in dict.fromkeys(finding.evidence_ids))
+                    text.append(f"- {plain(finding.assertion)} {cites}")
+                for gap in ([part["gap"]] if part["gap"] else []) + part["platform_gaps"]:
+                    text.append("证据缺口：" + plain(gap))
+            markdown = "\n\n".join(text)
+        return NumericRenderedDraft(**{
+            **original.model_dump(), "findings": findings, "answer_status": status,
+            "limitations": limitations, "markdown": markdown, "answer_parts": parts,
+            "numeric_audit": {"rule_version": RULE_VERSION, "index_base": 1,
+                              "omitted": omitted, "index_mapping": mapping},
+        })
 
 
 class FixedPlanResearchWorkflow(AnchoredDirectResearchWorkflow):

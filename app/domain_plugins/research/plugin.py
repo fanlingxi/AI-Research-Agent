@@ -23,6 +23,11 @@ class ResearchDomainPlugin:
         domain="research",
         workflows=[
             DomainWorkflowSpec(
+                key="research_v11", name="research_numeric_support", version="structured-v10",
+                checkpoint_namespace="agent_research_structured_v10", min_steps=9,
+                min_tool_calls=1, requires_live_llm=True,
+            ),
+            DomainWorkflowSpec(
                 key="research_v10", name="research_shared_evidence", version="structured-v9",
                 checkpoint_namespace="agent_research_structured_v9", min_steps=9,
                 min_tool_calls=1, requires_live_llm=True,
@@ -128,6 +133,10 @@ class ResearchDomainPlugin:
 
     def build_workflow(self, service: Any, pin: PluginPin) -> Any:
         workflow = self.workflow_spec(pin.workflow_key)
+        if workflow.key == "research_v11":
+            from app.agent.structured_research import NumericSupportResearchWorkflow
+
+            return NumericSupportResearchWorkflow(service)
         if workflow.key == "research_v10":
             from app.agent.structured_research import SharedEvidenceResearchWorkflow
 

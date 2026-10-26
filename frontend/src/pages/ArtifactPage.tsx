@@ -7,6 +7,7 @@ import { SnapshotWarnings } from "../components/SnapshotNotices";
 import { ErrorBlock, LoadingBlock, Notice } from "../components/AsyncState";
 import { FollowUpLinks, FollowUpPanel } from "../components/FollowUpPanel";
 import { GapEvidencePanel, GapRerunLinks } from "../components/report/GapEvidencePanel";
+import { NumericAuditDisclosure } from "../components/report/NumericAudit";
 import { ReportLayout, RailSection } from "../components/report/ReportLayout";
 import { extractCitations, ReportMarkdown, splitTitle } from "../components/report/ReportMarkdown";
 import { pageLabel, SnapshotSourceSheet } from "../components/report/SourceDrawer";
@@ -115,6 +116,7 @@ export function ArtifactPage() {
           <RailSection title={<span className="inline-flex items-center gap-1.5"><Lock size={13} />关于这份报告</span>}>
             <p className="text-[13px] leading-6 text-muted-ink">由一次研究运行基于冻结的上下文快照生成，内容不会再被修改。发现问题请在下方登记反馈；受理后会创建新的修订运行并生成新报告，原报告保留。</p>
           </RailSection>
+          <NumericAuditDisclosure output={output.data} />
           <Disclosure summary="技术详情">
             <dl className="space-y-1.5 break-all text-xs text-muted-ink">
               <div><dt className="inline">运行：</dt><dd className="inline font-mono text-ink-soft">{shortId(body_.run_id)}</dd></div>
