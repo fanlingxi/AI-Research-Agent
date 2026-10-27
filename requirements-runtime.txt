@@ -15,4 +15,5 @@ rich>=13.7.1
 qdrant-client>=1.18.0,<1.19.0
 neo4j>=5.23.0
 pypdf>=6.18,<6.19  # frozen benchmark texts depend on the extraction output
+pdfminer.six==20260107  # MIT; character coordinates for the offline table pilot
 httpx>=0.27.0
