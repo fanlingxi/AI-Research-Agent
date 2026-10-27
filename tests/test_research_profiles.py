@@ -134,7 +134,7 @@ def test_explicit_choices_and_old_snapshot_are_preserved(tmp_path):
     run = agents.create_run(project.id, task.id, AgentRunCreateRequest(
         context_snapshot_id=snapshot.id, token_budget=10000, max_tool_calls=2,
     ))
-    assert run.options.workflow == "research_v8"
+    assert run.options.workflow == "research_v11"
     assert run.token_budget == 10000 and run.max_tool_calls == 2
 
 
@@ -146,7 +146,7 @@ def test_http_default_run_without_snapshot_and_explicit_retrieval(tmp_path):
         response = client.post(url, json={})
         assert response.status_code == 202, response.text
         run = response.json()
-        assert run["options"]["workflow"] == "research_v8"
+        assert run["options"]["workflow"] == "research_v11"
         assert run["token_budget"] == 1048576
         agents.cancel_run(run["id"])
         explicit = client.post(url, json={"reading_format": "legacy", "token_budget": 8000})

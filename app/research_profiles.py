@@ -42,7 +42,7 @@ class ResearchProfile:
 
 
 CLASSIC = ResearchProfile("classic", "research", 6000)
-STANDARD = ResearchProfile("standard", "research_v8", 1048576)
+STANDARD = ResearchProfile("standard", "research_v11", 1048576)
 
 
 def resolve_research_profile(

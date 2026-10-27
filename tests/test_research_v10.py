@@ -95,7 +95,7 @@ def test_v10_keeps_v8_prompt_schema_and_generation_methods():
     others = [w for w in plugin.manifest.workflows if w.key != "research_v10"]
     assert spec.version not in {w.version for w in others}
     assert spec.checkpoint_namespace not in {w.checkpoint_namespace for w in others}
-    assert STANDARD.workflow == "research_v8"
+    assert STANDARD.workflow == "research_v11"
 
 
 def checkpoint(worker, run):
