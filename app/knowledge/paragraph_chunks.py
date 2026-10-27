@@ -15,7 +15,7 @@ from app.schemas.documents import (
 )
 from app.tools.pdf_layout import derive_document_blocks
 
-PARSER_VERSION = "pypdf-v4"
+PARSER_VERSION = "pypdf-v3"  # default; pypdf-v4 is opt-in (D040)
 LAYOUT_PARSER_VERSIONS = {"pypdf-v3", "pypdf-v4"}
 _INCLUDED = {"paragraph", "abstract", "heading", "caption"}
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from .common import EN_PAPERS, PROJECT, ZH_PAPERS, digest, write
+from .common import EN_PAPERS, PROJECT, ZH_PAPERS, digest, read, write
 from .normalize import page_record
 
 
@@ -19,7 +19,31 @@ def corpus(zh_dir=None, en_dir=None):
     ]
 
 
-def manifest(root, entries=None):
+def paper_list(path):
+    value = read(path)
+    if not isinstance(value.get("split"), str) or not value["split"]:
+        raise ValueError("Paper list requires a split")
+    entries = value.get("papers")
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("Paper list requires nonempty papers")
+    names = set()
+    for entry in entries:
+        name = entry.get("paper")
+        if (not isinstance(name, str) or not name or name in {".", ".."}
+                or "/" in name or "\\" in name or name in names):
+            raise ValueError("Invalid or duplicate paper id")
+        names.add(name)
+        if entry.get("language") not in {"zh", "en"}:
+            raise ValueError("Unknown paper language")
+        source = Path(entry["pdf"])
+        if not source.is_absolute() or source.suffix.lower() != ".pdf":
+            raise ValueError("Paper requires an absolute PDF path")
+        if digest(source) != entry.get("sha256"):
+            raise ValueError(f"SHA-256 mismatch: {name}")
+    return value
+
+
+def manifest(root, entries=None, split="development"):
     from pypdf import PdfReader
 
     if (root / "attempts").exists():
@@ -27,15 +51,18 @@ def manifest(root, entries=None):
     papers = []
     for entry in entries if entries is not None else corpus():
         path = Path(entry["pdf"])
+        actual_digest = digest(path)
+        if "sha256" in entry and actual_digest != entry["sha256"]:
+            raise ValueError(f"SHA-256 mismatch: {entry['paper']}")
         count = len(PdfReader(path).pages)
         if count < 1:
             raise ValueError(f"Empty PDF: {path}")
         papers.append(
-            {**entry, "sha256": digest(path), "total_pages": count, "page_count": min(12, count)}
+            {**entry, "sha256": actual_digest, "total_pages": count, "page_count": min(12, count)}
         )
     result = {
         "schema_version": 1,
-        "split": "development",
+        "split": split,
         "max_pages_per_parser": 150,
         "papers": papers,
     }
@@ -43,7 +70,7 @@ def manifest(root, entries=None):
     return result
 
 
-def prepare(root, render_python, entries=None, run=subprocess.run):
+def prepare(root, render_python, entries=None, run=subprocess.run, split="development"):
     from pypdf import PdfReader
 
     from app.tools.pdf_layout import _lines, collect_text_runs, derive_document_blocks
@@ -52,7 +79,7 @@ def prepare(root, render_python, entries=None, run=subprocess.run):
 
     if (root / "attempts").exists():
         raise ValueError("Prepare cannot overwrite a trial with recorded attempts")
-    result = manifest(root, entries)
+    result = manifest(root, entries, split)
     for paper in result["papers"]:
         reader = PdfReader(paper["pdf"])
         texts, layouts, pages = [], {}, []
