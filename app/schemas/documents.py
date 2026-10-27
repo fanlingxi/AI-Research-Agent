@@ -25,6 +25,23 @@ class PaperMetadata(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class TextSpan(BaseModel):
+    """Half-open offsets into one unchanged ParsedDocument.page_texts entry."""
+
+    page: int
+    start: int
+    end: int
+
+
+class DocumentBlock(BaseModel):
+    kind: Literal[
+        "title", "front_matter", "abstract", "keywords", "heading", "paragraph",
+        "header", "footer", "references", "caption", "other",
+    ]
+    text: str
+    spans: list[TextSpan]
+
+
 class ParsedDocument(BaseModel):
     """Text extracted from a PDF or document source."""
 
@@ -34,6 +51,7 @@ class ParsedDocument(BaseModel):
     pages: int = 0
     page_texts: list[str] = Field(default_factory=list)
     page_numbers: list[int] = Field(default_factory=list)
+    blocks: list[DocumentBlock] | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

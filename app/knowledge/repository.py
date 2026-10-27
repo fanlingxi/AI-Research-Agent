@@ -233,9 +233,13 @@ class KnowledgeRepository:
                        JOIN ingestion_documents m ON m.document_id = d.id
                        JOIN ingestions i ON i.id = m.ingestion_id
                        WHERE s.canonical_uri = ? AND d.content_sha256 = ? AND i.topic_slug = ?
+                         AND (? IS NULL OR s.version = ?)
                        ORDER BY i.created_at LIMIT 1""",
                     (reparse_payload["identity_uri"], reparse_payload["content_sha256"],
-                     collection_slug),
+                     collection_slug,
+                     reparse_payload.get("source_version")
+                     if reparse_payload["parser_version"] == "pypdf-v3" else None,
+                     reparse_payload.get("source_version")),
                 ).fetchone()
                 if existing:
                     existing_id = str(existing[0])
@@ -256,7 +260,7 @@ class KnowledgeRepository:
                 if reparse_payload is not None:
                     if previous and all(
                         previous[key] == reparse_payload[key]
-                        for key in ("identity_uri", "content_sha256")
+                        for key in ("identity_uri", "content_sha256", "parser_version")
                     ):
                         existing_id = str(row["id"])
                         break
