@@ -192,6 +192,170 @@ def test_local_pdf_raw_text_unchanged_for_both_versions(tmp_path):
     assert service._parse(source=str(path), max_pages=1).blocks[0].paragraph_start is True
 
 
+def _tex_pdf(tmp_path, fonts, lines):
+    from pypdf import PdfWriter
+    from pypdf.generic import (
+        ArrayObject,
+        DecodedStreamObject,
+        DictionaryObject,
+        NameObject,
+        NumberObject,
+    )
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=600, height=800)
+    resources = DictionaryObject()
+    for resource, (name, base) in fonts.items():
+        cmap = DecodedStreamObject()
+        cmap.set_data((
+            "/CIDInit /ProcSet findresource begin 12 dict begin begincmap "
+            "/CMapName /Test def /CMapType 2 def "
+            "1 begincodespacerange <00> <FF> endcodespacerange "
+            f"1 beginbfrange <00> <FF> <{base:04X}> endbfrange "
+            "endcmap CMapName currentdict /CMap defineresource pop end end"
+        ).encode())
+        font = DictionaryObject({
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/" + name),
+            NameObject("/FirstChar"): NumberObject(0),
+            NameObject("/LastChar"): NumberObject(255),
+            NameObject("/Widths"): ArrayObject([NumberObject(500)] * 256),
+            NameObject("/ToUnicode"): writer._add_object(cmap),
+        })
+        resources[NameObject("/" + resource)] = writer._add_object(font)
+    page[NameObject("/Resources")] = DictionaryObject({NameObject("/Font"): resources})
+    stream = DecodedStreamObject()
+    commands = ["BT"]
+    for index, line in enumerate(lines):
+        commands.append(f"1 0 0 1 60 {700 - index * 12} Tm")
+        for resource, data in line:
+            commands.append(f"/{resource} 10 Tf <{data.hex()}> Tj")
+    commands.append("ET")
+    stream.set_data(" ".join(commands).encode())
+    page[NameObject("/Contents")] = writer._add_object(stream)
+    path = tmp_path / "tex.pdf"
+    writer.write(path)
+    return path
+
+
+def test_tex_font_decoding_preserves_cjk_v3_and_layout(tmp_path):
+    from pypdf import PdfReader
+
+    from app.tools.pdf_layout import _lines, collect_text_runs
+    from app.tools.pdf_tools import decode_tex_font_page
+
+    path = _tex_pdf(tmp_path, {
+        "F1": ("ABCDEF+CMR10", 0x5700), "F2": ("GHIJKL+gbsnu57", 0x5700),
+    }, [
+        [("F1", b'Table'), ("F1", b'2:\\quote"\x7b\x0c'), ("F2", b"2")],
+        [("F1", b"Continued.")],
+    ])
+    page = PdfReader(path).pages[0]
+    raw = page.extract_text()
+    legacy = parse_pdf_source(str(path))
+    v3 = parse_pdf_source(str(path), derive_blocks=True, parser_version="pypdf-v3")
+    v4 = parse_pdf_source(str(path), derive_blocks=True, parser_version="pypdf-v4")
+    assert v3.text == legacy.text == raw.strip()
+    assert v3.page_numbers == legacy.page_numbers == v4.page_numbers
+    assert v3.page_texts == legacy.page_texts
+    assert v3.metadata == legacy.metadata
+    assert v4.page_texts == ['Table2:\u201cquote\u201d\u2013fi\u5732\nContinued.']
+    assert v4.metadata["tex_font_decoded_pages"] == [1]
+    assert v4.metadata["tex_font_decoded_fonts"] == ["ABCDEF+CMR10 U+5700"]
+    chunks = []
+    assert page.extract_text(visitor_text=lambda t, cm, tm, f, s: chunks.append((t, f))) == raw
+    decoded, decoder = decode_tex_font_page(raw, chunks)
+    runs, height = collect_text_runs(page, decoder)
+    lines = _lines(decoded, 1, runs, height)
+    assert [(line.x, line.y, line.size) for line in lines] == [(60, 700, 10), (60, 688, 10)]
+    # parse_pdf_source must pass the decoder too: coordinates allow this join.
+    assert len(v4.blocks) == 1
+    for block in v4.blocks:
+        anchored = "\n".join(v4.page_texts[s.page - 1][s.start:s.end] for s in block.spans)
+        assert locate_quote(block.text, anchored) is not None
+
+
+def test_tex_short_run_and_same_shifted_cjk_glyph(tmp_path):
+    path = _tex_pdf(tmp_path, {
+        "F1": ("ABCDEF+CMR10", 0x5B00), "F2": ("GHIJKL+gbsnu5b", 0x5B00),
+    }, [[("F2", b"1"), ("F1", b"1")]])
+    v3 = parse_pdf_source(str(path))
+    v4 = parse_pdf_source(str(path), parser_version="pypdf-v4")
+    assert v3.text == "\u5b31\u5b31"
+    assert v4.text == "\u5b311"
+    assert v4.metadata["tex_font_decoded_fonts"] == ["ABCDEF+CMR10 U+5B00"]
+
+
+@pytest.mark.parametrize("fonts", [
+    {"F1": ("ABCDEF+gbsnu57", 0x5700), "F2": ("GHIJKL+gbsnu5b", 0x5B00)},
+    {"F1": ("ABCDEF+CMR10", 0x5700), "F2": ("ABCDEF+CMR10", 0x5B00)},
+    {"F1": ("ABCDEF+CMR10", 0x5700), "F2": ("ABCDEF+CMR10", 0)},
+    {"F1": ("ABCDEF+CMMI10", 0x5700), "F2": ("ABCDEF+CMR10extra", 0x5700)},
+])
+def test_tex_ineligible_fonts_are_unchanged(tmp_path, fonts):
+    path = _tex_pdf(tmp_path, fonts, [[("F1", b"12"), ("F2", b"34")]])
+    v3 = parse_pdf_source(str(path))
+    v4 = parse_pdf_source(str(path), parser_version="pypdf-v4")
+    assert v4.model_dump() == v3.model_dump()
+    assert "tex_font_decoded_pages" not in v4.metadata
+
+
+@pytest.mark.parametrize(("family", "expected"), [
+    ("CMR10", 'Γ∆Ωıȷ\u0060´ˇ˘¯˚¸ßæœøÆŒØfffi\u201d¡¿\u201cˆ˙\u2013\u2014˝˜¨$'),
+    ("cmti12", 'Γ∆Ωıȷ\u0060´ˇ˘¯˚¸ßæœøÆŒØfffi\u201d¡¿\u201cˆ˙\u2013\u2014˝˜¨£'),
+    ("CMTT9", 'Γ∆Ωıȷ\u0060´ˇ˘¯˚¸ßæœøÆŒØ↑↓␣"<>\\^_{|}~¨$'),
+])
+def test_tex_ot1_encoding_variants(tmp_path, family, expected):
+    codes = bytes([0, 1, 10, *range(0x10, 0x20), 11, 12, 0x20, 0x22, 0x3C,
+                   0x3E, 0x5C, 0x5E, 0x5F, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x24])
+    path = _tex_pdf(tmp_path, {"F1": ("ABCDEF+" + family, 0x5700)}, [[("F1", codes)]])
+    assert parse_pdf_source(str(path), parser_version="pypdf-v4").text == expected
+
+
+def test_tex_attribution_requires_full_coverage_and_skips_duplicate_chunks():
+    from app.tools.pdf_tools import decode_tex_font_page
+
+    font = {"/BaseFont": "/ABCDEF+CMR10"}
+    first, second = "\u5731", "\u5732"
+    raw = first + second + "\n"
+    chunks = [(first, font), (first, font), (second + "\n", font)]
+    decoded, decoder = decode_tex_font_page(raw, chunks)
+    assert decoded == "12\n" and decoder is not None
+    assert decode_tex_font_page(raw, chunks[:-1]) == (raw, None)
+
+
+def test_zoning_projects_only_verified_decoded_pages():
+    from app.benchmarking.parser_trial.zoning import project_lines, span_predictions
+    from app.schemas.documents import DocumentBlock, TextSpan
+
+    pages = [{"page": 3, "lines": [
+        {"id": "a", "page": 3, "start": 0, "end": 2, "text": "表\u570c"},
+        {"id": "b", "page": 3, "start": 3, "end": 5, "text": "文\u5b31"},
+    ]}]
+    parsed = ParsedDocument(source="test", text="", page_numbers=[3],
+                            page_texts=["表\u570c\n文\u5b31"])
+    assert project_lines(pages, parsed)[0] is pages[0]
+    parsed.page_texts = [" 表fi \r\n \n 文1 "]
+    with pytest.raises(ValueError, match="Prepared raw text changed: a"):
+        project_lines(pages, parsed)
+    parsed.metadata = {"tex_font_decoded_pages": [3]}
+    projected = project_lines(pages, parsed)
+    assert projected[0]["lines"] == [
+        {"id": "a", "page": 3, "start": 1, "end": 4, "text": "表fi"},
+        {"id": "b", "page": 3, "start": 10, "end": 12, "text": "文1"},
+    ]
+    blocks = [DocumentBlock(kind="paragraph", text=line["text"], spans=[
+        TextSpan(page=3, start=line["start"], end=line["end"]),
+    ]) for line in projected[0]["lines"]]
+    assert set(span_predictions(projected, blocks)) == {"a", "b"}
+    assert pages[0]["lines"][0]["end"] == 2
+    for text in ["表fi", "表fi\n字1", "表fi\n文1\nextra"]:
+        parsed.page_texts = [text]
+        with pytest.raises(ValueError, match="Prepared raw text changed: a"):
+            project_lines(pages, parsed)
+
+
 def test_numbered_prose_does_not_become_heading_and_run_in_heading_starts_paragraph():
     blocks = derive([[
         ("We compare models using GPT-", 60, 700, 10),

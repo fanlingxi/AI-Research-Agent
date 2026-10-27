@@ -58,11 +58,13 @@ class _Line:
     kind: str = "paragraph"
 
 
-def collect_text_runs(page) -> tuple[list[TextRun], float]:
+def collect_text_runs(page, decode=None) -> tuple[list[TextRun], float]:
     """A separate visitor pass leaves the legacy extract_text() call untouched."""
     runs = []
 
     def visit(text, cm, tm, font, size):
+        if decode is not None:
+            text = decode(text, font)
         if not text.strip():
             return
         # Compose text and current transformation matrices; reject rotations.
