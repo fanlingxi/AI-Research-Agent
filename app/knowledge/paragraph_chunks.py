@@ -1,4 +1,4 @@
-"""Version-three chunks, with exact page spans for every included fragment."""
+"""Versioned layout chunks, with exact spans for every included fragment."""
 
 from __future__ import annotations
 
@@ -15,7 +15,8 @@ from app.schemas.documents import (
 )
 from app.tools.pdf_layout import derive_document_blocks
 
-PARSER_VERSION = "pypdf-v3"
+PARSER_VERSION = "pypdf-v3"  # default; pypdf-v4 is opt-in (D040)
+LAYOUT_PARSER_VERSIONS = {"pypdf-v3", "pypdf-v4"}
 _INCLUDED = {"paragraph", "abstract", "heading", "caption"}
 
 
@@ -58,13 +59,16 @@ def _piece_spans(
 
 def paragraph_chunks(
     paper: PaperMetadata, parsed: ParsedDocument, *, limit: int = 1200,
+    parser_version: str = "pypdf-v3",
 ) -> list[DocumentChunk]:
+    if parser_version not in LAYOUT_PARSER_VERSIONS:
+        raise ValueError(f"Unsupported layout parser: {parser_version}")
     texts = parsed.page_texts or [parsed.text]
     numbers = parsed.page_numbers or list(range(1, len(texts) + 1))
     pages = dict(zip(numbers, texts, strict=True))
     blocks = parsed.blocks
     if blocks is None:
-        blocks = derive_document_blocks(texts, numbers)
+        blocks = derive_document_blocks(texts, numbers, version=parser_version)
     chunks = []
     per_page = defaultdict(int)
     pending: list[str] = []
@@ -83,7 +87,7 @@ def paragraph_chunks(
                 "source": "pdf", "source_tier": "primary_fulltext", "url": paper.url,
                 "pdf_url": paper.pdf_url, "local_path": paper.metadata.get("local_path"),
                 "content_kind": "pdf_full_text", "page_start": start, "page_end": end,
-                "parser_version": PARSER_VERSION,
+                "parser_version": parser_version,
                 "spans": [span.model_dump() for span in spans],
             },
         ))

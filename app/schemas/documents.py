@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 EvidenceSourceTier = Literal["primary_fulltext", "unknown"]
 
@@ -40,6 +40,16 @@ class DocumentBlock(BaseModel):
     ]
     text: str
     spans: list[TextSpan]
+    # v4 distinguishes a physical block break from a logical paragraph start.
+    # Omit the absent field so v3's serialized bytes remain unchanged.
+    paragraph_start: bool | None = None
+
+    @model_serializer(mode="wrap")
+    def serialize(self, handler):
+        value = handler(self)
+        if self.paragraph_start is None:
+            value.pop("paragraph_start", None)
+        return value
 
 
 class ParsedDocument(BaseModel):

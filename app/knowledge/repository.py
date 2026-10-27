@@ -238,7 +238,7 @@ class KnowledgeRepository:
                     (reparse_payload["identity_uri"], reparse_payload["content_sha256"],
                      collection_slug,
                      reparse_payload.get("source_version")
-                     if reparse_payload["parser_version"] == "pypdf-v3" else None,
+                     if reparse_payload["parser_version"] in {"pypdf-v3", "pypdf-v4"} else None,
                      reparse_payload.get("source_version")),
                 ).fetchone()
                 if existing:

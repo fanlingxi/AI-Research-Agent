@@ -131,7 +131,7 @@ def blind_page(paper, page, png, outputs, seed):
     return packet, mapping
 
 
-def packets(root, seed=39, max_images=40):
+def packets(root, seed=39, max_images=40, lines_only=False):
     if not 0 <= max_images <= 40:
         raise ValueError("Image packet limit must be 0..40")
     if any(root.glob("judge-*")):
@@ -142,6 +142,8 @@ def packets(root, seed=39, max_images=40):
         name = paper["paper"]
         pages = read(root / "prepared" / f"{name}.json")
         write(root / "packets/lines" / f"lines-{name}.json", line_packet(name, pages))
+        if lines_only:
+            continue
         outputs = {
             parser: {p["page"]: p for p in read(root / "normalized" / parser / f"{name}.json")}
             for parser in ("mineru", "paddle")
@@ -163,6 +165,7 @@ def packets(root, seed=39, max_images=40):
     write(
         root / "packets/index.json",
         {
+            **({"lines_only": True} if lines_only else {}),
             "seed": seed,
             "image_packets": selected,
             "line_packets": [f"lines-{p['paper']}" for p in manifest["papers"]],

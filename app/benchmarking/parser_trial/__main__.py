@@ -95,6 +95,7 @@ def main(argv=None):
         "packets",
         "judge-deepseek",
         "score",
+        "zoning-score",
     ):
         command = sub.add_parser(name)
         command.add_argument("--root", type=Path, default=DEFAULT_ROOT)
@@ -102,6 +103,7 @@ def main(argv=None):
     for name in ("manifest", "prepare"):
         commands[name].add_argument("--zh-dir", type=Path)
         commands[name].add_argument("--en-dir", type=Path)
+    commands["prepare"].add_argument("--papers", type=Path)
     commands["prepare"].add_argument("--render-python", type=Path, default=MINERU_PYTHON)
     commands["run-mineru"].add_argument("--base-url", default="http://127.0.0.1:16580")
     commands["run-mineru"].add_argument("--service-pid", type=int, required=True)
@@ -110,6 +112,7 @@ def main(argv=None):
     commands["run-paddle"].add_argument("--cpu", action="store_true")
     for name in ("run-mineru", "run-paddle"):
         commands[name].add_argument("--max-pages", type=int, default=150)
+    commands["packets"].add_argument("--lines-only", action="store_true")
     commands["packets"].add_argument("--seed", type=int, default=39)
     commands["packets"].add_argument("--max-images", type=int, default=40)
     commands["judge-deepseek"].add_argument("--max-calls", type=int, default=12)
@@ -118,6 +121,11 @@ def main(argv=None):
         "--image-judges", nargs=2, default=["doubao-image", "qwen-image"]
     )
     commands["score"].add_argument("--arbitration", type=Path)
+    commands["zoning-score"].add_argument("--versions", nargs="+",
+                                         choices=("pypdf-v3", "pypdf-v4"),
+                                         default=["pypdf-v3", "pypdf-v4"])
+    commands["zoning-score"].add_argument("--out", type=Path,
+                                         default=Path(".pytest-tmp/zoning-dev"))
     args = parser.parse_args(argv)
     root = args.root.resolve()
     result = None
@@ -125,10 +133,18 @@ def main(argv=None):
         from .prepare import corpus, manifest, prepare
 
         entries = corpus(args.zh_dir, args.en_dir)
+        split = "development"
+        if args.command == "prepare" and args.papers:
+            from .prepare import paper_list
+
+            if args.zh_dir or args.en_dir:
+                parser.error("--papers cannot be combined with --zh-dir/--en-dir")
+            explicit = paper_list(args.papers)
+            entries, split = explicit["papers"], explicit["split"]
         result = (
             manifest(root, entries)
             if args.command == "manifest"
-            else prepare(root, args.render_python, entries)
+            else prepare(root, args.render_python, entries, split=split)
         )
     elif args.command == "run-mineru":
         from .runners import run_mineru
@@ -147,11 +163,15 @@ def main(argv=None):
     elif args.command == "packets":
         from .packets import packets
 
-        result = packets(root, args.seed, args.max_images)
+        result = packets(root, args.seed, args.max_images, lines_only=args.lines_only)
     elif args.command == "judge-deepseek":
         from .judge import judge_deepseek
 
         result = judge_deepseek(root, args.max_calls)
+    elif args.command == "zoning-score":
+        from .zoning import zoning_score
+
+        result = zoning_score(root, args.out, args.versions)
     elif args.command == "score":
         from .score import score
 

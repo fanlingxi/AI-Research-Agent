@@ -13,11 +13,16 @@ from .packets import LINE_INSTRUCTIONS, expand_line_answer, validate_answer
 def judge_deepseek(root, max_calls=12, client=None):
     if not 0 <= max_calls <= 12:
         raise ValueError("DeepSeek line annotation budget must be 0..12")
+    packet_ids = read(root / "packets/index.json")["line_packets"]
+    if (root / "manifest.json").exists():
+        expected = [f"lines-{p['paper']}" for p in read(root / "manifest.json")["papers"]]
+        if packet_ids != expected:
+            raise ValueError("Line packets do not match root manifest")
     calls, failures = 0, 0
     with exclusive(root, "judge-deepseek"):
         ledger_path = root / "attempts/judge-deepseek.json"
         ledger = read(ledger_path) if ledger_path.exists() else {}
-        for packet_id in read(root / "packets/index.json")["line_packets"]:
+        for packet_id in packet_ids:
             if packet_id in ledger:
                 continue
             if sum(r["units"] for r in ledger.values()) >= max_calls:
