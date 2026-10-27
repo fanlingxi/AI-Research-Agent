@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     knowledge_db_path: str = "data/knowledge/knowledge.db"
     agent_checkpoint_path: str = "data/runtime/agent_checkpoints.db"
     knowledge_vault_path: str = "data/obsidian_vault_v2"
+    # Unset = pypdf-v3. pypdf-v4 zoning is opt-in: it missed the D040 holdout gates.
+    pdf_parser_version: Literal["pypdf-v3", "pypdf-v4"] | None = None
     knowledge_qdrant_collection: str = "knowledge_chunks_v2"
     knowledge_worker_lease_seconds: int = 180
     knowledge_worker_poll_seconds: float = 1.0

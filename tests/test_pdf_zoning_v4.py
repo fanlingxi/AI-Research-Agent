@@ -188,6 +188,7 @@ def test_local_pdf_raw_text_unchanged_for_both_versions(tmp_path):
         assert parsed.page_numbers == legacy.page_numbers
     service = object.__new__(KnowledgeIngestionService)
     service.parser = parse_pdf_source
+    service.settings = SimpleNamespace(pdf_parser_version="pypdf-v4")
     assert service._parse(source=str(path), max_pages=1).blocks[0].paragraph_start is True
 
 
@@ -216,13 +217,22 @@ def test_heading_before_page_margin_still_starts_next_body_line():
     assert containing(blocks, "continued on another").paragraph_start is False
 
 
-def test_v4_default_import_and_frozen_v3_reparse(tmp_path, monkeypatch):
+def test_v4_is_opt_in(tmp_path):
+    from tests.test_source_reparse import _service
+
+    _, service, _ = _service(tmp_path)
+    assert service.parser_version == "pypdf-v3"
+    service.settings = service.settings.model_copy(update={"pdf_parser_version": "pypdf-v4"})
+    assert service.parser_version == "pypdf-v4"
+
+
+def test_v4_opt_in_import_and_frozen_v3_reparse(tmp_path, monkeypatch):
     from tests.test_source_reparse import _setup
 
     repository, service, versions, old, parsed, _, worker = _setup(tmp_path, monkeypatch)
     monkeypatch.setattr("app.knowledge.service.PARSER_VERSION", "pypdf-v3")
     queued_v3 = service.reparse(old["document_id"])
-    monkeypatch.setattr("app.knowledge.service.PARSER_VERSION", "pypdf-v4")
+    service.settings = service.settings.model_copy(update={"pdf_parser_version": "pypdf-v4"})
     assert worker.run_once()
     v3 = next(d for d in versions.documents() if d["parser_version"] == "pypdf-v3")
     assert v3["version"].endswith(":parser:pypdf-v3")

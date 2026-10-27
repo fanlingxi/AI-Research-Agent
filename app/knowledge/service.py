@@ -100,6 +100,12 @@ class KnowledgeIngestionService:
         )
         self.require_live_llm = require_live_llm
 
+    @property
+    def parser_version(self) -> str:
+        """pypdf-v3 by default; PDF_PARSER_VERSION=pypdf-v4 opts in to the D040 zoning rules,
+        which did not pass the D040 holdout gates and so are not the default."""
+        return getattr(self.settings, "pdf_parser_version", None) or PARSER_VERSION
+
     def submit(
         self,
         *,
@@ -146,8 +152,8 @@ class KnowledgeIngestionService:
             raise ValueError("PDF 未提取到可用正文。")
         checksum = content_sha256(parsed.text)
         if checksum == document["content_sha256"] and (
-            PARSER_VERSION not in LAYOUT_PARSER_VERSIONS
-            or document["parser_version"] == PARSER_VERSION
+            self.parser_version not in LAYOUT_PARSER_VERSIONS
+            or document["parser_version"] == self.parser_version
         ):
             return {"status": "unchanged", "message": "解析内容无变化。", "ingestion_id": None}
         self.ensure_execution_available()
@@ -163,9 +169,9 @@ class KnowledgeIngestionService:
             reparse_payload={
                 "document_id": document_id, "identity_uri": document["canonical_uri"],
                 "original_sha256": document["content_sha256"],
-                "content_sha256": checksum, "parser_version": PARSER_VERSION,
+                "content_sha256": checksum, "parser_version": self.parser_version,
                 "source_version": self._paper_from_document(
-                    parsed, document["canonical_uri"], parser_version=PARSER_VERSION,
+                    parsed, document["canonical_uri"], parser_version=self.parser_version,
                 ).metadata["source_version"],
                 "parsed": parsed.model_dump(mode="json"),
             },
@@ -231,7 +237,7 @@ class KnowledgeIngestionService:
                     )
                     identity_uri = reparse_payload["identity_uri"] if reparse_payload else source
                     parser_version = (reparse_payload["parser_version"]
-                                      if reparse_payload else PARSER_VERSION)
+                                      if reparse_payload else self.parser_version)
                     paper = self._paper_from_document(
                         parsed, identity_uri, parser_version=parser_version,
                     )
@@ -265,7 +271,7 @@ class KnowledgeIngestionService:
                         uri=identity_uri,
                         content=parsed.text,
                         parser_version=(reparse_payload["parser_version"]
-                                        if reparse_payload else PARSER_VERSION),
+                                        if reparse_payload else self.parser_version),
                         metadata=paper.metadata,
                     )
                     self.core_repository.upsert_chunks(chunks)
@@ -816,22 +822,22 @@ class KnowledgeIngestionService:
     def _parse(self, *, source: str, max_pages: int) -> ParsedDocument:
         if self.parser is parse_pdf_source:
             return self.parser(source=source, max_pages=max_pages,
-                               derive_blocks=PARSER_VERSION in LAYOUT_PARSER_VERSIONS,
-                               parser_version=PARSER_VERSION)
+                               derive_blocks=self.parser_version in LAYOUT_PARSER_VERSIONS,
+                               parser_version=self.parser_version)
         parsed = self.parser(source=source, max_pages=max_pages)
-        if PARSER_VERSION in LAYOUT_PARSER_VERSIONS and parsed.blocks is None:
+        if self.parser_version in LAYOUT_PARSER_VERSIONS and parsed.blocks is None:
             from app.tools.pdf_layout import derive_document_blocks
 
             parsed = parsed.model_copy(update={"blocks": derive_document_blocks(
                 parsed.page_texts or [parsed.text], parsed.page_numbers,
-                version=PARSER_VERSION,
+                version=self.parser_version,
             )})
         return parsed
 
     def _paper_from_document(
         self, parsed: ParsedDocument, source: str, *, parser_version: str | None = None,
     ) -> PaperMetadata:
-        parser_version = parser_version or PARSER_VERSION
+        parser_version = parser_version or self.parser_version
         checksum = content_sha256(parsed.text)
         source_metadata = dict(parsed.metadata)
         if parser_version in LAYOUT_PARSER_VERSIONS:
@@ -879,7 +885,7 @@ class KnowledgeIngestionService:
     def _page_chunks(
         self, paper: PaperMetadata, parsed: ParsedDocument, *, parser_version: str | None = None,
     ) -> list[DocumentChunk]:
-        version = parser_version or paper.metadata.get("parser_version") or PARSER_VERSION
+        version = parser_version or paper.metadata.get("parser_version") or self.parser_version
         if version in LAYOUT_PARSER_VERSIONS:
             return paragraph_chunks(paper, parsed, parser_version=version)
         page_texts = parsed.page_texts or [parsed.text]
