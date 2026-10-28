@@ -19,6 +19,7 @@ def begin(service, run_id, slot, digest):
         if run["plugin_workflow_key"] not in {
             "research_v2", "research_v3", "research_v4", "research_v5", "research_v6",
             "research_v7", "research_v8", "research_v9", "research_v10", "research_v11",
+            "research_v12",
         }:
             raise AgentRunConflictError("Generation records require a structured research workflow")
         row = db.execute(

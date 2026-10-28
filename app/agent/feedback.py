@@ -80,7 +80,7 @@ class RunFeedbackService:
                 raise AgentRunConflictError("Duplicate evidence references.")
             if not set(request.evidence_ids).issubset(evidence):
                 raise AgentRunConflictError("Evidence is outside the run snapshot.")
-            if (run.plugin.workflow_key in {"research_v10", "research_v11"}
+            if (run.plugin.workflow_key in {"research_v10", "research_v11", "research_v12"}
                     and request.finding_index is not None):
                 # Bind new finding feedback to its actual owner. Historical anchors and
                 # feedback without a selected finding retain their original semantics.
