@@ -113,15 +113,12 @@ class ReportRepository:
                     row["lease_until"] is None or str(row["lease_until"]) < now_text
                 )
                 if expired:
-                    connection.execute(
-                        """
-                        UPDATE knowledge_jobs
-                        SET status = 'queued', lease_until = NULL,
-                            lease_owner = NULL, updated_at = ?
-                        WHERE id = ? AND status = 'running'
-                        """,
-                        (now_text, row["id"]),
-                    )
+                    self.jobs.recover_expired_jobs_tx(connection, now_text, job_id=row["id"])
+                    recovered = connection.execute(
+                        "SELECT status FROM knowledge_jobs WHERE id = ?", (row["id"],)
+                    ).fetchone()
+                    if recovered["status"] != "queued":
+                        continue
                     connection.execute(
                         """
                         UPDATE reports SET status = 'queued', updated_at = ?
@@ -274,7 +271,7 @@ class ReportRepository:
                 UPDATE knowledge_jobs
                 SET status = 'queued', payload_json = ?, priority = ?,
                     lease_until = NULL, lease_owner = NULL,
-                    last_error = NULL, updated_at = ?
+                    last_error = NULL, crash_recoveries = 0, updated_at = ?
                 WHERE id = ?
                 """,
                 (

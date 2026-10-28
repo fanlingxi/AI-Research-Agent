@@ -9,6 +9,10 @@ class AgentRunConflictError(AgentRunError):
     """The task already owns an active run or input ownership conflicts."""
 
 
+class AgentRunExecutionRevokedError(AgentRunConflictError):
+    """A late executor must stop without attempting a business failure transition."""
+
+
 class AgentRunTerminalError(AgentRunError):
     """A terminal AgentRun cannot execute, cancel, or resume again."""
 

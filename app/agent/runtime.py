@@ -8,6 +8,7 @@ from app.agent.checkpoint import AgentCheckpointFactory
 from app.agent.compatibility import resolve_compatible_workflow
 from app.agent.errors import (
     AgentRunCancelledError,
+    AgentRunExecutionRevokedError,
     AgentRunTerminalError,
     WorkflowVersionMismatchError,
 )
@@ -137,7 +138,8 @@ class AgentRuntime:
                 )
         except WorkflowVersionMismatchError:
             return self.service.stop_incompatible_workflow(run_id)
-        except AgentRunCancelledError:
+        except (AgentRunCancelledError, AgentRunExecutionRevokedError):
+            # A revoked executor has no authority to publish a failure event either.
             return self.service.get_run(run_id)
         except AgentRunTerminalError:
             # A concurrent cancellation is authoritative.  It must not turn
