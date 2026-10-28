@@ -200,7 +200,7 @@ class KnowledgeMapReader:
             params,
         ).fetchall()
         core_to_node = {str(row["id"]): str(row["node_id"]) for row in rows}
-        documents = self._entity_documents(connection)
+        documents = self._entity_documents(connection, collection)
         nodes: dict[str, _Node] = {}
         for row in rows:
             node_id = str(row["node_id"])
@@ -286,19 +286,42 @@ class KnowledgeMapReader:
         return nodes, edges
 
     @staticmethod
-    def _entity_documents(connection: sqlite3.Connection) -> dict[str, dict[str, int]]:
+    def _entity_documents(
+        connection: sqlite3.Connection, collection: str | None = None
+    ) -> dict[str, dict[str, int]]:
+        entity_join = ""
+        scope_sql = ""
+        params: tuple[Any, ...] = ()
+        if collection:
+            entity_join = "JOIN entities e ON e.id = c.entity_id"
+            # A shared entity's membership does not bring evidence from its
+            # other ingestions into this collection's graph.
+            scope_sql = f"""
+              AND EXISTS (
+                SELECT 1 FROM collection_memberships m
+                JOIN ingestion_documents d ON d.ingestion_id = m.ingestion_id
+                WHERE m.aggregate_type = 'entity'
+                  AND m.aggregate_id = COALESCE(e.legacy_id, e.id)
+                  AND m.collection_slug = ?
+                  AND d.document_id = {_DOCUMENT_ID_SQL}
+              )
+            """
+            params = (collection,)
         rows = connection.execute(
             f"""
             SELECT c.entity_id, {_DOCUMENT_ID_SQL} AS document_id,
                    COUNT(DISTINCT ev.id) AS evidence_count
             FROM claims c
+            {entity_join}
             JOIN claim_evidence_links l ON l.claim_id = c.id
             JOIN evidences ev ON ev.id = l.evidence_id
             JOIN sources s ON s.id = ev.source_id AND s.superseded_by_source_id IS NULL
             LEFT JOIN chunks ch ON ch.id = ev.chunk_id
             WHERE c.status = 'published' AND c.entity_id IS NOT NULL
+              {scope_sql}
             GROUP BY c.entity_id, document_id
-            """
+            """,
+            params,
         ).fetchall()
         result: dict[str, dict[str, int]] = defaultdict(dict)
         for row in rows:
