@@ -392,7 +392,10 @@ class KnowledgeIngestionService:
             expected_owner=expected_job_owner,
         )
 
-    def decide(self, candidate_id: str, decision: CandidateDecision) -> DecisionResult:
+    def decide(
+        self, candidate_id: str, decision: CandidateDecision,
+        *, expected_review_fingerprint: str | None = None,
+    ) -> DecisionResult:
         stored = self.repository.get_candidate(candidate_id)
         if stored["candidate"]["status"] != "draft":
             return self._replayed_decision(stored, decision)
@@ -406,7 +409,10 @@ class KnowledgeIngestionService:
             raise ValueError("入库任务完成抽取后才能审核候选。")
         try:
             if decision.decision == "reject":
-                self.repository.reject_candidate(candidate_id, decision.review_note)
+                self.repository.reject_candidate(
+                    candidate_id, decision.review_note,
+                    expected_review_fingerprint=expected_review_fingerprint,
+                )
             elif decision.decision == "defer":
                 self.repository.defer_candidate(candidate_id, decision.review_note)
             elif stored["kind"] == "entity":
@@ -417,11 +423,14 @@ class KnowledgeIngestionService:
                     ),
                     review_note=decision.review_note,
                     decision_name=("link" if decision.decision == "link" else None),
+                    expected_review_fingerprint=expected_review_fingerprint,
                 )
             else:
                 if decision.decision in {"merge", "link"}:
                     raise ValueError("关系候选不支持链接或合并，请编辑后批准、待定或驳回。")
-                self.repository.publish_relation(candidate_id)
+                self.repository.publish_relation(
+                    candidate_id, expected_review_fingerprint=expected_review_fingerprint
+                )
         except DecisionAlreadyApplied:
             return self._replayed_decision(self.repository.get_candidate(candidate_id), decision)
 
