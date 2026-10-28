@@ -87,8 +87,17 @@ def build_knowledge_router(
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @router.get("/api/knowledge/ingestions")
-    def list_knowledge_ingestions() -> list[dict[str, Any]]:
-        return [item.model_dump() for item in repository.list_ingestions()]
+    def list_knowledge_ingestions(
+        limit: Annotated[int | None, Query(ge=1, le=100)] = None,
+        offset: Annotated[int | None, Query(ge=0)] = None,
+    ) -> list[dict[str, Any]] | dict[str, Any]:
+        if limit is None and offset is None:
+            return [item.model_dump() for item in repository.list_ingestions()]
+        return repository.list_ingestions_page(limit=limit or 25, offset=offset or 0)
+
+    @router.get("/api/knowledge/ingestion-statistics")
+    def knowledge_ingestion_statistics() -> dict[str, Any]:
+        return repository.ingestion_statistics()
 
     @router.patch("/api/knowledge/ingestions/{ingestion_id}/collection")
     def move_knowledge_ingestion_collection(

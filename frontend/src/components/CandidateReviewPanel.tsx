@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, GitMerge, PauseCircle, Plus, Sparkles, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api, type BulkCandidateDecisionResult, type CandidateDecisionKind, type DuplicateGroup, type EntityCandidate, type KnowledgeCandidate, type MergeSuggestion, type RelationCandidate } from "../lib/api";
@@ -120,12 +120,37 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
   const client = useQueryClient();
   const titles = usePaperTitles();
   const ingestions = useIngestions();
-  const reviewable = useMemo(() => (ingestions.data ?? []).filter((item) => item.candidate_count > 0 || item.status === "needs_review"), [ingestions.data]);
-  const preferred = reviewable.find((item) => item.id === initialIngestionId)
-    ?? reviewable.find((item) => item.collection_slug === collectionSlug)
+  const collectionStatistics = useQuery({
+    queryKey: ["knowledge-ingestions", "statistics"],
+    queryFn: api.ingestionStatistics,
+    enabled: Boolean(collectionSlug),
+  });
+  const collectionIngestionId = collectionStatistics.data?.pending_ingestions.find((item) => item.collection_slug === collectionSlug)?.id
+    ?? ingestions.data?.find((item) => item.collection_slug === collectionSlug && (item.candidate_count > 0 || item.status === "needs_review"))?.id;
+  const resolvingCollection = Boolean(collectionSlug) && !ingestionId && !initialIngestionId;
+  const requestedId = ingestionId || initialIngestionId || (resolvingCollection ? collectionIngestionId : "") || "";
+  const listedIngestion = ingestions.data?.find((item) => item.id === requestedId);
+  const directIngestion = useQuery({
+    queryKey: ["knowledge-ingestions", "detail", requestedId],
+    queryFn: () => api.ingestion(requestedId),
+    enabled: Boolean(requestedId) && !listedIngestion,
+    retry: false,
+  });
+  const requestedIngestion = listedIngestion ?? directIngestion.data;
+  const reviewable = useMemo(() => {
+    const items = (ingestions.data ?? []).filter((item) => item.candidate_count > 0 || item.status === "needs_review" || item.id === requestedId);
+    return requestedIngestion && !items.some((item) => item.id === requestedIngestion.id) ? [requestedIngestion, ...items] : items;
+  }, [ingestions.data, requestedId, requestedIngestion]);
+  const preferred = reviewable.find((item) => item.collection_slug === collectionSlug)
     ?? reviewable.find((item) => item.status === "needs_review")
     ?? reviewable[0];
-  const selectedId = ingestionId || preferred?.id || "";
+  const selectedId = requestedId || (!collectionSlug ? preferred?.id : "") || "";
+  const selectionReady = Boolean(selectedId) && (!requestedId || Boolean(requestedIngestion)) && !(resolvingCollection && collectionStatistics.isPending);
+  useEffect(() => {
+    setOffset(0);
+    setSelectedCandidateIds([]);
+    setReviewFeedback(undefined);
+  }, [selectedId]);
   const candidates = useQuery({
     queryKey: ["knowledge-candidates", selectedId, "draft", kind, paperId, minConfidence, offset],
     queryFn: () => api.candidatePage(selectedId, {
@@ -135,12 +160,12 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
       offset,
       limit: PAGE_SIZE,
     }),
-    enabled: Boolean(selectedId),
+    enabled: selectionReady,
   });
   const duplicates = useQuery({
     queryKey: ["knowledge-duplicates", selectedId],
     queryFn: () => api.duplicateGroups(selectedId),
-    enabled: Boolean(selectedId),
+    enabled: selectionReady,
   });
   const invalidate = () => {
     void client.invalidateQueries({ queryKey: ["knowledge-candidates", selectedId] });
@@ -282,8 +307,13 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
 
   if (ingestions.isPending) return <LoadingBlock label="读取待审核资料…" />;
   if (ingestions.error instanceof Error) return <ErrorBlock error={ingestions.error} onRetry={() => ingestions.refetch()} />;
-  if (!reviewable.length) {
-    return <EmptyBlock title="还没有可审核的资料" action={<Link className="text-[13px] font-medium text-brand hover:underline" to="/knowledge?import=1">去导入资料</Link>}>导入论文后，系统抽取出的候选知识会出现在这里。</EmptyBlock>;
+  if (resolvingCollection && collectionStatistics.isPending) return <LoadingBlock label="读取集合中的待审核资料…" />;
+  if (resolvingCollection && collectionStatistics.isError) return <ErrorBlock error={new Error("无法读取指定集合的导入记录，请重试。")} onRetry={() => void collectionStatistics.refetch()} />;
+  if (requestedId && !listedIngestion && directIngestion.isPending) return <LoadingBlock label="读取指定的导入记录…" />;
+  if (requestedId && !listedIngestion && directIngestion.isError) return <ErrorBlock error={new Error("无法读取指定的导入记录，请确认记录存在后重试。")} onRetry={() => void directIngestion.refetch()} />;
+  const loadMore = ingestions.hasNextPage ? <Button className="mt-3" disabled={ingestions.isFetchingNextPage} variant="outline" onClick={() => void ingestions.fetchNextPage()}>{ingestions.isFetchingNextPage ? "加载中…" : "加载更多导入记录"}</Button> : null;
+  if (!selectedId || !reviewable.length) {
+    return <><EmptyBlock title="还没有可审核的资料" action={<Link className="text-[13px] font-medium text-brand hover:underline" to="/knowledge?import=1">去导入资料</Link>}>导入论文后，系统抽取出的候选知识会出现在这里。</EmptyBlock>{loadMore}</>;
   }
   return (
     <section className="min-w-0" aria-label="知识候选审核">
@@ -302,6 +332,7 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
           </div>
           {candidates.data ? <p className="text-[13px] text-ink-soft"><span className="text-xl font-semibold tabular-nums text-amber-700">{candidates.data.total}</span> 条待审核{kind !== "all" || paperId || minConfidence !== "all" ? "（当前筛选）" : ""}</p> : null}
         </div>
+        {loadMore}
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-subtle"><div className="h-full rounded-full bg-brand transition-[width]" style={{ width: `${Math.round(publishedShare * 100)}%` }} /></div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">

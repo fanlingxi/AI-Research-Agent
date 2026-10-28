@@ -933,14 +933,17 @@ class KnowledgeIngestionService:
                 entities=self.repository.list_published_entities(topic_slug),
                 relations=self.repository.list_published_relations(topic_slug),
             )
-            for ingestion in self.repository.list_ingestions():
-                if ingestion.topic_slug == topic_slug:
-                    self.repository.update_ingestion(
-                        ingestion.id,
-                        status=ingestion.status,
-                        error=ingestion.error,
-                        vault_path=result.vault_path,
-                    )
+            offset = 0
+            while batch := self.repository.list_ingestions(offset=offset):
+                for ingestion in batch:
+                    if ingestion.topic_slug == topic_slug:
+                        self.repository.update_ingestion(
+                            ingestion.id,
+                            status=ingestion.status,
+                            error=ingestion.error,
+                            vault_path=result.vault_path,
+                        )
+                offset += len(batch)
 
     def _is_mock_llm(self) -> bool:
         return (

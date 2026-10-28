@@ -333,6 +333,32 @@ export interface KnowledgeIngestion {
   updated_at: string;
 }
 
+export interface HistoryPage<T> {
+  items: T[];
+  total: number;
+  offset: number;
+  limit: number;
+  next_offset: number | null;
+}
+
+export interface IngestionCollectionStatistics {
+  document_count: number;
+  published_count: number;
+  pending_count: number;
+  sources: string[];
+  ingestion_ids: string[];
+}
+
+export interface IngestionStatistics {
+  total: number;
+  document_count: number;
+  published_count: number;
+  pending_count: number;
+  by_ingestion: Record<string, number>;
+  by_collection: Record<string, IngestionCollectionStatistics>;
+  pending_ingestions: Array<Pick<KnowledgeIngestion, "id" | "collection" | "collection_slug">>;
+}
+
 interface CandidateEvidence {
   paper_id: string;
   chunk_id: string;
@@ -981,6 +1007,9 @@ export const api = {
       }),
     }),
   ingestions: () => request<KnowledgeIngestion[]>("/api/knowledge/ingestions"),
+  ingestionPage: (offset = 0, limit = 25) => request<HistoryPage<KnowledgeIngestion>>(`/api/knowledge/ingestions?limit=${limit}&offset=${offset}`),
+  ingestion: (id: string) => request<KnowledgeIngestion>(`/api/knowledge/ingestions/${path(id)}`),
+  ingestionStatistics: () => request<IngestionStatistics>("/api/knowledge/ingestion-statistics"),
   submitIngestion: (input: { collection?: string; sources: string[]; pdf_max_pages: number }) =>
     request<KnowledgeIngestion>("/api/knowledge/ingestions", {
       method: "POST",
@@ -1101,6 +1130,7 @@ export const api = {
       method: "POST",
     }),
   reports: () => request<ResearchReport[]>("/api/reports"),
+  reportPage: (offset = 0, limit = 25) => request<HistoryPage<ResearchReport>>(`/api/reports?limit=${limit}&offset=${offset}`),
   report: (reportId: string) => request<ResearchReport>(`/api/reports/${path(reportId)}`),
   submitReport: (input: {
     query: string;

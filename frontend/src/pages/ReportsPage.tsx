@@ -4,7 +4,7 @@ import { Link, Navigate, useSearchParams } from "react-router-dom";
 
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { StatusBadge } from "../components/StatusBadge";
-import { buttonVariants } from "../components/ui/button";
+import { Button, buttonVariants } from "../components/ui/button";
 import { Page, PageHeader, Segmented } from "../components/ui/page";
 import { useReportLibrary, type LibraryItem } from "../lib/hooks";
 import { cn, formatDate } from "../lib/utils";
@@ -36,7 +36,8 @@ export function ReportsPage() {
   const [filter, setFilter] = useState<"all" | "quick" | "project">("all");
   const visible = useMemo(() => library.items.filter((item) => filter === "all" || item.kind === filter), [filter, library.items]);
   if (legacyId) return <Navigate replace to={`/reports/${encodeURIComponent(legacyId)}`} />;
-  const quickCount = library.items.filter((item) => item.kind === "quick").length;
+  const quickCount = library.quickTotal;
+  const projectCount = library.items.filter((item) => item.kind === "project").length;
   return (
     <Page>
       <PageHeader
@@ -52,9 +53,9 @@ export function ReportsPage() {
             label="报告类型"
             onChange={setFilter}
             options={[
-              { value: "all", label: "全部", count: library.items.length },
+              { value: "all", label: "全部", count: quickCount + projectCount },
               { value: "quick", label: "快速报告", count: quickCount },
-              { value: "project", label: "项目报告", count: library.items.length - quickCount },
+              { value: "project", label: "项目报告", count: projectCount },
             ]}
             value={filter}
           />
@@ -72,6 +73,7 @@ export function ReportsPage() {
               </EmptyBlock>
             )}
           </div>
+          {filter !== "project" && library.hasNextPage ? <Button className="mt-4" disabled={library.isFetchingNextPage} variant="outline" onClick={() => void library.fetchNextPage()}>{library.isFetchingNextPage ? "加载中…" : "加载更多报告"}</Button> : null}
         </>
       ) : null}
     </Page>
