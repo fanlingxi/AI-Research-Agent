@@ -334,6 +334,7 @@ describe("browser acceptance states", () => {
 
   it("lists quick reports and project reports together in the library", async () => {
     vi.spyOn(api, "reportPage").mockResolvedValue(historyPage([{ ...queuedReport, status: "completed" }]));
+    vi.spyOn(api, "projectRuns").mockResolvedValue({ items: [], next_cursor: null });
     vi.spyOn(api, "projects").mockResolvedValue([project]);
     vi.spyOn(api, "tasks").mockResolvedValue(workspaceTasks);
     vi.spyOn(api, "artifacts").mockResolvedValue([{

@@ -122,6 +122,44 @@ describe("candidate merge review", () => {
     expect(screen.queryByRole("button", { name: "加载更多导入记录" })).not.toBeInTheDocument();
   });
 
+  it.each([
+    ["single", false], ["bulk", false], ["single", true], ["bulk", true],
+  ])("returns to a valid page after the last item on page two is reviewed (%s, direct link: %s)", async (mode, directLink) => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage(directLink ? [] : [ingestion]));
+    const direct = vi.spyOn(api, "ingestion").mockResolvedValue(ingestion);
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "duplicateGroups").mockResolvedValue({ groups: [], candidate_count: 0 });
+    let reviewed = false;
+    const candidates = vi.spyOn(api, "candidatePage").mockImplementation(async (_id, params) => {
+      const offset = params?.offset ?? 0;
+      return {
+        items: offset === 25 && reviewed ? [] : [{ kind: "entity", candidate: entity(offset ? "last" : "first", "paper:a", { name: offset ? "末页候选" : "首页候选", merge_suggestions: [] }) }],
+        total: reviewed ? 25 : 26, offset, limit: 25, next_offset: !reviewed && !offset ? 25 : null,
+      };
+    });
+    vi.spyOn(api, "decideCandidate").mockImplementation(async () => { reviewed = true; return {} as CandidateDecisionResult; });
+    vi.spyOn(api, "decideCandidatesBulk").mockImplementation(async () => {
+      reviewed = true;
+      return { decision: "approve", applied: 1, replayed: 0, skipped: [] } as unknown as BulkCandidateDecisionResult;
+    });
+    renderPanel(directLink ? ingestion.id : undefined);
+    await user.click(await screen.findByRole("button", { name: "下一页" }));
+    await screen.findByText("末页候选");
+    if (mode === "single") {
+      await user.click(screen.getByRole("button", { name: "批准" }));
+    } else {
+      await user.click(screen.getByRole("checkbox", { name: "全选当前页候选" }));
+      await user.click(screen.getByRole("button", { name: "批量批准" }));
+    }
+    await screen.findByText("首页候选");
+    await waitFor(() => expect(screen.queryByText("末页候选")).not.toBeInTheDocument());
+    expect(candidates.mock.calls.at(-1)?.[1]?.offset).toBe(0);
+    expect(candidates.mock.calls.every(([id]) => id === ingestion.id)).toBe(true);
+    if (directLink) expect(direct).toHaveBeenCalledWith(ingestion.id);
+  });
+
   it("merges an entity candidate into the suggested existing entity", async () => {
     const page: KnowledgeCandidatePage = { items: [{ kind: "entity", candidate: entity("candidate-b", "paper:b") }], total: 1, offset: 0, limit: 25, next_offset: null };
     vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage([ingestion]));

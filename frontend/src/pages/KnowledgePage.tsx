@@ -153,7 +153,7 @@ function IngestionRecord({ item, collections, highlighted, documents }: { item: 
       </div>
       {active ? <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-subtle"><div className="h-full w-1/3 animate-pulse rounded-full bg-brand" /></div> : null}
       {item.error ? <p className="mt-2.5 break-words rounded-md bg-danger-soft p-2 text-xs leading-5 text-red-900">{item.error}</p> : null}
-      {item.status === "failed" ? (
+      {["failed", "interrupted"].includes(item.status) ? (
         <div className="mt-2.5">
           <Button disabled={retry.isPending} size="sm" variant="outline" onClick={() => retry.mutate()}><RotateCcw size={13} />{retry.isPending ? "正在重新启动…" : "重新执行"}</Button>
           {retry.error instanceof Error ? <div className="mt-2"><ErrorBlock error={retry.error} /></div> : null}

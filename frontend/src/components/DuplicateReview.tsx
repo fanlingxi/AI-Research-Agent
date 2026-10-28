@@ -45,7 +45,7 @@ export function MergeSuggestions({ candidateId, candidateType, suggestions, valu
 }) {
   const selected = suggestions.find((item) => item.entity_id === value);
   return (
-    <fieldset className="mt-2.5 rounded-lg border border-amber-200 bg-warning-soft/60 px-3 py-2.5">
+    <fieldset className="mt-2.5 min-w-0 rounded-lg border border-amber-200 bg-warning-soft/60 px-3 py-2.5">
       <legend className="sr-only">选择合并目标</legend>
       <p className="flex items-center gap-1.5 text-xs font-medium text-amber-900"><Copy size={13} />可能重复 · 可合并到已有实体</p>
       <div className="mt-1.5 space-y-1">
