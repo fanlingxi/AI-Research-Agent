@@ -37,6 +37,8 @@ class AgentRunOptions(BaseModel):
     """Immutable execution choices captured with one AgentRun."""
 
     workflow: AgentWorkflow = Field(default="research", min_length=2, max_length=64)
+    # Captured at creation; None on legacy runs means compatibility is unproven.
+    checkpoint_namespace: str | None = None
     create_memory_proposal: bool = False
     research_profile: Literal["standard", "classic"] | None = None
     profile_fallback_reason: str | None = None

@@ -291,6 +291,7 @@ class KnowledgeJob(BaseModel):
     status: JobStatus
     payload: dict[str, Any] = Field(default_factory=dict)
     attempts: int = 0
+    crash_recoveries: int = 0
     priority: int = 0
     lease_until: str | None = None
     lease_owner: str | None = None

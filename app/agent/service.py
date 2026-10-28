@@ -8,7 +8,12 @@ from contextvars import ContextVar
 from typing import Any
 from uuid import uuid4
 
-from app.agent.errors import AgentRunConflictError
+from app.agent.compatibility import resolve_compatible_workflow
+from app.agent.errors import (
+    AgentRunConflictError,
+    AgentRunNotRecoverableError,
+    WorkflowVersionMismatchError,
+)
 from app.agent.feedback import RunFeedbackService
 from app.agent.feedback_models import FeedbackDecision, FeedbackRequest, FeedbackRerunRequest
 from app.agent.follow_up import RunFollowUpService
@@ -173,6 +178,7 @@ class AgentRunService:
         provider, model = self._model_metadata()
         options = AgentRunOptions(
             workflow=workflow_key,
+            checkpoint_namespace=workflow.checkpoint_namespace,
             create_memory_proposal=request.create_memory_proposal,
             **profile_metadata,
         )
@@ -258,16 +264,26 @@ class AgentRunService:
     def resume_run(self, run_id: str) -> AgentRun:
         with self.knowledge_repository._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            resumed = self.repository.resume_run_tx(connection, run_id)
-            self.knowledge_repository.jobs.enqueue_job_tx(
-                connection,
-                kind="agent_run",
-                resource_id=run_id,
-                payload={"workflow_name": resumed.workflow_name},
-                priority=100,
-                force_requeue=True,
-            )
-            return resumed
+            run = self.repository.get_run_tx(connection, run_id)
+            if run.status != "failed":
+                raise AgentRunNotRecoverableError("Only failed AgentRuns can be manually resumed.")
+            try:
+                resolve_compatible_workflow(run, self.plugin_registry)
+            except WorkflowVersionMismatchError:
+                resumed = self.repository.stop_incompatible_workflow_tx(connection, run_id)
+            else:
+                resumed = self.repository.resume_run_tx(connection, run_id)
+                self.knowledge_repository.jobs.enqueue_job_tx(
+                    connection,
+                    kind="agent_run",
+                    resource_id=run_id,
+                    payload={"workflow_name": resumed.workflow_name},
+                    priority=100,
+                    force_requeue=True,
+                )
+        if resumed.status == "needs_review":
+            self.knowledge_repository.jobs.complete_resource_job("agent_run", run_id)
+        return resumed
 
     def review_run(self, run_id: str, *, action: str) -> AgentRun:
         """Close an invalid run or start a new run from a fresh ContextSnapshot."""
@@ -337,10 +353,21 @@ class AgentRunService:
         raise AgentRunConflictError(f"Unknown Domain Runtime port kind: {port_kind}")
 
     def recover_interrupted_run(self, run_id: str) -> AgentRun:
+        try:
+            resolve_compatible_workflow(self.get_run(run_id), self.plugin_registry)
+        except WorkflowVersionMismatchError:
+            return self.stop_incompatible_workflow(run_id)
         return self.repository.recover_interrupted_run(
             run_id,
             execution_fence=self._current_execution.get(),
         )
+
+    def stop_incompatible_workflow(self, run_id: str) -> AgentRun:
+        with self.knowledge_repository._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            return self.repository.stop_incompatible_workflow_tx(
+                connection, run_id, execution_fence=self._current_execution.get(),
+            )
 
     def mark_stale_context_if_needed(self, run_id: str) -> AgentRun:
         return self.repository.mark_stale_context_if_needed(

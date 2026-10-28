@@ -6,9 +6,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from uuid import uuid4
 
+from app.config.settings import get_settings
 from app.error_redaction import redact_error
 from app.knowledge.schemas import ExecutorHeartbeat, KnowledgeJob
 from app.persistence.sqlite import SQLiteDatabase
+
+CRASH_RECOVERY_ERROR_CODE = "crash_recovery_exhausted"
+CRASH_RECOVERY_ERROR_MESSAGE = "多次异常中断，已停止自动重试，请检查资料后手动重试"
 
 
 class JobRepository:
@@ -18,8 +22,16 @@ class JobRepository:
     changes commit together. Schema setup remains owned by KnowledgeRepository.
     """
 
-    def __init__(self, database: SQLiteDatabase) -> None:
+    def __init__(
+        self, database: SQLiteDatabase, *, max_crash_recoveries: int | None = None
+    ) -> None:
         self.database = database
+        self.max_crash_recoveries = (
+            get_settings().knowledge_job_max_crash_recoveries
+            if max_crash_recoveries is None else max_crash_recoveries
+        )
+        if self.max_crash_recoveries < 1:
+            raise ValueError("max_crash_recoveries must be at least 1")
 
     def _connect(self) -> sqlite3.Connection:
         return self.database.connect()
@@ -66,7 +78,7 @@ class JobRepository:
                     UPDATE knowledge_jobs
                     SET status = 'queued', payload_json = ?, priority = ?,
                         lease_until = NULL, lease_owner = NULL,
-                        last_error = NULL, updated_at = ? WHERE id = ?
+                        last_error = NULL, crash_recoveries = 0, updated_at = ? WHERE id = ?
                     """,
                     (_dump(payload), priority, _now(), existing["id"]),
                 )
@@ -117,14 +129,7 @@ class JobRepository:
         owner = owner_id or f"executor-{uuid4().hex}"
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            connection.execute(
-                """
-                UPDATE knowledge_jobs
-                SET status = 'queued', lease_until = NULL, lease_owner = NULL, updated_at = ?
-                WHERE status = 'running' AND lease_until < ?
-                """,
-                (now.isoformat(), now.isoformat()),
-            )
+            self.recover_expired_jobs_tx(connection, now.isoformat())
             row = connection.execute(
                 """
                 SELECT * FROM knowledge_jobs WHERE status = 'queued'
@@ -171,15 +176,7 @@ class JobRepository:
             if row["status"] == "running" and (
                 row["lease_until"] is None or str(row["lease_until"]) < now_text
             ):
-                connection.execute(
-                    """
-                    UPDATE knowledge_jobs
-                    SET status = 'queued', lease_until = NULL,
-                        lease_owner = NULL, updated_at = ?
-                    WHERE id = ? AND status = 'running'
-                    """,
-                    (now_text, row["id"]),
-                )
+                self.recover_expired_jobs_tx(connection, now_text, job_id=row["id"])
                 row = connection.execute(
                     "SELECT * FROM knowledge_jobs WHERE id = ?", (row["id"],)
                 ).fetchone()
@@ -201,6 +198,106 @@ class JobRepository:
                 "SELECT * FROM knowledge_jobs WHERE id = ?", (row["id"],)
             ).fetchone()
         return self.job_from_row(claimed)
+
+    def recover_expired_jobs_tx(
+        self, connection: sqlite3.Connection, now: str, *, job_id: str | None = None
+    ) -> None:
+        """Recover expired leases once, atomically with any business quarantine.
+
+        Callers hold BEGIN IMMEDIATE. Attempts remain monotonic fencing tokens;
+        only abnormal lease recovery consumes this separately resettable budget.
+        """
+        rows = connection.execute(
+            """
+            SELECT * FROM knowledge_jobs
+            WHERE status = 'running' AND (lease_until IS NULL OR lease_until < ?)
+              AND (? IS NULL OR id = ?)
+            """,
+            (now, job_id, job_id),
+        ).fetchall()
+        for row in rows:
+            run = None
+            if row["kind"] == "agent_run":
+                run = connection.execute(
+                    "SELECT status, error_message FROM agent_runs WHERE id = ?",
+                    (row["resource_id"],),
+                ).fetchone()
+                if run is not None and run["status"] in {
+                    "completed", "cancelled", "needs_review", "stale_context", "failed",
+                }:
+                    # AgentRun commits before the Worker acknowledges the job.
+                    # A crash in that gap must preserve the business outcome.
+                    connection.execute(
+                        """
+                        UPDATE knowledge_jobs
+                        SET status = ?, lease_until = NULL, lease_owner = NULL,
+                            last_error = ?, updated_at = ? WHERE id = ?
+                        """,
+                        (
+                            "failed" if run["status"] == "failed" else "completed",
+                            (
+                                redact_error(run["error_message"])
+                                if run["status"] == "failed" else None
+                            ),
+                            now, row["id"],
+                        ),
+                    )
+                    continue
+            exhausted = row["crash_recoveries"] + 1 >= self.max_crash_recoveries
+            connection.execute(
+                """
+                UPDATE knowledge_jobs
+                SET status = ?, crash_recoveries = crash_recoveries + 1,
+                    lease_until = NULL, lease_owner = NULL, last_error = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    "failed" if exhausted else "queued",
+                    CRASH_RECOVERY_ERROR_MESSAGE if exhausted else redact_error(row["last_error"]),
+                    now, row["id"],
+                ),
+            )
+            if not exhausted:
+                continue
+            resource_id = row["resource_id"]
+            if row["kind"] == "ingestion":
+                connection.execute(
+                    """
+                    UPDATE ingestions SET status = 'interrupted', error = ?, updated_at = ?
+                    WHERE id = ? AND status IN ('queued', 'running')
+                    """,
+                    (CRASH_RECOVERY_ERROR_MESSAGE, now, resource_id),
+                )
+            elif row["kind"] == "report":
+                connection.execute(
+                    """
+                    UPDATE reports SET status = 'failed', error = ?, updated_at = ?
+                    WHERE id = ? AND status IN ('queued', 'running')
+                    """,
+                    (CRASH_RECOVERY_ERROR_MESSAGE, now, resource_id),
+                )
+            elif row["kind"] == "agent_run":
+                # Agent models depend on KnowledgeRepository during package import.
+                from app.agent.repository import AgentRunRepository
+
+                if run is not None and run["status"] in {
+                    "created", "queued", "preparing", "running", "validating",
+                }:
+                    AgentRunRepository(self.database.path, self.database).fail_run_tx(
+                        connection, resource_id,
+                        error_code=CRASH_RECOVERY_ERROR_CODE,
+                        error_message=CRASH_RECOVERY_ERROR_MESSAGE,
+                    )
+            elif row["kind"] == "research_command":
+                connection.execute(
+                    """
+                    UPDATE research_commands
+                    SET status = 'failed', orchestration_stage = 'crash_recovery_exhausted',
+                        error = ?, updated_at = ?
+                    WHERE id = ? AND status NOT IN ('completed', 'failed')
+                    """,
+                    (CRASH_RECOVERY_ERROR_MESSAGE, now, resource_id),
+                )
 
     def complete_job(
         self,
@@ -426,6 +523,7 @@ class JobRepository:
             status=row["status"],
             payload=json.loads(row["payload_json"]),
             attempts=row["attempts"],
+            crash_recoveries=row["crash_recoveries"],
             priority=row["priority"],
             lease_until=row["lease_until"],
             lease_owner=row["lease_owner"],

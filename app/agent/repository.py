@@ -14,6 +14,7 @@ from app.agent.errors import (
     AgentRunConflictError,
     AgentRunNotRecoverableError,
     AgentRunTerminalError,
+    WorkflowVersionMismatchError,
 )
 from app.agent.models import AgentRun, AgentRunEvent, AgentRunOptions, AgentRunOutput, AgentToolCall
 from app.domain_plugins.contracts import PluginPin
@@ -218,22 +219,8 @@ class AgentRunRepository:
             requested_tokens = int(usage.get("input_tokens", 0) or 0) + int(
                 usage.get("output_tokens", 0) or 0
             )
-            used_tokens = int(
-                connection.execute(
-                    """
-                    SELECT COALESCE(
-                        SUM(
-                            COALESCE(json_extract(token_usage_json, '$.input_tokens'), 0)
-                            + COALESCE(json_extract(token_usage_json, '$.output_tokens'), 0)
-                        ),
-                        0
-                    )
-                    FROM agent_run_events WHERE run_id = ?
-                    """,
-                    (run_id,),
-                ).fetchone()[0]
-            )
-            if used_tokens + requested_tokens > int(row["token_budget"]):
+            totals, _ = self._trace_totals_tx(connection, run_id)
+            if totals["total_tokens"] + requested_tokens > int(row["token_budget"]):
                 raise AgentRunConflictError("AgentRun has exhausted its token budget.")
             return self._append_event_tx(
                 connection,
@@ -452,29 +439,44 @@ class AgentRunRepository:
     ) -> AgentRun:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            self._require_execution_fence_tx(connection, run_id, execution_fence)
-            row = self._require_run_tx(connection, run_id)
-            if str(row["status"]) in _TERMINAL_STATUSES:
-                return self._run_from_row(row)
-            now = _now()
-            connection.execute(
-                """
-                UPDATE agent_runs
-                SET status = 'failed', error_code = ?, error_message = ?, updated_at = ?,
-                    revision = revision + 1
-                WHERE id = ?
-                """,
-                (error_code, redact_error(error_message), now, run_id),
+            return self.fail_run_tx(
+                connection, run_id, error_code=error_code, error_message=error_message,
+                execution_fence=execution_fence,
             )
-            self._append_event_tx(
-                connection,
-                run_id=run_id,
-                event_type="run_failed",
-                node_name=str(row["current_node"] or "runtime"),
-                status="failed",
-                error={"code": error_code, "message": redact_error(error_message)},
-            )
-            return self._run_from_row(self._require_run_tx(connection, run_id))
+
+    def fail_run_tx(
+        self,
+        connection: sqlite3.Connection,
+        run_id: str,
+        *,
+        error_code: str,
+        error_message: str,
+        execution_fence: ExecutionFence | None = None,
+    ) -> AgentRun:
+        """Fail a run and append its audit event in the caller's transaction."""
+        self._require_execution_fence_tx(connection, run_id, execution_fence)
+        row = self._require_run_tx(connection, run_id)
+        if str(row["status"]) in _TERMINAL_STATUSES:
+            return self._run_from_row(row)
+        now = _now()
+        connection.execute(
+            """
+            UPDATE agent_runs
+            SET status = 'failed', error_code = ?, error_message = ?, updated_at = ?,
+                revision = revision + 1
+            WHERE id = ?
+            """,
+            (error_code, redact_error(error_message), now, run_id),
+        )
+        self._append_event_tx(
+            connection,
+            run_id=run_id,
+            event_type="run_failed",
+            node_name=str(row["current_node"] or "runtime"),
+            status="failed",
+            error={"code": error_code, "message": redact_error(error_message)},
+        )
+        return self._run_from_row(self._require_run_tx(connection, run_id))
 
     def cancel_run(self, run_id: str) -> AgentRun:
         with self._connect() as connection:
@@ -663,6 +665,39 @@ class AgentRunRepository:
             )
             return self._run_from_row(self._require_run_tx(connection, run_id))
 
+    def stop_incompatible_workflow_tx(
+        self,
+        connection: sqlite3.Connection,
+        run_id: str,
+        *,
+        execution_fence: ExecutionFence | None = None,
+    ) -> AgentRun:
+        """Permanently stop an unproven checkpoint contract without touching outputs."""
+
+        self._require_execution_fence_tx(connection, run_id, execution_fence)
+        row = self._require_run_tx(connection, run_id)
+        if str(row["status"]) in _TERMINAL_STATUSES:
+            return self._run_from_row(row)
+        now = _now()
+        connection.execute(
+            """
+            UPDATE agent_runs
+            SET status = 'needs_review', current_node = 'workflow_compatibility_check',
+                error_code = ?, error_message = ?, completed_at = ?, updated_at = ?,
+                revision = revision + 1
+            WHERE id = ?
+            """,
+            (WorkflowVersionMismatchError.code, WorkflowVersionMismatchError.message,
+             now, now, run_id),
+        )
+        self._append_event_tx(
+            connection, run_id=run_id, event_type="run_needs_review",
+            node_name="workflow_compatibility_check", status="needs_review",
+            error={"code": WorkflowVersionMismatchError.code,
+                   "message": WorkflowVersionMismatchError.message},
+        )
+        return self._run_from_row(self._require_run_tx(connection, run_id))
+
     def recover_interrupted_run(
         self,
         run_id: str,
@@ -836,19 +871,31 @@ class AgentRunRepository:
 
         with self._connect() as connection:
             self._require_run_tx(connection, run_id)
-            row = connection.execute(
-                """
+            return self._trace_totals_tx(connection, run_id)
+
+    @staticmethod
+    def _trace_totals_tx(
+        connection: sqlite3.Connection, run_id: str
+    ) -> tuple[dict[str, int], float]:
+        # Normal generation usage lives in events. Revoked/cancelled settlements
+        # deliberately publish no events and contribute directly from the ledger.
+        row = connection.execute(
+            """
                 SELECT
                     COALESCE(SUM(COALESCE(json_extract(token_usage_json, '$.input_tokens'), 0)), 0)
                         AS input_tokens,
                     COALESCE(SUM(COALESCE(json_extract(token_usage_json, '$.output_tokens'), 0)), 0)
                         AS output_tokens,
                     COALESCE(SUM(latency_ms), 0) AS latency_ms
-                FROM agent_run_events
-                WHERE run_id = ?
-                """,
-                (run_id,),
-            ).fetchone()
+                FROM (
+                    SELECT token_usage_json, latency_ms FROM agent_run_events WHERE run_id = ?
+                    UNION ALL
+                    SELECT usage_json, 0 FROM research_generation_attempts
+                    WHERE run_id = ? AND audit_only = 1 AND status != 'pending'
+                )
+            """,
+            (run_id, run_id),
+        ).fetchone()
         input_tokens = int(row["input_tokens"])
         output_tokens = int(row["output_tokens"])
         return (

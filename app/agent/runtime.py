@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from app.agent.checkpoint import AgentCheckpointFactory
-from app.agent.errors import AgentRunCancelledError, AgentRunTerminalError
+from app.agent.compatibility import resolve_compatible_workflow
+from app.agent.errors import (
+    AgentRunCancelledError,
+    AgentRunExecutionRevokedError,
+    AgentRunTerminalError,
+    WorkflowVersionMismatchError,
+)
 from app.agent.models import AgentRun
 from app.agent.service import AgentRunService
 from app.domain_plugins.registry import DomainPluginRegistry
@@ -60,6 +66,8 @@ class AgentRuntime:
                 if current.status == "cancelled":
                     return current
                 raise
+        if run.status == "needs_review":
+            return run
         if run.status != "queued":
             raise AgentRunTerminalError("AgentRun must be queued before it can execute.")
         run = self.service.mark_stale_context_if_needed(run_id)
@@ -129,7 +137,10 @@ class AgentRuntime:
                     # the next graph node rather than replaying prior LLM work.
                     durability="sync",
                 )
-        except AgentRunCancelledError:
+        except WorkflowVersionMismatchError:
+            return self.service.stop_incompatible_workflow(run_id)
+        except (AgentRunCancelledError, AgentRunExecutionRevokedError):
+            # A revoked executor has no authority to publish a failure event either.
             return self.service.get_run(run_id)
         except AgentRunTerminalError:
             # A concurrent cancellation is authoritative.  It must not turn
@@ -151,8 +162,7 @@ class AgentRuntime:
         return self.service.get_run(run_id)
 
     def _workflow_for(self, run: AgentRun) -> tuple[Any, str]:
-        plugin = self.plugin_registry.resolve_pin(run.plugin)
-        specification = plugin.workflow_spec(run.plugin.workflow_key)
+        plugin, specification = resolve_compatible_workflow(run, self.plugin_registry)
         if self._workflow_override is not None:
             return self._workflow_override, specification.checkpoint_namespace
         runtime_port = self.service.runtime_port_for(plugin.manifest.runtime_port)

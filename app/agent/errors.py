@@ -9,12 +9,26 @@ class AgentRunConflictError(AgentRunError):
     """The task already owns an active run or input ownership conflicts."""
 
 
+class AgentRunExecutionRevokedError(AgentRunConflictError):
+    """A late executor must stop without attempting a business failure transition."""
+
+
 class AgentRunTerminalError(AgentRunError):
     """A terminal AgentRun cannot execute, cancel, or resume again."""
 
 
 class AgentRunNotRecoverableError(AgentRunError):
     """The current status has no safe recovery path."""
+
+
+class WorkflowVersionMismatchError(AgentRunError):
+    """The installed workflow cannot safely continue the persisted run."""
+
+    code = "workflow_version_mismatch"
+    message = "工作流版本已更新，旧运行无法继续，请基于同一快照重新发起运行"
+
+    def __init__(self) -> None:
+        super().__init__(self.message)
 
 
 class AgentRunCancelledError(AgentRunError):
