@@ -291,6 +291,37 @@ def test_agent_failure_redacts_run_event_and_job_without_changing_code(tmp_path,
         assert "RuntimeError: provider timeout" in diagnostic
 
 
+@pytest.mark.parametrize("terminal", [False, True])
+def test_crash_recovery_redacts_legacy_errors_before_writing_job(
+    tmp_path, secret_settings, terminal,
+):
+    repository, service, _, _, project, task, _ = _runtime_stack(tmp_path)
+    run = service.create_run(project.id, task.id, _foundation_request())
+    job = repository.jobs.claim_resource_job("agent_run", run.id, lease_seconds=-1)
+    message = "provider timeout " + secret_settings.deepseek_api_key
+    # Simulate raw errors persisted before error redaction was introduced.
+    with repository._connect() as connection:
+        connection.execute(
+            "UPDATE knowledge_jobs SET last_error = ? WHERE id = ?", (message, job.id)
+        )
+        if terminal:
+            connection.execute(
+                "UPDATE agent_runs SET status = 'failed', error_message = ? WHERE id = ?",
+                (message, run.id),
+            )
+
+    repository.recover_running_work()
+
+    with repository._connect() as connection:
+        stored = connection.execute(
+            "SELECT status, last_error, crash_recoveries FROM knowledge_jobs WHERE id = ?",
+            (job.id,),
+        ).fetchone()
+    assert stored["last_error"] == "provider timeout [REDACTED]"
+    assert stored["status"] == ("failed" if terminal else "queued")
+    assert stored["crash_recoveries"] == (0 if terminal else 1)
+
+
 @pytest.mark.parametrize("message", [
     "invalid request", "所选范围内没有已审核、已发布的论文证据。",
 ])
