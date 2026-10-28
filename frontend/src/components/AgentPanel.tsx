@@ -119,7 +119,12 @@ export function AgentPanel({
     onSuccess: (next) => setSnapshot(next),
   });
   const startMutation = useMutation({
-    mutationFn: () => api.startRun(projectId, task!.id, snapshot!.id!, createProposal),
+    mutationFn: () => {
+      if (!task || !snapshot?.id || snapshot.project_id !== projectId || snapshot.task_id !== task.id) {
+        throw new Error("快照与当前任务不匹配，请重新冻结快照后再开始研究。");
+      }
+      return api.startRun(projectId, task.id, snapshot.id, createProposal);
+    },
     onSuccess: (run) => {
       void client.invalidateQueries({ queryKey: ["task-runs", projectId, task?.id] });
       navigate(`/agent-runs/${run.id}`);

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { api, type AgentOutput, type GapEvidence, type ResearchCommandInput } from "../../lib/api";
+import { invalidateKnowledgeReview } from "../../lib/knowledgeQueries";
 import { ErrorBlock, Notice } from "../AsyncState";
 import { StatusBadge } from "../StatusBadge";
 import { Badge } from "../ui/badge";
@@ -127,7 +128,7 @@ function PendingCandidate({ item, onDecided }: { item: GapEvidence["pending"][nu
   const decide = useMutation({
     mutationFn: (decision: "approve" | "reject") => api.decideCandidate(item.candidate_id, decision),
     onSuccess: () => {
-      void client.invalidateQueries({ queryKey: ["candidates"] });
+      invalidateKnowledgeReview(client, item.ingestion_id);
       onDecided();
     },
   });

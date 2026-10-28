@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, FileText, Library, ListChecks, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { EmptyBlock } from "../components/AsyncState";
+import { EmptyBlock, ErrorBlock } from "../components/AsyncState";
 import { ResearchCommandLauncher } from "../components/ResearchCommandLauncher";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Page } from "../components/ui/page";
@@ -22,8 +22,9 @@ function RecentReports() {
       <CardHeader><CardTitle icon={<FileText size={16} />} title="最近的报告" />{library.items.length ? <MoreLink to="/reports">全部报告</MoreLink> : null}</CardHeader>
       <CardContent className="p-2 pt-2 sm:p-3">
         {library.isPending ? <p className="px-3 py-6 text-[13px] text-muted-ink">读取报告…</p> : null}
-        {!library.isPending && items.length ? <div className="divide-y divide-line/70">{items.map((item) => <ReportRow compact item={item} key={`${item.kind}:${item.id}`} />)}</div> : null}
-        {!library.isPending && !items.length ? <EmptyBlock className="m-2 border-0 py-8" title="还没有报告">在上方输入一个研究问题，报告完成后会出现在这里。</EmptyBlock> : null}
+        {library.error ? <ErrorBlock error={library.error} onRetry={library.refetch} title="无法读取报告" /> : null}
+        {!library.isPending && !library.error && items.length ? <div className="divide-y divide-line/70">{items.map((item) => <ReportRow compact item={item} key={`${item.kind}:${item.id}`} />)}</div> : null}
+        {!library.isPending && !library.error && !items.length ? <EmptyBlock className="m-2 border-0 py-8" title="还没有报告">在上方输入一个研究问题，报告完成后会出现在这里。</EmptyBlock> : null}
       </CardContent>
     </Card>
   );

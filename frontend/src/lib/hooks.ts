@@ -1,5 +1,5 @@
-import { useQueries, useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { queryOptions, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef } from "react";
 
 import { api, type Artifact, type ResearchReport } from "./api";
 
@@ -65,8 +65,15 @@ export function usePaperTitles() {
 
 export function fileName(uri: string | null | undefined) {
   if (!uri) return "";
-  const clean = uri.split(/[?#]/)[0];
-  return decodeURIComponent(clean.split(/[\\/]/).filter(Boolean).at(-1) ?? clean);
+  const isUrl = /^[a-z][a-z\d+.-]*:\/\//i.test(uri);
+  const clean = isUrl ? uri.split(/[?#]/)[0] : uri;
+  const name = clean.split(/[\\/]/).filter(Boolean).at(-1) ?? clean;
+  if (!isUrl) return name;
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
 }
 
 export function documentTitle(
@@ -98,15 +105,37 @@ export interface LibraryItem {
 
 /** Quick reports and project-run reports, newest first, as one reading list. */
 export function useReportLibrary() {
+  const client = useQueryClient();
   const reports = useQuery({
     queryKey: ["reports"],
     queryFn: api.reports,
-    refetchInterval: (query) => query.state.data?.some((report) => report.status === "running") ? 2_500 : false,
+    refetchInterval: (query) => query.state.data?.some((report) => ["queued", "running"].includes(report.status)) ? 2_500 : false,
   });
   const projects = useQuery({ queryKey: ["projects"], queryFn: api.projects });
   const projectList = projects.data ?? [];
+  const runs = useQueries({
+    queries: projectList.map((project) => queryOptions({
+      queryKey: ["project-runs", project.id],
+      queryFn: () => api.projectRuns(project.id),
+      refetchInterval: (query) => query.state.data?.items.some((run) => ["queued", "preparing", "running", "validating"].includes(run.status)) ? 2_500 : false,
+    })),
+  });
+  const activeProjectIds = projectList.filter((_project, index) => runs[index]?.data?.items.some((run) => ["queued", "preparing", "running", "validating"].includes(run.status))).map((project) => project.id);
+  const activeSignature = JSON.stringify(activeProjectIds);
+  const previousActive = useRef<string[]>([]);
+  useEffect(() => {
+    const activeIds = JSON.parse(activeSignature) as string[];
+    for (const id of previousActive.current) {
+      if (!activeIds.includes(id)) void client.invalidateQueries({ queryKey: ["artifacts", id] });
+    }
+    previousActive.current = activeIds;
+  }, [activeSignature, client]);
   const artifacts = useQueries({
-    queries: projectList.map((project) => ({ queryKey: ["artifacts", project.id], queryFn: () => api.artifacts(project.id) })),
+    queries: projectList.map((project) => queryOptions({
+      queryKey: ["artifacts", project.id],
+      queryFn: () => api.artifacts(project.id),
+      refetchInterval: activeProjectIds.includes(project.id) ? 2_500 : false,
+    })),
   });
   const tasks = useQueries({
     queries: projectList.map((project) => ({ queryKey: ["tasks", project.id], queryFn: () => api.tasks(project.id, true) })),
@@ -152,9 +181,13 @@ export function useReportLibrary() {
   }, [signature, projects.dataUpdatedAt]);
   return {
     items,
-    isPending: reports.isPending || projects.isPending,
-    error: (reports.error ?? projects.error) as Error | null,
-    refetch: () => { void reports.refetch(); void projects.refetch(); },
+    isPending: reports.isPending || projects.isPending || [...artifacts, ...tasks, ...runs].some((query) => query.isPending),
+    error: (reports.error ?? projects.error ?? [...artifacts, ...tasks, ...runs].find((query) => query.error)?.error ?? null) as Error | null,
+    refetch: () => {
+      void reports.refetch();
+      void projects.refetch();
+      for (const query of [...artifacts, ...tasks, ...runs]) void query.refetch();
+    },
   };
 }
 

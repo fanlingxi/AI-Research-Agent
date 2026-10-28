@@ -3,7 +3,7 @@ import { ArrowRight, Check, FolderKanban, LoaderCircle, Zap } from "lucide-react
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { api, type ResearchCommandInput } from "../lib/api";
+import { ApiError, api, type ResearchCommandInput } from "../lib/api";
 import { COMMAND_STAGE_LABELS } from "../lib/labels";
 import { cn } from "../lib/utils";
 import { ErrorBlock, Notice } from "./AsyncState";
@@ -62,7 +62,10 @@ export function ResearchCommandLauncher({ className }: { className?: string }) {
     queryKey: ["research-command", activeCommandId],
     queryFn: () => api.researchCommand(activeCommandId!),
     enabled: Boolean(activeCommandId),
+    retry: (failureCount, error) => !(error instanceof ApiError && error.status >= 400 && error.status < 500) && failureCount < 3,
     refetchInterval: (query) => {
+      const error = query.state.error;
+      if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false;
       const status = query.state.data?.status;
       return status && ["completed", "failed"].includes(status) ? false : 1_000;
     },
@@ -246,7 +249,18 @@ export function ResearchCommandLauncher({ className }: { className?: string }) {
         {loadError ? <div className="mt-4"><ErrorBlock error={loadError} /></div> : null}
         {start.error instanceof Error ? <div className="mt-4"><ErrorBlock error={start.error} /></div> : null}
         {retry.error instanceof Error ? <div className="mt-4"><ErrorBlock error={retry.error} /></div> : null}
-        {currentCommand && !currentCommand.target_route ? (
+        {command.error instanceof Error ? (
+          <div className="mt-4 space-y-2">
+            <ErrorBlock error={command.error} title="无法读取研究指令" onRetry={() => { void command.refetch(); }} />
+            <Button size="sm" variant="outline" onClick={() => {
+              window.localStorage.removeItem(PENDING_COMMAND_KEY);
+              setActiveCommandId(null);
+              start.reset();
+              retry.reset();
+            }}>清除失效记录</Button>
+          </div>
+        ) : null}
+        {!command.error && currentCommand && !currentCommand.target_route ? (
           <Notice
             className="mt-4"
             tone={currentCommand.status === "failed" ? "danger" : "info"}

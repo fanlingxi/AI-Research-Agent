@@ -30,10 +30,10 @@ const found: GapEvidence = {
 
 function renderPanel() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={client}><MemoryRouter initialEntries={["/report"]}><Routes>
+  return { ...render(<QueryClientProvider client={client}><MemoryRouter initialEntries={["/report"]}><Routes>
     <Route path="/report" element={<GapEvidencePanel output={output} projectId="project" runId="run" taskId="task" />} />
     <Route path="/agent-runs/new-run" element={<p>新的研究运行</p>} />
-  </Routes></MemoryRouter></QueryClientProvider>);
+  </Routes></MemoryRouter></QueryClientProvider>), client };
 }
 
 it("finds unused reviewed knowledge and pending candidates, reviews one and reruns with lineage", async () => {
@@ -42,7 +42,13 @@ it("finds unused reviewed knowledge and pending candidates, reviews one and reru
   const decide = vi.spyOn(api, "decideCandidate").mockResolvedValue({} as CandidateDecisionResult);
   const submit = vi.spyOn(api, "submitResearchCommand").mockResolvedValue({ id: "command", status: "accepted", target_route: null } as ResearchCommand);
   vi.spyOn(api, "researchCommand").mockResolvedValue({ id: "command", status: "queued", target_route: "/agent-runs/new-run" } as ResearchCommand);
-  renderPanel();
+  const { client } = renderPanel();
+  const reviewKeys = [
+    ["knowledge-candidates", "ing-1", "pending-total"], ["knowledge-duplicates", "ing-1"],
+    ["knowledge-ingestions"], ["knowledge-collection", "papers"], ["knowledge-collections"],
+    ["knowledge-map"], ["knowledge-map-node", "entity-1"], ["knowledge-health"],
+  ];
+  for (const key of reviewKeys) client.setQueryData(key, { cached: true });
 
   expect(screen.getByText("超出允许资料范围。")).toBeInTheDocument();
   await user.click(screen.getAllByRole("button", { name: "查找补充证据" })[0]);
@@ -55,6 +61,7 @@ it("finds unused reviewed knowledge and pending candidates, reviews one and reru
   await user.click(screen.getByRole("button", { name: "批准" }));
   expect(decide).toHaveBeenCalledWith("cand-1", "approve");
   await screen.findByText("已批准");
+  for (const key of reviewKeys) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
   await waitFor(() => expect(lookup).toHaveBeenCalledTimes(2));
 
   expect(screen.getByRole("button", { name: "用最新知识重新研究" })).toBeDisabled();
