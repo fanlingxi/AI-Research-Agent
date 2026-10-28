@@ -320,6 +320,7 @@ def test_generation_attempt_settlement_is_fenced_and_atomic(tmp_path, workflow):
     with service.execution_scope(ExecutionFence.from_job(current)):
         service.begin_generation_attempt(run.id, 0, "bound")
     response = dict(
+        digest="bound",
         response="retained",
         usage={"input_tokens": 10, "output_tokens": 2},
         error_type=None,
@@ -330,8 +331,7 @@ def test_generation_attempt_settlement_is_fenced_and_atomic(tmp_path, workflow):
             service.finish_generation_attempt(run.id, 0, **response)
     with service.execution_scope(ExecutionFence.from_job(current)):
         service.finish_generation_attempt(run.id, 0, **response)
-        with pytest.raises(AgentRunConflictError):
-            service.finish_generation_attempt(run.id, 0, **response)
+        assert service.finish_generation_attempt(run.id, 0, **response)
     events = [
         e
         for e in service.repository.list_events(run.id)

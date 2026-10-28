@@ -295,7 +295,7 @@ def test_source_version_migration_is_additive_and_repeatable(tmp_path, monkeypat
              metadata_json, created_at, updated_at)
             VALUES ('legacy', 'pdf', 'Old', 'old.pdf', 'old.pdf', 'v1', 'hash', '{}', 't', 't')""")
     for _ in range(2):
-        assert KnowledgeRepository(path).schema_version() == 22
+        assert KnowledgeRepository(path).schema_version() == 23
     with sqlite3.connect(path) as connection:
         assert connection.execute(
             "SELECT version, content_sha256, superseded_by_source_id, superseded_at FROM sources"

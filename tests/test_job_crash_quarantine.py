@@ -282,7 +282,7 @@ def test_migration_preserves_old_jobs_and_is_repeatable(tmp_path, monkeypatch):
             KnowledgeRepository, "_apply_structural_migration",
             lambda self, version: original(self, version) if version < 22 else None,
         )
-        KnowledgeRepository(path)
+        assert KnowledgeRepository(path).schema_version() == 21
     with sqlite3.connect(path) as connection:
         connection.execute(
             """INSERT INTO knowledge_jobs
@@ -291,7 +291,11 @@ def test_migration_preserves_old_jobs_and_is_repeatable(tmp_path, monkeypatch):
         )
     for _ in range(2):
         repo = KnowledgeRepository(path)
-        assert repo.schema_version() == 22
+        assert repo.schema_version() == 23
+        with repo.database.connect() as connection:
+            assert [row[0] for row in connection.execute(
+                "SELECT version FROM schema_migrations WHERE version >= 22 ORDER BY rowid"
+            )] == [22, 23]
         job = repo.jobs.get_job("old")
         assert job.attempts == 100 and job.crash_recoveries == 0
         assert job.status == "running"

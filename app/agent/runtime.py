@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from app.agent.checkpoint import AgentCheckpointFactory
-from app.agent.errors import AgentRunCancelledError, AgentRunTerminalError
+from app.agent.errors import (
+    AgentRunCancelledError,
+    AgentRunExecutionRevokedError,
+    AgentRunTerminalError,
+)
 from app.agent.models import AgentRun
 from app.agent.service import AgentRunService
 from app.domain_plugins.registry import DomainPluginRegistry
@@ -128,7 +132,8 @@ class AgentRuntime:
                     # the next graph node rather than replaying prior LLM work.
                     durability="sync",
                 )
-        except AgentRunCancelledError:
+        except (AgentRunCancelledError, AgentRunExecutionRevokedError):
+            # A revoked executor has no authority to publish a failure event either.
             return self.service.get_run(run_id)
         except AgentRunTerminalError:
             # A concurrent cancellation is authoritative.  It must not turn

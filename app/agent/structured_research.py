@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from app.agent.errors import AgentRunCancelledError, AgentRunExecutionRevokedError
 from app.agent.research_workflow import (
     CitationValidation,
     ResearchDraft,
@@ -159,7 +160,7 @@ class StructuredResearchWorkflow(ResearchWorkflow):
             digest = hashlib.sha256((system + "\n" + request_prompt).encode()).hexdigest()
             attempt = self.service.begin_generation_attempt(state["run_id"], slot, digest)
             if not attempt["created"]:
-                if attempt["status"] != "returned":
+                if attempt["status"] != "returned" or attempt["audit_only"]:
                     return self._needs_review(state, "Previous generation is failed or unsettled")
                 response = attempt["response"]
             else:
@@ -172,14 +173,21 @@ class StructuredResearchWorkflow(ResearchWorkflow):
                 usage = getattr(self.llm, "last_usage", None)
                 if not getattr(self.llm, "last_usage_complete", bool(usage)):
                     usage = None
-                self.service.finish_generation_attempt(
+                publishable = self.service.finish_generation_attempt(
                     state["run_id"],
                     slot,
+                    digest=digest,
                     response=response,
                     usage=usage or None,
                     error_type=error,
                     prompt_tokens=(len(system) + len(request_prompt) + 3) // 4,
                 )
+                if not publishable:
+                    if self.service.get_run(state["run_id"]).status == "cancelled":
+                        raise AgentRunCancelledError("Generation returned after cancellation")
+                    raise AgentRunExecutionRevokedError(
+                        "Generation returned after execution was revoked"
+                    )
                 if error:
                     return self._needs_review(state, f"Generation call failed: {error}")
             try:
