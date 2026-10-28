@@ -822,6 +822,7 @@ class KnowledgeIngestionService:
     def _parse(self, *, source: str, max_pages: int) -> ParsedDocument:
         if self.parser is parse_pdf_source:
             return self.parser(source=source, max_pages=max_pages,
+                               download_settings=self.settings,
                                derive_blocks=self.parser_version in LAYOUT_PARSER_VERSIONS,
                                parser_version=self.parser_version)
         parsed = self.parser(source=source, max_pages=max_pages)
