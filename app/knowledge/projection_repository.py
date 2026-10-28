@@ -4,6 +4,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from app.error_redaction import redact_error
 from app.knowledge.schemas import ProjectionEvent
 from app.persistence.sqlite import SQLiteDatabase
 
@@ -195,7 +196,7 @@ class ProjectionRepository:
                   AND (? IS NULL OR (status = 'running' AND attempts = ? AND lease_owner = ?))
                 """,
                 (
-                    error[:4000],
+                    redact_error(error),
                     _now(),
                     event_id,
                     expected_attempt,
@@ -299,7 +300,7 @@ def refresh_ingestion_status_tx(
         status = "publishing"
     else:
         status = "completed"
-    error = projection_error if projection_error is not None else ingestion["error"]
+    error = redact_error(projection_error if projection_error is not None else ingestion["error"])
     connection.execute(
         "UPDATE ingestions SET status = ?, error = ?, updated_at = ? WHERE id = ?",
         (status, error, now, ingestion_id),
@@ -318,7 +319,7 @@ def _projection_from_row(row: sqlite3.Row) -> ProjectionEvent:
         attempts=row["attempts"],
         lease_until=row["lease_until"],
         lease_owner=row["lease_owner"],
-        last_error=row["last_error"],
+        last_error=redact_error(row["last_error"]),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

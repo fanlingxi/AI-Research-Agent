@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
 from app.api.schemas import ReportCreateRequest
+from app.error_redaction import redact_error
 from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
@@ -30,9 +31,13 @@ def build_reports_router(
             values["topic_slugs"] = values.pop("collection_slugs") or values["topic_slugs"]
             return reports.submit(**values, auto_execute=auto_execute).model_dump()
         except LiveLLMRequiredError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=reports.settings)
+            ) from exc
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=422, detail=redact_error(exc, settings=reports.settings)
+            ) from exc
 
     def dispatch(report_id: str, *, retry_failed: bool) -> dict[str, Any]:
         report = _require_report(repository, report_id)
@@ -44,7 +49,9 @@ def build_reports_router(
             except KeyError as exc:
                 raise HTTPException(status_code=409, detail="Report job is missing.") from exc
             except ValueError as exc:
-                raise HTTPException(status_code=409, detail=str(exc)) from exc
+                raise HTTPException(
+                    status_code=409, detail=redact_error(exc, settings=reports.settings)
+                ) from exc
         if report.status not in {"queued", "running"}:
             action = "retry" if report.status == "failed" else "create a new report"
             raise HTTPException(
@@ -56,7 +63,9 @@ def build_reports_router(
         except KeyError as exc:
             raise HTTPException(status_code=409, detail="Report job is missing.") from exc
         except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=reports.settings)
+            ) from exc
 
     @router.post("/api/reports", status_code=202)
     def submit_report(payload: ReportCreateRequest) -> dict[str, Any]:

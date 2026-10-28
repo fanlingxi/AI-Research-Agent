@@ -8,6 +8,7 @@ from app.agent.models import AgentRunCreateRequest
 from app.benchmarking.contracts import EvaluationCase
 from app.benchmarking.fixtures import EvaluationFixture
 from app.context.models import ContextBuildRequest, runtime_context_payload
+from app.error_redaction import redact_error
 
 
 def execute_case(fixture: EvaluationFixture, case: EvaluationCase) -> dict[str, Any]:
@@ -48,7 +49,7 @@ def execute_case(fixture: EvaluationFixture, case: EvaluationCase) -> dict[str, 
     except Exception as exc:
         return {
             "status": "exception",
-            "exception": f"{type(exc).__name__}: {exc}",
+            "exception": redact_error(f"{type(exc).__name__}: {exc}", max_length=None),
             "business_counts": _business_counts(fixture),
         }
 

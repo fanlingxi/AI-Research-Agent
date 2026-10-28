@@ -29,6 +29,7 @@ from app.benchmarking.contracts import (
 from app.benchmarking.evaluator import evaluate_case
 from app.benchmarking.fixtures import EvaluationFixture, build_fixture
 from app.benchmarking.sut import execute_case
+from app.error_redaction import redact_error
 
 
 def load_manifest(path: str | Path) -> EvaluationManifest:
@@ -128,7 +129,10 @@ def _run_case(
             assertions=[],
             metrics={},
             duration_ms=round((time.perf_counter() - started) * 1000, 2),
-            failure=FailureRecord(kind="fixture", message=f"{type(exc).__name__}: {exc}"),
+            failure=FailureRecord(
+                kind="fixture",
+                message=redact_error(f"{type(exc).__name__}: {exc}", max_length=None),
+            ),
         )
         schema_version = fixture.repository.schema_version() if fixture is not None else 0
         llm_mode = "scripted_fixture" if fixture and fixture.scripted_llm else "not_used"

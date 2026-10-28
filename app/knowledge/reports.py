@@ -5,6 +5,7 @@ import time
 from typing import Any, Literal, Protocol
 
 from app.config.settings import Settings, get_settings
+from app.error_redaction import redact_error
 from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.query import KnowledgeQueryService, KnowledgeRetrievalError
 from app.knowledge.report_inputs import report_request
@@ -262,7 +263,10 @@ class KnowledgeReportService:
                     "current_stage": "failed",
                     "retrieval_diagnostics": retrieval_diagnostics,
                 },
-                error=str(exc),
+                error=redact_error(
+                    exc, settings=self.settings,
+                    include_type=not isinstance(exc, (ValueError, KeyError, LiveLLMRequiredError)),
+                ),
             )
 
     def execute_claimed(
@@ -289,7 +293,12 @@ class KnowledgeReportService:
                     report_id,
                     job_id,
                     expected_attempt,
-                    str(exc),
+                    redact_error(
+                        exc, settings=self.settings,
+                        include_type=not isinstance(
+                            exc, (ValueError, KeyError, LiveLLMRequiredError)
+                        ),
+                    ),
                     expected_owner=expected_owner,
                 )
             except StaleReportExecution:

@@ -10,6 +10,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from app.error_redaction import redact_error
 from app.tools.file_hash import file_digest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -30,9 +31,7 @@ def _number(value):
 
 
 def _safe_text(value):
-    text = str(value or "")[:20000]
-    text = re.sub(r"sk-[A-Za-z0-9_-]{12,}", "[已隐藏密钥]", text)
-    return re.sub(r"(?i)(api[_ -]?key|authorization|password)\s*[:=]\s*\S+", r"\1=[已隐藏]", text)
+    return redact_error(str(value or ""), max_length=20000)
 
 
 class ExperimentReadService:
@@ -183,7 +182,7 @@ class ExperimentReadService:
                     unavailable.append(
                         {
                             "id": experiment_id,
-                            "reason": str(exc)
+                            "reason": redact_error(exc)
                             if isinstance(exc, ExperimentDataError)
                             else "评测结构无效。",
                         }
@@ -365,7 +364,7 @@ class ExperimentReadService:
                 variant["evidence"] = self._evidence(corpus, task, locations)
             except (ExperimentDataError, ValueError, KeyError, TypeError, AttributeError) as exc:
                 variant["issues"].append(
-                    str(exc)
+                    redact_error(exc)
                     if isinstance(exc, ExperimentDataError)
                     else "产物结构无效，未展示未经核验的原文。"
                 )

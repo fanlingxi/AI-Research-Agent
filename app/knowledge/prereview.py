@@ -13,6 +13,7 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
+from app.error_redaction import redact_error
 from app.knowledge.schemas import CandidateDecision
 
 BATCH_SIZE = 15
@@ -161,7 +162,9 @@ class CandidatePrereviewer:
             except ValueError as exc:
                 outcome = "unsure"
                 self.repository.set_prereview(candidate_id, {
-                    "verdict": "unsure", "reason": f"自动批准未完成：{exc}"[:120],
+                    "verdict": "unsure", "reason": redact_error(
+                        f"自动批准未完成：{exc}", max_length=120
+                    ),
                     "model": model, "at": datetime.now(UTC).isoformat(),
                 })
         elif verdict == "reject":

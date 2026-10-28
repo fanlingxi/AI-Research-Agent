@@ -30,6 +30,7 @@ from app.config.settings import Settings
 from app.context.models import ContextBuildRequest
 from app.context.retrieval import QdrantContextCandidateRetriever
 from app.context.service import ContextBuilderService
+from app.error_redaction import redact_error
 from app.knowledge.query import KnowledgeQueryService, _latin_query_terms
 from app.knowledge.schemas import ChunkSearchHit
 from app.retrieval.contracts import SourceIdentity
@@ -354,7 +355,8 @@ def run(split: str, dev_run: Path | None = None):
                         record["status"] = "ok"
                     except Exception as exc:
                         record.update(
-                            status="failed", error_type=type(exc).__name__, error=str(exc)
+                            status="failed", error_type=type(exc).__name__,
+                            error=redact_error(exc, max_length=None),
                         )
                         units = []
                     record.setdefault("latency_ms", (time.perf_counter() - started) * 1000)

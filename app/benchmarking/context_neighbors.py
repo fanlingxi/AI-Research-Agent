@@ -15,6 +15,7 @@ from app.benchmarking.live_dataset import approved_dataset
 from app.benchmarking.retrieval_compare import retrieval_metrics, span_recall
 from app.context.models import ContextBuildRequest, ContextPackage, canonical_package_sha256
 from app.context.service import ContextBuilderService
+from app.error_redaction import redact_error
 from app.knowledge.repository import KnowledgeRepository
 from app.retrieval.query_planning import QueryPlan
 
@@ -152,7 +153,10 @@ def run(*, execute=False):
                                    for g in groups))
                     write_json(directory / "snapshot.json", package.model_dump(mode="json"))
                 except Exception as exc:
-                    row.update(status="failed", error_type=type(exc).__name__, error=str(exc))
+                    row.update(
+                        status="failed", error_type=type(exc).__name__,
+                        error=redact_error(exc, max_length=None),
+                    )
                     units, ranking = [], []
                 # Expected spans are used only after the production selection has ended.
                 gold = [spans[s] for s in task.expectation.required_evidence_span_ids]

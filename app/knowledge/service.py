@@ -8,6 +8,7 @@ from typing import Protocol
 from uuid import uuid4
 
 from app.config.settings import Settings, get_settings
+from app.error_redaction import redact_error
 from app.knowledge.extractor import LiveLLMRequiredError, SchemaKnowledgeExtractor
 from app.knowledge.obsidian import KnowledgeVaultExporter
 from app.knowledge.paragraph_chunks import LAYOUT_PARSER_VERSIONS, paragraph_chunks
@@ -199,7 +200,7 @@ class KnowledgeIngestionService:
                     expected_job_id,
                     expected_attempt=expected_job_attempt,
                     status="failed",
-                    error=str(exc),
+                    error=redact_error(exc, settings=self.settings),
                     expected_owner=expected_job_owner,
                 )
             raise
@@ -280,7 +281,9 @@ class KnowledgeIngestionService:
                 except StaleIngestionExecution:
                     raise
                 except Exception as exc:
-                    errors.append(f"{source}：{exc}")
+                    errors.append(redact_error(
+                        f"{source}：{exc}", settings=self.settings
+                    ))
 
             if not documents:
                 raise RuntimeError(
@@ -328,10 +331,12 @@ class KnowledgeIngestionService:
                     expected_job_id,
                     expected_attempt=expected_job_attempt,
                     status="failed",
-                    error=str(exc),
+                    error=redact_error(exc, settings=self.settings),
                     expected_owner=expected_job_owner,
                 )
-            return self.repository.update_ingestion(ingestion_id, status="failed", error=str(exc))
+            return self.repository.update_ingestion(
+                ingestion_id, status="failed", error=redact_error(exc, settings=self.settings)
+            )
 
     def retry(self, ingestion_id: str, *, auto_execute: bool = False) -> KnowledgeIngestion:
         ingestion = self.repository.get_ingestion(ingestion_id)
@@ -527,7 +532,10 @@ class KnowledgeIngestionService:
                     replayed += int(result.replayed)
                 except ValueError as exc:
                     skipped.append(
-                        BulkCandidateDecisionIssue(candidate_id=candidate_id, reason=str(exc))
+                        BulkCandidateDecisionIssue(
+                            candidate_id=candidate_id,
+                            reason=redact_error(exc, settings=self.settings),
+                        )
                     )
                 continue
             if decision.decision == "approve" and stored["kind"] == "entity":
@@ -562,7 +570,10 @@ class KnowledgeIngestionService:
                 replayed += int(result.replayed)
             except ValueError as exc:
                 skipped.append(
-                    BulkCandidateDecisionIssue(candidate_id=candidate_id, reason=str(exc))
+                    BulkCandidateDecisionIssue(
+                        candidate_id=candidate_id,
+                        reason=redact_error(exc, settings=self.settings),
+                    )
                 )
 
         return BulkCandidateDecisionResult(
@@ -638,7 +649,7 @@ class KnowledgeIngestionService:
         except Exception as exc:
             self.repository.fail_projection(
                 event.id,
-                str(exc),
+                redact_error(exc, settings=self.settings),
                 expected_attempt=event.attempts,
                 expected_owner=event.lease_owner,
             )

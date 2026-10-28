@@ -9,6 +9,7 @@ from app.agent.errors import AgentRunCancelledError, AgentRunTerminalError
 from app.agent.models import AgentRun
 from app.agent.service import AgentRunService
 from app.domain_plugins.registry import DomainPluginRegistry
+from app.error_redaction import redact_error
 from app.execution import ExecutionFence
 
 FOUNDATION_CHECKPOINT_NAMESPACE = "agent_runtime_phase3a"
@@ -141,7 +142,10 @@ class AgentRuntime:
             self.service.fail_run(
                 run_id,
                 error_code="runtime_execution_failed",
-                error_message=str(exc),
+                error_message=redact_error(
+                    exc, settings=self.service.settings,
+                    include_type=not isinstance(exc, (ValueError, KeyError)),
+                ),
             )
             raise
         return self.service.get_run(run_id)
