@@ -6,6 +6,7 @@ from app.agent.structured_research import (
     DirectAnswerPart,
     DirectReport,
     NumericSupportResearchWorkflow,
+    ReportContractError,
     report_error_diagnostic,
 )
 
@@ -28,6 +29,11 @@ class ExplicitGapReport(DirectReport):
 MISSING_GAP_DIAGNOSTIC = (
     'Invalid schema: every answer_parts item must include gap; use "" only when '
     "that part is fully answered"
+)
+ANCHOR_DIAGNOSTIC = (
+    "Copy question_part from the original task and support.quote from its cited evidence; "
+    "preserve exact case and symbols, including superscripts, subscripts, units and minus signs. "
+    "Only typographic layout differences are tolerated"
 )
 
 # Complete report objects, not fragments. IDs and question spans are illustrative;
@@ -113,6 +119,7 @@ class ExplicitGapResearchWorkflow(NumericSupportResearchWorkflow):
     """structured-v11; retain numeric filtering, validation and two durable slots."""
 
     report_model = ExplicitGapReport
+    anchor_policy = "typographic-v2"
 
     def _report_prompt(self, state, package):
         return super()._report_prompt(state, package) + GAP_PROMPT_SUFFIX
@@ -128,4 +135,6 @@ class ExplicitGapResearchWorkflow(NumericSupportResearchWorkflow):
             for error in exc.errors(include_input=False, include_context=False, include_url=False)
         ):
             return MISSING_GAP_DIAGNOSTIC
+        if isinstance(exc, ReportContractError):
+            return report_error_diagnostic(exc) + ". " + ANCHOR_DIAGNOSTIC
         return report_error_diagnostic(exc)
