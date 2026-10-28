@@ -13,10 +13,15 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
+from app.knowledge.review_content import (
+    CONTENT_CHANGED_REASON,
+    CandidateContentChanged,
+    review_fingerprint,
+    review_row,
+)
 from app.knowledge.schemas import CandidateDecision
 
 BATCH_SIZE = 15
-QUOTE_LIMIT = 600
 
 SYSTEM_PROMPT = """你是严格的科研知识审核员。逐条判断候选知识能否进入正式知识库，
 只依据给出的原文引文。
@@ -80,13 +85,19 @@ class CandidatePrereviewer:
                     to_judge.append(item)
             for offset in range(0, len(to_judge), BATCH_SIZE):
                 batch = to_judge[offset : offset + BATCH_SIZE]
+                fingerprints = {
+                    item["candidate"]["id"]: review_fingerprint(item, names) for item in batch
+                }
                 verdicts = self._judge(batch, names)
                 result["llm_calls"] += 1
                 for item in batch:
                     verdict, reason = verdicts.get(
                         item["candidate"]["id"], ("unsure", "预审未返回该条结果。")
                     )
-                    self._settle(result, item, model, verdict, reason)
+                    self._settle(
+                        result, item, model, verdict, reason,
+                        expected_fingerprint=fingerprints[item["candidate"]["id"]],
+                    )
         result["remaining"] = sum(
             1
             for item in self.repository.list_candidates(ingestion_id, status="draft")
@@ -98,22 +109,7 @@ class CandidatePrereviewer:
     def _judge(
         self, batch: list[dict[str, Any]], names: dict[str, str]
     ) -> dict[str, tuple[str, str]]:
-        rows = []
-        for item in batch:
-            candidate = item["candidate"]
-            row = {
-                "candidate_id": candidate["id"],
-                "kind": "实体" if item["kind"] == "entity" else "关系",
-                "type": candidate["type"],
-                "summary": candidate["summary"],
-                "evidence_quote": str(candidate["evidence"]["quote"])[:QUOTE_LIMIT],
-            }
-            if item["kind"] == "entity":
-                row["name"] = candidate["name"]
-            else:
-                row["source"] = names.get(candidate["source_candidate_id"], "")
-                row["target"] = names.get(candidate["target_candidate_id"], "")
-            rows.append(row)
+        rows = [review_row(item, names) for item in batch]
         prompt = "请逐条审核以下候选（JSON）：\n" + json.dumps(rows, ensure_ascii=False)
         try:
             raw = self.llm.invoke(prompt, system_prompt=SYSTEM_PROMPT)
@@ -133,12 +129,27 @@ class CandidatePrereviewer:
 
     # ---------------------------------------------------------------- applying
     def _settle(
-        self, result: dict[str, Any], item: dict[str, Any], model: str, verdict: str, reason: str
+        self, result: dict[str, Any], item: dict[str, Any], model: str, verdict: str, reason: str,
+        *, expected_fingerprint: str | None = None,
     ) -> None:
         candidate_id = item["candidate"]["id"]
-        current = self.repository.get_candidate(candidate_id)["candidate"]
+        stored = self.repository.get_candidate(candidate_id)
+        current = stored["candidate"]
         if current["status"] != "draft":
             return
+        names = {}
+        if stored["kind"] == "relation" and expected_fingerprint is not None:
+            for key in ("source_candidate_id", "target_candidate_id"):
+                endpoint_id = current[key]
+                names[endpoint_id] = self.repository.get_candidate(endpoint_id)["candidate"].get(
+                    "name", ""
+                )
+        changed = (
+            expected_fingerprint is not None
+            and review_fingerprint(stored, names) != expected_fingerprint
+        )
+        if changed:
+            verdict, reason = "unsure", CONTENT_CHANGED_REASON
         if verdict == "approve" and item["kind"] == "relation" and not self._endpoints_formal(
             current
         ):
@@ -146,6 +157,7 @@ class CandidatePrereviewer:
         self.repository.set_prereview(candidate_id, {
             "verdict": verdict, "reason": reason, "model": model,
             "at": datetime.now(UTC).isoformat(),
+            **({"retry_required": True} if changed else {}),
         })
         note = f"AI 预审（{model}）：{reason}"
         outcome = verdict
@@ -156,8 +168,13 @@ class CandidatePrereviewer:
                 if target else CandidateDecision(decision="approve", review_note=note)
             )
             try:
-                self.service.decide(candidate_id, decision)
+                self.service.decide(
+                    candidate_id, decision, expected_review_fingerprint=expected_fingerprint
+                )
                 outcome = "merged" if target else "approved"
+            except CandidateContentChanged:
+                outcome, reason = "unsure", CONTENT_CHANGED_REASON
+                self._record_changed(candidate_id, model)
             except ValueError as exc:
                 outcome = "unsure"
                 self.repository.set_prereview(candidate_id, {
@@ -165,16 +182,27 @@ class CandidatePrereviewer:
                     "model": model, "at": datetime.now(UTC).isoformat(),
                 })
         elif verdict == "reject":
-            self.service.decide(
-                candidate_id, CandidateDecision(decision="reject", review_note=note)
-            )
-            outcome = "rejected"
+            try:
+                self.service.decide(
+                    candidate_id, CandidateDecision(decision="reject", review_note=note),
+                    expected_review_fingerprint=expected_fingerprint,
+                )
+                outcome = "rejected"
+            except CandidateContentChanged:
+                outcome, reason = "unsure", CONTENT_CHANGED_REASON
+                self._record_changed(candidate_id, model)
         result[outcome] += 1
         result["items"].append({
             "candidate_id": candidate_id,
             "name": current.get("name") or current.get("summary", "")[:40],
             "verdict": outcome,
             "reason": reason,
+        })
+
+    def _record_changed(self, candidate_id: str, model: str) -> None:
+        self.repository.set_prereview(candidate_id, {
+            "verdict": "unsure", "reason": CONTENT_CHANGED_REASON, "model": model,
+            "at": datetime.now(UTC).isoformat(), "retry_required": True,
         })
 
     def _exact_entity(self, candidate: dict[str, Any]) -> str | None:
@@ -197,7 +225,9 @@ class CandidatePrereviewer:
 
 
 def _prereview(candidate: dict[str, Any]) -> dict[str, Any] | None:
-    return (candidate.get("metadata") or {}).get("prereview")
+    record = (candidate.get("metadata") or {}).get("prereview")
+    # Retain the visible reason while allowing a fresh verdict on the edited text.
+    return None if record and record.get("retry_required") else record
 
 
 def _json_array(raw: str) -> str:
