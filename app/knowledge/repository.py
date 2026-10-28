@@ -71,11 +71,11 @@ class KnowledgeRepository:
     independent fact store.
     """
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, *, max_crash_recoveries: int | None = None) -> None:
         self.path = path
         self.database = SQLiteDatabase(path)
         self._initialize()
-        self.jobs = JobRepository(self.database)
+        self.jobs = JobRepository(self.database, max_crash_recoveries=max_crash_recoveries)
         self.core_repository = KnowledgeCoreRepository(path, self.database)
         self.projections = ProjectionRepository(self.database)
         self.candidates = CandidateRepository(
@@ -118,6 +118,7 @@ class KnowledgeRepository:
         self._apply_structural_migration(19)
         self._apply_structural_migration(20)
         self._apply_structural_migration(21)
+        self._apply_structural_migration(22)
         self._backfill_legacy_relation_collections()
         self._backfill_semantic_records()
 
@@ -633,14 +634,7 @@ class KnowledgeRepository:
         now = _now()
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            connection.execute(
-                """
-                UPDATE knowledge_jobs
-                SET status = 'queued', lease_until = NULL, lease_owner = NULL, updated_at = ?
-                WHERE status = 'running' AND (lease_until IS NULL OR lease_until < ?)
-                """,
-                (now, now),
-            )
+            self.jobs.recover_expired_jobs_tx(connection, now)
             connection.execute(
                 """
                 UPDATE projection_outbox
@@ -740,15 +734,12 @@ class KnowledgeRepository:
                     row["lease_until"] is None or str(row["lease_until"]) < now_text
                 )
                 if expired:
-                    connection.execute(
-                        """
-                        UPDATE knowledge_jobs
-                        SET status = 'queued', lease_until = NULL,
-                            lease_owner = NULL, updated_at = ?
-                        WHERE id = ? AND status = 'running'
-                        """,
-                        (now_text, row["id"]),
-                    )
+                    self.jobs.recover_expired_jobs_tx(connection, now_text, job_id=row["id"])
+                    recovered = connection.execute(
+                        "SELECT status FROM knowledge_jobs WHERE id = ?", (row["id"],)
+                    ).fetchone()
+                    if recovered["status"] != "queued":
+                        continue
                     connection.execute(
                         """
                         UPDATE ingestions SET status = 'queued', updated_at = ?

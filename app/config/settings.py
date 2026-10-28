@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     knowledge_qdrant_collection: str = "knowledge_chunks_v2"
     knowledge_worker_lease_seconds: int = 180
     knowledge_worker_poll_seconds: float = 1.0
+    knowledge_job_max_crash_recoveries: int = Field(default=3, ge=1)
     report_min_citation_coverage: float = 0.9
     report_retrieval_strategy: Literal["legacy", "bm25-v1", "hybrid-v1", "dense-v1"] = "legacy"
     report_min_retrieval_relevance: float = Field(default=0.6, ge=0.0, le=1.0)

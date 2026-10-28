@@ -404,7 +404,7 @@ def test_v12_to_v17_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 12
 
     upgraded = KnowledgeRepository(repository.path)
-    assert upgraded.schema_version() == 21
+    assert upgraded.schema_version() == 22
     with upgraded._connect() as connection:
         assert dict(
             connection.execute(
@@ -423,4 +423,4 @@ def test_v12_to_v17_agent_runtime_migrations_are_additive_and_idempotent(tmp_pat
         }
         assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
-    assert KnowledgeRepository(repository.path).schema_version() == 21
+    assert KnowledgeRepository(repository.path).schema_version() == 22

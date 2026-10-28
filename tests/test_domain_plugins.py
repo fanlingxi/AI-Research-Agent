@@ -296,7 +296,7 @@ def test_v14_to_current_plugin_migrations_preserve_existing_memory_rows(tmp_path
         assert connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 14
 
     upgraded = KnowledgeRepository(repository.path)
-    assert upgraded.schema_version() == 21
+    assert upgraded.schema_version() == 22
     with upgraded._connect() as connection:
         assert dict(
             connection.execute("SELECT * FROM projects WHERE id = ?", (project.id,)).fetchone()
@@ -323,7 +323,7 @@ def test_v14_to_current_plugin_migrations_preserve_existing_memory_rows(tmp_path
         ).fetchone()["domain_plugin_key"] == "research"
         assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
-    assert KnowledgeRepository(repository.path).schema_version() == 21
+    assert KnowledgeRepository(repository.path).schema_version() == 22
 
 
 def test_domain_plugin_api_is_versioned_and_never_exposes_implementation_objects(tmp_path) -> None:
