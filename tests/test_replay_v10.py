@@ -172,3 +172,20 @@ def test_transport_failure_does_not_use_repair_slot():
     result = replay.simulate(slots, package, sr.SharedEvidenceResearchWorkflow)
     assert result["status"] == "needs_review"
     assert result["attempted_slots"] == [0]
+
+
+@pytest.mark.parametrize("error", [
+    ValueError("Citation IDs or bundle ownership are invalid"),
+    TypeError("sort_key: created_at; primary key is missing"),
+    ValueError("invalid archived report " + "x" * 5000),
+])
+def test_simulation_preserves_exact_failure_messages(error):
+    class InvalidReportWorkflow:
+        def parse_report(self, value):
+            raise error
+
+    slots = [{"slot": 0, "status": "returned", "response": "{}"}]
+    assert replay.simulate(slots, None, InvalidReportWorkflow) == {
+        "status": "needs_review", "used_slot": None, "attempted_slots": [0],
+        "markdown": None, "errors": [{"slot": 0, "reason": str(error)}],
+    }

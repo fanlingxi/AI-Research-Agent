@@ -14,6 +14,7 @@ from app.agent.errors import (
 from app.context.repository import SnapshotIntegrityError
 from app.context.service import ContextBudgetTooSmallError, ContextConflictError
 from app.domain_plugins.errors import DomainPluginConflictError
+from app.error_redaction import redact_error
 from app.workspace.service import WorkspaceProjectionConflictError
 
 
@@ -21,16 +22,16 @@ def memory_call(callback: Callable[[], Any]):
     try:
         return callback()
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail=redact_error(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(status_code=409, detail=redact_error(exc)) from exc
 
 
 def agent_call(callback: Callable[[], Any]):
     try:
         return callback()
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail=redact_error(exc)) from exc
     except (
         AgentRunConflictError,
         AgentRunNotRecoverableError,
@@ -40,20 +41,20 @@ def agent_call(callback: Callable[[], Any]):
         ContextConflictError,
         SnapshotIntegrityError,
     ) as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(status_code=409, detail=redact_error(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=redact_error(exc)) from exc
 
 
 def domain_plugin_call(callback: Callable[[], Any]):
     try:
         return callback()
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail=redact_error(exc)) from exc
     except DomainPluginConflictError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(status_code=409, detail=redact_error(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=redact_error(exc)) from exc
 
 
 def game_knowledge_call(callback: Callable[[], Any]):
@@ -64,10 +65,10 @@ def workspace_call(callback: Callable[[], Any]):
     try:
         return callback()
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail=redact_error(exc)) from exc
     except (ContextConflictError, WorkspaceProjectionConflictError, SnapshotIntegrityError) as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(status_code=409, detail=redact_error(exc)) from exc
     except ContextBudgetTooSmallError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=redact_error(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=redact_error(exc)) from exc

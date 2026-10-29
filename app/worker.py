@@ -12,7 +12,9 @@ from app.agent.checkpoint import AgentCheckpointFactory
 from app.agent.runtime import AgentRuntime
 from app.agent.service import AgentRunService
 from app.config.settings import get_settings
+from app.error_redaction import redact_error
 from app.execution import ExecutionFence
+from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.rebuild import KnowledgeProjectionRebuildService
 from app.knowledge.rebuild_jobs import ProjectionRebuildJobs, RebuildRequest
 from app.knowledge.reports import KnowledgeReportService
@@ -139,28 +141,37 @@ class KnowledgeWorker:
                 expected_owner=job.lease_owner,
             )
         except Exception as exc:
+            settings = self.ingestion_service.settings
+            if job.kind == "report":
+                settings = self.report_service.settings
+            elif job.kind == "agent_run" and self.agent_runtime is not None:
+                settings = self.agent_runtime.service.settings
+            error = redact_error(
+                exc, settings=settings,
+                include_type=not isinstance(exc, (ValueError, KeyError, LiveLLMRequiredError)),
+            )
             try:
                 if job.kind == "ingestion":
-                    self.ingestion_service.fail_claimed(job, str(exc))
+                    self.ingestion_service.fail_claimed(job, error)
                 elif job.kind == "report":
                     self.report_service.fail_claimed(
                         job.resource_id,
                         job.id,
                         job.attempts,
-                        str(exc),
+                        error,
                         expected_owner=job.lease_owner,
                     )
                 else:
                     self.repository.jobs.fail_job(
                         job.id,
-                        str(exc),
+                        error,
                         expected_attempt=job.attempts,
                         expected_owner=job.lease_owner,
                     )
             except Exception:
                 self.repository.jobs.fail_job(
                     job.id,
-                    str(exc),
+                    error,
                     expected_attempt=job.attempts,
                     expected_owner=job.lease_owner,
                 )

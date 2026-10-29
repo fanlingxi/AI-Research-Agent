@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from uuid import uuid4
 
+from app.error_redaction import redact_error
 from app.knowledge.core_repository import KnowledgeCoreRepository
 from app.knowledge.schemas import KnowledgeJob, ReportEvaluation, ReportEvidence, ResearchReport
 from app.persistence.sqlite import SQLiteDatabase
@@ -317,6 +318,7 @@ class ReportRepository:
         read_guard: dict[str, Any] | None = None,
     ) -> ResearchReport:
         """Fence and commit a report plus its durable job as one terminal write."""
+        error = redact_error(error)
         if status == "completed" and (expected_request is None or read_guard is None):
             raise ValueError("Completed reports require their original request and input guard.")
         now = _now()
@@ -436,6 +438,7 @@ class ReportRepository:
         expected_job_owner: str | None = None,
         expected_job_id: str | None = None,
     ) -> ResearchReport:
+        error = redact_error(error)
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
@@ -516,7 +519,7 @@ class ReportRepository:
             ],
             evaluation=evaluation,
             run_metadata=json.loads(row["run_metadata_json"] or "{}"),
-            error=row["error"],
+            error=redact_error(row["error"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )

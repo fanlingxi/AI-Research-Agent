@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from app.config.settings import Settings
+from app.error_redaction import redact_error
 from app.knowledge.repository import KnowledgeRepository
 from app.runtime.schemas import (
     ProjectionBacklog,
@@ -207,7 +208,7 @@ class RuntimeObservabilityService:
             executor=str(row["executor"]) if row["executor"] else None,
             created_at=str(row["created_at"]),
             updated_at=str(row["updated_at"]),
-            last_error=str(row["last_error"]) if row["last_error"] else None,
+            last_error=redact_error(row["last_error"]),
             can_retry=kind in _RETRYABLE_KINDS and str(row["job_status"]) == "failed",
             can_cancel=kind == "agent_run" and business_status in _ACTIVE_AGENT_STATUSES,
         )

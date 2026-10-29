@@ -27,6 +27,7 @@ from app.agent.structured_research import (
     SharedEvidenceResearchWorkflow,
 )
 from app.benchmarking.holdout_v2_score import packet
+from app.error_redaction import redact_error
 
 
 def read(path):
@@ -175,7 +176,7 @@ def simulate(slots, package, workflow_class):
             if report.answer_status != "insufficient_evidence" and not validation.passed:
                 raise ValueError("Citation IDs or bundle ownership are invalid")
         except (ValueError, TypeError) as exc:
-            errors.append({"slot": slot, "reason": str(exc)})
+            errors.append({"slot": slot, "reason": redact_error(exc, max_length=None)})
             continue
         return {"status": "completed", "used_slot": slot, "attempted_slots": attempted,
                 "markdown": draft.markdown, "errors": errors}

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 
+from app.error_redaction import redact_error
 from app.experiments.review import HumanVerdict, ReviewInputError, ReviewService
 from app.experiments.service import ExperimentDataError, ExperimentReadService
 
@@ -12,7 +13,7 @@ def build_experiments_router(service: ExperimentReadService) -> APIRouter:
         try:
             return operation()
         except ReviewInputError as exc:
-            raise HTTPException(400, str(exc)) from exc
+            raise HTTPException(400, redact_error(exc)) from exc
         except KeyError as exc:
             raise HTTPException(404, "核验运行或题目不存在。") from exc
         except (ExperimentDataError, OSError) as exc:

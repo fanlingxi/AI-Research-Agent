@@ -8,6 +8,8 @@ import time
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
+from app.error_redaction import redact_error
+
 from .common import PROJECT, digest, exclusive, read, reserve, write
 from .resources import ResourceSampler
 
@@ -214,7 +216,7 @@ def run_mineru(
                 )
                 ledger[key]["status"] = "completed"
             except Exception as exc:
-                ledger[key].update(status="failed", error=str(exc))
+                ledger[key].update(status="failed", error=redact_error(exc, max_length=None))
                 raise
             finally:
                 write(ledger_path, ledger)
@@ -297,7 +299,9 @@ def run_paddle(
         except Exception as exc:
             for paper in papers:
                 if old[paper["paper"]]["status"] == "started":
-                    old[paper["paper"]].update(status="failed", error=str(exc))
+                    old[paper["paper"]].update(
+                        status="failed", error=redact_error(exc, max_length=None)
+                    )
             raise
         finally:
             write(ledger_path, old)

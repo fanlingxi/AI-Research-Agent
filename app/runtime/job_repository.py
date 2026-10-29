@@ -7,6 +7,7 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from app.config.settings import get_settings
+from app.error_redaction import redact_error
 from app.knowledge.schemas import ExecutorHeartbeat, KnowledgeJob
 from app.persistence.sqlite import SQLiteDatabase
 
@@ -234,7 +235,10 @@ class JobRepository:
                         """,
                         (
                             "failed" if run["status"] == "failed" else "completed",
-                            run["error_message"] if run["status"] == "failed" else None,
+                            (
+                                redact_error(run["error_message"])
+                                if run["status"] == "failed" else None
+                            ),
                             now, row["id"],
                         ),
                     )
@@ -249,7 +253,7 @@ class JobRepository:
                 """,
                 (
                     "failed" if exhausted else "queued",
-                    CRASH_RECOVERY_ERROR_MESSAGE if exhausted else row["last_error"],
+                    CRASH_RECOVERY_ERROR_MESSAGE if exhausted else redact_error(row["last_error"]),
                     now, row["id"],
                 ),
             )
@@ -383,7 +387,7 @@ class JobRepository:
                         last_error = ?, updated_at = ?
                     WHERE id = ?
                     """,
-                    (error[:4000], _now(), job_id),
+                    (redact_error(error), _now(), job_id),
                 )
             else:
                 updated = connection.execute(
@@ -395,7 +399,7 @@ class JobRepository:
                       AND (? IS NULL OR lease_owner = ?)
                     """,
                     (
-                        error[:4000],
+                        redact_error(error),
                         _now(),
                         job_id,
                         expected_attempt,
@@ -523,7 +527,7 @@ class JobRepository:
             priority=row["priority"],
             lease_until=row["lease_until"],
             lease_owner=row["lease_owner"],
-            last_error=row["last_error"],
+            last_error=redact_error(row["last_error"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )

@@ -36,6 +36,7 @@ from app.domain_plugins.errors import DomainPluginConflictError
 from app.domain_plugins.ports import DomainRuntimePort
 from app.domain_plugins.registry import DomainPluginRegistry, create_builtin_plugin_registry
 from app.domain_plugins.research.ports import ResearchRuntimePort
+from app.error_redaction import redact_error
 from app.execution import ExecutionFence
 from app.knowledge.repository import KnowledgeRepository
 from app.llms.provider import LLMClient, MockLLMClient, get_llm_client
@@ -470,7 +471,7 @@ class AgentRunService:
         return self.repository.mark_needs_review(
             run_id,
             error_code="citation_validation_failed",
-            error_message=error_message,
+            error_message=redact_error(error_message, settings=self.settings),
             execution_fence=self._current_execution.get(),
         )
 
@@ -610,7 +611,7 @@ class AgentRunService:
         return self.repository.fail_run(
             run_id,
             error_code=error_code,
-            error_message=error_message,
+            error_message=redact_error(error_message, settings=self.settings),
             execution_fence=self._current_execution.get(),
         )
 

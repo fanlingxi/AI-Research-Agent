@@ -6,6 +6,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Header, HTTPException, Query
 
 from app.agent.errors import AgentRunConflictError
+from app.error_redaction import redact_error
 from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.rebuild_jobs import ProjectionRebuildJobs, RebuildRequest
 from app.research_commands.models import ResearchCommandConflictError, ResearchCommandSubmission
@@ -45,7 +46,7 @@ def build_runtime_router(
         except KeyError as exc:
             raise HTTPException(404, "Collection 不存在。") from exc
         except ValueError as exc:
-            raise HTTPException(409, str(exc)) from exc
+            raise HTTPException(409, redact_error(exc)) from exc
 
     @router.get("/api/v1/runtime/rebuilds/{job_id}")
     def get_rebuild(job_id: str) -> dict[str, Any]:
@@ -62,7 +63,7 @@ def build_runtime_router(
         except KeyError as exc:
             raise HTTPException(404, "投影重建或Collection不存在。") from exc
         except ValueError as exc:
-            raise HTTPException(409, str(exc)) from exc
+            raise HTTPException(409, redact_error(exc)) from exc
 
     @router.get("/api/v1/runtime/overview")
     def runtime_overview() -> dict[str, Any]:
@@ -80,7 +81,7 @@ def build_runtime_router(
                 kind=kind, status=status, cursor=cursor, limit=limit
             ).model_dump()
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(status_code=422, detail=redact_error(exc)) from exc
 
     @router.post("/api/v1/runtime/projections/{event_id}/retry")
     def retry_runtime_projection(event_id: str) -> dict[str, Any]:
@@ -89,7 +90,7 @@ def build_runtime_router(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Projection event not found.") from exc
         except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(status_code=409, detail=redact_error(exc)) from exc
 
     @router.post("/api/v1/research-commands", status_code=202)
     def create_research_command(
@@ -102,11 +103,11 @@ def build_runtime_router(
         try:
             return research_commands.submit(payload, idempotency_key=idempotency_key).model_dump()
         except ResearchCommandConflictError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(status_code=409, detail=redact_error(exc)) from exc
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="父运行或报告不存在。") from exc
         except (AgentRunConflictError, ValueError) as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(status_code=409, detail=redact_error(exc)) from exc
 
     @router.get("/api/v1/research-commands/{command_id}")
     def get_research_command(command_id: str) -> dict[str, Any]:
@@ -122,6 +123,6 @@ def build_runtime_router(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Research command not found.") from exc
         except (ValueError, LiveLLMRequiredError, AgentRunConflictError) as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(status_code=409, detail=redact_error(exc)) from exc
 
     return router

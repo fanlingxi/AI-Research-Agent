@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from app.error_redaction import redact_error
 from app.execution import ExecutionFence
 from app.knowledge.repository import KnowledgeRepository
 from app.research_commands.models import ResearchCommand, ResearchCommandConflictError
@@ -188,7 +189,7 @@ class ResearchCommandRepository:
                 UPDATE research_commands
                 SET status = 'failed', error = ?, updated_at = ? WHERE id = ?
                 """,
-                (error[:4000], _now(), command_id),
+                (redact_error(error), _now(), command_id),
             )
             row = connection.execute(
                 "SELECT * FROM research_commands WHERE id = ?", (command_id,)
@@ -203,6 +204,7 @@ class ResearchCommandRepository:
         orchestration_stage: str,
         error: str | None = None,
     ) -> ResearchCommand:
+        error = redact_error(error)
         with self.knowledge_repository._connect() as connection:
             connection.execute(
                 """
@@ -276,7 +278,7 @@ class ResearchCommandRepository:
             target_resource_type=row["target_resource_type"],
             target_resource_id=row["target_resource_id"],
             target_route=row["target_route"],
-            error=row["error"],
+            error=redact_error(row["error"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )

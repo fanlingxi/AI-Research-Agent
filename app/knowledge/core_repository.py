@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from app.error_redaction import redact_error
 from app.knowledge.core_models import (
     BackfillSummary,
     CoreClaim,
@@ -109,6 +110,7 @@ class KnowledgeCoreRepository:
     ) -> None:
         """Durably record a blocked formalization without creating a Core fact."""
 
+        reason = redact_error(reason)
         now = _now()
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -214,7 +216,7 @@ class KnowledgeCoreRepository:
             self.record_attention(
                 item_type="published_entity",
                 item_id=entity.id,
-                reason=str(exc),
+                reason=redact_error(exc),
             )
             raise
 
@@ -394,7 +396,7 @@ class KnowledgeCoreRepository:
             self.record_attention(
                 item_type="published_relation",
                 item_id=relation.id,
-                reason=str(exc),
+                reason=redact_error(exc),
             )
             raise
 
@@ -822,14 +824,16 @@ class KnowledgeCoreRepository:
             return status == "completed"
         except ClaimEvidenceValidationError as exc:
             self._record_backfill_item(
-                item_type, item_id, "needs_attention", str(exc), str(exc)
+                item_type, item_id, "needs_attention", redact_error(exc), redact_error(exc)
             )
         except ValueError as exc:
             self._record_backfill_item(
-                item_type, item_id, "needs_attention", str(exc), str(exc)
+                item_type, item_id, "needs_attention", redact_error(exc), redact_error(exc)
             )
         except Exception as exc:  # Keep the remaining checkpoints recoverable.
-            self._record_backfill_item(item_type, item_id, "failed", str(exc), str(exc))
+            self._record_backfill_item(
+                item_type, item_id, "failed", redact_error(exc), redact_error(exc)
+            )
         return False
 
     def _backfill_item_is_completed(self, item_type: str, item_id: str) -> bool:
@@ -1187,6 +1191,9 @@ class KnowledgeCoreRepository:
         now: str,
         error_message: str | None = None,
     ) -> None:
+        error_message = redact_error(error_message)
+        if status != "completed":
+            detail = redact_error(detail)
         connection.execute(
             """
             INSERT INTO knowledge_core_backfill_items (

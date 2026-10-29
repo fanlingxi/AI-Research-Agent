@@ -6,6 +6,7 @@ from app.agent.models import AgentRunCreateRequest
 from app.agent.service import AgentRunService
 from app.context.models import ContextBuildRequest
 from app.context.service import ContextConflictError
+from app.error_redaction import redact_error
 from app.execution import ExecutionFence
 from app.knowledge.reports import KnowledgeReportService
 from app.knowledge.repository import KnowledgeRepository
@@ -77,7 +78,9 @@ class ResearchCommandService:
                 return self._create_quick_report(command, payload, fence)
             return self._create_project_run(command, payload, fence)
         except Exception as exc:
-            self.repository.mark_failed(command.id, fence=fence, error=str(exc))
+            error = redact_error(exc, settings=self.report_service.settings)
+            error = redact_error(error, settings=self.agent_service.settings)
+            self.repository.mark_failed(command.id, fence=fence, error=error)
             raise
 
     def retry(self, command_id: str) -> ResearchCommand:

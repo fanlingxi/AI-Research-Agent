@@ -18,6 +18,7 @@ from app.agent.errors import (
 )
 from app.agent.models import AgentRun, AgentRunEvent, AgentRunOptions, AgentRunOutput, AgentToolCall
 from app.domain_plugins.contracts import PluginPin
+from app.error_redaction import redact_error, redact_error_payload
 from app.execution import ExecutionFence
 from app.persistence.sqlite import SQLiteDatabase
 
@@ -465,7 +466,7 @@ class AgentRunRepository:
                 revision = revision + 1
             WHERE id = ?
             """,
-            (error_code, error_message[:4000], now, run_id),
+            (error_code, redact_error(error_message), now, run_id),
         )
         self._append_event_tx(
             connection,
@@ -473,7 +474,7 @@ class AgentRunRepository:
             event_type="run_failed",
             node_name=str(row["current_node"] or "runtime"),
             status="failed",
-            error={"code": error_code, "message": error_message[:4000]},
+            error={"code": error_code, "message": redact_error(error_message)},
         )
         return self._run_from_row(self._require_run_tx(connection, run_id))
 
@@ -652,7 +653,7 @@ class AgentRunRepository:
                     error_code = ?, error_message = ?, updated_at = ?, revision = revision + 1
                 WHERE id = ?
                 """,
-                (error_code, error_message[:4000], now, run_id),
+                (error_code, redact_error(error_message), now, run_id),
             )
             self._append_event_tx(
                 connection,
@@ -660,7 +661,7 @@ class AgentRunRepository:
                 event_type="run_needs_review",
                 node_name="citation_validation",
                 status="needs_review",
-                error={"code": error_code, "message": error_message[:4000]},
+                error={"code": error_code, "message": redact_error(error_message)},
             )
             return self._run_from_row(self._require_run_tx(connection, run_id))
 
@@ -955,7 +956,7 @@ class AgentRunRepository:
                 _dump(output_summary or {}),
                 _dump(token_usage or {}),
                 latency_ms,
-                _dump(error or {}),
+                _dump(redact_error_payload(error or {})),
                 now,
             ),
         )
@@ -1060,7 +1061,7 @@ class AgentRunRepository:
             repair_count=row["repair_count"],
             current_node=row["current_node"],
             error_code=row["error_code"],
-            error_message=row["error_message"],
+            error_message=redact_error(row["error_message"]),
             started_at=row["started_at"],
             completed_at=row["completed_at"],
             created_at=row["created_at"],
@@ -1081,7 +1082,7 @@ class AgentRunRepository:
             output_summary=json.loads(row["output_summary_json"] or "{}"),
             token_usage=json.loads(row["token_usage_json"] or "{}"),
             latency_ms=row["latency_ms"],
-            error=json.loads(row["error_json"] or "{}"),
+            error=redact_error_payload(json.loads(row["error_json"] or "{}")),
             created_at=row["created_at"],
         )
 
@@ -1101,7 +1102,7 @@ class AgentRunRepository:
             idempotency_key=row["idempotency_key"],
             started_at=row["started_at"],
             completed_at=row["completed_at"],
-            error=json.loads(row["error_json"] or "{}"),
+            error=redact_error_payload(json.loads(row["error_json"] or "{}")),
         )
 
     @staticmethod

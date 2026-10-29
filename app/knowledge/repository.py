@@ -10,6 +10,7 @@ from hashlib import sha256
 from typing import Any, Literal
 from uuid import uuid4
 
+from app.error_redaction import redact_error
 from app.knowledge.candidate_repository import (
     CandidateKind,
     CandidateRepository,
@@ -458,6 +459,7 @@ class KnowledgeRepository:
         error: str | None = None,
         vault_path: str | None = None,
     ) -> KnowledgeIngestion:
+        error = redact_error(error)
         with self._connect() as connection:
             connection.execute(
                 """
@@ -1594,6 +1596,7 @@ class KnowledgeRepository:
         expected_owner: str | None = None,
     ) -> KnowledgeIngestion:
         """Fence and commit an ingestion plus its durable job as one terminal write."""
+        error = redact_error(error)
         now = _now()
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -1719,7 +1722,7 @@ class KnowledgeRepository:
             status=row["status"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
-            error=row["error"],
+            error=redact_error(row["error"]),
             vault_path=row["vault_path"],
             document_count=document_count,
             candidate_count=candidate_count,

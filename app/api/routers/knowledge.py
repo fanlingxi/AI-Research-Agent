@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import FileResponse
 
 from app.api.schemas import CollectionRequest, KnowledgeCandidatePatch, KnowledgeIngestionRequest
+from app.error_redaction import redact_error
 from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.map_view import KnowledgeMapReader
 from app.knowledge.prereview import CandidatePrereviewer
@@ -46,9 +47,13 @@ def build_knowledge_router(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="文献或来源不存在。") from exc
         except LiveLLMRequiredError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=422, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.get("/api/knowledge/sources/{source_id}/activation-preview")
     def activation_preview(source_id: str) -> dict[str, Any]:
@@ -64,16 +69,22 @@ def build_knowledge_router(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="来源版本不存在。") from exc
         except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.post("/api/knowledge/ingestions", status_code=202)
     def submit_knowledge_ingestion(payload: KnowledgeIngestionRequest) -> dict[str, Any]:
         try:
             return service.submit(**payload.model_dump()).model_dump()
         except LiveLLMRequiredError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=422, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.post("/api/knowledge/ingestions/execute", status_code=202)
     def submit_and_execute_knowledge_ingestion(
@@ -82,9 +93,13 @@ def build_knowledge_router(
         try:
             return service.submit(**payload.model_dump(), auto_execute=True).model_dump()
         except LiveLLMRequiredError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=422, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.get("/api/knowledge/ingestions")
     def list_knowledge_ingestions(
@@ -109,7 +124,9 @@ def build_knowledge_router(
                 ingestion_id, payload.collection
             ).model_dump()
         except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.get("/api/knowledge/ingestions/{ingestion_id}")
     def get_knowledge_ingestion(ingestion_id: str) -> dict[str, Any]:
@@ -121,9 +138,13 @@ def build_knowledge_router(
         try:
             return service.retry(ingestion_id, auto_execute=True).model_dump()
         except LiveLLMRequiredError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
         except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.post("/api/knowledge/ingestions/{ingestion_id}/execute", status_code=202)
     def execute_knowledge_ingestion(ingestion_id: str) -> dict[str, Any]:
@@ -132,9 +153,13 @@ def build_knowledge_router(
             service.ensure_execution_available()
             return repository.mark_ingestion_for_dispatch(ingestion_id).model_dump()
         except LiveLLMRequiredError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
         except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.get("/api/knowledge/ingestions/{ingestion_id}/candidates")
     def list_knowledge_candidates(
@@ -179,7 +204,9 @@ def build_knowledge_router(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Knowledge candidate not found.") from exc
         except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.post("/api/knowledge/candidates/{candidate_id}/decision")
     def decide_knowledge_candidate(
@@ -190,7 +217,9 @@ def build_knowledge_router(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Knowledge candidate not found.") from exc
         except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.post("/api/knowledge/ingestions/{ingestion_id}/candidates/bulk-decision")
     def decide_knowledge_candidates_bulk(
@@ -202,7 +231,9 @@ def build_knowledge_router(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Knowledge candidate not found.") from exc
         except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.post("/api/knowledge/ingestions/{ingestion_id}/ai-prereview")
     def ai_prereview_candidates(
@@ -214,7 +245,9 @@ def build_knowledge_router(
                 ingestion_id, limit=int((payload or {}).get("limit", 30))
             )
         except LiveLLMRequiredError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.post("/api/knowledge/ingestions/{ingestion_id}/auto-approve-high-confidence")
     def auto_approve_high_confidence_candidates(ingestion_id: str) -> dict[str, Any]:
@@ -222,7 +255,9 @@ def build_knowledge_router(
         try:
             return service.auto_approve_confident(ingestion_id).model_dump()
         except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.post("/api/knowledge/ingestions/{ingestion_id}/approve-ready")
     def approve_ready_knowledge_candidates(ingestion_id: str) -> dict[str, Any]:
@@ -230,7 +265,9 @@ def build_knowledge_router(
         try:
             return service.approve_ready(ingestion_id).model_dump()
         except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.get("/api/knowledge/topics")
     def list_knowledge_topics() -> list[dict[str, Any]]:
@@ -245,7 +282,9 @@ def build_knowledge_router(
         try:
             return repository.create_collection(payload.collection).model_dump()
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=422, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     @router.get("/api/knowledge/collections/{collection_slug}")
     def get_knowledge_collection(collection_slug: str) -> dict[str, Any]:
@@ -351,6 +390,8 @@ def build_knowledge_router(
                 top_k=top_k,
             )
         except Exception as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=503, detail=redact_error(exc, settings=service.settings)
+            ) from exc
 
     return router
