@@ -25,7 +25,7 @@ from app.agent.research_workflow import (
 )
 from app.context.models import runtime_context_token_count
 from app.llms.provider import LangChainChatClient
-from app.retrieval.anchors import contains_quote
+from app.retrieval.anchors import AnchorPolicy, contains_quote
 
 
 class ConciseFinding(ResearchFinding):
@@ -343,11 +343,15 @@ class CoveredReport(StructuredReport):
     answer_parts: list[AnswerPart] = Field(min_length=1, max_length=8)
 
 
-def prepare_covered_report(report, package, *, status_label=None, pair_ownership=False):
+def prepare_covered_report(
+    report, package, *, status_label=None, pair_ownership=False,
+    anchor_policy: AnchorPolicy = "legacy-v1",
+):
     question = "\n".join((package.task.title, package.task.goal))
     parts, used = set(), []
     for part in report.answer_parts:
-        if (not contains_quote(part.question_part, question) or part.question_part in parts
+        if (not contains_quote(part.question_part, question, policy=anchor_policy)
+                or part.question_part in parts
                 or not part.finding_indices and not part.gap.strip()):
             raise ReportContractError(
                 "Every answer part needs a unique verbatim task span and findings or a gap"
@@ -387,7 +391,7 @@ def prepare_covered_report(report, package, *, status_label=None, pair_ownership
             saved = evidence.get((finding.claim_bundle_id, anchor.evidence_id)
                                  if pair_ownership else anchor.evidence_id)
             if (not saved or saved[0] != finding.claim_bundle_id
-                    or not contains_quote(anchor.quote, saved[1])):
+                    or not contains_quote(anchor.quote, saved[1], policy=anchor_policy)):
                 raise ReportContractError(
                     "Support must be an exact contiguous quote from cited evidence "
                     "in its own bundle"
@@ -516,6 +520,7 @@ class DirectResearchWorkflow(StructuredResearchWorkflow):
 
     report_model = DirectReport
     pair_ownership = False
+    anchor_policy: AnchorPolicy = "legacy-v1"
     report_rules = (
         "Answer the original task directly using only the supplied evidence. Return title and "
         "answer_parts only. Each part contains a verbatim contiguous factual question span "
@@ -554,7 +559,8 @@ class DirectResearchWorkflow(StructuredResearchWorkflow):
                                 answer_status=report.answer_status, limitations=report.limitations,
                                 answer_parts=parts)
         return prepare_covered_report(covered, package, status_label=status_label,
-                                      pair_ownership=self.pair_ownership)
+                                      pair_ownership=self.pair_ownership,
+                                      anchor_policy=self.anchor_policy)
 
 
 class AnchoredDirectResearchWorkflow(DirectResearchWorkflow):

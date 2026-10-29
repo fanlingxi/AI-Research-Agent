@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.agent import structured_research as sr
 from app.agent.explicit_gap_research import (
+    ANCHOR_DIAGNOSTIC,
     GAP_PROMPT_SUFFIX,
     MISSING_GAP_DIAGNOSTIC,
     ExplicitGapAnswerPart,
@@ -256,6 +257,66 @@ def test_v12_keeps_numeric_filtering_and_evidence_validation():
     value["answer_parts"][0]["findings"][0]["support"][0]["quote"] = "Forged supporting quote."
     with pytest.raises(sr.ReportContractError):
         prepare(ExplicitGapResearchWorkflow, value, package)
+
+
+@pytest.mark.parametrize("target", ["question_part", "support"])
+@pytest.mark.parametrize("original,copied", [
+    ("Scientific Mg measurement", "Scientific mg measurement"),
+    ("Scientific x² measurement", "Scientific x2 measurement"),
+])
+def test_v12_anchor_policy_rejects_semantic_changes_legacy_accepts(target, original, copied):
+    package, value = shared_fixture()
+    package.knowledge.claim_bundles = package.knowledge.claim_bundles[:1]
+    part = value["answer_parts"][0]
+    if target == "question_part":
+        package.task.title = package.task.goal = original
+        part["question_part"] = copied
+    else:
+        package.knowledge.claim_bundles[0].evidence[0].quote = original
+        part["findings"][0]["support"][0]["quote"] = copied
+    for cls in WORKFLOWS.values():
+        assert prepare(cls, value, package).findings
+    with pytest.raises(sr.ReportContractError) as caught:
+        prepare(ExplicitGapResearchWorkflow, value, package)
+    diagnostic = ExplicitGapResearchWorkflow._report_error_diagnostic(caught.value)
+    assert diagnostic == sr.report_error_diagnostic(caught.value) + ". " + ANCHOR_DIAGNOSTIC
+    assert copied not in diagnostic
+
+
+def test_v12_both_anchor_checks_tolerate_layout_noise():
+    package, value = shared_fixture()
+    package.task.title = package.task.goal = "Requested Ｍｇ fact"
+    value["answer_parts"][0]["question_part"] = "Requested Mg\nfact"
+    source = "A “scientiﬁc” mea-\nsurement uses Ｍｇ."
+    for bundle in package.knowledge.claim_bundles:
+        bundle.evidence[0].quote = source
+    value["answer_parts"][0]["findings"][0]["support"][0]["quote"] = (
+        'A "scientific" measurement uses Mg.')
+    assert prepare(ExplicitGapResearchWorkflow, value, package).answer_status == "complete"
+
+
+@pytest.mark.parametrize("target", ["question_part", "support"])
+def test_worker_v12_repairs_anchor_case_with_fixed_diagnostic(tmp_path, target):
+    _, service, worker, project, task, _, bundle, llm = _research_stack(
+        tmp_path, [_analysis(), _plan()])
+    corrected = _report(bundle, task)
+    invalid = deepcopy(corrected)
+    part = invalid["answer_parts"][0]
+    if target == "question_part":
+        part["question_part"] = part["question_part"].swapcase()
+    else:
+        anchor = part["findings"][0]["support"][0]
+        anchor["quote"] = anchor["quote"].swapcase()
+    llm.responses.extend(json.dumps(v) for v in (invalid, corrected))
+    run = service.create_run(project.id, task.id, AgentRunCreateRequest(
+        workflow="research_v12", token_budget=32000))
+    assert worker.run_once()
+    done = service.get_run(run.id)
+    assert done.status == "completed", done.error_message
+    assert done.repair_count == 1
+    assert len(llm.calls) == 4
+    assert ANCHOR_DIAGNOSTIC in llm.calls[-1]
+    assert service.repository.get_output(run.id).validation["repair_applied"] is True
 
 
 def test_structured_gap_audit_counts_physical_calls_and_ignores_replay_rows(tmp_path):
