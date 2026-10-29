@@ -60,7 +60,10 @@ function ScopeManager({ project, scopes }: { project: Project; scopes: ProjectKn
   const collections = useQuery({ queryKey: ["knowledge-collections"], queryFn: api.collections, enabled: open });
   const availableCollections = collections.data?.filter((collection) => !collection.is_system) ?? [];
   const replace = useMutation({
-    mutationFn: () => api.replaceScopes(project.id, project.revision, selected.filter((slug) => availableCollections.some((collection) => collection.slug === slug))),
+    mutationFn: () => {
+      if (!collections.isSuccess) throw new Error("知识集合尚未加载成功，请重试后再保存。");
+      return api.replaceScopes(project.id, project.revision, selected.filter((slug) => availableCollections.some((collection) => collection.slug === slug)));
+    },
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["project", project.id] });
       void client.invalidateQueries({ queryKey: ["scopes", project.id] });
@@ -76,7 +79,7 @@ function ScopeManager({ project, scopes }: { project: Project; scopes: ProjectKn
       <DialogContent>
         <DialogTitle>选择项目可用的知识集合</DialogTitle>
         <DialogDescription>项目研究只会使用这里勾选的集合中已审核发布的知识。收件箱中的资料不能用于研究。</DialogDescription>
-        <form className="mt-5 space-y-3" onSubmit={(event) => { event.preventDefault(); replace.mutate(); }}>
+        <form className="mt-5 space-y-3" onSubmit={(event) => { event.preventDefault(); if (collections.isSuccess) replace.mutate(); }}>
           {collections.isPending ? <LoadingBlock label="读取知识集合…" /> : null}
           {collections.error instanceof Error ? <ErrorBlock error={collections.error} onRetry={() => collections.refetch()} /> : null}
           {availableCollections.length ? (
@@ -91,7 +94,7 @@ function ScopeManager({ project, scopes }: { project: Project; scopes: ProjectKn
           ) : null}
           {collections.data && !availableCollections.length ? <EmptyBlock title="没有可选的知识集合">先在知识库导入资料并创建集合。</EmptyBlock> : null}
           {replace.error instanceof Error ? <ErrorBlock error={replace.error} /> : null}
-          <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setOpen(false)}>取消</Button><Button disabled={replace.isPending || collections.isPending} type="submit">{replace.isPending ? "保存中…" : "保存范围"}</Button></div>
+          <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setOpen(false)}>取消</Button><Button disabled={replace.isPending || !collections.isSuccess} type="submit">{replace.isPending ? "保存中…" : "保存范围"}</Button></div>
         </form>
       </DialogContent>
     </Dialog>
@@ -152,7 +155,7 @@ export function ProjectWorkspacePage() {
 
   const scopeCard = (
     <Card>
-      <CardHeader><CardTitle icon={<Library size={16} />} title="知识范围" description="研究只会使用这些集合中已审核的知识。" /><ScopeManager project={project.data} scopes={scopes.data ?? []} /></CardHeader>
+      <CardHeader><CardTitle icon={<Library size={16} />} title="知识范围" description="研究只会使用这些集合中已审核的知识。" />{scopes.isSuccess ? <ScopeManager project={project.data} scopes={scopes.data} /> : null}</CardHeader>
       <CardContent>
         {scopes.data?.length ? <div className="flex flex-wrap gap-2">{scopeNames.map((scope) => <Badge key={scope.slug} tone="brand">{scope.name}</Badge>)}</div> : (
           <Notice tone="warning" icon={<AlertTriangle size={15} />} title="还没有选择知识集合">没有知识范围时，研究运行拿不到任何证据。点击「管理知识范围」选择集合。</Notice>
@@ -267,7 +270,7 @@ export function ProjectWorkspacePage() {
           ) : null}
         </section>
       </div>
-      <AgentPanel availableTasks={openTasks} projectId={projectId} task={currentTask} onTaskChange={setSelectedTaskId} />
+      <AgentPanel key={`${projectId}:${currentTask?.id ?? ""}`} availableTasks={openTasks} projectId={projectId} task={currentTask} onTaskChange={setSelectedTaskId} />
     </div>
   );
 }

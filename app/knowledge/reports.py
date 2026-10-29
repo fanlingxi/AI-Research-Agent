@@ -55,7 +55,7 @@ class KnowledgeReportService:
         if self.require_live_llm and self._is_mock_llm():
             raise LiveLLMRequiredError("研究报告需要配置真实 LLM，不会回退到 mock。")
         selected_topics = list(dict.fromkeys(topic_slugs or []))
-        if not self.repository.published_paper_ids(selected_topics):
+        if not self.repository.core_repository.published_paper_ids(selected_topics):
             raise ValueError("所选范围内没有已审核、已发布的论文证据。")
         run_metadata = self._run_metadata()
         if auto_execute:

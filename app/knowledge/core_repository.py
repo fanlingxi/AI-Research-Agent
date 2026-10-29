@@ -416,43 +416,20 @@ class KnowledgeCoreRepository:
         return int(unresolved) == 0
 
     def published_paper_ids(self, collection_slugs: list[str] | None = None) -> set[str]:
-        """Return Core-authorized paper IDs after the explicit backfill is complete."""
+        """Return document IDs using the same Core authorization as quick reports."""
 
-        selected = set(collection_slugs or [])
         with self._connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT DISTINCT entity.properties_json, evidence.location_json
-                FROM entities entity
-                JOIN claims claim ON claim.entity_id = entity.id
-                JOIN claim_evidence_links link ON link.claim_id = claim.id
-                JOIN evidences evidence ON evidence.id = link.evidence_id
-                JOIN sources source ON source.id = evidence.source_id
-                WHERE entity.entity_type = 'Paper'
-                  AND source.superseded_by_source_id IS NULL
-                  AND entity.status = 'published'
-                  AND claim.status = 'published'
-                """
-            ).fetchall()
-        paper_ids: set[str] = set()
-        for row in rows:
-            properties = json.loads(row["properties_json"] or "{}")
-            scopes = set(properties.get("collection_slugs", []))
-            if selected and not selected.intersection(scopes):
-                continue
-            location = json.loads(row["location_json"] or "{}")
-            paper_id = str(location.get("paper_id") or "")
-            if paper_id:
-                paper_ids.add(paper_id)
-        return paper_ids
+            return self.authorized_report_paper_ids_tx(connection, collection_slugs or [])
 
     def authorized_report_paper_ids_tx(
         self, connection: sqlite3.Connection, collection_slugs: list[str],
     ) -> set[str]:
         """Strict Core report scope; legacy shadow fallback is not authorization.
 
-        A scoped Paper must itself have membership, not merely share a document
-        with another published entity. Empty requested scopes mean all Core papers.
+        A scoped Paper must itself have membership and its evidence document must
+        belong to that membership's ingestion, matching KnowledgeContextReader.
+        Missing ingestion-document bindings fail closed. Empty requested scopes
+        mean all Core papers.
         """
         params: tuple[str, ...] = tuple(collection_slugs)
         scope_sql = ""
@@ -463,6 +440,9 @@ class KnowledgeCoreRepository:
                 JOIN collection_memberships membership
                   ON membership.aggregate_id = mapping.legacy_id
                  AND membership.aggregate_type = 'entity'
+                JOIN ingestion_documents evidence_document
+                  ON evidence_document.ingestion_id = membership.ingestion_id
+                 AND evidence_document.document_id = chunk.document_id
                 WHERE mapping.legacy_table = 'published_entities'
                   AND mapping.core_table = 'entities' AND mapping.core_id = entity.id
                   AND membership.collection_slug IN ({placeholders})

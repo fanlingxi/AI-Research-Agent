@@ -842,6 +842,7 @@ class KnowledgeIngestionService:
     def _parse(self, *, source: str, max_pages: int) -> ParsedDocument:
         if self.parser is parse_pdf_source:
             return self.parser(source=source, max_pages=max_pages,
+                               download_settings=self.settings,
                                derive_blocks=self.parser_version in LAYOUT_PARSER_VERSIONS,
                                parser_version=self.parser_version)
         parsed = self.parser(source=source, max_pages=max_pages)
@@ -953,14 +954,17 @@ class KnowledgeIngestionService:
                 entities=self.repository.list_published_entities(topic_slug),
                 relations=self.repository.list_published_relations(topic_slug),
             )
-            for ingestion in self.repository.list_ingestions():
-                if ingestion.topic_slug == topic_slug:
-                    self.repository.update_ingestion(
-                        ingestion.id,
-                        status=ingestion.status,
-                        error=ingestion.error,
-                        vault_path=result.vault_path,
-                    )
+            offset = 0
+            while batch := self.repository.list_ingestions(offset=offset):
+                for ingestion in batch:
+                    if ingestion.topic_slug == topic_slug:
+                        self.repository.update_ingestion(
+                            ingestion.id,
+                            status=ingestion.status,
+                            error=ingestion.error,
+                            vault_path=result.vault_path,
+                        )
+                offset += len(batch)
 
     def _is_mock_llm(self) -> bool:
         return (

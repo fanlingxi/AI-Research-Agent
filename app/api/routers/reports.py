@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 
 from app.api.schemas import ReportCreateRequest
@@ -84,8 +84,13 @@ def build_reports_router(
         return dispatch(report_id, retry_failed=True)
 
     @router.get("/api/reports")
-    def list_reports() -> list[dict[str, Any]]:
-        return [item.model_dump() for item in repository.reports.list_reports()]
+    def list_reports(
+        limit: Annotated[int | None, Query(ge=1, le=100)] = None,
+        offset: Annotated[int | None, Query(ge=0)] = None,
+    ) -> list[dict[str, Any]] | dict[str, Any]:
+        if limit is None and offset is None:
+            return [item.model_dump() for item in repository.reports.list_reports()]
+        return repository.reports.list_reports_page(limit=limit or 25, offset=offset or 0)
 
     @router.get("/api/reports/{report_id}")
     def get_report(report_id: str) -> dict[str, Any]:

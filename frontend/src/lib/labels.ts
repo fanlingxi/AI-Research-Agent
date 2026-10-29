@@ -26,6 +26,7 @@ export const STATUS_LABELS: Record<string, string> = {
   blocked: "受阻",
   backlog: "待办",
   failed: "失败",
+  interrupted: "已中断",
   quality_failed: "未通过质检",
   rejected: "已驳回",
   cancelled: "已取消",

@@ -13,7 +13,7 @@ import { Button, buttonVariants } from "../components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../components/ui/dialog";
 import { Field, Input, Select, Textarea } from "../components/ui/field";
 import { Disclosure, Page, PageHeader, Segmented } from "../components/ui/page";
-import { api, type KnowledgeCollection, type KnowledgeDocument, type KnowledgeIngestion } from "../lib/api";
+import { api, type IngestionCollectionStatistics, type KnowledgeCollection, type KnowledgeDocument, type KnowledgeIngestion } from "../lib/api";
 import { fileName, useIngestions, usePendingCandidates, useSystemStatus } from "../lib/hooks";
 import { entityTypeLabel } from "../lib/labels";
 import { cn, formatDate } from "../lib/utils";
@@ -153,7 +153,7 @@ function IngestionRecord({ item, collections, highlighted, documents }: { item: 
       </div>
       {active ? <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-subtle"><div className="h-full w-1/3 animate-pulse rounded-full bg-brand" /></div> : null}
       {item.error ? <p className="mt-2.5 break-words rounded-md bg-danger-soft p-2 text-xs leading-5 text-red-900">{item.error}</p> : null}
-      {item.status === "failed" ? (
+      {["failed", "interrupted"].includes(item.status) ? (
         <div className="mt-2.5">
           <Button disabled={retry.isPending} size="sm" variant="outline" onClick={() => retry.mutate()}><RotateCcw size={13} />{retry.isPending ? "正在重新启动…" : "重新执行"}</Button>
           {retry.error instanceof Error ? <div className="mt-2"><ErrorBlock error={retry.error} /></div> : null}
@@ -181,7 +181,7 @@ function documentFamilies(documents: KnowledgeDocument[]) {
   return [...families.values()];
 }
 
-function CollectionBrowser({ collection, ingestions, pending, parsedDocuments }: { collection: KnowledgeCollection; ingestions: KnowledgeIngestion[]; pending: number; parsedDocuments: KnowledgeDocument[] }) {
+function CollectionBrowser({ collection, statistics, parsedDocuments }: { collection: KnowledgeCollection; statistics?: IngestionCollectionStatistics; parsedDocuments: KnowledgeDocument[] }) {
   const detail = useQuery({ queryKey: ["knowledge-collection", collection.slug], queryFn: () => api.collection(collection.slug), staleTime: 60_000 });
   const [view, setView] = useState<"papers" | "entities">("papers");
   const families = documentFamilies(parsedDocuments);
@@ -193,8 +193,9 @@ function CollectionBrowser({ collection, ingestions, pending, parsedDocuments }:
   const visible = entities.filter((entity) => entity.type !== "Paper"
     && (type === "all" || entity.type === type)
     && (!filter.trim() || `${entity.name} ${entity.summary} ${entity.aliases.join(" ")}`.toLowerCase().includes(filter.trim().toLowerCase())));
-  const documents = ingestions.reduce((sum, item) => sum + item.document_count, 0);
-  const sources = ingestions.flatMap((item) => item.sources);
+  const documents = statistics?.document_count ?? 0;
+  const sources = statistics?.sources ?? [];
+  const pending = statistics?.pending_count ?? 0;
   return (
     <section className="min-w-0 rounded-xl border bg-panel shadow-[var(--shadow-card)]" id={`collection-${collection.slug}`}>
       <div className="flex flex-wrap items-start justify-between gap-3 p-4 sm:p-5">
@@ -288,13 +289,13 @@ export function KnowledgePage() {
     if (!open && params.get("import")) setParams((current) => { const next = new URLSearchParams(current); next.delete("import"); return next; });
   };
   const formal = useMemo(() => collections.data?.filter((item) => !item.is_system) ?? [], [collections.data]);
-  if (ingestions.isPending || collections.isPending) return <Page><LoadingBlock label="读取知识库…" /></Page>;
-  if (ingestions.error instanceof Error || collections.error instanceof Error) {
-    return <Page><ErrorBlock error={(ingestions.error ?? collections.error) as Error} onRetry={() => { void ingestions.refetch(); void collections.refetch(); }} /></Page>;
+  if (ingestions.isPending || collections.isPending || pending.statistics.isPending) return <Page><LoadingBlock label="读取知识库…" /></Page>;
+  if (ingestions.error instanceof Error || collections.error instanceof Error || pending.statistics.error instanceof Error) {
+    return <Page><ErrorBlock error={(ingestions.error ?? collections.error ?? pending.statistics.error) as Error} onRetry={() => { void ingestions.refetch(); void collections.refetch(); void pending.statistics.refetch(); }} /></Page>;
   }
   const items = ingestions.data ?? [];
-  const documents = items.reduce((sum, item) => sum + item.document_count, 0);
-  const published = items.reduce((sum, item) => sum + item.published_count, 0);
+  const documents = pending.statistics.data?.document_count ?? 0;
+  const published = pending.statistics.data?.published_count ?? 0;
   const workerOnline = health.data?.services.worker?.available;
   const llmReady = health.data?.knowledge.live_llm_configured;
   const importButton = <Button onClick={() => setImport(true)}><Upload size={15} />导入资料</Button>;
@@ -331,10 +332,9 @@ export function KnowledgePage() {
           {formal.map((collection) => (
             <CollectionBrowser
               collection={collection}
-              parsedDocuments={(parsedDocuments.data ?? []).filter((document) => document.ingestion_ids.some((id) => items.some((item) => item.id === id && item.collection_slug === collection.slug)))}
-              ingestions={items.filter((item) => item.collection_slug === collection.slug)}
+              parsedDocuments={(parsedDocuments.data ?? []).filter((document) => document.ingestion_ids.some((id) => pending.statistics.data?.by_collection[collection.slug]?.ingestion_ids.includes(id)))}
+              statistics={pending.statistics.data?.by_collection[collection.slug]}
               key={collection.slug}
-              pending={items.filter((item) => item.collection_slug === collection.slug).reduce((sum, item) => sum + (pending.byIngestion.get(item.id) ?? 0), 0)}
             />
           ))}
           {!formal.length ? (
@@ -348,6 +348,7 @@ export function KnowledgePage() {
             {items.map((item) => <IngestionRecord documents={(parsedDocuments.data ?? []).filter((document) => document.ingestion_ids.includes(item.id))} collections={collections.data ?? []} highlighted={highlighted === item.id} item={item} key={item.id} />)}
             {!items.length ? <EmptyBlock className="py-8" title="还没有导入记录">点击右上角「导入资料」开始。</EmptyBlock> : null}
           </div>
+          {ingestions.hasNextPage ? <Button className="mt-3" disabled={ingestions.isFetchingNextPage} variant="outline" onClick={() => void ingestions.fetchNextPage()}>{ingestions.isFetchingNextPage ? "加载中…" : "加载更多导入记录"}</Button> : null}
           <Disclosure className="mt-4" summary="导入流程说明">
             <ol className="list-decimal space-y-1 pl-4 text-xs leading-5 text-muted-ink">
               <li>后台解析 PDF、切分段落并建立检索索引。</li>

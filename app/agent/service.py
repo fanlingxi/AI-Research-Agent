@@ -633,7 +633,8 @@ class AgentRunService:
                                     else 'research-v1' if request.workflow in {
                                         'research_v2', 'research_v3', 'research_v4',
                                         'research_v5', 'research_v6', 'research_v7',
-                                        'research_v8', 'research_v9', 'research_v10', 'research_v11'
+                                        'research_v8', 'research_v9', 'research_v10',
+                                        'research_v11', 'research_v12'
                                     }
                                     else 'legacy'),
                     max_tokens=(request.context_max_tokens if request.context_max_tokens is not None
@@ -646,7 +647,8 @@ class AgentRunService:
             )
         if request.workflow in {
             'research_v2', 'research_v3', 'research_v4', 'research_v5', 'research_v6',
-            'research_v7', 'research_v8', 'research_v9', 'research_v10', 'research_v11'
+            'research_v7', 'research_v8', 'research_v9', 'research_v10', 'research_v11',
+            'research_v12'
         }:
             if context.reading_format == 'legacy':
                 raise AgentRunConflictError(

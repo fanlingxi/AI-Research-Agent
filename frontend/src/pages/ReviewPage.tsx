@@ -105,7 +105,7 @@ export function ReviewPage() {
       {projects.error instanceof Error ? <div className="mb-4"><ErrorBlock error={projects.error} /></div> : null}
       {selectedProposal.error instanceof Error ? <div className="mb-4"><ErrorBlock error={selectedProposal.error} /></div> : null}
       {tab === "candidates" ? (
-        <CandidateReviewPanel collectionSlug={params.get("collection")} initialIngestionId={params.get("ingestion")} />
+        <CandidateReviewPanel key={`${params.get("ingestion")}:${params.get("collection")}`} collectionSlug={params.get("collection")} initialIngestionId={params.get("ingestion")} />
       ) : (
         <section aria-label="记忆提案" className="space-y-3">
           {projects.isPending || proposalsLoading ? <LoadingBlock label="读取记忆提案…" /> : null}
