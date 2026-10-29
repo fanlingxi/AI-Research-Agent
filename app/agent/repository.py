@@ -217,22 +217,8 @@ class AgentRunRepository:
             requested_tokens = int(usage.get("input_tokens", 0) or 0) + int(
                 usage.get("output_tokens", 0) or 0
             )
-            used_tokens = int(
-                connection.execute(
-                    """
-                    SELECT COALESCE(
-                        SUM(
-                            COALESCE(json_extract(token_usage_json, '$.input_tokens'), 0)
-                            + COALESCE(json_extract(token_usage_json, '$.output_tokens'), 0)
-                        ),
-                        0
-                    )
-                    FROM agent_run_events WHERE run_id = ?
-                    """,
-                    (run_id,),
-                ).fetchone()[0]
-            )
-            if used_tokens + requested_tokens > int(row["token_budget"]):
+            totals, _ = self._trace_totals_tx(connection, run_id)
+            if totals["total_tokens"] + requested_tokens > int(row["token_budget"]):
                 raise AgentRunConflictError("AgentRun has exhausted its token budget.")
             return self._append_event_tx(
                 connection,
@@ -850,19 +836,31 @@ class AgentRunRepository:
 
         with self._connect() as connection:
             self._require_run_tx(connection, run_id)
-            row = connection.execute(
-                """
+            return self._trace_totals_tx(connection, run_id)
+
+    @staticmethod
+    def _trace_totals_tx(
+        connection: sqlite3.Connection, run_id: str
+    ) -> tuple[dict[str, int], float]:
+        # Normal generation usage lives in events. Revoked/cancelled settlements
+        # deliberately publish no events and contribute directly from the ledger.
+        row = connection.execute(
+            """
                 SELECT
                     COALESCE(SUM(COALESCE(json_extract(token_usage_json, '$.input_tokens'), 0)), 0)
                         AS input_tokens,
                     COALESCE(SUM(COALESCE(json_extract(token_usage_json, '$.output_tokens'), 0)), 0)
                         AS output_tokens,
                     COALESCE(SUM(latency_ms), 0) AS latency_ms
-                FROM agent_run_events
-                WHERE run_id = ?
-                """,
-                (run_id,),
-            ).fetchone()
+                FROM (
+                    SELECT token_usage_json, latency_ms FROM agent_run_events WHERE run_id = ?
+                    UNION ALL
+                    SELECT usage_json, 0 FROM research_generation_attempts
+                    WHERE run_id = ? AND audit_only = 1 AND status != 'pending'
+                )
+            """,
+            (run_id, run_id),
+        ).fetchone()
         input_tokens = int(row["input_tokens"])
         output_tokens = int(row["output_tokens"])
         return (

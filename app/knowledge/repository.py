@@ -119,6 +119,7 @@ class KnowledgeRepository:
         self._apply_structural_migration(20)
         self._apply_structural_migration(21)
         self._apply_structural_migration(22)
+        self._apply_structural_migration(23)
         self._backfill_legacy_relation_collections()
         self._backfill_semantic_records()
 
