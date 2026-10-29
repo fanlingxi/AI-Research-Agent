@@ -104,6 +104,7 @@ def report_error_diagnostic(exc):
 
 
 class StructuredResearchWorkflow(ResearchWorkflow):
+    _report_error_diagnostic = staticmethod(report_error_diagnostic)
     report_guidance = ""
     report_model = StructuredReport
     report_rules = (
@@ -229,7 +230,7 @@ class StructuredResearchWorkflow(ResearchWorkflow):
             except (ValueError, TypeError) as exc:
                 # A fixed diagnostic explains cross-field rules that JSON Schema cannot express.
                 # Never reflect untrusted response values or exception input into the next prompt.
-                prior_error = report_error_diagnostic(exc)
+                prior_error = self._report_error_diagnostic(exc)
         return self._needs_review(state, prior_error)
 
     def _report_task_block(self, package):

@@ -23,6 +23,11 @@ class ResearchDomainPlugin:
         domain="research",
         workflows=[
             DomainWorkflowSpec(
+                key="research_v12", name="研究 v12（显式缺口）", version="structured-v11",
+                checkpoint_namespace="agent_research_structured_v11", min_steps=9,
+                min_tool_calls=1, requires_live_llm=True,
+            ),
+            DomainWorkflowSpec(
                 key="research_v11", name="research_numeric_support", version="structured-v10",
                 checkpoint_namespace="agent_research_structured_v10", min_steps=9,
                 min_tool_calls=1, requires_live_llm=True,
@@ -133,6 +138,10 @@ class ResearchDomainPlugin:
 
     def build_workflow(self, service: Any, pin: PluginPin) -> Any:
         workflow = self.workflow_spec(pin.workflow_key)
+        if workflow.key == "research_v12":
+            from app.agent.explicit_gap_research import ExplicitGapResearchWorkflow
+
+            return ExplicitGapResearchWorkflow(service)
         if workflow.key == "research_v11":
             from app.agent.structured_research import NumericSupportResearchWorkflow
 
