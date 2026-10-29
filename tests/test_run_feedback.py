@@ -404,7 +404,7 @@ def test_feedback_api_validation_review_and_migration_preserve_history(stack):
         )
         assert export.status_code == 422
     reopened = KnowledgeRepository(repo.path)
-    assert reopened.schema_version() == 21
+    assert reopened.schema_version() == 22
     assert service.feedback.list(run.id)["feedback"][0]["decision"]["reviewer"] == "human"
 
 
@@ -420,7 +420,7 @@ def test_upgrade_from_v18_preserves_original_output_snapshot_and_job(stack):
         remove_source_version_schema_tx(connection)
         connection.execute("DELETE FROM schema_migrations WHERE version IN (19, 20)")
     upgraded = KnowledgeRepository(repo.path)
-    assert upgraded.schema_version() == 21
+    assert upgraded.schema_version() == 22
     assert service.repository.get_output(run.id).model_dump() == output
     assert service.context_builder.snapshot_repository.get(package.snapshot_id) == package
     with upgraded._connect() as connection:

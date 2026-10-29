@@ -6,6 +6,8 @@ from app.schemas.documents import DocumentChunk
 
 def remove_source_version_schema_tx(connection) -> None:
     """Reduce only an isolated migration fixture to its pre-v21 structure."""
+    connection.execute("ALTER TABLE knowledge_jobs DROP COLUMN crash_recoveries")
+    connection.execute("DELETE FROM schema_migrations WHERE version = 22")
     connection.execute("DROP INDEX idx_sources_superseded")
     connection.execute("ALTER TABLE sources DROP COLUMN superseded_by_source_id")
     connection.execute("ALTER TABLE sources DROP COLUMN superseded_at")

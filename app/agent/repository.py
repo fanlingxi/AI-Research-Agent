@@ -451,29 +451,44 @@ class AgentRunRepository:
     ) -> AgentRun:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            self._require_execution_fence_tx(connection, run_id, execution_fence)
-            row = self._require_run_tx(connection, run_id)
-            if str(row["status"]) in _TERMINAL_STATUSES:
-                return self._run_from_row(row)
-            now = _now()
-            connection.execute(
-                """
-                UPDATE agent_runs
-                SET status = 'failed', error_code = ?, error_message = ?, updated_at = ?,
-                    revision = revision + 1
-                WHERE id = ?
-                """,
-                (error_code, error_message[:4000], now, run_id),
+            return self.fail_run_tx(
+                connection, run_id, error_code=error_code, error_message=error_message,
+                execution_fence=execution_fence,
             )
-            self._append_event_tx(
-                connection,
-                run_id=run_id,
-                event_type="run_failed",
-                node_name=str(row["current_node"] or "runtime"),
-                status="failed",
-                error={"code": error_code, "message": error_message[:4000]},
-            )
-            return self._run_from_row(self._require_run_tx(connection, run_id))
+
+    def fail_run_tx(
+        self,
+        connection: sqlite3.Connection,
+        run_id: str,
+        *,
+        error_code: str,
+        error_message: str,
+        execution_fence: ExecutionFence | None = None,
+    ) -> AgentRun:
+        """Fail a run and append its audit event in the caller's transaction."""
+        self._require_execution_fence_tx(connection, run_id, execution_fence)
+        row = self._require_run_tx(connection, run_id)
+        if str(row["status"]) in _TERMINAL_STATUSES:
+            return self._run_from_row(row)
+        now = _now()
+        connection.execute(
+            """
+            UPDATE agent_runs
+            SET status = 'failed', error_code = ?, error_message = ?, updated_at = ?,
+                revision = revision + 1
+            WHERE id = ?
+            """,
+            (error_code, error_message[:4000], now, run_id),
+        )
+        self._append_event_tx(
+            connection,
+            run_id=run_id,
+            event_type="run_failed",
+            node_name=str(row["current_node"] or "runtime"),
+            status="failed",
+            error={"code": error_code, "message": error_message[:4000]},
+        )
+        return self._run_from_row(self._require_run_tx(connection, run_id))
 
     def cancel_run(self, run_id: str) -> AgentRun:
         with self._connect() as connection:
