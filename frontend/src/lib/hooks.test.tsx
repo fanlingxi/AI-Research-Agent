@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AgentRun, type Artifact, type Project, type ResearchReport } from "./api";
 import { fileName, useReportLibrary } from "./hooks";
+import { historyPage } from "../test/historyFixtures";
 
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 
@@ -34,9 +35,39 @@ describe("source filenames", () => {
 });
 
 describe("report library", () => {
+  it("polls active reports on later pages while preserving pagination and totals", async () => {
+    vi.useFakeTimers();
+    const first: ResearchReport = { ...report, id: "report-first", status: "completed" };
+    let completed = false;
+    const reports = vi.spyOn(api, "reportPage").mockImplementation(async (offset = 0) => historyPage<ResearchReport>(
+      [offset ? { ...report, status: completed ? "completed" : "queued" } : first], 26, offset,
+    ));
+    vi.spyOn(api, "projects").mockResolvedValue([]);
+    const { result, unmount, client } = renderLibrary();
+    await tick();
+    expect(result.current.quickTotal).toBe(26);
+    expect(result.current.hasNextPage).toBe(true);
+    await tick(2_500);
+    expect(reports).toHaveBeenCalledTimes(1);
+    await act(async () => { await result.current.fetchNextPage(); });
+    await tick();
+    expect(reports).toHaveBeenLastCalledWith(25);
+    expect(result.current.items.map((item) => item.id)).toEqual([first.id, report.id]);
+    expect(result.current.hasNextPage).toBe(false);
+    completed = true;
+    await tick(2_600);
+    expect(result.current.items.every((item) => item.status === "completed")).toBe(true);
+    expect(reports.mock.calls.map(([offset]) => offset)).toEqual([0, 25, 0, 25]);
+    expect(result.current.quickTotal).toBe(26);
+    const count = reports.mock.calls.length;
+    await tick(5_000);
+    expect(reports).toHaveBeenCalledTimes(count);
+    unmount(); client.clear();
+  });
+
   it("polls queued quick reports through completion and then stops", async () => {
     vi.useFakeTimers();
-    const reports = vi.spyOn(api, "reports").mockResolvedValueOnce([report]).mockResolvedValueOnce([{ ...report, status: "running" }]).mockResolvedValue([{ ...report, status: "completed" }]);
+    const reports = vi.spyOn(api, "reportPage").mockResolvedValueOnce(historyPage([report])).mockResolvedValueOnce(historyPage([{ ...report, status: "running" }])).mockResolvedValue(historyPage([{ ...report, status: "completed" }]));
     vi.spyOn(api, "projects").mockResolvedValue([]);
     const { result, unmount, client } = renderLibrary();
     await tick();
@@ -53,7 +84,7 @@ describe("report library", () => {
 
   it("refreshes project artifacts while a run is active and once more when it completes", async () => {
     vi.useFakeTimers();
-    vi.spyOn(api, "reports").mockResolvedValue([]);
+    vi.spyOn(api, "reportPage").mockResolvedValue(historyPage([]));
     vi.spyOn(api, "projects").mockResolvedValue([project]);
     vi.spyOn(api, "tasks").mockResolvedValue([]);
     let completed = false;
@@ -77,7 +108,7 @@ describe("report library", () => {
   });
 
   it("includes artifact loading and errors, and retries the failed child query", async () => {
-    vi.spyOn(api, "reports").mockResolvedValue([]);
+    vi.spyOn(api, "reportPage").mockResolvedValue(historyPage([]));
     vi.spyOn(api, "projects").mockResolvedValue([project]);
     vi.spyOn(api, "tasks").mockResolvedValue([]);
     vi.spyOn(api, "projectRuns").mockResolvedValue({ items: [], next_cursor: null });

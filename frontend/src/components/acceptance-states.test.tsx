@@ -1,8 +1,9 @@
+import { emptyIngestionStatistics, historyPage } from "../test/historyFixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import {
@@ -180,6 +181,40 @@ afterEach(() => {
 });
 
 describe("browser acceptance states", () => {
+  beforeEach(() => { vi.spyOn(api, "ingestionStatistics").mockResolvedValue(emptyIngestionStatistics); });
+
+  it("loads more quick reports while preserving the full report count", async () => {
+    const pages = vi.spyOn(api, "reportPage")
+      .mockResolvedValueOnce(historyPage([queuedReport], 26))
+      .mockResolvedValueOnce(historyPage([{ ...queuedReport, id: "old-report", query: "旧报告" }], 26, 25));
+    vi.spyOn(api, "projects").mockResolvedValue([]);
+    renderWithQuery(<MemoryRouter><ReportsPage /></MemoryRouter>);
+    await userEvent.click(await screen.findByRole("button", { name: "加载更多报告" }));
+    expect(await screen.findByRole("link", { name: /旧报告/ })).toHaveAttribute("href", "/reports/old-report");
+    expect(pages).toHaveBeenLastCalledWith(25);
+    expect(screen.getByRole("button", { name: /快速报告.*26/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "加载更多报告" })).not.toBeInTheDocument();
+  });
+
+  it("loads older ingestion records without changing history-wide statistics", async () => {
+    const old = { ...failedIngestion, id: "old-batch", collection: "旧资料" };
+    const pages = vi.spyOn(api, "ingestionPage")
+      .mockResolvedValueOnce(historyPage([failedIngestion], 26))
+      .mockResolvedValueOnce(historyPage([old], 26, 25));
+    vi.spyOn(api, "ingestionStatistics").mockResolvedValue({ ...emptyIngestionStatistics, total: 26, document_count: 125, published_count: 142, pending_count: 137 });
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "knowledgeDocuments").mockResolvedValue([]);
+    vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
+    renderWithQuery(<MemoryRouter><KnowledgePage /></MemoryRouter>);
+    await userEvent.click(await screen.findByRole("button", { name: "加载更多导入记录" }));
+    expect(await screen.findByText("旧资料")).toBeInTheDocument();
+    expect(pages).toHaveBeenLastCalledWith(25);
+    expect(screen.getByText("125")).toBeInTheDocument();
+    expect(screen.getByText("142")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "137" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "加载更多导入记录" })).not.toBeInTheDocument();
+  });
+
   it("redacts unavailable-service implementation details", () => {
     render(<ErrorBlock error={new ApiError("Couldn't connect to 127.0.0.1:9", 503)} />);
 
@@ -188,7 +223,7 @@ describe("browser acceptance states", () => {
   });
 
   it("does not show a candidate loading state when no ingestion is selected", async () => {
-    vi.spyOn(api, "ingestions").mockResolvedValue([]);
+    vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage([]));
 
     renderWithQuery(<MemoryRouter><CandidateReviewPanel /></MemoryRouter>);
 
@@ -200,7 +235,7 @@ describe("browser acceptance states", () => {
     vi.spyOn(api, "projects").mockResolvedValue([project]);
     vi.spyOn(api, "proposals").mockResolvedValue([committedProposal]);
     vi.spyOn(api, "proposal").mockResolvedValue(committedProposal);
-    vi.spyOn(api, "ingestions").mockResolvedValue([]);
+    vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage([]));
 
     renderWithQuery(<MemoryRouter initialEntries={["/review?proposal=proposal-1"]}><Routes><Route path="/review" element={<ReviewPage />} /></Routes></MemoryRouter>);
 
@@ -298,8 +333,8 @@ describe("browser acceptance states", () => {
   });
 
   it("lists quick reports and project reports together in the library", async () => {
+    vi.spyOn(api, "reportPage").mockResolvedValue(historyPage([{ ...queuedReport, status: "completed" }]));
     vi.spyOn(api, "projectRuns").mockResolvedValue({ items: [], next_cursor: null });
-    vi.spyOn(api, "reports").mockResolvedValue([{ ...queuedReport, status: "completed" }]);
     vi.spyOn(api, "projects").mockResolvedValue([project]);
     vi.spyOn(api, "tasks").mockResolvedValue(workspaceTasks);
     vi.spyOn(api, "artifacts").mockResolvedValue([{
@@ -476,7 +511,7 @@ describe("browser acceptance states", () => {
     const user = userEvent.setup();
     vi.spyOn(api, "projects").mockResolvedValue([project]);
     vi.spyOn(api, "proposals").mockResolvedValue([{ ...committedProposal, status: "proposed", revision: 1, payload: { summary: "采用混合检索" } }]);
-    vi.spyOn(api, "ingestions").mockResolvedValue([]);
+    vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage([]));
 
     renderWithQuery(<MemoryRouter><ReviewPage /></MemoryRouter>);
 
@@ -536,7 +571,7 @@ describe("browser acceptance states", () => {
   });
 
   it("bounds long Knowledge and Runtime lists inside their cards", async () => {
-    vi.spyOn(api, "ingestions").mockResolvedValue([]);
+    vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage([]));
     vi.spyOn(api, "collections").mockResolvedValue([]);
     vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
     vi.spyOn(api, "runtimeOverview").mockResolvedValue(healthyRuntime);
@@ -606,7 +641,7 @@ describe("browser acceptance states", () => {
 
   it("submits and starts a knowledge ingestion in one action", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "ingestions").mockResolvedValue([]);
+    vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage([]));
     vi.spyOn(api, "collections").mockResolvedValue([]);
     vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
     const submit = vi.spyOn(api, "submitAndExecuteIngestion").mockResolvedValue({
@@ -628,7 +663,7 @@ describe("browser acceptance states", () => {
 
   it("retries a failed knowledge ingestion in place", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "ingestions").mockResolvedValue([failedIngestion]);
+    vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage([failedIngestion]));
     vi.spyOn(api, "collections").mockResolvedValue([]);
     vi.spyOn(api, "knowledgeHealth").mockResolvedValue(healthyKnowledge);
     const retry = vi.spyOn(api, "retryIngestion").mockResolvedValue({
@@ -655,7 +690,7 @@ describe("browser acceptance states", () => {
       status: "completed",
       error: null,
     };
-    vi.spyOn(api, "ingestions").mockResolvedValue([inbox]);
+    vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage([inbox]));
     vi.spyOn(api, "collections").mockResolvedValue([
       { slug: "inbox", name: "收件箱", is_system: true, ingestion_count: 1, updated_at: null },
       { slug: "papers", name: "论文库", is_system: false, ingestion_count: 1, updated_at: null },

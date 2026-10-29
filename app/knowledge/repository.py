@@ -341,12 +341,80 @@ class KnowledgeRepository:
             ).fetchone()
         return json.loads(row[0]) if row and row[0] else None
 
-    def list_ingestions(self, limit: int = 100) -> list[KnowledgeIngestion]:
+    def list_ingestions(
+        self, limit: int = 100, offset: int = 0
+    ) -> list[KnowledgeIngestion]:
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM ingestions ORDER BY created_at DESC LIMIT ?", (limit,)
+                "SELECT * FROM ingestions ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+                (limit, offset),
             ).fetchall()
         return [self._ingestion_from_row(row) for row in rows]
+
+    def list_ingestions_page(self, *, limit: int = 25, offset: int = 0) -> dict[str, Any]:
+        with self._connect() as connection:
+            connection.execute("BEGIN")
+            total = connection.execute("SELECT COUNT(*) FROM ingestions").fetchone()[0]
+            rows = connection.execute(
+                "SELECT * FROM ingestions ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+                (limit, offset),
+            ).fetchall()
+        return {
+            "items": [self._ingestion_from_row(row).model_dump() for row in rows],
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "next_offset": offset + limit if offset + limit < total else None,
+        }
+
+    def ingestion_statistics(self) -> dict[str, Any]:
+        """History-wide counts and collection membership, independent of loaded pages."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT i.id, COALESCE(k.name, i.topic) AS collection,
+                    COALESCE(k.slug, i.topic_slug) AS collection_slug, i.sources_json,
+                    COALESCE(d.document_count, 0) AS document_count,
+                    COALESCE(c.published_count, 0) AS published_count,
+                    COALESCE(c.pending_count, 0) AS pending_count
+                FROM ingestions i
+                LEFT JOIN ingestion_collections ic ON ic.ingestion_id = i.id
+                LEFT JOIN knowledge_collections k ON k.slug = ic.collection_slug
+                LEFT JOIN (
+                    SELECT ingestion_id, COUNT(*) AS document_count
+                    FROM ingestion_documents GROUP BY ingestion_id
+                ) d ON d.ingestion_id = i.id
+                LEFT JOIN (
+                    SELECT ingestion_id,
+                        SUM(status IN ('published', 'merged')) AS published_count,
+                        SUM(status = 'draft') AS pending_count
+                    FROM candidates GROUP BY ingestion_id
+                ) c ON c.ingestion_id = i.id
+                ORDER BY i.created_at DESC, i.id DESC
+                """
+            ).fetchall()
+        result: dict[str, Any] = {
+            "total": len(rows), "document_count": 0, "published_count": 0,
+            "pending_count": 0, "by_ingestion": {}, "by_collection": {},
+            "pending_ingestions": [],
+        }
+        for row in rows:
+            result["by_ingestion"][row["id"]] = row["pending_count"]
+            if row["pending_count"]:
+                result["pending_ingestions"].append({
+                    "id": row["id"], "collection": row["collection"],
+                    "collection_slug": row["collection_slug"],
+                })
+            collection = result["by_collection"].setdefault(row["collection_slug"], {
+                "document_count": 0, "published_count": 0, "pending_count": 0,
+                "sources": [], "ingestion_ids": [],
+            })
+            collection["sources"].extend(json.loads(row["sources_json"]))
+            collection["ingestion_ids"].append(row["id"])
+            for key in ("document_count", "published_count", "pending_count"):
+                result[key] += row[key]
+                collection[key] += row[key]
+        return result
 
     def get_ingestion(self, ingestion_id: str) -> KnowledgeIngestion:
         with self._connect() as connection:

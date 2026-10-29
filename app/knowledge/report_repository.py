@@ -206,12 +206,29 @@ class ReportRepository:
             )
         return self.get_report(resolved_report_id)
 
-    def list_reports(self, limit: int = 100) -> list[ResearchReport]:
+    def list_reports(self, limit: int = 100, offset: int = 0) -> list[ResearchReport]:
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM reports ORDER BY created_at DESC LIMIT ?", (limit,)
+                "SELECT * FROM reports ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+                (limit, offset),
             ).fetchall()
         return [self._report_from_row(row) for row in rows]
+
+    def list_reports_page(self, *, limit: int = 25, offset: int = 0) -> dict[str, Any]:
+        with self._connect() as connection:
+            connection.execute("BEGIN")
+            total = connection.execute("SELECT COUNT(*) FROM reports").fetchone()[0]
+            rows = connection.execute(
+                "SELECT * FROM reports ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+                (limit, offset),
+            ).fetchall()
+        return {
+            "items": [self._report_from_row(row).model_dump() for row in rows],
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "next_offset": offset + limit if offset + limit < total else None,
+        }
 
     def get_report(self, report_id: str) -> ResearchReport:
         with self._connect() as connection:

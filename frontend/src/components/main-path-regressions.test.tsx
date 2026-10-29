@@ -9,6 +9,7 @@ import { ApiError, api, type ContextSnapshotSummary, type KnowledgeIngestion, ty
 import { KnowledgePage } from "../pages/KnowledgePage";
 import { ProjectWorkspacePage } from "../pages/ProjectWorkspacePage";
 import { QuickReportPage } from "../pages/QuickReportPage";
+import { emptyIngestionStatistics, historyPage } from "../test/historyFixtures";
 import { ResearchCommandLauncher } from "./ResearchCommandLauncher";
 
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); localStorage.clear(); });
@@ -168,12 +169,13 @@ describe("ingestion and report actions", () => {
       pdf_max_pages: 20, status: "interrupted", document_count: 0, candidate_count: 0, published_count: 0,
       queue_position: null, job_attempts: 1, error: null, created_at: project.created_at, updated_at: project.updated_at,
     };
-    const ingestions = vi.spyOn(api, "ingestions").mockResolvedValue([ingestion]);
+    const ingestions = vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage([ingestion]));
+    vi.spyOn(api, "ingestionStatistics").mockResolvedValue({ ...emptyIngestionStatistics, total: 1 });
     vi.spyOn(api, "collections").mockResolvedValue([]);
     vi.spyOn(api, "knowledgeDocuments").mockResolvedValue([]);
     vi.spyOn(api, "knowledgeHealth").mockResolvedValue({ status: "ok", services: {}, knowledge: { live_llm_configured: true } } as Awaited<ReturnType<typeof api.knowledgeHealth>>);
     const retry = vi.spyOn(api, "retryIngestion").mockImplementation(async () => {
-      ingestions.mockResolvedValue([{ ...ingestion, status: "queued" }]);
+      ingestions.mockResolvedValue(historyPage([{ ...ingestion, status: "queued" }]));
       return { ...ingestion, status: "queued" };
     });
     renderWithQuery(<MemoryRouter><KnowledgePage /></MemoryRouter>);

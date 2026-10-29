@@ -1,4 +1,4 @@
-import { queryOptions, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useInfiniteQuery, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 
 import { api, type Artifact, type ResearchReport } from "./api";
@@ -6,34 +6,29 @@ import { api, type Artifact, type ResearchReport } from "./api";
 const ACTIVE_INGESTION = ["queued", "running", "publishing"];
 
 export function useIngestions() {
+  const query = useInfiniteQuery({
+    queryKey: ["knowledge-ingestions", "pages"],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => api.ingestionPage(pageParam),
+    getNextPageParam: (page) => page.next_offset ?? undefined,
+    refetchInterval: (query) => query.state.data?.pages.some((page) => page.items.some((item) => ACTIVE_INGESTION.includes(item.status))) ? 2_500 : false,
+  });
+  return { ...query, data: query.data?.pages.flatMap((page) => page.items), total: query.data?.pages[0]?.total ?? 0 };
+}
+
+export function useIngestionStatistics() {
   return useQuery({
-    queryKey: ["knowledge-ingestions"],
-    queryFn: api.ingestions,
-    refetchInterval: (query) => query.state.data?.some((item) => ACTIVE_INGESTION.includes(item.status)) ? 2_500 : false,
+    queryKey: ["knowledge-ingestions", "statistics"],
+    queryFn: api.ingestionStatistics,
+    refetchInterval: 10_000,
   });
 }
 
-/**
- * Exact number of candidates still waiting for a human decision, per ingestion.
- * Uses the paginated endpoint with limit=1 so only the total is transferred.
- */
+/** Exact pending counts across all history, independent of visible pages. */
 export function usePendingCandidates() {
-  const ingestions = useIngestions();
-  const reviewable = (ingestions.data ?? []).filter((item) => item.candidate_count > 0);
-  const totals = useQueries({
-    queries: reviewable.map((item) => ({
-      queryKey: ["knowledge-candidates", item.id, "pending-total", item.updated_at],
-      queryFn: () => api.candidatePage(item.id, { limit: 1 }),
-      staleTime: 30_000,
-    })),
-  });
-  const byIngestion = new Map<string, number>();
-  reviewable.forEach((item, index) => {
-    const total = totals[index]?.data?.total;
-    if (total != null) byIngestion.set(item.id, total);
-  });
-  const total = Array.from(byIngestion.values()).reduce((sum, value) => sum + value, 0);
-  return { ingestions, byIngestion, total, isPending: ingestions.isPending || totals.some((query) => query.isPending) };
+  const statistics = useIngestionStatistics();
+  const byIngestion = new Map(Object.entries(statistics.data?.by_ingestion ?? {}));
+  return { statistics, byIngestion, total: statistics.data?.pending_count ?? 0, isPending: statistics.isPending };
 }
 
 /** Paper titles derived from approved "Paper" entities, for places that only carry a paper id. */
@@ -106,10 +101,12 @@ export interface LibraryItem {
 /** Quick reports and project-run reports, newest first, as one reading list. */
 export function useReportLibrary() {
   const client = useQueryClient();
-  const reports = useQuery({
-    queryKey: ["reports"],
-    queryFn: api.reports,
-    refetchInterval: (query) => query.state.data?.some((report) => ["queued", "running"].includes(report.status)) ? 2_500 : false,
+  const reports = useInfiniteQuery({
+    queryKey: ["reports", "pages"],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => api.reportPage(pageParam),
+    getNextPageParam: (page) => page.next_offset ?? undefined,
+    refetchInterval: (query) => query.state.data?.pages.some((page) => page.items.some((report) => ["queued", "running"].includes(report.status))) ? 2_500 : false,
   });
   const projects = useQuery({ queryKey: ["projects"], queryFn: api.projects });
   const projectList = projects.data ?? [];
@@ -142,7 +139,7 @@ export function useReportLibrary() {
   });
   const signature = [reports.dataUpdatedAt, ...artifacts.map((query) => query.dataUpdatedAt), ...tasks.map((query) => query.dataUpdatedAt)].join(":");
   const items = useMemo<LibraryItem[]>(() => {
-    const result: LibraryItem[] = (reports.data ?? []).map((report) => ({
+    const result: LibraryItem[] = (reports.data?.pages.flatMap((page) => page.items) ?? []).map((report) => ({
       kind: "quick",
       id: report.id,
       title: report.query,
@@ -181,6 +178,10 @@ export function useReportLibrary() {
   }, [signature, projects.dataUpdatedAt]);
   return {
     items,
+    quickTotal: reports.data?.pages[0]?.total ?? 0,
+    hasNextPage: reports.hasNextPage,
+    fetchNextPage: reports.fetchNextPage,
+    isFetchingNextPage: reports.isFetchingNextPage,
     isPending: reports.isPending || projects.isPending || [...artifacts, ...tasks, ...runs].some((query) => query.isPending),
     error: (reports.error ?? projects.error ?? [...artifacts, ...tasks, ...runs].find((query) => query.error)?.error ?? null) as Error | null,
     refetch: () => {
