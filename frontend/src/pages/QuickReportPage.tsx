@@ -173,7 +173,7 @@ export function QuickReportPage() {
           <span>范围：{data.topic_slugs.length ? data.topic_slugs.join("、") : "全部已发布知识"}</span>
         </>}
         actions={<>
-          {hasContent ? <a className={buttonVariants({ variant: "outline" })} href={`/api/reports/${encodeURIComponent(data.id)}/download`}><FileDown size={15} />下载 Markdown</a> : null}
+          {data.status === "completed" && hasContent ? <a className={buttonVariants({ variant: "outline" })} href={`/api/reports/${encodeURIComponent(data.id)}/download`}><FileDown size={15} />下载 Markdown</a> : null}
           <ReportAction report={data} dispatcherAvailable={dispatcherAvailable} />
         </>}
         notices={<>

@@ -44,6 +44,20 @@ export function EmptyBlock({
 }
 
 function safeErrorMessage(error: Error) {
+  if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+    const messages: Record<number, string> = {
+      400: "请求内容有误，请检查输入后重试。",
+      401: "登录状态已失效，请重新登录后重试。",
+      403: "当前没有权限执行此操作，请确认访问权限。",
+      404: "未找到所需记录，记录可能已被删除。请返回列表刷新后重试。",
+      408: "请求超时，请稍后重试。",
+      409: "记录状态已变化，或与当前操作冲突。请刷新后重试。",
+      410: "所需记录已失效，请返回列表重新选择。",
+      422: "提交内容未通过校验，请检查填写的信息后重试。",
+      429: "请求过于频繁，请稍后重试。",
+    };
+    return messages[error.status] ?? "请求未能完成，请检查输入和记录状态后重试。";
+  }
   if (error instanceof ApiError && error.status === 503) {
     return "相关检索服务当前不可用，请稍后重试。";
   }
@@ -64,6 +78,12 @@ export function ErrorBlock({ error, onRetry, title = "无法完成此操作" }: 
         <div className="min-w-0">
           <p className="font-medium">{title}</p>
           <p className="mt-0.5 break-words text-red-900/80">{safeErrorMessage(error)}</p>
+          {error instanceof ApiError && error.status >= 400 && error.status < 500 ? (
+            <details className="mt-2 text-xs text-red-900/80">
+              <summary className="cursor-pointer">详情</summary>
+              <pre className="mt-1 whitespace-pre-wrap break-words">{error.message}</pre>
+            </details>
+          ) : null}
           {onRetry ? <Button className="mt-3" variant="outline" size="sm" onClick={onRetry}>重试</Button> : null}
         </div>
       </div>

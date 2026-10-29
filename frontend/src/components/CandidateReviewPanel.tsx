@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, GitMerge, PauseCircle, Plus, Sparkles, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api, type BulkCandidateDecisionResult, type CandidateDecisionKind, type DuplicateGroup, type EntityCandidate, type KnowledgeCandidate, type MergeSuggestion, type RelationCandidate } from "../lib/api";
 import { documentTitle, useIngestions, usePaperTitles } from "../lib/hooks";
 import { entityTypeLabel, relationTypeLabel } from "../lib/labels";
+import { invalidateKnowledgeReview } from "../lib/knowledgeQueries";
 import { cn } from "../lib/utils";
 import { EmptyBlock, ErrorBlock, LoadingBlock, Notice } from "./AsyncState";
 import { confirmApproveAsNew, DuplicateGroupList, MergeSuggestions } from "./DuplicateReview";
@@ -98,7 +99,7 @@ function CandidateCard({ record, onDecide, onSelect, pending, selected, titles }
             {target ? (
               <>
                 <Button disabled={pending} size="sm" variant="outline" onClick={() => { if (confirmApproveAsNew(title, suggestions)) onDecide("approve"); }}><Plus size={14} />作为新实体批准</Button>
-                <Button disabled={pending} size="sm" onClick={() => onDecide("merge", target.entity_id)}><GitMerge size={14} />合并到「{target.name}」</Button>
+                <Button className="max-w-full min-w-0" disabled={pending} size="sm" title={`合并到「${target.name}」`} onClick={() => onDecide("merge", target.entity_id)}><GitMerge className="shrink-0" size={14} /><span className="min-w-0 truncate">合并到「{target.name}」</span></Button>
               </>
             ) : <Button disabled={pending} size="sm" onClick={() => onDecide("approve")}><Check size={14} />批准</Button>}
           </div>
@@ -142,14 +143,13 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
     queryFn: () => api.duplicateGroups(selectedId),
     enabled: Boolean(selectedId),
   });
-  const invalidate = () => {
-    void client.invalidateQueries({ queryKey: ["knowledge-candidates", selectedId] });
-    void client.invalidateQueries({ queryKey: ["knowledge-duplicates", selectedId] });
-    void client.invalidateQueries({ queryKey: ["knowledge-map"] });
-    void client.invalidateQueries({ queryKey: ["knowledge-map-node"] });
-    void client.invalidateQueries({ queryKey: ["knowledge-ingestions"] });
-    void client.invalidateQueries({ queryKey: ["knowledge-collection"] });
-  };
+  useEffect(() => {
+    if (candidates.data && offset > 0 && offset >= candidates.data.total) {
+      setOffset(Math.max(0, Math.ceil(candidates.data.total / PAGE_SIZE) - 1) * PAGE_SIZE);
+      setSelectedCandidateIds([]);
+    }
+  }, [candidates.data, offset]);
+  const invalidate = () => invalidateKnowledgeReview(client, selectedId);
   const decide = useMutation({
     mutationFn: ({ candidateId, decision, canonicalId }: { candidateId: string; decision: Decision; canonicalId?: string }) => api.decideCandidate(candidateId, decision, canonicalId),
     onSuccess: (_result, variables) => {
@@ -371,7 +371,7 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
           {kind !== "all" || paperId || minConfidence !== "all" ? "调整筛选条件看看其他候选。" : "批准的知识已经可以在检索和研究中使用。"}
         </EmptyBlock>
       ) : null}
-      {view === "all" && candidates.data && candidates.data.total > PAGE_SIZE ? (
+      {view === "all" && candidates.data && (candidates.data.total > PAGE_SIZE || offset > 0) ? (
         <div className="mt-5 flex items-center justify-between gap-3">
           <Button disabled={!offset || candidates.isFetching} size="sm" variant="outline" onClick={() => { setOffset(Math.max(0, offset - PAGE_SIZE)); clearSelection(); }}><ChevronLeft size={14} />上一页</Button>
           <span className="text-xs tabular-nums text-muted-ink">{pageStart}–{pageEnd} / {candidates.data.total}</span>
