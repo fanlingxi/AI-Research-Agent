@@ -14,6 +14,7 @@ from app.agent.errors import (
     AgentRunConflictError,
     AgentRunNotRecoverableError,
     AgentRunTerminalError,
+    WorkflowVersionMismatchError,
 )
 from app.agent.models import AgentRun, AgentRunEvent, AgentRunOptions, AgentRunOutput, AgentToolCall
 from app.domain_plugins.contracts import PluginPin
@@ -662,6 +663,39 @@ class AgentRunRepository:
                 error={"code": error_code, "message": error_message[:4000]},
             )
             return self._run_from_row(self._require_run_tx(connection, run_id))
+
+    def stop_incompatible_workflow_tx(
+        self,
+        connection: sqlite3.Connection,
+        run_id: str,
+        *,
+        execution_fence: ExecutionFence | None = None,
+    ) -> AgentRun:
+        """Permanently stop an unproven checkpoint contract without touching outputs."""
+
+        self._require_execution_fence_tx(connection, run_id, execution_fence)
+        row = self._require_run_tx(connection, run_id)
+        if str(row["status"]) in _TERMINAL_STATUSES:
+            return self._run_from_row(row)
+        now = _now()
+        connection.execute(
+            """
+            UPDATE agent_runs
+            SET status = 'needs_review', current_node = 'workflow_compatibility_check',
+                error_code = ?, error_message = ?, completed_at = ?, updated_at = ?,
+                revision = revision + 1
+            WHERE id = ?
+            """,
+            (WorkflowVersionMismatchError.code, WorkflowVersionMismatchError.message,
+             now, now, run_id),
+        )
+        self._append_event_tx(
+            connection, run_id=run_id, event_type="run_needs_review",
+            node_name="workflow_compatibility_check", status="needs_review",
+            error={"code": WorkflowVersionMismatchError.code,
+                   "message": WorkflowVersionMismatchError.message},
+        )
+        return self._run_from_row(self._require_run_tx(connection, run_id))
 
     def recover_interrupted_run(
         self,
