@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
+from app.config.settings import Settings
 from app.schemas.documents import ParsedDocument
 from app.tools.text_safety import sanitize_utf8_text
 
@@ -16,7 +18,29 @@ def parse_pdf_source(
     *,
     derive_blocks: bool = False,
     parser_version: str = "pypdf-v3",
+    download_settings: Settings | None = None,
 ) -> ParsedDocument:
+    if _is_url(source):
+        # Run the existing parser on the staging file before publishing it.
+        validated = []
+
+        def validate(path: Path) -> None:
+            parsed = parse_pdf_source(
+                str(path), max_pages=max_pages, derive_blocks=derive_blocks,
+                parser_version=parser_version,
+            )
+            if parsed.title == path.stem:
+                parsed.title = None
+            validated.append(parsed)
+
+        path = _download_pdf(source, download_dir, settings=download_settings, validate=validate)
+        parsed = validated[0]
+        return parsed.model_copy(update={
+            "source": str(path),
+            "title": parsed.title or path.stem.partition("-")[2] or path.stem,
+            "metadata": {**parsed.metadata, "file_name": path.name, "original_source": source},
+        })
+
     path = _resolve_pdf_source(source=source, download_dir=download_dir)
 
     try:
@@ -259,26 +283,20 @@ def _resolve_pdf_source(source: str, download_dir: str) -> Path:
     return path
 
 
-def _download_pdf(source: str, download_dir: str) -> Path:
-    import httpx
+def _download_pdf(
+    source: str, download_dir: str, *, settings: Settings | None = None,
+    validate: Callable[[Path], None] | None = None,
+) -> Path:
+    from app.tools.pdf_download import download_pdf
 
-    target_dir = Path(download_dir)
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    parsed = urlparse(source)
-    file_name = Path(parsed.path).name or "downloaded-paper.pdf"
-    if not file_name.endswith(".pdf"):
-        file_name = f"{_slugify(file_name)}.pdf"
-    target_path = target_dir / file_name
-
-    response = httpx.get(source, timeout=30.0, follow_redirects=True)
-    response.raise_for_status()
-    target_path.write_bytes(response.content)
-    return target_path
+    return download_pdf(
+        source, download_dir, settings=settings,
+        validate=validate or (lambda path: parse_pdf_source(str(path))),
+    )
 
 
 def _is_url(source: str) -> bool:
-    return source.startswith("http://") or source.startswith("https://")
+    return bool(urlparse(source).netloc) or "://" in source
 
 
 def _slugify(value: str) -> str:
