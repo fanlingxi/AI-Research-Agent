@@ -957,9 +957,11 @@ class KnowledgeRepository:
         review_note: str | None = None,
         *,
         domain_plugin_key: str | None = None,
+        expected_review_fingerprint: str | None = None,
     ) -> dict[str, Any]:
         return self.candidates.reject_candidate(
-            candidate_id, review_note, domain_plugin_key=domain_plugin_key
+            candidate_id, review_note, domain_plugin_key=domain_plugin_key,
+            expected_review_fingerprint=expected_review_fingerprint,
         )
 
     def defer_candidate(
@@ -995,6 +997,7 @@ class KnowledgeRepository:
         domain_plugin_key: str | None = None,
         core_domain: str = "",
         core_claim_override: CoreEntityClaimOverride | None = None,
+        expected_review_fingerprint: str | None = None,
     ) -> PublishedEntity:
         return self.candidates.publish_entity(
             candidate_id,
@@ -1004,10 +1007,15 @@ class KnowledgeRepository:
             domain_plugin_key=domain_plugin_key,
             core_domain=core_domain,
             core_claim_override=core_claim_override,
+            expected_review_fingerprint=expected_review_fingerprint,
         )
 
-    def publish_relation(self, candidate_id: str) -> PublishedRelation:
-        return self.candidates.publish_relation(candidate_id)
+    def publish_relation(
+        self, candidate_id: str, *, expected_review_fingerprint: str | None = None
+    ) -> PublishedRelation:
+        return self.candidates.publish_relation(
+            candidate_id, expected_review_fingerprint=expected_review_fingerprint
+        )
 
     def projection_status_for_candidate(self, candidate_id: str) -> str:
         return self.projections.projection_status_for_candidate(candidate_id)

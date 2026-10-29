@@ -10,6 +10,7 @@ from uuid import uuid4
 from app.knowledge.core_models import CoreEntityClaimOverride
 from app.knowledge.core_repository import ClaimEvidenceValidationError, KnowledgeCoreRepository
 from app.knowledge.projection_repository import ProjectionRepository
+from app.knowledge.review_content import CandidateContentChanged, review_fingerprint
 from app.knowledge.schemas import (
     CandidateEntity,
     CandidateRelation,
@@ -403,18 +404,36 @@ class CandidateRepository:
 
     # Transactional review and outbox -------------------------------------------
 
+    def _check_review_content_tx(
+        self, connection: sqlite3.Connection, row: sqlite3.Row, expected: str | None
+    ) -> None:
+        """Check under the decision's write lock, including live endpoint names."""
+        if expected is None:
+            return
+        stored = candidate_from_row(row)
+        names = {}
+        if stored["kind"] == "relation":
+            for key in ("source_candidate_id", "target_candidate_id"):
+                endpoint_id = stored["candidate"][key]
+                endpoint = self._candidate_row_tx(connection, endpoint_id)
+                names[endpoint_id] = candidate_from_row(endpoint)["candidate"].get("name", "")
+        if review_fingerprint(stored, names) != expected:
+            raise CandidateContentChanged()
+
     def reject_candidate(
         self,
         candidate_id: str,
         review_note: str | None = None,
         *,
         domain_plugin_key: str | None = None,
+        expected_review_fingerprint: str | None = None,
     ) -> dict[str, Any]:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = self._candidate_row_tx(connection, candidate_id)
             if row["status"] != "draft":
                 raise DecisionAlreadyApplied(candidate_id)
+            self._check_review_content_tx(connection, row, expected_review_fingerprint)
             stored = candidate_from_row(row)
             self._require_domain_candidate_owner(stored, domain_plugin_key)
             payload = dict(stored["candidate"])
@@ -484,6 +503,7 @@ class CandidateRepository:
         domain_plugin_key: str | None = None,
         core_domain: str = "",
         core_claim_override: CoreEntityClaimOverride | None = None,
+        expected_review_fingerprint: str | None = None,
     ) -> PublishedEntity:
         try:
             return self._publish_entity(
@@ -494,6 +514,7 @@ class CandidateRepository:
                 domain_plugin_key=domain_plugin_key,
                 core_domain=core_domain,
                 core_claim_override=core_claim_override,
+                expected_review_fingerprint=expected_review_fingerprint,
             )
         except ClaimEvidenceValidationError as exc:
             self.core_repository.record_attention(
@@ -513,12 +534,14 @@ class CandidateRepository:
         domain_plugin_key: str | None = None,
         core_domain: str = "",
         core_claim_override: CoreEntityClaimOverride | None = None,
+        expected_review_fingerprint: str | None = None,
     ) -> PublishedEntity:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = self._candidate_row_tx(connection, candidate_id)
             if row["status"] != "draft":
                 raise DecisionAlreadyApplied(candidate_id)
+            self._check_review_content_tx(connection, row, expected_review_fingerprint)
             stored = candidate_from_row(row)
             if stored["kind"] != "entity":
                 raise ValueError("only entity candidates can be published as entities")
@@ -639,9 +662,13 @@ class CandidateRepository:
             )
         return entity
 
-    def publish_relation(self, candidate_id: str) -> PublishedRelation:
+    def publish_relation(
+        self, candidate_id: str, *, expected_review_fingerprint: str | None = None
+    ) -> PublishedRelation:
         try:
-            return self._publish_relation(candidate_id)
+            return self._publish_relation(
+                candidate_id, expected_review_fingerprint=expected_review_fingerprint
+            )
         except ClaimEvidenceValidationError as exc:
             self.core_repository.record_attention(
                 item_type="candidate_relation",
@@ -650,12 +677,15 @@ class CandidateRepository:
             )
             raise
 
-    def _publish_relation(self, candidate_id: str) -> PublishedRelation:
+    def _publish_relation(
+        self, candidate_id: str, *, expected_review_fingerprint: str | None = None
+    ) -> PublishedRelation:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = self._candidate_row_tx(connection, candidate_id)
             if row["status"] != "draft":
                 raise DecisionAlreadyApplied(candidate_id)
+            self._check_review_content_tx(connection, row, expected_review_fingerprint)
             stored = candidate_from_row(row)
             if stored["kind"] != "relation":
                 raise ValueError("only relation candidates can be published as relations")
