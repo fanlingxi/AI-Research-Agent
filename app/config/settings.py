@@ -25,6 +25,9 @@ class Settings(BaseSettings):
         "llm_input_cost_per_million",
         "llm_output_cost_per_million",
         "llm_reasoning_effort",
+        "prereview_second_base_url",
+        "prereview_second_model",
+        "prereview_second_api_key",
         mode="before",
     )
     @classmethod
@@ -65,6 +68,14 @@ class Settings(BaseSettings):
     knowledge_vault_path: str = "data/obsidian_vault_v2"
     # Unset = pypdf-v3. pypdf-v4 zoning is opt-in: it missed the D040 holdout gates.
     pdf_parser_version: Literal["pypdf-v3", "pypdf-v4"] | None = None
+    # Tiered AI pre-review (opt-in): a second, independent OpenAI-compatible reviewer
+    # (for example a local llama.cpp server). When base URL and model are both set, a
+    # candidate is decided automatically only if both reviewers agree, and a random
+    # share of agreed approvals is still held for a human spot check.
+    prereview_second_base_url: str | None = None
+    prereview_second_model: str | None = None
+    prereview_second_api_key: str | None = Field(default=None, repr=False)
+    prereview_spot_check_rate: float = Field(default=0.05, ge=0.0, le=1.0)
     pdf_download_allow_private_hosts: bool = False
     pdf_download_max_bytes: int = Field(default=100 * 1024 * 1024, ge=1)
     pdf_download_timeout_seconds: float = Field(default=120.0, gt=0)

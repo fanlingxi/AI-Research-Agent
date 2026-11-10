@@ -333,3 +333,70 @@ def test_review_invalidated_by_other_model_visible_entity_fields(tmp_path, field
     assert current["status"] == "draft"
     assert current["metadata"]["prereview"]["retry_required"] is True
     assert repository.list_published_entities() == []
+
+
+def _verdicts(verdict_for):
+    def reply(rows):
+        return json.dumps([
+            {"candidate_id": row["candidate_id"], "verdict": verdict_for(row), "reason": "理由"}
+            for row in rows
+        ], ensure_ascii=False)
+    return reply
+
+
+def test_tiered_prereview_decides_only_when_both_models_agree(tmp_path):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    service.llm = first = Judge(_verdicts(lambda row: "approve"))
+    # The second model rejects one entity the first approved and agrees on the rest.
+    second = Judge(_verdicts(
+        lambda row: "reject" if row.get("name") == "科研任务自动化" else "approve"
+    ))
+
+    result = CandidatePrereviewer(service, second_llm=second, spot_check_rate=0).run(
+        ingestion_id, limit=50
+    )
+
+    candidates = _by_name(repository, ingestion_id)
+    assert candidates["工具增强智能体"]["status"] == "published"
+    disputed = candidates["科研任务自动化"]
+    assert disputed["status"] == "draft"
+    review = disputed["metadata"]["prereview"]
+    assert review["verdict"] == "unsure" and "意见不一致" in review["reason"]
+    assert "批准" in review["reason"] and "驳回" in review["reason"]
+    assert review["model"] == "judge-test + judge-test"
+    assert result["disagreed"] == 1 and result["rejected"] == 0 and result["spot_check"] == 0
+    assert first.calls == second.calls and result["llm_calls"] == first.calls + second.calls
+
+
+def test_spot_checked_agreed_approvals_stay_drafts_for_a_human(tmp_path):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    service.llm = Judge(_verdicts(lambda row: "approve"))
+    second = Judge(_verdicts(lambda row: "approve"))
+
+    result = CandidatePrereviewer(service, second_llm=second, spot_check_rate=1.0).run(
+        ingestion_id, limit=50
+    )
+
+    drafts = repository.list_candidates(ingestion_id, status="draft")
+    entities = [item["candidate"] for item in drafts if item["kind"] == "entity"]
+    assert entities and result["approved"] == 0 and result["spot_check"] == len(entities)
+    assert not repository.list_candidates(ingestion_id, status="published")
+    for candidate in entities:
+        review = candidate["metadata"]["prereview"]
+        assert review["verdict"] == "approve" and review["spot_check"] is True
+        assert review["reason"].startswith("随机抽检")
+    # A rerun must not reroll held items out of the spot check.
+    again = CandidatePrereviewer(service, second_llm=second, spot_check_rate=1.0).run(ingestion_id)
+    assert again["items"] == [] and again["remaining"] == 0
+
+
+def test_spot_check_applies_only_with_a_second_model(tmp_path):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    service.llm = Judge()
+
+    result = CandidatePrereviewer(service, spot_check_rate=1.0).run(ingestion_id, limit=50)
+
+    assert result["spot_check"] == 0 and result["approved"] >= 1

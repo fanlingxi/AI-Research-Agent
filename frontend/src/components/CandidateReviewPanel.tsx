@@ -79,6 +79,7 @@ function CandidateCard({ record, onDecide, onSelect, pending, selected, titles }
           <p className="mt-1 text-[13.5px] leading-6 text-ink-soft">{candidate.summary}</p>
           {target ? <MergeSuggestions candidateId={candidate.id} candidateType={candidate.type} disabled={pending} onChange={setMergeTarget} suggestions={suggestions} value={target.entity_id} /> : null}
           {candidate.metadata?.prereview?.verdict === "unsure" ? <p className="mt-2 text-xs leading-5 text-muted-ink">AI 预审未能确定：{candidate.metadata.prereview.reason}</p> : null}
+          {candidate.metadata?.prereview?.spot_check ? <p className="mt-2 text-xs leading-5 text-muted-ink">{candidate.metadata.prereview.reason}</p> : null}
           {candidate.metadata?.evidence_located === false ? (
             <p className="mt-2.5 flex gap-1.5 rounded-md border border-amber-200 bg-warning-soft/60 px-2.5 py-1.5 text-xs leading-5 text-amber-950" role="note">
               <AlertTriangle className="mt-0.5 shrink-0" size={13} />
@@ -261,19 +262,19 @@ export function CandidateReviewPanel({ initialIngestionId, collectionSlug }: { i
   const [prereviewProgress, setPrereviewProgress] = useState<number | null>(null);
   const aiPrereview = useMutation({
     mutationFn: async () => {
-      const total = { approved: 0, merged: 0, rejected: 0, unsure: 0, llm_calls: 0 };
+      const total = { approved: 0, merged: 0, rejected: 0, unsure: 0, spot_check: 0, disagreed: 0, llm_calls: 0 };
       setPrereviewProgress(0);
       for (let round = 0; round < 50; round += 1) {
         const result = await api.aiPrereview(selectedId);
-        for (const key of Object.keys(total) as Array<keyof typeof total>) total[key] += result[key];
-        setPrereviewProgress(total.approved + total.merged + total.rejected + total.unsure);
+        for (const key of Object.keys(total) as Array<keyof typeof total>) total[key] += result[key] ?? 0;
+        setPrereviewProgress(total.approved + total.merged + total.rejected + total.unsure + total.spot_check);
         invalidate();
         if (!result.remaining || !result.items.length) break;
       }
       return total;
     },
     onSuccess: (total) => {
-      setReviewFeedback({ summary: `AI 预审完成：批准 ${total.approved} 条、合并到已有实体 ${total.merged} 条、驳回 ${total.rejected} 条，${total.unsure} 条拿不准留给你审核。每条决策的理由都记录在审核记录里。`, issues: [] });
+      setReviewFeedback({ summary: `AI 预审完成：批准 ${total.approved} 条、合并到已有实体 ${total.merged} 条、驳回 ${total.rejected} 条，${total.unsure} 条拿不准留给你审核${total.disagreed ? `（其中 ${total.disagreed} 条是两个模型意见不一致）` : ""}${total.spot_check ? `，另有 ${total.spot_check} 条两个模型都建议批准、随机抽出请你确认` : ""}。每条决策的理由都记录在审核记录里。`, issues: [] });
       invalidate();
     },
     onSettled: () => setPrereviewProgress(null),
