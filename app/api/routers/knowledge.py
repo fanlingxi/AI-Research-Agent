@@ -16,6 +16,7 @@ from app.knowledge.repository import KnowledgeRepository
 from app.knowledge.schemas import BulkCandidateDecision, CandidateDecision, CandidateStatus
 from app.knowledge.service import KnowledgeIngestionService
 from app.knowledge.source_versions import SourceVersionRepository
+from app.llms.provider import get_prereview_second_client
 
 
 def _require_ingestion(repository: KnowledgeRepository, ingestion_id: str):
@@ -241,7 +242,9 @@ def build_knowledge_router(
     ) -> dict[str, Any]:
         _require_ingestion(repository, ingestion_id)
         try:
-            return CandidatePrereviewer(service).run(
+            return CandidatePrereviewer(
+                service, second_llm=get_prereview_second_client(service.settings)
+            ).run(
                 ingestion_id, limit=int((payload or {}).get("limit", 30))
             )
         except LiveLLMRequiredError as exc:

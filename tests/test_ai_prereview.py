@@ -3,7 +3,15 @@ import json
 import pytest
 
 from app.knowledge.extractor import LiveLLMRequiredError
-from app.knowledge.prereview import CandidatePrereviewer
+from app.knowledge.prereview import (
+    CONTEXT_LIMIT,
+    PASSAGE_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+    CandidatePrereviewer,
+    build_review_row,
+    passage_context,
+)
+from app.knowledge.review_content import review_row
 from tests.test_knowledge_workflow import UnlocatedExtractor, _service
 
 
@@ -16,9 +24,11 @@ class Judge:
     def __init__(self, reply=None) -> None:
         self.calls = 0
         self.reply = reply
+        self.prompts = []
 
     def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
         self.calls += 1
+        self.prompts.append((prompt, system_prompt))
         rows = json.loads(prompt.split("\n", 1)[1])
         if self.reply is not None:
             return self.reply(rows)
@@ -57,7 +67,7 @@ def test_prereview_applies_verdicts_and_keeps_unresolved_relations_for_humans(tm
     ingestion_id = _ingest(service)
     service.llm = judge = Judge()
 
-    result = CandidatePrereviewer(service).run(ingestion_id, limit=50)
+    result = CandidatePrereviewer(service, auto_reject=True).run(ingestion_id, limit=50)
 
     candidates = _by_name(repository, ingestion_id)
     assert candidates["工具增强智能体"]["status"] == "published"
@@ -73,6 +83,70 @@ def test_prereview_applies_verdicts_and_keeps_unresolved_relations_for_humans(tm
     calls = judge.calls
     again = CandidatePrereviewer(service).run(ingestion_id)
     assert judge.calls == calls and again["items"] == [] and again["remaining"] == 0
+
+
+@pytest.mark.parametrize("tiered", [False, True])
+def test_rejection_is_a_suggestion_by_default_and_is_not_reviewed_again(
+    tmp_path, monkeypatch, tiered
+):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    service.llm = judge = Judge()
+    second = Judge() if tiered else None
+    decide = service.decide
+
+    def allow_only_approvals(candidate_id, decision, **kwargs):
+        assert decision.decision != "reject"
+        return decide(candidate_id, decision, **kwargs)
+
+    monkeypatch.setattr(service, "decide", allow_only_approvals)
+    assert service.settings.prereview_auto_reject is False
+    reviewer = CandidatePrereviewer(service, second_llm=second, spot_check_rate=0)
+    result = reviewer.run(ingestion_id, limit=50)
+
+    candidate = _by_name(repository, ingestion_id)["科研任务自动化"]
+    assert candidate["status"] == "draft"
+    review = candidate["metadata"]["prereview"]
+    assert review["verdict"] == "reject" and review["reason"] == "测试理由"
+    assert result["suggested_reject"] == 1 and result["rejected"] == 0
+    item = next(item for item in result["items"] if item["candidate_id"] == candidate["id"])
+    assert item["verdict"] == "suggested_reject" and item["reason"] == "测试理由"
+    assert repository.get_review_decision(candidate["id"]) is None
+
+    calls = judge.calls
+    second_calls = second.calls if second else 0
+    again = reviewer.run(ingestion_id)
+    assert judge.calls == calls and (second.calls if second else 0) == second_calls
+    assert again["items"] == [] and again["remaining"] == 0
+    assert again["suggested_reject"] == 0
+
+
+@pytest.mark.parametrize("tiered", [False, True])
+@pytest.mark.parametrize("setting,override,outcome", [
+    (True, None, "rejected"),
+    (True, False, "suggested_reject"),
+    (False, True, "rejected"),
+])
+def test_auto_reject_uses_settings_unless_explicitly_overridden(
+    tmp_path, tiered, setting, override, outcome
+):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    service.settings.prereview_auto_reject = setting
+    service.llm = Judge(_verdicts(lambda row: "reject"))
+    second = Judge(_verdicts(lambda row: "reject")) if tiered else None
+
+    result = CandidatePrereviewer(service, second_llm=second, auto_reject=override).run(
+        ingestion_id, limit=1,
+    )
+
+    assert result[outcome] == 1 and result["items"][0]["verdict"] == outcome
+    other = "suggested_reject" if outcome == "rejected" else "rejected"
+    assert result[other] == 0
+    candidate_id = result["items"][0]["candidate_id"]
+    candidate = repository.get_candidate(candidate_id)["candidate"]
+    assert candidate["status"] == ("rejected" if outcome == "rejected" else "draft")
+    assert candidate["metadata"]["prereview"]["verdict"] == "reject"
 
 
 def test_prereview_merges_into_exact_existing_entity(tmp_path):
@@ -177,7 +251,7 @@ def test_edited_candidate_stays_draft_and_can_be_reviewed_again(
         monkeypatch.setattr(service, "decide", edit_before_decision)
     service.llm = Judge(reply)
 
-    result = CandidatePrereviewer(service).run(ingestion_id, limit=1)
+    result = CandidatePrereviewer(service, auto_reject=True).run(ingestion_id, limit=1)
 
     assert seen[0]["summary"] == target["summary"]
     assert result["unsure"] == 1
@@ -333,3 +407,180 @@ def test_review_invalidated_by_other_model_visible_entity_fields(tmp_path, field
     assert current["status"] == "draft"
     assert current["metadata"]["prereview"]["retry_required"] is True
     assert repository.list_published_entities() == []
+
+
+def _verdicts(verdict_for):
+    def reply(rows):
+        return json.dumps([
+            {"candidate_id": row["candidate_id"], "verdict": verdict_for(row), "reason": "理由"}
+            for row in rows
+        ], ensure_ascii=False)
+    return reply
+
+
+def test_tiered_prereview_decides_only_when_both_models_agree(tmp_path):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    service.llm = first = Judge(_verdicts(lambda row: "approve"))
+    # The second model rejects one entity the first approved and agrees on the rest.
+    second = Judge(_verdicts(
+        lambda row: "reject" if row.get("name") == "科研任务自动化" else "approve"
+    ))
+
+    result = CandidatePrereviewer(service, second_llm=second, spot_check_rate=0).run(
+        ingestion_id, limit=50
+    )
+
+    candidates = _by_name(repository, ingestion_id)
+    assert candidates["工具增强智能体"]["status"] == "published"
+    disputed = candidates["科研任务自动化"]
+    assert disputed["status"] == "draft"
+    review = disputed["metadata"]["prereview"]
+    assert review["verdict"] == "unsure" and "意见不一致" in review["reason"]
+    assert "批准" in review["reason"] and "驳回" in review["reason"]
+    assert review["model"] == "judge-test + judge-test"
+    assert result["disagreed"] == 1 and result["rejected"] == 0 and result["spot_check"] == 0
+    assert first.calls == second.calls and result["llm_calls"] == first.calls + second.calls
+
+
+def test_spot_checked_agreed_approvals_stay_drafts_for_a_human(tmp_path):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    service.llm = Judge(_verdicts(lambda row: "approve"))
+    second = Judge(_verdicts(lambda row: "approve"))
+
+    result = CandidatePrereviewer(service, second_llm=second, spot_check_rate=1.0).run(
+        ingestion_id, limit=50
+    )
+
+    drafts = repository.list_candidates(ingestion_id, status="draft")
+    entities = [item["candidate"] for item in drafts if item["kind"] == "entity"]
+    assert entities and result["approved"] == 0 and result["spot_check"] == len(entities)
+    assert not repository.list_candidates(ingestion_id, status="published")
+    for candidate in entities:
+        review = candidate["metadata"]["prereview"]
+        assert review["verdict"] == "approve" and review["spot_check"] is True
+        assert review["reason"].startswith("随机抽检")
+    # A rerun must not reroll held items out of the spot check.
+    again = CandidatePrereviewer(service, second_llm=second, spot_check_rate=1.0).run(ingestion_id)
+    assert again["items"] == [] and again["remaining"] == 0
+
+
+def test_spot_check_applies_only_with_a_second_model(tmp_path):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    service.llm = Judge()
+
+    result = CandidatePrereviewer(service, spot_check_rate=1.0).run(ingestion_id, limit=50)
+
+    assert result["spot_check"] == 0 and result["approved"] >= 1
+
+
+def test_default_prereview_prompt_is_byte_identical(tmp_path):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    item = repository.list_candidates(ingestion_id, status="draft")[0]
+    expected = "请逐条审核以下候选（JSON）：\n" + json.dumps(
+        [review_row(item, {})], ensure_ascii=False,
+    )
+    service.llm = judge = Judge()
+
+    CandidatePrereviewer(service).run(ingestion_id, limit=1)
+
+    assert judge.prompts == [(expected, SYSTEM_PROMPT)]
+    assert "evidence_context" not in expected
+    metadata = repository.get_candidate(item["candidate"]["id"])["candidate"]["metadata"]
+    assert "context" not in metadata["prereview"]
+
+
+def test_passage_mode_from_settings_shares_context_between_reviewers(tmp_path):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    item = repository.list_candidates(ingestion_id, status="draft")[0]
+    service.settings.prereview_context_mode = "passage-v1"
+    service.llm = first = Judge()
+    second = Judge()
+
+    CandidatePrereviewer(service, second_llm=second, spot_check_rate=0).run(
+        ingestion_id, limit=1,
+    )
+
+    assert first.prompts == second.prompts
+    prompt, system = first.prompts[0]
+    assert system == PASSAGE_SYSTEM_PROMPT
+    row = json.loads(prompt.split("\n", 1)[1])[0]
+    assert row["evidence_quote"] in row["evidence_context"]
+    assert len(row["evidence_context"]) <= CONTEXT_LIMIT
+    metadata = repository.get_candidate(item["candidate"]["id"])["candidate"]["metadata"]
+    assert metadata["prereview"]["context"] == "passage-v1"
+
+
+@pytest.mark.parametrize("mismatch", ["quote", "paper", "chunk", "ingestion"])
+def test_passage_mode_omits_unverified_context(tmp_path, mismatch):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    item = repository.list_candidates(ingestion_id, status="draft")[0]
+    candidate = item["candidate"]
+    evidence = candidate["evidence"]
+    if mismatch == "ingestion":
+        # A valid chunk/paper pair from another ingestion is still out of scope.
+        other_ingestion = _ingest(service, "other.pdf")
+        other = repository.list_candidates(other_ingestion)[0]["candidate"]["evidence"]
+        evidence.update(paper_id=other["paper_id"], chunk_id=other["chunk_id"])
+    else:
+        key = {"quote": "quote", "paper": "paper_id", "chunk": "chunk_id"}[mismatch]
+        evidence[key] = "This quote or source does not exist in the original chunk."
+    with repository.database.connect() as connection:
+        connection.execute(
+            "UPDATE candidates SET payload_json = json_set(payload_json, '$.evidence', "
+            "json(?)) WHERE id = ?",
+            (json.dumps(evidence), candidate["id"]),
+        )
+    item = repository.get_candidate(candidate["id"])
+    service.llm = judge = Judge(_verdicts(lambda row: "unsure"))
+
+    CandidatePrereviewer(service, context_mode="passage-v1").run(ingestion_id, limit=1)
+
+    prompt, system = judge.prompts[0]
+    assert system == PASSAGE_SYSTEM_PROMPT
+    assert json.loads(prompt.split("\n", 1)[1]) == [review_row(item, {})]
+
+
+@pytest.mark.parametrize("prefix,suffix", [(0, 5000), (3000, 3000), (5000, 0)])
+def test_long_passage_window_contains_quote(prefix, suffix):
+    quote = "The method lets an agent use tools to plan and solve research tasks."
+    text = "前" * prefix + quote + "后" * suffix
+    context = passage_context(quote, text)
+    assert context is not None and quote in context
+    assert len(context) == CONTEXT_LIMIT
+
+
+def test_passage_anchor_only_tolerates_existing_layout_noise():
+    quote = "The retrieval method uses external tools."
+    text = "Before. The re-\ntrieval method uses external tools. After."
+    assert passage_context(quote, text) == text
+    assert passage_context("The method uses retrieval external tools.", text) is None
+    assert passage_context("The retrieval method ... external tools.", text) is None
+    assert passage_context("", text) is None
+    assert passage_context("tiny", "tiny") is None
+
+
+def test_passage_row_does_not_change_fingerprint_content():
+    item = {"kind": "entity", "candidate": {
+        "id": "test", "name": "方法", "type": "Method", "summary": "摘要",
+        "evidence": {"quote": "The method uses external tools."},
+    }}
+    original = review_row(item, {})
+    row = build_review_row(item, {}, context_mode="passage-v1", chunk_text="Other text.")
+    assert row == original
+    assert review_row(item, {}) == original
+
+
+def test_passage_checks_the_quote_beyond_the_display_limit():
+    quote = "The method uses external tools. " * 25
+    item = {"kind": "entity", "candidate": {
+        "id": "test", "name": "方法", "type": "Method", "summary": "摘要",
+        "evidence": {"quote": quote + "Invented ending."},
+    }}
+    row = build_review_row(item, {}, context_mode="passage-v1", chunk_text=quote)
+    assert "evidence_context" not in row

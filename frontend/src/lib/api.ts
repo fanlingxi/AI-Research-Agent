@@ -376,7 +376,7 @@ interface CandidateBase {
   evidence: CandidateEvidence;
   status: string;
   /** `evidence_located: false` means the model quote was not found; evidence is a chunk excerpt. */
-  metadata?: { evidence_located?: boolean; prereview?: { verdict: string; reason: string } } & Record<string, unknown>;
+  metadata?: { evidence_located?: boolean; prereview?: { verdict: string; reason: string; spot_check?: boolean } } & Record<string, unknown>;
 }
 
 export interface EntityCandidate extends CandidateBase {
@@ -472,7 +472,10 @@ export interface AiPrereviewResult {
   approved: number;
   merged: number;
   rejected: number;
+  suggested_reject?: number;
   unsure: number;
+  spot_check?: number;
+  disagreed?: number;
   remaining: number;
   llm_calls: number;
   items: Array<{ candidate_id: string; name: string; verdict: string; reason: string }>;

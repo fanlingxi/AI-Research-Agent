@@ -104,6 +104,23 @@ class LangChainChatClient(LLMClient):
         return str(response.content)
 
 
+def get_prereview_second_client(settings: Settings | None = None) -> LLMClient | None:
+    """The optional second pre-review model; None keeps single-model pre-review."""
+
+    settings = settings or get_settings()
+    if not settings.prereview_second_base_url or not settings.prereview_second_model:
+        return None
+    return LangChainChatClient(
+        provider_name="prereview-second",
+        model=settings.prereview_second_model,
+        # Local OpenAI-compatible servers accept any non-empty key.
+        api_key=settings.prereview_second_api_key or "not-needed",
+        base_url=settings.prereview_second_base_url,
+        temperature=0.0,
+        max_tokens=settings.llm_max_tokens,
+    )
+
+
 def get_llm_client(settings: Settings | None = None) -> LLMClient:
     """Create an LLM client from settings.
 
