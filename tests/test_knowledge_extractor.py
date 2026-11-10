@@ -154,3 +154,111 @@ def test_grounding_flags_unlocated_quote_instead_of_passing_it_off_as_source() -
     assert evidence.chunk_id == "c1"
     assert evidence.quote.startswith("实验表明")
     assert result.unlocated_evidence == {("c1", evidence.quote)}
+
+
+def _entity(name: str, chunk: DocumentChunk) -> dict:
+    return {"name": name, "type": "Method", "summary": f"{name} 是该论文正文中使用的一种方法。",
+            "aliases": [], "confidence": 0.8,
+            "evidence": {"paper_id": chunk.paper_id, "chunk_id": chunk.id, "page_start": 1,
+                         "page_end": 1, "quote": chunk.text}}
+
+
+class FullTextLLM:
+    """First call answers the sampled prompt; later calls answer one body batch each."""
+
+    provider_name = "openai"
+
+    def __init__(self, chunks: list[DocumentChunk], *, broken_batch: int | None = None) -> None:
+        self.chunks, self.broken_batch, self.prompts = chunks, broken_batch, []
+
+    def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
+        if "JSON 修复器" in (system_prompt or ""):
+            return "still not json"
+        self.prompts.append(prompt)
+        first = self.chunks[0]
+        if len(self.prompts) == 1:
+            return json.dumps({
+                "reading": {
+                    "research_problem": "研究检索增强生成如何减少大模型幻觉。",
+                    "core_contributions": ["比较检索增强与直接生成。"],
+                    "method_summary": "先检索相关段落，再基于段落生成回答。",
+                    "evidence": _entity("x", first)["evidence"],
+                },
+                "entities": [_entity("方法 0", first)], "relations": [],
+            }, ensure_ascii=False)
+        if self.broken_batch == len(self.prompts) - 1:
+            return "not json"
+        seen = [chunk for chunk in self.chunks if f"[chunk_id={chunk.id};" in prompt]
+        slim = {"chunk_id": seen[0].id, "quote": seen[0].text}  # no paper_id / pages
+        return json.dumps({
+            # "方法 0" repeats an entity from the first call and must not be duplicated.
+            "entities": [_entity("方法  0", seen[0]),
+                         {**_entity(f"方法 {seen[0].chunk_index}", seen[0]), "evidence": slim},
+                         {"name": "缺字段的条目", "type": "Method"}],
+            "relations": [{"source_name": f"方法 {seen[0].chunk_index}", "target_name": "方法 0",
+                           "type": "USES", "summary": "该方法在实验中使用了方法 0 作为组件。",
+                           "confidence": 0.7, "evidence": _entity("x", seen[0])["evidence"]}],
+        }, ensure_ascii=False)
+
+
+def _long_paper(count: int = 30) -> tuple[PaperMetadata, list[DocumentChunk]]:
+    paper = PaperMetadata(id="p", title="Long", source="pdf")
+    return paper, [
+        DocumentChunk(id=f"c{i}", paper_id="p", title="Long", chunk_index=i, token_count=900,
+                      text=f"第 {i} 段正文讨论了方法 {i} 的设计与实验结果。" + "补充说明。" * 180,
+                      source_tier="primary_fulltext", metadata={"page_start": 1, "page_end": 1})
+        for i in range(count)
+    ]
+
+
+def test_fulltext_mode_reads_every_chunk_within_the_call_budget_and_merges_by_name() -> None:
+    paper, chunks = _long_paper()
+    llm = FullTextLLM(chunks)
+
+    result = SchemaKnowledgeExtractor(llm, mode="fulltext-v1", max_calls=4).extract(paper, chunks)
+
+    assert len(llm.prompts) == 4
+    sampled = {chunk.id for chunk in _sample_chunks(chunks)}
+    for chunk in chunks:
+        shown = sum(f"[chunk_id={chunk.id};" in prompt for prompt in llm.prompts)
+        assert shown == 1, chunk.id
+        assert (f"[chunk_id={chunk.id};" in llm.prompts[0]) == (chunk.id in sampled)
+    names = [entity.name for entity in result.payload.entities]
+    assert len(names) == 4 and names.count("方法 0") == 1
+    assert len(result.payload.relations) == 3
+    assert "- 方法 0（Method）" in llm.prompts[1]
+    assert result.stats == {"mode": "fulltext-v1", "chunk_count": 30, "supplement_batches": 3,
+                            "failed_batches": 0, "dropped_items": 3, "uncovered_chunks": 0}
+    assert all(entity.evidence.paper_id == "p" for entity in result.payload.entities)
+    assert not result.unlocated_evidence
+
+
+def test_fulltext_mode_keeps_other_batches_when_one_batch_is_unusable() -> None:
+    paper, chunks = _long_paper()
+    llm = FullTextLLM(chunks, broken_batch=2)
+
+    result = SchemaKnowledgeExtractor(llm, mode="fulltext-v1", max_calls=4).extract(paper, chunks)
+
+    assert result.stats["failed_batches"] == 1
+    assert len(result.payload.entities) == 3
+
+
+def test_default_mode_still_makes_one_sampled_call() -> None:
+    paper, chunks = _long_paper()
+    llm = FullTextLLM(chunks)
+
+    result = SchemaKnowledgeExtractor(llm).extract(paper, chunks)
+
+    assert len(llm.prompts) == 1 and result.stats == {}
+
+
+def test_paper_longer_than_the_call_budget_gets_larger_batches_not_unread_chunks() -> None:
+    paper, chunks = _long_paper(60)
+    llm = FullTextLLM(chunks)
+
+    result = SchemaKnowledgeExtractor(llm, mode="fulltext-v1", max_calls=3).extract(paper, chunks)
+
+    assert len(llm.prompts) == 3
+    assert all(sum(f"[chunk_id={chunk.id};" in prompt for prompt in llm.prompts) == 1
+               for chunk in chunks)
+    assert result.stats["supplement_batches"] == 2 and result.stats["uncovered_chunks"] == 0
