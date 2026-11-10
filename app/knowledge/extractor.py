@@ -425,7 +425,8 @@ def _batches(chunks: list[DocumentChunk], limit: int) -> list[list[DocumentChunk
     if len(batches) <= limit:
         return batches
     bounds = [(index * len(chunks)) // limit for index in range(limit + 1)]
-    return [chunks[start:end] for start, end in zip(bounds, bounds[1:], strict=True) if start < end]
+    pairs = zip(bounds, bounds[1:], strict=False)
+    return [chunks[start:end] for start, end in pairs if start < end]
 
 
 def _name_key(value: str) -> str:

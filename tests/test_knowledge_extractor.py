@@ -250,3 +250,15 @@ def test_default_mode_still_makes_one_sampled_call() -> None:
     result = SchemaKnowledgeExtractor(llm).extract(paper, chunks)
 
     assert len(llm.prompts) == 1 and result.stats == {}
+
+
+def test_paper_longer_than_the_call_budget_gets_larger_batches_not_unread_chunks() -> None:
+    paper, chunks = _long_paper(60)
+    llm = FullTextLLM(chunks)
+
+    result = SchemaKnowledgeExtractor(llm, mode="fulltext-v1", max_calls=3).extract(paper, chunks)
+
+    assert len(llm.prompts) == 3
+    assert all(sum(f"[chunk_id={chunk.id};" in prompt for prompt in llm.prompts) == 1
+               for chunk in chunks)
+    assert result.stats["supplement_batches"] == 2 and result.stats["uncovered_chunks"] == 0
