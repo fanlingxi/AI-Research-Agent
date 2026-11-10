@@ -67,7 +67,7 @@ def test_prereview_applies_verdicts_and_keeps_unresolved_relations_for_humans(tm
     ingestion_id = _ingest(service)
     service.llm = judge = Judge()
 
-    result = CandidatePrereviewer(service).run(ingestion_id, limit=50)
+    result = CandidatePrereviewer(service, auto_reject=True).run(ingestion_id, limit=50)
 
     candidates = _by_name(repository, ingestion_id)
     assert candidates["工具增强智能体"]["status"] == "published"
@@ -83,6 +83,70 @@ def test_prereview_applies_verdicts_and_keeps_unresolved_relations_for_humans(tm
     calls = judge.calls
     again = CandidatePrereviewer(service).run(ingestion_id)
     assert judge.calls == calls and again["items"] == [] and again["remaining"] == 0
+
+
+@pytest.mark.parametrize("tiered", [False, True])
+def test_rejection_is_a_suggestion_by_default_and_is_not_reviewed_again(
+    tmp_path, monkeypatch, tiered
+):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    service.llm = judge = Judge()
+    second = Judge() if tiered else None
+    decide = service.decide
+
+    def allow_only_approvals(candidate_id, decision, **kwargs):
+        assert decision.decision != "reject"
+        return decide(candidate_id, decision, **kwargs)
+
+    monkeypatch.setattr(service, "decide", allow_only_approvals)
+    assert service.settings.prereview_auto_reject is False
+    reviewer = CandidatePrereviewer(service, second_llm=second, spot_check_rate=0)
+    result = reviewer.run(ingestion_id, limit=50)
+
+    candidate = _by_name(repository, ingestion_id)["科研任务自动化"]
+    assert candidate["status"] == "draft"
+    review = candidate["metadata"]["prereview"]
+    assert review["verdict"] == "reject" and review["reason"] == "测试理由"
+    assert result["suggested_reject"] == 1 and result["rejected"] == 0
+    item = next(item for item in result["items"] if item["candidate_id"] == candidate["id"])
+    assert item["verdict"] == "suggested_reject" and item["reason"] == "测试理由"
+    assert repository.get_review_decision(candidate["id"]) is None
+
+    calls = judge.calls
+    second_calls = second.calls if second else 0
+    again = reviewer.run(ingestion_id)
+    assert judge.calls == calls and (second.calls if second else 0) == second_calls
+    assert again["items"] == [] and again["remaining"] == 0
+    assert again["suggested_reject"] == 0
+
+
+@pytest.mark.parametrize("tiered", [False, True])
+@pytest.mark.parametrize("setting,override,outcome", [
+    (True, None, "rejected"),
+    (True, False, "suggested_reject"),
+    (False, True, "rejected"),
+])
+def test_auto_reject_uses_settings_unless_explicitly_overridden(
+    tmp_path, tiered, setting, override, outcome
+):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    service.settings.prereview_auto_reject = setting
+    service.llm = Judge(_verdicts(lambda row: "reject"))
+    second = Judge(_verdicts(lambda row: "reject")) if tiered else None
+
+    result = CandidatePrereviewer(service, second_llm=second, auto_reject=override).run(
+        ingestion_id, limit=1,
+    )
+
+    assert result[outcome] == 1 and result["items"][0]["verdict"] == outcome
+    other = "suggested_reject" if outcome == "rejected" else "rejected"
+    assert result[other] == 0
+    candidate_id = result["items"][0]["candidate_id"]
+    candidate = repository.get_candidate(candidate_id)["candidate"]
+    assert candidate["status"] == ("rejected" if outcome == "rejected" else "draft")
+    assert candidate["metadata"]["prereview"]["verdict"] == "reject"
 
 
 def test_prereview_merges_into_exact_existing_entity(tmp_path):
@@ -187,7 +251,7 @@ def test_edited_candidate_stays_draft_and_can_be_reviewed_again(
         monkeypatch.setattr(service, "decide", edit_before_decision)
     service.llm = Judge(reply)
 
-    result = CandidatePrereviewer(service).run(ingestion_id, limit=1)
+    result = CandidatePrereviewer(service, auto_reject=True).run(ingestion_id, limit=1)
 
     assert seen[0]["summary"] == target["summary"]
     assert result["unsure"] == 1
