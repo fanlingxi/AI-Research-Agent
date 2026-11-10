@@ -6,7 +6,12 @@ from dataclasses import dataclass, field
 
 from pydantic import ValidationError
 
-from app.knowledge.schemas import EvidenceSpan, KnowledgeExtraction
+from app.knowledge.schemas import (
+    EvidenceSpan,
+    ExtractedEntity,
+    ExtractedRelation,
+    KnowledgeExtraction,
+)
 from app.llms.provider import LLMClient, MockLLMClient
 from app.retrieval.anchors import locate_quote
 from app.schemas.documents import DocumentChunk, PaperMetadata
@@ -28,6 +33,31 @@ HAS_LIMITATION、SUPPORTS。
 evidence.quote 必须是该切片中连续出现的原文短句，且不要超过 280 个字符。不要编造实验结果。
 
 只返回符合用户给定 JSON schema 的对象，不要使用 Markdown 代码块。"""
+
+SUPPLEMENT_INSTRUCTION = """这是同一篇论文的后续正文。请只补充“已抽取实体”中没有的新实体，
+以及这些正文明确支持的新关系。关系的 source_name 与 target_name 必须逐字使用“已抽取实体”
+或本次新实体的 name；同一概念不要换名字重复抽取。
+这些正文没有新增内容时返回空数组。evidence 只能引用下面给出的 chunk_id。
+每一项的所有字段都必须填写，只返回以下 JSON 结构：
+{
+  "entities": [{
+    "name": "string", "type": "Concept|Method|Task|Dataset|Metric|Finding",
+    "summary": "string", "aliases": ["string"], "sense_qualifier": "string",
+    "paper_context": "string", "role": "string", "conditions": "string", "confidence": 0.0,
+    "evidence": {"chunk_id": "string", "quote": "string"}
+  }],
+  "relations": [{
+    "source_name": "string", "target_name": "string",
+    "type": "受控关系类型（见系统说明）",
+    "summary": "string", "confidence": 0.0,
+    "evidence": {"chunk_id": "string", "quote": "string"}
+  }]
+}"""
+
+SAMPLED_MODE = "sampled-v1"
+FULLTEXT_MODE = "fulltext-v1"
+_SAMPLE_CHARS = 1400
+_BATCH_CHARS = 10000
 
 REPAIR_SYSTEM_PROMPT = """你是 JSON 修复器。仅返回修正后的合法 JSON；保留有证据支撑的事实，
 删除无法满足 schema 或证据要求的项目。"""
@@ -57,13 +87,35 @@ class ExtractionResult:
     # (chunk_id, quote) pairs whose model quote could not be located in any supplied chunk;
     # their quote is a chunk excerpt the reviewer must check against the source.
     unlocated_evidence: set[tuple[str, str]] = field(default_factory=set)
+    # Empty for sampled-v1 so existing candidate metadata stays byte-identical.
+    stats: dict[str, int | str] = field(default_factory=dict)
+
+
+@dataclass
+class SupplementExtraction:
+    """Valid entities and relations from one later-body batch (no reading card)."""
+
+    entities: list[ExtractedEntity] = field(default_factory=list)
+    relations: list[ExtractedRelation] = field(default_factory=list)
+    dropped: int = 0
 
 
 class SchemaKnowledgeExtractor:
-    """LLM extraction with Pydantic validation, one repair attempt, and source grounding."""
+    """LLM extraction with Pydantic validation, one repair attempt, and source grounding.
 
-    def __init__(self, llm: LLMClient) -> None:
+    ``sampled-v1`` reads seven sampled chunks in one call.  ``fulltext-v1`` keeps that
+    call for the reading card, then reads every remaining chunk in at most
+    ``max_calls - 1`` further calls and merges the additions by name.
+    """
+
+    def __init__(self, llm: LLMClient, *, mode: str = SAMPLED_MODE, max_calls: int = 8) -> None:
+        if mode not in (SAMPLED_MODE, FULLTEXT_MODE):
+            raise ValueError(f"Unknown knowledge extraction mode: {mode}")
+        if max_calls < 1:
+            raise ValueError("max_calls must be positive")
         self.llm = llm
+        self.mode = mode
+        self.max_calls = max_calls
 
     def extract(
         self,
@@ -79,20 +131,96 @@ class SchemaKnowledgeExtractor:
             raise ValueError("论文没有可用于知识抽取的正文切片。")
 
         prompt = self._build_prompt(paper, chunks)
-        raw = self.llm.invoke(prompt, system_prompt=EXTRACTION_SYSTEM_PROMPT)
-        try:
-            payload = self._parse(raw)
-            used_repair = False
-        except (ValidationError, ValueError, json.JSONDecodeError) as exc:
-            repair_prompt = self._repair_prompt(raw, str(exc))
-            repaired = self.llm.invoke(repair_prompt, system_prompt=REPAIR_SYSTEM_PROMPT)
-            payload = self._parse(repaired)
-            used_repair = True
+        payload, used_repair = self._invoke(prompt, self._parse)
+        stats: dict[str, int | str] = {}
+        if self.mode == FULLTEXT_MODE:
+            payload, repaired, stats = self._supplement(paper, chunks, payload)
+            used_repair = used_repair or repaired
 
         unlocated: set[tuple[str, str]] = set()
         grounded = self._ground(payload, chunks, unlocated)
         return ExtractionResult(
-            payload=grounded, used_repair=used_repair, unlocated_evidence=unlocated
+            payload=grounded, used_repair=used_repair, unlocated_evidence=unlocated,
+            stats=stats,
+        )
+
+    def _invoke(self, prompt: str, parse):
+        """One model call plus at most one JSON repair call."""
+        raw = self.llm.invoke(prompt, system_prompt=EXTRACTION_SYSTEM_PROMPT)
+        try:
+            return parse(raw), False
+        except (ValidationError, ValueError, json.JSONDecodeError) as exc:
+            repair_prompt = self._repair_prompt(raw, str(exc))
+            repaired = self.llm.invoke(repair_prompt, system_prompt=REPAIR_SYSTEM_PROMPT)
+            return parse(repaired), True
+
+    def _supplement(
+        self, paper: PaperMetadata, chunks: list[DocumentChunk], payload: KnowledgeExtraction,
+    ) -> tuple[KnowledgeExtraction, bool, dict[str, int | str]]:
+        """Read the body the sampled call did not see and merge new items by name."""
+        sampled = {chunk.id for chunk in _sample_chunks(chunks)}
+        remaining = [
+            chunk for chunk in chunks
+            if chunk.id not in sampled or len(chunk.text) > _SAMPLE_CHARS
+        ]
+        batches = _batches(remaining, self.max_calls - 1)
+        entities = list(payload.entities)
+        relations = list(payload.relations)
+        names = {_name_key(entity.name) for entity in entities}
+        edges = {_edge_key(relation) for relation in relations}
+        used_repair = False
+        failed = dropped = 0
+        for batch in batches:
+            try:
+                extra, repaired = self._invoke(
+                    self._supplement_prompt(paper, batch, entities),
+                    lambda raw: self._parse_supplement(raw, paper),
+                )
+            except (ValidationError, ValueError, json.JSONDecodeError):
+                # One unusable batch must not discard the rest of the paper; the count is
+                # kept in the candidate metadata so the gap is visible to the reviewer.
+                failed += 1
+                continue
+            used_repair = used_repair or repaired
+            dropped += extra.dropped
+            for entity in extra.entities:
+                if _name_key(entity.name) not in names:
+                    names.add(_name_key(entity.name))
+                    entities.append(entity)
+            for relation in extra.relations:
+                if _edge_key(relation) not in edges:
+                    edges.add(_edge_key(relation))
+                    relations.append(relation)
+        stats: dict[str, int | str] = {
+            "mode": self.mode,
+            "chunk_count": len(chunks),
+            "supplement_batches": len(batches),
+            "failed_batches": failed,
+            "dropped_items": dropped,
+            "uncovered_chunks": 0 if batches else len(remaining),
+        }
+        # model_copy skips the per-call list bounds on purpose: they bound one response.
+        return (
+            payload.model_copy(update={"entities": entities, "relations": relations}),
+            used_repair,
+            stats,
+        )
+
+    def _supplement_prompt(
+        self, paper: PaperMetadata, batch: list[DocumentChunk], entities: list[ExtractedEntity],
+    ) -> str:
+        known = "\n".join(f"- {entity.name}（{entity.type}）" for entity in entities) or "（无）"
+        context = "\n\n".join(
+            f"[chunk_id={chunk.id}; page={chunk.metadata.get('page_start', 1)}]\n{chunk.text}"
+            for chunk in batch
+        )
+        return "\n\n".join(
+            [
+                f"论文标题：{paper.title}",
+                SUPPLEMENT_INSTRUCTION,
+                "已抽取实体：\n" + known,
+                "可用正文证据：\n" + context,
+            ]
         )
 
     def _build_prompt(self, paper: PaperMetadata, chunks: list[DocumentChunk]) -> str:
@@ -101,7 +229,7 @@ class SchemaKnowledgeExtractor:
             "\n".join(
                 [
                     f"[chunk_id={chunk.id}; page={chunk.metadata.get('page_start', 1)}]",
-                    chunk.text[:1400],
+                    chunk.text[:_SAMPLE_CHARS],
                 ]
             )
             for chunk in selected
@@ -151,15 +279,39 @@ class SchemaKnowledgeExtractor:
             ]
         )
 
+    def _parse_supplement(self, raw: str, paper: PaperMetadata) -> SupplementExtraction:
+        """Validate a batch item by item: one malformed item must not void its batch.
+
+        Only JSON that is not an object fails the batch (and earns the one repair call).
+        """
+        data = json.loads(_json_text(raw))
+        if not isinstance(data, dict):
+            raise ValueError("supplement response is not a JSON object")
+        result = SupplementExtraction()
+        for key, model, target, limit in (
+            ("entities", ExtractedEntity, result.entities, 20),
+            ("relations", ExtractedRelation, result.relations, 30),
+        ):
+            items = data.get(key) or []
+            if not isinstance(items, list):
+                raise ValueError(f"supplement {key} is not a JSON array")
+            result.dropped += max(0, len(items) - limit)
+            for item in items[:limit]:
+                try:
+                    evidence = item["evidence"]
+                    # Grounding always replaces paper and page from the located chunk,
+                    # so the model does not have to restate them here.
+                    item = {**item, "evidence": {
+                        "paper_id": paper.id, "page_start": 1, "page_end": 1,
+                        "chunk_id": evidence["chunk_id"], "quote": evidence["quote"],
+                    }}
+                    target.append(model.model_validate(item))
+                except (ValidationError, KeyError, TypeError):
+                    result.dropped += 1
+        return result
+
     def _parse(self, raw: str) -> KnowledgeExtraction:
-        cleaned = raw.strip()
-        if cleaned.startswith("```"):
-            cleaned = re.sub(r"^```(?:json)?", "", cleaned).strip()
-            cleaned = re.sub(r"```$", "", cleaned).strip()
-        match = re.search(r"\{.*\}", cleaned, flags=re.DOTALL)
-        if match:
-            cleaned = match.group(0)
-        return KnowledgeExtraction.model_validate_json(cleaned)
+        return KnowledgeExtraction.model_validate_json(_json_text(raw))
 
     def _ground(
         self,
@@ -243,6 +395,45 @@ def _sample_chunks(chunks: list[DocumentChunk], limit: int = 7) -> list[Document
         )
     selected_indexes.extend(range(len(chunks) - closing_count, len(chunks)))
     return [chunks[index] for index in dict.fromkeys(selected_indexes)]
+
+
+def _json_text(raw: str) -> str:
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?", "", cleaned).strip()
+        cleaned = re.sub(r"```$", "", cleaned).strip()
+    match = re.search(r"\{.*\}", cleaned, flags=re.DOTALL)
+    return match.group(0) if match else cleaned
+
+
+def _batches(chunks: list[DocumentChunk], limit: int) -> list[list[DocumentChunk]]:
+    """Contiguous batches of about ``_BATCH_CHARS``; never more than ``limit`` batches.
+
+    A paper too long for the call budget gets larger batches rather than unread chunks.
+    """
+
+    if not chunks or limit <= 0:
+        return []
+    batches: list[list[DocumentChunk]] = [[]]
+    size = 0
+    for chunk in chunks:
+        if batches[-1] and size + len(chunk.text) > _BATCH_CHARS:
+            batches.append([])
+            size = 0
+        batches[-1].append(chunk)
+        size += len(chunk.text)
+    if len(batches) <= limit:
+        return batches
+    bounds = [(index * len(chunks)) // limit for index in range(limit + 1)]
+    return [chunks[start:end] for start, end in zip(bounds, bounds[1:], strict=True) if start < end]
+
+
+def _name_key(value: str) -> str:
+    return re.sub(r"\s+", " ", value.strip()).casefold()
+
+
+def _edge_key(relation: ExtractedRelation) -> tuple[str, str, str]:
+    return (_name_key(relation.source_name), _name_key(relation.target_name), relation.type)
 
 
 def _meaningful_name(value: str) -> bool:

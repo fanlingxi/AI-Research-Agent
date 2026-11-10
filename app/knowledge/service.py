@@ -92,7 +92,11 @@ class KnowledgeIngestionService:
         self.repository = repository
         self.core_repository = repository.core_repository
         self.llm = llm or get_llm_client(self.settings)
-        self.extractor = extractor or SchemaKnowledgeExtractor(self.llm)
+        self.extractor = extractor or SchemaKnowledgeExtractor(
+            self.llm,
+            mode=self.settings.knowledge_extraction_mode,
+            max_calls=self.settings.knowledge_extraction_max_calls,
+        )
         self.parser = parser
         self.indexer = indexer or QdrantKnowledgeIndexer(self.settings)
         self.projector = projector or Neo4jKnowledgeProjector(self.settings)
@@ -784,6 +788,7 @@ class KnowledgeIngestionService:
                 "local_path": paper.metadata.get("local_path"),
                 "reading": reading.model_dump(),
                 "used_json_repair": result.used_repair,
+                **({"extraction": stats} if (stats := getattr(result, "stats", None)) else {}),
             }),
         )
         candidates.append(paper_candidate)

@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     knowledge_vault_path: str = "data/obsidian_vault_v2"
     # Unset = pypdf-v3. pypdf-v4 zoning is opt-in: it missed the D040 holdout gates.
     pdf_parser_version: Literal["pypdf-v3", "pypdf-v4"] | None = None
+    # sampled-v1 reads seven sampled chunks in one call; fulltext-v1 (opt-in) reads the
+    # whole paper in at most knowledge_extraction_max_calls calls (repairs not counted).
+    knowledge_extraction_mode: Literal["sampled-v1", "fulltext-v1"] = "sampled-v1"
+    knowledge_extraction_max_calls: int = Field(default=8, ge=1, le=40)
     pdf_download_allow_private_hosts: bool = False
     pdf_download_max_bytes: int = Field(default=100 * 1024 * 1024, ge=1)
     pdf_download_timeout_seconds: float = Field(default=120.0, gt=0)
