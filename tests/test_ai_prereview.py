@@ -3,7 +3,15 @@ import json
 import pytest
 
 from app.knowledge.extractor import LiveLLMRequiredError
-from app.knowledge.prereview import CandidatePrereviewer
+from app.knowledge.prereview import (
+    CONTEXT_LIMIT,
+    PASSAGE_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+    CandidatePrereviewer,
+    build_review_row,
+    passage_context,
+)
+from app.knowledge.review_content import review_row
 from tests.test_knowledge_workflow import UnlocatedExtractor, _service
 
 
@@ -16,9 +24,11 @@ class Judge:
     def __init__(self, reply=None) -> None:
         self.calls = 0
         self.reply = reply
+        self.prompts = []
 
     def invoke(self, prompt: str, system_prompt: str | None = None) -> str:
         self.calls += 1
+        self.prompts.append((prompt, system_prompt))
         rows = json.loads(prompt.split("\n", 1)[1])
         if self.reply is not None:
             return self.reply(rows)
@@ -400,3 +410,113 @@ def test_spot_check_applies_only_with_a_second_model(tmp_path):
     result = CandidatePrereviewer(service, spot_check_rate=1.0).run(ingestion_id, limit=50)
 
     assert result["spot_check"] == 0 and result["approved"] >= 1
+
+
+def test_default_prereview_prompt_is_byte_identical(tmp_path):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    item = repository.list_candidates(ingestion_id, status="draft")[0]
+    expected = "请逐条审核以下候选（JSON）：\n" + json.dumps(
+        [review_row(item, {})], ensure_ascii=False,
+    )
+    service.llm = judge = Judge()
+
+    CandidatePrereviewer(service).run(ingestion_id, limit=1)
+
+    assert judge.prompts == [(expected, SYSTEM_PROMPT)]
+    assert "evidence_context" not in expected
+    metadata = repository.get_candidate(item["candidate"]["id"])["candidate"]["metadata"]
+    assert "context" not in metadata["prereview"]
+
+
+def test_passage_mode_from_settings_shares_context_between_reviewers(tmp_path):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    item = repository.list_candidates(ingestion_id, status="draft")[0]
+    service.settings.prereview_context_mode = "passage-v1"
+    service.llm = first = Judge()
+    second = Judge()
+
+    CandidatePrereviewer(service, second_llm=second, spot_check_rate=0).run(
+        ingestion_id, limit=1,
+    )
+
+    assert first.prompts == second.prompts
+    prompt, system = first.prompts[0]
+    assert system == PASSAGE_SYSTEM_PROMPT
+    row = json.loads(prompt.split("\n", 1)[1])[0]
+    assert row["evidence_quote"] in row["evidence_context"]
+    assert len(row["evidence_context"]) <= CONTEXT_LIMIT
+    metadata = repository.get_candidate(item["candidate"]["id"])["candidate"]["metadata"]
+    assert metadata["prereview"]["context"] == "passage-v1"
+
+
+@pytest.mark.parametrize("mismatch", ["quote", "paper", "chunk", "ingestion"])
+def test_passage_mode_omits_unverified_context(tmp_path, mismatch):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    item = repository.list_candidates(ingestion_id, status="draft")[0]
+    candidate = item["candidate"]
+    evidence = candidate["evidence"]
+    if mismatch == "ingestion":
+        # A valid chunk/paper pair from another ingestion is still out of scope.
+        other_ingestion = _ingest(service, "other.pdf")
+        other = repository.list_candidates(other_ingestion)[0]["candidate"]["evidence"]
+        evidence.update(paper_id=other["paper_id"], chunk_id=other["chunk_id"])
+    else:
+        key = {"quote": "quote", "paper": "paper_id", "chunk": "chunk_id"}[mismatch]
+        evidence[key] = "This quote or source does not exist in the original chunk."
+    with repository.database.connect() as connection:
+        connection.execute(
+            "UPDATE candidates SET payload_json = json_set(payload_json, '$.evidence', "
+            "json(?)) WHERE id = ?",
+            (json.dumps(evidence), candidate["id"]),
+        )
+    item = repository.get_candidate(candidate["id"])
+    service.llm = judge = Judge(_verdicts(lambda row: "unsure"))
+
+    CandidatePrereviewer(service, context_mode="passage-v1").run(ingestion_id, limit=1)
+
+    prompt, system = judge.prompts[0]
+    assert system == PASSAGE_SYSTEM_PROMPT
+    assert json.loads(prompt.split("\n", 1)[1]) == [review_row(item, {})]
+
+
+@pytest.mark.parametrize("prefix,suffix", [(0, 5000), (3000, 3000), (5000, 0)])
+def test_long_passage_window_contains_quote(prefix, suffix):
+    quote = "The method lets an agent use tools to plan and solve research tasks."
+    text = "前" * prefix + quote + "后" * suffix
+    context = passage_context(quote, text)
+    assert context is not None and quote in context
+    assert len(context) == CONTEXT_LIMIT
+
+
+def test_passage_anchor_only_tolerates_existing_layout_noise():
+    quote = "The retrieval method uses external tools."
+    text = "Before. The re-\ntrieval method uses external tools. After."
+    assert passage_context(quote, text) == text
+    assert passage_context("The method uses retrieval external tools.", text) is None
+    assert passage_context("The retrieval method ... external tools.", text) is None
+    assert passage_context("", text) is None
+    assert passage_context("tiny", "tiny") is None
+
+
+def test_passage_row_does_not_change_fingerprint_content():
+    item = {"kind": "entity", "candidate": {
+        "id": "test", "name": "方法", "type": "Method", "summary": "摘要",
+        "evidence": {"quote": "The method uses external tools."},
+    }}
+    original = review_row(item, {})
+    row = build_review_row(item, {}, context_mode="passage-v1", chunk_text="Other text.")
+    assert row == original
+    assert review_row(item, {}) == original
+
+
+def test_passage_checks_the_quote_beyond_the_display_limit():
+    quote = "The method uses external tools. " * 25
+    item = {"kind": "entity", "candidate": {
+        "id": "test", "name": "方法", "type": "Method", "summary": "摘要",
+        "evidence": {"quote": quote + "Invented ending."},
+    }}
+    row = build_review_row(item, {}, context_mode="passage-v1", chunk_text=quote)
+    assert "evidence_context" not in row

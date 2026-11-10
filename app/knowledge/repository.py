@@ -426,6 +426,24 @@ class KnowledgeRepository:
             raise KeyError(ingestion_id)
         return self._ingestion_from_row(row)
 
+    def get_prereview_chunk_text(
+        self, chunk_id: str, *, paper_id: str, ingestion_id: str,
+    ) -> str | None:
+        """Read a draft evidence chunk only within its paper and ingestion scope."""
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT chunk.content
+                FROM chunks AS chunk
+                JOIN ingestion_documents AS membership
+                  ON membership.document_id = chunk.document_id
+                WHERE chunk.id = ? AND chunk.document_id = ?
+                  AND membership.ingestion_id = ?
+                """,
+                (chunk_id, paper_id, ingestion_id),
+            ).fetchone()
+        return str(row["content"]) if row is not None else None
+
     def require_evidence_for_ingestion(
         self, ingestion_id: str, evidence: EvidenceSpan
     ) -> None:
