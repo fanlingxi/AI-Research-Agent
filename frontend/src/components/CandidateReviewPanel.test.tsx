@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   api,
+  type AiPrereviewResult,
   type BulkCandidateDecisionResult,
   type CandidateDecisionResult,
   type DuplicateGroups,
@@ -281,15 +282,33 @@ describe("candidate merge review", () => {
     expect(notes[0].closest("article")).toHaveTextContent("未定位实体");
   });
 
+  it("shows AI rejection suggestions and leaves the decision to the reviewer", async () => {
+    vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage([ingestion]));
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "candidatePage").mockResolvedValue({ items: [{ kind: "entity", candidate: entity("suggested", "paper:a", { merge_suggestions: [], metadata: { prereview: { verdict: "reject", reason: "引文不支持主张" } } }) }], total: 1, offset: 0, limit: 25, next_offset: null });
+    vi.spyOn(api, "duplicateGroups").mockResolvedValue({ groups: [], candidate_count: 0 });
+    const decide = vi.spyOn(api, "decideCandidate").mockResolvedValue({} as CandidateDecisionResult);
+
+    renderPanel();
+
+    const note = await screen.findByText("AI 建议驳回：引文不支持主张");
+    const card = note.closest("article")!;
+    expect(within(card).getByRole("button", { name: "批准" })).toBeEnabled();
+    expect(decide).not.toHaveBeenCalled();
+    await userEvent.click(within(card).getByRole("button", { name: "驳回" }));
+    await waitFor(() => expect(decide).toHaveBeenCalledWith("suggested", "reject", undefined));
+  });
+
   it("runs AI pre-review in batches after confirmation and reports the outcome", async () => {
     vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage([ingestion]));
     vi.spyOn(api, "collections").mockResolvedValue([]);
     vi.spyOn(api, "candidatePage").mockResolvedValue({ items: [{ kind: "entity", candidate: entity("left", "paper:a", { merge_suggestions: [], metadata: { prereview: { verdict: "unsure", reason: "引文只提到名称" } } }) }], total: 1, offset: 0, limit: 25, next_offset: null });
     vi.spyOn(api, "duplicateGroups").mockResolvedValue({ groups: [], candidate_count: 0 });
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    let finishSecond!: (result: AiPrereviewResult) => void;
     const prereview = vi.spyOn(api, "aiPrereview")
-      .mockResolvedValueOnce({ approved: 3, merged: 1, rejected: 2, unsure: 1, remaining: 4, llm_calls: 1, items: [{ candidate_id: "a", name: "a", verdict: "approved", reason: "" }] })
-      .mockResolvedValueOnce({ approved: 1, merged: 0, rejected: 1, unsure: 2, remaining: 0, llm_calls: 1, items: [{ candidate_id: "b", name: "b", verdict: "rejected", reason: "" }] });
+      .mockResolvedValueOnce({ approved: 3, merged: 1, rejected: 2, suggested_reject: 2, unsure: 1, remaining: 4, llm_calls: 1, items: [{ candidate_id: "a", name: "a", verdict: "approved", reason: "" }] })
+      .mockReturnValueOnce(new Promise((resolve) => { finishSecond = resolve; }));
 
     renderPanel();
 
@@ -298,7 +317,9 @@ describe("candidate merge review", () => {
     await userEvent.click(screen.getByRole("button", { name: "AI 预审" }));
     expect(confirm).toHaveBeenCalled();
     await waitFor(() => expect(prereview).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText(/批准 4 条、合并到已有实体 1 条、驳回 3 条，3 条拿不准留给你审核/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "预审中…已处理 9 条" })).toBeDisabled();
+    finishSecond({ approved: 1, merged: 0, rejected: 1, suggested_reject: 1, unsure: 2, remaining: 0, llm_calls: 1, items: [{ candidate_id: "b", name: "b", verdict: "suggested_reject", reason: "" }] });
+    expect(await screen.findByText(/批准 4 条、合并到已有实体 1 条、驳回 3 条，3 条拿不准留给你审核，3 条 AI 建议驳回，留给你确认/)).toBeInTheDocument();
   });
 
   it("shows tiered pre-review disagreements and spot checks", async () => {
@@ -315,5 +336,6 @@ describe("candidate merge review", () => {
     await userEvent.click(screen.getByText("批量快捷处理"));
     await userEvent.click(screen.getByRole("button", { name: "AI 预审" }));
     expect(await screen.findByText(/3 条拿不准留给你审核（其中 2 条是两个模型意见不一致），另有 1 条两个模型都建议批准、随机抽出请你确认/)).toBeInTheDocument();
+    expect(screen.queryByText(/0 条 AI 建议驳回/)).not.toBeInTheDocument();
   });
 });

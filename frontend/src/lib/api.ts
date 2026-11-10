@@ -472,6 +472,7 @@ export interface AiPrereviewResult {
   approved: number;
   merged: number;
   rejected: number;
+  suggested_reject?: number;
   unsure: number;
   spot_check?: number;
   disagreed?: number;

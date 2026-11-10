@@ -2,13 +2,14 @@
 
 An independent model call judges each candidate; the platform applies the verdict
 through the normal review path. Only located evidence that directly supports the
-candidate can be approved; obvious noise is rejected; everything else stays for a
-human. Model calls never run inside a database transaction.
+candidate can be approved; rejection is a suggestion for a human by default, with
+automatic rejection available as an opt-in. Model calls never run inside a database
+transaction.
 
 With a second reviewer configured the review is tiered: deterministic gates first,
-then both models judge independently and a candidate is decided automatically only
-when they agree; disagreements go to a human, and a deterministic random share of
-agreed approvals is held back for a human spot check.
+then both models judge independently and automatic approval requires agreement;
+agreed rejections follow the same opt-in policy. Disagreements go to a human, and a
+deterministic random share of agreed approvals is held back for a human spot check.
 """
 
 from __future__ import annotations
@@ -119,12 +120,15 @@ def review_system_prompt(context_mode: str) -> str:
 class CandidatePrereviewer:
     def __init__(
         self, service, *, second_llm=None, spot_check_rate: float | None = None,
-        context_mode: str | None = None,
+        context_mode: str | None = None, auto_reject: bool | None = None,
     ) -> None:
         self.service = service
         self.repository = service.repository
         self.llm = service.llm
         self.second_llm = second_llm
+        self.auto_reject = (
+            service.settings.prereview_auto_reject if auto_reject is None else auto_reject
+        )
         self.context_mode = (
             service.settings.prereview_context_mode if context_mode is None else context_mode
         )
@@ -154,7 +158,8 @@ class CandidatePrereviewer:
             model = f"{model} + {_model_name(self.second_llm)}"
         result: dict[str, Any] = {
             "approved": 0, "merged": 0, "rejected": 0, "unsure": 0,
-            "spot_check": 0, "disagreed": 0, "llm_calls": 0, "items": [],
+            "suggested_reject": 0, "spot_check": 0, "disagreed": 0, "llm_calls": 0,
+            "items": [],
         }
         # Two phases: settle entities first so relations see their endpoints' outcome.
         for kind in ("entity", "relation"):
@@ -312,6 +317,8 @@ class CandidatePrereviewer:
                     "model": model, "at": datetime.now(UTC).isoformat(),
                     **self._context_metadata(),
                 })
+        elif verdict == "reject" and not self.auto_reject:
+            outcome = "suggested_reject"
         elif verdict == "reject":
             try:
                 self.service.decide(
