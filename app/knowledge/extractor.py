@@ -283,14 +283,16 @@ class SchemaKnowledgeExtractor:
         """Validate a batch item by item: one malformed item must not void its batch.
 
         Only JSON that is not an object fails the batch (and earns the one repair call).
+        The per-batch bounds are twice the first call's: on the D041 run dense 10k-character
+        batches returned up to 32 entities, and a bound of 20 silently cut 32 items.
         """
         data = json.loads(_json_text(raw))
         if not isinstance(data, dict):
             raise ValueError("supplement response is not a JSON object")
         result = SupplementExtraction()
         for key, model, target, limit in (
-            ("entities", ExtractedEntity, result.entities, 20),
-            ("relations", ExtractedRelation, result.relations, 30),
+            ("entities", ExtractedEntity, result.entities, 40),
+            ("relations", ExtractedRelation, result.relations, 60),
         ):
             items = data.get(key) or []
             if not isinstance(items, list):
