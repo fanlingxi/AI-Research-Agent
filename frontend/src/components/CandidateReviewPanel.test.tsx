@@ -300,4 +300,20 @@ describe("candidate merge review", () => {
     await waitFor(() => expect(prereview).toHaveBeenCalledTimes(2));
     expect(await screen.findByText(/批准 4 条、合并到已有实体 1 条、驳回 3 条，3 条拿不准留给你审核/)).toBeInTheDocument();
   });
+
+  it("shows tiered pre-review disagreements and spot checks", async () => {
+    vi.spyOn(api, "ingestionPage").mockResolvedValue(historyPage([ingestion]));
+    vi.spyOn(api, "collections").mockResolvedValue([]);
+    vi.spyOn(api, "candidatePage").mockResolvedValue({ items: [{ kind: "entity", candidate: entity("left", "paper:a", { merge_suggestions: [], metadata: { prereview: { verdict: "approve", spot_check: true, reason: "随机抽检：两个模型都建议批准，请人工确认。" } } }) }], total: 1, offset: 0, limit: 25, next_offset: null });
+    vi.spyOn(api, "duplicateGroups").mockResolvedValue({ groups: [], candidate_count: 0 });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(api, "aiPrereview").mockResolvedValueOnce({ approved: 5, merged: 0, rejected: 1, unsure: 3, spot_check: 1, disagreed: 2, remaining: 0, llm_calls: 2, items: [{ candidate_id: "a", name: "a", verdict: "approved", reason: "" }] });
+
+    renderPanel();
+
+    expect(await screen.findByText(/随机抽检：两个模型都建议批准，请人工确认/)).toBeInTheDocument();
+    await userEvent.click(screen.getByText("批量快捷处理"));
+    await userEvent.click(screen.getByRole("button", { name: "AI 预审" }));
+    expect(await screen.findByText(/3 条拿不准留给你审核（其中 2 条是两个模型意见不一致），另有 1 条两个模型都建议批准、随机抽出请你确认/)).toBeInTheDocument();
+  });
 });
