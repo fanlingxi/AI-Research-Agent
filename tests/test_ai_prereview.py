@@ -5,6 +5,7 @@ import pytest
 from app.knowledge.extractor import LiveLLMRequiredError
 from app.knowledge.prereview import (
     CONTEXT_LIMIT,
+    ENDPOINTS_BLOCKED_REASON,
     PASSAGE_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
     CandidatePrereviewer,
@@ -12,6 +13,7 @@ from app.knowledge.prereview import (
     passage_context,
 )
 from app.knowledge.review_content import review_row
+from app.knowledge.schemas import CandidateDecision
 from tests.test_knowledge_workflow import UnlocatedExtractor, _service
 
 
@@ -416,6 +418,156 @@ def _verdicts(verdict_for):
             for row in rows
         ], ensure_ascii=False)
     return reply
+
+
+@pytest.mark.parametrize("reviewer_mode", ["single", "first", "second"])
+@pytest.mark.parametrize("failure", ["exception", "empty", "partial"])
+def test_missing_results_retry_and_can_then_be_approved(tmp_path, reviewer_mode, failure):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+
+    def fail(rows):
+        if failure == "exception":
+            raise TimeoutError("模型调用超时")
+        if failure == "empty":
+            return "[]"
+        return _verdicts(lambda row: "approve")(rows[1:])
+
+    first = Judge(_verdicts(lambda row: "approve"))
+    second = Judge(_verdicts(lambda row: "approve")) if reviewer_mode != "single" else None
+    failing = second if reviewer_mode == "second" else first
+    failing.reply = fail
+    service.llm = first
+    reviewer = CandidatePrereviewer(service, second_llm=second, spot_check_rate=0)
+
+    result = reviewer.run(ingestion_id, limit=50)
+
+    retriable = [item["candidate"] for item in repository.list_candidates(ingestion_id)
+                 if item["candidate"]["metadata"].get("prereview", {}).get("attempts")]
+    assert retriable and result["remaining"] == len(retriable)
+    assert result["disagreed"] == 0
+    for candidate in retriable:
+        assert candidate["status"] == "draft"
+        record = candidate["metadata"]["prereview"]
+        assert record["verdict"] == "unsure" and record["attempts"] == 1
+        assert record["retry_required"] is True
+        assert record["reason"] == "预审未返回该条结果。"
+
+    failing.reply = _verdicts(lambda row: "approve")
+    recovered = reviewer.run(ingestion_id, limit=50)
+    assert recovered["approved"] >= len(retriable)
+    assert all(repository.get_candidate(candidate["id"])["candidate"]["status"] == "published"
+               for candidate in retriable)
+    # Previously blocked relations enter the next selection after entity approval.
+    if failure != "partial":
+        assert recovered["remaining"] == 1
+        recovered = reviewer.run(ingestion_id, limit=50)
+        assert recovered["approved"] == 1
+    assert recovered["remaining"] == 0
+    assert all(item["candidate"]["status"] == "published"
+               for item in repository.list_candidates(ingestion_id))
+
+
+@pytest.mark.parametrize("reviewer_mode", ["single", "first", "second"])
+def test_persistent_missing_results_stop_frontend_loop_after_one_extra_round(
+    tmp_path, reviewer_mode,
+):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    first = Judge(_verdicts(lambda row: "approve"))
+    second = Judge(_verdicts(lambda row: "approve")) if reviewer_mode != "single" else None
+    failing = second if reviewer_mode == "second" else first
+    failing.reply = lambda rows: "[]"
+    service.llm = first
+    reviewer = CandidatePrereviewer(service, second_llm=second, spot_check_rate=0)
+
+    rounds = []
+    # Match CandidateReviewPanel's stop conditions and maximum number of rounds.
+    for _ in range(50):
+        result = reviewer.run(ingestion_id)
+        rounds.append(result)
+        if not result["remaining"] or not result["items"]:
+            break
+
+    assert len(rounds) == 2 and rounds[0]["remaining"] > 0
+    assert rounds[-1]["remaining"] == 0
+    assert all(result["disagreed"] == 0 for result in rounds)
+    for item in repository.list_candidates(ingestion_id):
+        candidate = item["candidate"]
+        assert candidate["status"] == "draft"
+        record = candidate["metadata"]["prereview"]
+        if item["kind"] == "entity":
+            assert record["attempts"] == 2 and "retry_required" not in record
+            assert record["reason"] == "预审调用两次未返回结果，留给人工核对。"
+    calls = first.calls + (second.calls if second else 0)
+    again = reviewer.run(ingestion_id)
+    assert first.calls + (second.calls if second else 0) == calls
+    assert again["llm_calls"] == 0 and again["items"] == [] and again["remaining"] == 0
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+def test_blocked_relation_waits_without_rewrites_then_retries_when_endpoints_are_formal(
+    tmp_path, legacy,
+):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    service.llm = judge = Judge(_verdicts(lambda row: "unsure"))
+    reviewer = CandidatePrereviewer(service)
+    result = reviewer.run(ingestion_id, limit=50)
+    relation = next(item["candidate"] for item in repository.list_candidates(ingestion_id)
+                    if item["kind"] == "relation")
+    record = relation["metadata"]["prereview"]
+    assert record["blocked"] == "endpoints" and record["reason"] == ENDPOINTS_BLOCKED_REASON
+    assert "retry_required" not in record and result["remaining"] == 0
+    if legacy:
+        record.pop("blocked")
+        repository.set_prereview(relation["id"], record)
+
+    calls = judge.calls
+    for approve_one in (False, True):
+        if approve_one:
+            service.decide(relation["source_candidate_id"], CandidateDecision(decision="approve"))
+        again = reviewer.run(ingestion_id)
+        assert judge.calls == calls and again["llm_calls"] == 0
+        assert again["items"] == [] and again["remaining"] == 0
+        assert repository.get_candidate(relation["id"])["candidate"]["metadata"]["prereview"] == (
+            record
+        )
+
+    service.approve_ready(ingestion_id)
+    judge.reply = _verdicts(lambda row: "approve")
+    recovered = reviewer.run(ingestion_id)
+    assert recovered["approved"] == 1 and recovered["remaining"] == 0
+    assert judge.calls == calls + 1
+    current = repository.get_candidate(relation["id"])["candidate"]
+    assert current["status"] == "published" and "blocked" not in current["metadata"]["prereview"]
+
+
+def test_endpoint_recheck_before_approval_also_records_blocked(tmp_path, monkeypatch):
+    repository, service, _ = _service(tmp_path)
+    ingestion_id = _ingest(service)
+    service.approve_ready(ingestion_id)
+    service.llm = judge = Judge(_verdicts(lambda row: "approve"))
+    reviewer = CandidatePrereviewer(service)
+
+    def reply(rows):
+        # The gate passed, but the endpoints cease to be formal during the call.
+        monkeypatch.setattr(reviewer, "_endpoints_formal", lambda candidate: False)
+        return _verdicts(lambda row: "approve")(rows)
+
+    judge.reply = reply
+    result = reviewer.run(ingestion_id)
+    assert result["approved"] == 0 and result["unsure"] == 1 and result["remaining"] == 0
+    candidate_id = result["items"][0]["candidate_id"]
+    record = repository.get_candidate(candidate_id)["candidate"]["metadata"]["prereview"]
+    assert record["blocked"] == "endpoints" and record["reason"] == ENDPOINTS_BLOCKED_REASON
+    again = reviewer.run(ingestion_id)
+    assert again["items"] == [] and judge.calls == 1
+    assert repository.get_candidate(candidate_id)["candidate"]["metadata"]["prereview"] == record
+
+    monkeypatch.undo()
+    judge.reply = _verdicts(lambda row: "approve")
+    assert reviewer.run(ingestion_id)["approved"] == 1
 
 
 def test_tiered_prereview_decides_only_when_both_models_agree(tmp_path):
