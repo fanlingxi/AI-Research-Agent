@@ -5,6 +5,8 @@ through the normal review path. Only located evidence that directly supports the
 candidate can be approved; rejection is a suggestion for a human by default, with
 automatic rejection available as an opt-in. Model calls never run inside a database
 transaction.
+Missing model results are retried once; relations blocked on endpoints become
+pending again only after both endpoints are formal.
 
 With a second reviewer configured the review is tiered: deterministic gates first,
 then both models judge independently and automatic approval requires agreement;
@@ -77,6 +79,7 @@ HAS_LIMITATION=source 存在 target 局限；SUPPORTS=source 的证据支持 tar
 VERDICTS = {"approve", "reject", "unsure"}
 VERDICT_LABELS = {"approve": "批准", "reject": "驳回", "unsure": "拿不准"}
 SPOT_CHECK_REASON = "随机抽检：两个模型都建议批准，请人工确认。"
+ENDPOINTS_BLOCKED_REASON = "关系两端实体尚未通过审核。"
 
 
 def passage_context(quote: str, chunk_text: str) -> str | None:
@@ -143,7 +146,7 @@ class CandidatePrereviewer:
         self.service.ensure_execution_available()
         limit = max(1, min(int(limit), 60))
         drafts = self.repository.list_candidates(ingestion_id, status="draft")
-        pending = [item for item in drafts if not _prereview(item["candidate"])]
+        pending = [item for item in drafts if self._pending(item)]
         # Entities first: a relation can only be approved once both endpoints are formal.
         pending.sort(key=lambda item: item["kind"] != "entity")
         selected = pending[:limit]
@@ -173,7 +176,7 @@ class CandidatePrereviewer:
                         result, item, model, "unsure", "证据未在原文中定位，留给人工核对。"
                     )
                 elif kind == "relation" and not self._endpoints_formal(candidate):
-                    self._settle(result, item, model, "unsure", "关系两端实体尚未通过审核。")
+                    self._settle(result, item, model, "unsure", ENDPOINTS_BLOCKED_REASON)
                 else:
                     to_judge.append(item)
             for offset in range(0, len(to_judge), BATCH_SIZE):
@@ -191,10 +194,19 @@ class CandidatePrereviewer:
                     result["llm_calls"] += 1
                 for item in batch:
                     candidate_id = item["candidate"]["id"]
-                    missing = ("unsure", "预审未返回该条结果。")
-                    verdict, reason = verdicts.get(candidate_id, missing)
+                    missing = candidate_id not in verdicts or (
+                        second is not None and candidate_id not in second
+                    )
+                    if missing:
+                        self._settle(
+                            result, item, model, "unsure", "预审未返回该条结果。",
+                            expected_fingerprint=fingerprints[candidate_id],
+                            missing_result=True,
+                        )
+                        continue
+                    verdict, reason = verdicts[candidate_id]
                     if second is not None:
-                        other, other_reason = second.get(candidate_id, missing)
+                        other, other_reason = second[candidate_id]
                         if other != verdict:
                             result["disagreed"] += 1
                             reason = (
@@ -209,9 +221,20 @@ class CandidatePrereviewer:
         result["remaining"] = sum(
             1
             for item in self.repository.list_candidates(ingestion_id, status="draft")
-            if not _prereview(item["candidate"])
+            if self._pending(item)
         )
         return result
+
+    def _pending(self, item: dict[str, Any]) -> bool:
+        candidate = item["candidate"]
+        record = (candidate.get("metadata") or {}).get("prereview") or {}
+        blocked = record.get("blocked") == "endpoints" or (
+            "blocked" not in record and record.get("verdict") == "unsure"
+            and record.get("reason") == ENDPOINTS_BLOCKED_REASON
+        )
+        if item["kind"] == "relation" and blocked:
+            return self._endpoints_formal(candidate)
+        return not _prereview(candidate)
 
     # ------------------------------------------------------------------ model
     def _review_rows(
@@ -254,7 +277,7 @@ class CandidatePrereviewer:
     # ---------------------------------------------------------------- applying
     def _settle(
         self, result: dict[str, Any], item: dict[str, Any], model: str, verdict: str, reason: str,
-        *, expected_fingerprint: str | None = None,
+        *, expected_fingerprint: str | None = None, missing_result: bool = False,
     ) -> None:
         candidate_id = item["candidate"]["id"]
         stored = self.repository.get_candidate(candidate_id)
@@ -277,7 +300,12 @@ class CandidatePrereviewer:
         if verdict == "approve" and item["kind"] == "relation" and not self._endpoints_formal(
             current
         ):
-            verdict, reason = "unsure", "关系两端实体尚未通过审核。"
+            verdict, reason = "unsure", ENDPOINTS_BLOCKED_REASON
+        previous = (current.get("metadata") or {}).get("prereview") or {}
+        attempts = previous.get("attempts", 0) + int(missing_result)
+        retry_missing = missing_result and attempts < 2
+        if missing_result and not changed and not retry_missing:
+            reason = "预审调用两次未返回结果，留给人工核对。"
         spot_check = verdict == "approve" and _spot_checked(candidate_id, self.spot_check_rate)
         if spot_check:
             reason = f"{SPOT_CHECK_REASON}{reason}"[:240]
@@ -285,7 +313,9 @@ class CandidatePrereviewer:
             "verdict": verdict, "reason": reason, "model": model,
             "at": datetime.now(UTC).isoformat(),
             **self._context_metadata(),
-            **({"retry_required": True} if changed else {}),
+            **({"attempts": attempts} if attempts else {}),
+            **({"retry_required": True} if changed or retry_missing else {}),
+            **({"blocked": "endpoints"} if reason == ENDPOINTS_BLOCKED_REASON else {}),
             **({"spot_check": True} if spot_check else {}),
         })
         note = f"AI 预审（{model}）：{reason}"
